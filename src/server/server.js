@@ -5,6 +5,7 @@ import helmet from 'koa-helmet';
 import koa_logger from 'koa-logger';
 import requestTime from './requesttimings';
 import StatsLoggerClient from './utils/StatsLoggerClient';
+import { Currencies } from './utils/Currencies';
 import hardwareStats from './hardwarestats';
 import cluster from 'cluster';
 import os from 'os';
@@ -126,6 +127,14 @@ function convertEntriesToArrays(obj) {
         return result;
     }, {});
 }
+
+// Fetch cached currency data for homepage (if it fails, it will be `null`!)
+const currencies = new Currencies();
+app.use(function*(next) {
+    this.currencyData = yield currencies.get();
+    console.info('Currencies', this.currencyData);
+    yield next;
+});
 
 // some redirects and health status
 app.use(function*(next) {

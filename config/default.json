@@ -77,4 +77,14 @@
   "conveyor_posting_wif": false,
   "conveyor_username": false,
   "social_url": "https://steemit.com"
+  "coinmarketcap": {
+    "url": "https://pro-api.coinmarketcap.com",
+    "currency_path": "/v1/cryptocurrency/quotes/latest",
+    "token": "1572462e-4448-4901-8822-b8f4ef41d825"
+  },
+  "currency_cache": {
+    "ttl": 7200,
+    "key": "wallet:coins",
+    "currencies": ["STEEM", "SBD"]
+  }
 }
