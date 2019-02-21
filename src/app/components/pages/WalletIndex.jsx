@@ -30,7 +30,7 @@ class WalletIndex extends React.Component {
     }
 
     render() {
-        const { showLogin, loggedIn } = this.props;
+        const { showLogin, loggedIn, currencies } = this.props;
         if (loggedIn) {
             return null;
         }
@@ -113,6 +113,17 @@ class WalletIndex extends React.Component {
                         </div>
                     </div>
                 </div>
+                {currencies && (
+                    <div>
+                        <p>
+                            SBD {currencies.getIn(['SBD', 'quote']).toString()}
+                        </p>
+                        <p>
+                            STEEM{' '}
+                            {currencies.getIn(['STEEM', 'quote']).toString()}
+                        </p>
+                    </div>
+                )}
             </div>
         );
     }
@@ -125,10 +136,12 @@ module.exports = {
             const username = state.user.getIn(['current', 'username']);
             const loggedIn = !!username;
             const initialValues = {};
+            const currencies = state.app.get('currencies');
             return {
                 username,
                 initialValues,
                 loggedIn,
+                currencies,
             };
         },
         dispatch => {

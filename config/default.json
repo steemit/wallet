@@ -76,7 +76,7 @@
   "address_prefix": "STM",
   "conveyor_posting_wif": false,
   "conveyor_username": false,
-  "social_url": "https://steemit.com"
+  "social_url": "https://steemit.com",
   "coinmarketcap": {
     "url": "https://pro-api.coinmarketcap.com",
     "currency_path": "/v1/cryptocurrency/quotes/latest",
