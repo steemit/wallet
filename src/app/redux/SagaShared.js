@@ -1,7 +1,7 @@
 import { fromJS } from 'immutable';
 import { call, put, select, takeEvery, takeLatest } from 'redux-saga/effects';
 import tt from 'counterpart';
-import { api } from '@steemit/steem-js';
+import { api } from '@blocktradesdev/steem-js';
 import * as globalActions from './GlobalReducer';
 import * as appActions from './AppReducer';
 import * as transactionActions from './TransactionReducer';
@@ -65,6 +65,66 @@ function* showTransactionErrorNotification() {
             yield put(appActions.addNotification({ key, message }));
             yield put(transactionActions.deleteError({ key }));
         }
+    }
+}
+
+export function* listProposals({
+    start,
+    order_by,
+    order_direction,
+    limit,
+    status,
+    last_id,
+    resolve,
+    reject,
+}) {
+    let proposals;
+    while (!proposals) {
+        proposals = yield call(
+            [api, api.listProposalsAsync],
+            start,
+            order_by,
+            order_direction,
+            limit,
+            status,
+            last_id
+        );
+    }
+
+    yield put(globalActions.receiveListProposals({ proposals }));
+    if (resolve && proposals) {
+        resolve(proposals);
+    } else if (reject && !proposals) {
+        reject();
+    }
+}
+
+export function* listVoterProposals({
+    start,
+    order_by,
+    order_direction,
+    limit,
+    status,
+    resolve,
+    reject,
+}) {
+    let voterProposals;
+    while (!voterProposals) {
+        voterProposals = yield call(
+            [api, api.listVoterProposalsAsync],
+            start,
+            order_by,
+            order_direction,
+            limit,
+            status
+        );
+    }
+
+    yield put(globalActions.receiveListVoterProposals({ voterProposals }));
+    if (resolve && voterProposals) {
+        resolve(voterProposals);
+    } else if (reject && !voterProposals) {
+        reject();
     }
 }
 
