@@ -79,7 +79,7 @@ class SteemProposalSystem extends React.Component {
     }
 
     componentWillMount() {
-        this.onFilterListProposals('all');
+        this.onFilterListProposals(this.state.status);
         if (this.props.currentUser) {
             this.getVoterProposals(this.props.currentUser);
         }
