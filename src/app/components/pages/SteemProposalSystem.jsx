@@ -93,6 +93,10 @@ class SteemProposalSystem extends React.Component {
         }
     }
 
+    constructPermlink(creator, permlink) {
+        return `/@${creator}/${permlink}`;
+    }
+
     getVoterProposals(user) {
         this.props.listVoterProposals({
             start: user,
@@ -216,7 +220,10 @@ class SteemProposalSystem extends React.Component {
 
                 return [
                     <a
-                        href={value}
+                        href={this.constructPermlink(
+                            proposal.get('creator'),
+                            value
+                        )}
                         target="__blank"
                         key={`proposal-extlink-${value}`}
                         title="Perm link"
