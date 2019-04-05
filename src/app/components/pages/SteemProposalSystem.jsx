@@ -93,7 +93,7 @@ class SteemProposalSystem extends React.Component {
         }
     }
 
-    constructPermlink(creator, permlink) {
+    getSpsUrl(creator, permlink) {
         const { social_url } = global.$STM_Config;
         return `${social_url || ''}/@${creator}/${permlink}`;
     }
@@ -221,10 +221,7 @@ class SteemProposalSystem extends React.Component {
 
                 return [
                     <a
-                        href={this.constructPermlink(
-                            proposal.get('creator'),
-                            value
-                        )}
+                        href={this.getSpsUrl(proposal.get('creator'), value)}
                         target="__blank"
                         key={`proposal-extlink-${value}`}
                         title="Perm link"
