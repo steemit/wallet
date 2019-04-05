@@ -233,6 +233,7 @@ class SteemProposalSystem extends React.Component {
                     </a>,
                     (status === 'active' || status === 'inactive') && (
                         <a
+                            key={`proposal-vote-icon-${proposal.get('id')}`}
                             href="javascript:void(0)"
                             onClick={() =>
                                 this.onUpdateProposalVotes(proposal, isVoted)
@@ -263,13 +264,12 @@ class SteemProposalSystem extends React.Component {
                     ),
                     isOwner && (
                         <a
+                            key={`remove-icon-${value}`}
                             href="javascript:void(0)"
                             onClick={() => this.onRemoveProposal(proposal)}
                             className="proposal-remove"
                         >
-                            <span key={`remove-icon-${value}`} title="Remove">
-                                &#x2716;
-                            </span>
+                            <span title="Remove">&#x2716;</span>
                         </a>
                     ),
                 ];
