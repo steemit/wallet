@@ -94,7 +94,8 @@ class SteemProposalSystem extends React.Component {
     }
 
     constructPermlink(creator, permlink) {
-        return `/@${creator}/${permlink}`;
+        const { social_url } = global.$STM_Config;
+        return `${social_url || ''}/@${creator}/${permlink}`;
     }
 
     getVoterProposals(user) {
