@@ -233,30 +233,28 @@ class SteemProposalSystem extends React.Component {
                             key={`proposal-vote-icon-${proposal.get('id')}`}
                             href="javascript:void(0)"
                             onClick={() =>
+                                !isVotingInProgress &&
                                 this.onUpdateProposalVotes(proposal, isVoted)
                             }
                         >
-                            {
+                            {isVotingInProgress ? (
+                                <span className="Voting__button Voting__button-up votingUp">
+                                    <Icon name="empty" className="upvote" />
+                                </span>
+                            ) : (
                                 <span
                                     className={`Voting__button Voting__button-up ${
-                                        isVotingInProgress
-                                            ? 'votingUp'
-                                            : isVoted
-                                              ? 'Voting__button--upvoted'
-                                              : ''
+                                        !isVoted
+                                            ? ''
+                                            : 'Voting__button--upvoted'
                                     }`}
                                 >
                                     <Icon
-                                        name={`${
-                                            isVotingInProgress
-                                                ? 'empty'
-                                                : 'chevron-up-circle'
-                                        }`}
+                                        name="chevron-up-circle"
                                         className="upvote"
-                                        key={`vote-icon-${value}`}
                                     />
                                 </span>
-                            }
+                            )}
                         </a>
                     ),
                     isOwner && (
