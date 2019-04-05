@@ -114,7 +114,7 @@ class SteemProposalSystem extends React.Component {
         last_id,
         order_by = 'by_total_votes',
         order_direction = 'direction_descending',
-        start = '0'
+        start = ''
     ) {
         this.props.listProposals({
             start,
