@@ -101,8 +101,8 @@ class SteemProposalSystem extends React.Component {
     getVoterProposals(user) {
         this.props.listVoterProposals({
             start: user,
-            order_by: 'by_total_votes',
-            order_direction: 'direction_descending',
+            order_by: 'by_creator',
+            order_direction: 'direction_ascending',
             limit: 1000,
             status: 'all',
         });
@@ -114,7 +114,7 @@ class SteemProposalSystem extends React.Component {
         last_id,
         order_by = 'by_total_votes',
         order_direction = 'direction_descending',
-        start = ''
+        start = '0'
     ) {
         this.props.listProposals({
             start,
@@ -218,13 +218,13 @@ class SteemProposalSystem extends React.Component {
             case 'permlink':
                 const isVotingInProgress =
                     this.props.votesInProgress.indexOf(proposal.get('id')) > -1;
-
+                const spsUrl = this.getSpsUrl(proposal.get('creator'), value);
                 return [
                     <a
-                        href={this.getSpsUrl(proposal.get('creator'), value)}
+                        href={spsUrl}
                         target="__blank"
                         key={`proposal-extlink-${value}`}
-                        title="Perm link"
+                        title={spsUrl}
                     >
                         <Icon name="extlink" className="proposal-extlink" />
                     </a>,
@@ -458,6 +458,15 @@ module.exports = {
                                     limit: 11,
                                     status: 'all',
                                     last_id: null,
+                                })
+                            );
+                            dispatch(
+                                fetchDataSagaActions.listVoterProposals({
+                                    start: proposal_owner,
+                                    order_by: 'by_creator',
+                                    order_direction: 'direction_ascending',
+                                    limit: 1000,
+                                    status: 'all',
                                 })
                             );
                         },
