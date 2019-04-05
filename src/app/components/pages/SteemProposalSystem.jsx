@@ -406,7 +406,7 @@ module.exports = {
             const last_id =
                 (proposals.size && proposals.get(last).get('id')) || null;
             const newProposals =
-                proposals.size > 10 ? proposals.delete(last) : proposals;
+                proposals.size >= 10 ? proposals.delete(last) : proposals;
             const voterProposals = state.global.get('voterProposals', List());
             const votesInProgress = state.global.get(
                 `transaction_proposal_vote_active_${currentUser}`,
