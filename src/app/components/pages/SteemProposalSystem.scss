@@ -2,19 +2,25 @@
     table {
         tr:nth-child(4n),
         tr:nth-child(4n-1) {
-            background-color: #f4f4f4;
+            // background-color: #f4f4f4;
+            @include themify($themes) {
+                background-color: themed('backgroundColorOpaque');
+                color: themed('textColorPrimary');
+            }
         }
         tr:nth-child(4n -2),
         tr:nth-child(4n-3) {
-            background-color: white;
+            @include themify($themes) {
+                background-color: themed('tableRowEvenBackgroundColor');
+            }
         }
 
-         td.permlink-column {
+        td.permlink-column {
             display: flex;
             justify-content: space-around;
             align-items: center;
 
-             a {
+            a {
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -25,18 +31,18 @@
             }
         }
 
-         td.subject-column,
+        td.subject-column,
         td.subject-table-header {
             display: none;
         }
 
-         tr.proposal-subject-row {
+        tr.proposal-subject-row {
             td {
                 text-align: center;
             }
         }
 
-         tbody {
+        tbody {
             td.id-column,
             td.daily_pay-column,
             td.total_votes-column {
@@ -44,13 +50,13 @@
             }
         }
 
-         .proposals-filter-header {
+        .proposals-filter-header {
             .proposals-filter-wrapper {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
 
-                 .dropdowns {
+                .dropdowns {
                     li {
                         span {
                             padding: 0.4rem;
@@ -58,7 +64,7 @@
                             text-align: left;
                             padding-left: 16px;
 
-                             &:hover {
+                            &:hover {
                                 cursor: pointer;
                                 color: $color-teal;
                             }
@@ -66,7 +72,7 @@
                     }
                 }
 
-                 .pagination {
+                .pagination {
                     display: flex;
                     align-items: center;
                     margin-bottom: 0;
@@ -74,14 +80,14 @@
             }
         }
 
-         .proposal-remove {
+        .proposal-remove {
             span {
                 color: red;
                 font-size: 1.25em;
             }
         }
 
-         @media only screen and (min-width: 768px) {
+        @media only screen and (min-width: 768px) {
             td.start_date-column,
             td.end_date-column {
                 width: 22ch;
@@ -98,29 +104,29 @@
                 display: none;
             }
 
-             tr {
+            tr {
                 margin-bottom: 10px;
                 display: block;
             }
 
-             tr.proposals-filter-header {
+            tr.proposals-filter-header {
                 margin-bottom: 2px;
             }
 
-             tr.proposal-subject-row {
+            tr.proposal-subject-row {
                 display: none;
             }
 
-             tr:nth-child(4n),
+            tr:nth-child(4n),
             tr:nth-child(4n-1) {
                 background-color: transparent;
             }
 
-             td.subject-column {
+            td.subject-column {
                 display: block;
             }
 
-             td.permlink-column {
+            td.permlink-column {
                 display: flex;
                 justify-content: flex-end;
                 align-items: center;
@@ -130,12 +136,12 @@
                 }
             }
 
-             td {
+            td {
                 display: block;
                 text-align: right;
             }
 
-             td::before {
+            td::before {
                 content: attr(data-label);
                 float: left;
                 font-weight: bold;
