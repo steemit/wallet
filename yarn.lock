@@ -10,10 +10,10 @@
     esutils "^2.0.2"
     js-tokens "^3.0.0"
 
-"@blocktradesdev/steem-js@^0.7.5":
-  version "0.7.5"
-  resolved "https://registry.yarnpkg.com/@blocktradesdev/steem-js/-/steem-js-0.7.5.tgz#56ed2a5234f24b86d4b920c937c0107492a8c63c"
-  integrity sha512-HW9/W8a/RPWGDdlRXcPb1KHCaCeDIjXXHrgNl+T+eus8qlluHcIiHk44dlDbL+9/LxtDCerSceGVD/J6UNsxXA==
+"@blocktradesdev/steem-js@0.7.7":
+  version "0.7.7"
+  resolved "https://registry.yarnpkg.com/@blocktradesdev/steem-js/-/steem-js-0.7.7.tgz#83bde7b5f446c36f009c250d946b345f66067eef"
+  integrity sha512-fWDjjEbut3x0TH2CdGSfVwTDEhLravrsl4RI2q6oVv2HsBqwXczO4Jl5QJmky7wXKGY9rRpMKhXMtVNE9dQ7WA==
   dependencies:
     "@steemit/rpc-auth" "^1.1.1"
     bigi "^1.4.2"

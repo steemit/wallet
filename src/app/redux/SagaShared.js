@@ -108,16 +108,38 @@ export function* listVoterProposals({
     resolve,
     reject,
 }) {
-    let voterProposals;
-    while (!voterProposals) {
-        voterProposals = yield call(
+    let voterProposals = { [start]: [] };
+    let last_id = null;
+    let isLast = false;
+
+    while (!isLast) {
+        const data = yield call(
             [api, api.listVoterProposalsAsync],
             start,
             order_by,
             order_direction,
             limit,
-            status
+            status,
+            last_id
         );
+
+        if (data) {
+            if (!data.hasOwnProperty(start)) {
+                isLast = true;
+            } else {
+                let proposals = [];
+
+                if (data[start].length < limit) {
+                    proposals = [...voterProposals[start], ...data[start]];
+                    isLast = true;
+                } else {
+                    last_id = data[start][data[start].length - 1]['id'];
+                    proposals = [...voterProposals[start], ...data[start]];
+                }
+
+                voterProposals = { [start]: proposals };
+            }
+        }
     }
 
     yield put(globalActions.receiveListVoterProposals({ voterProposals }));
