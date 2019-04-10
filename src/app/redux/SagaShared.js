@@ -133,8 +133,10 @@ export function* listVoterProposals({
                     proposals = [...voterProposals[start], ...data[start]];
                     isLast = true;
                 } else {
-                    last_id = data[start][data[start].length - 1]['id'];
-                    proposals = [...voterProposals[start], ...data[start]];
+                    const nextProposals = [...data[start]];
+                    last_id = nextProposals[nextProposals.length - 1]['id'];
+                    nextProposals.splice(-1, 1);
+                    proposals = [...voterProposals[start], ...nextProposals];
                 }
 
                 voterProposals = { [start]: proposals };
@@ -143,7 +145,7 @@ export function* listVoterProposals({
     }
 
     yield put(globalActions.receiveListVoterProposals({ voterProposals }));
-    if (resolve && voterProposals) {
+    if (resolve && voterProposals[start].length > 0) {
         resolve(voterProposals);
     } else if (reject && !voterProposals) {
         reject();

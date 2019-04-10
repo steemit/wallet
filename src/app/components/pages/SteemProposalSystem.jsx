@@ -104,7 +104,7 @@ class SteemProposalSystem extends React.Component {
             order_by: 'by_creator',
             order_direction: 'direction_ascending',
             limit: 1000,
-            status: 'all',
+            status: 'votable',
         });
     }
 
@@ -431,10 +431,10 @@ module.exports = {
                             dispatch(
                                 fetchDataSagaActions.listVoterProposals({
                                     start: voter,
-                                    order_by: 'by_total_votes',
-                                    order_direction: 'direction_descending',
+                                    order_by: 'by_creator',
+                                    order_direction: 'direction_ascending',
                                     limit: 1000,
-                                    status: 'all',
+                                    status: 'votable',
                                 })
                             );
                         },
@@ -466,7 +466,7 @@ module.exports = {
                                     order_by: 'by_creator',
                                     order_direction: 'direction_ascending',
                                     limit: 1000,
-                                    status: 'all',
+                                    status: 'votable',
                                 })
                             );
                         },
