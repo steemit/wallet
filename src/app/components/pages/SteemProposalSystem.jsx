@@ -426,18 +426,6 @@ module.exports = {
                     transactionActions.broadcastOperation({
                         type: 'update_proposal_votes',
                         operation: { voter, proposal_ids, approve },
-                        confirm: null,
-                        successCallback: () => {
-                            dispatch(
-                                fetchDataSagaActions.listVoterProposals({
-                                    start: voter,
-                                    order_by: 'by_creator',
-                                    order_direction: 'direction_ascending',
-                                    limit: 1000,
-                                    status: 'votable',
-                                })
-                            );
-                        },
                     })
                 );
             },

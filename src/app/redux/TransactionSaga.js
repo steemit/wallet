@@ -7,7 +7,7 @@ import secureRandom from 'secure-random';
 import { PrivateKey, PublicKey } from '@blocktradesdev/steem-js/lib/auth/ecc';
 import { api, broadcast, auth, memo } from '@blocktradesdev/steem-js';
 
-import { getAccount } from 'app/redux/SagaShared';
+import { getAccount, listVoterProposals } from 'app/redux/SagaShared';
 import { findSigningKey } from 'app/redux/AuthSaga';
 import * as appActions from 'app/redux/AppReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
@@ -366,6 +366,14 @@ function* accepted_account_witness_vote({
 function* accepted_update_proposal_votes({
     operation: { voter, proposal_ids },
 }) {
+    yield call(listVoterProposals, {
+        start: voter,
+        order_by: 'by_creator',
+        order_direction: 'direction_ascending',
+        limit: 1000,
+        status: 'votable',
+    });
+
     yield put(
         globalActions.removeActiveProposalVote({
             voter,
