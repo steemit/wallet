@@ -391,14 +391,14 @@ module.exports = {
         state => {
             const user = state.user.get('current');
             const currentUser = user && user.get('username');
-            const proposals = state.global.get('proposals', List());
+            const proposals = state.proposal.get('proposals', List());
             const last = proposals.size - 1;
             const last_id =
                 (proposals.size && proposals.get(last).get('id')) || null;
             const newProposals =
                 proposals.size >= 10 ? proposals.delete(last) : proposals;
-            const voterProposals = state.global.get('voterProposals', List());
-            const votesInProgress = state.global.get(
+            const voterProposals = state.proposal.get('voterProposals', List());
+            const votesInProgress = state.proposal.get(
                 `transaction_proposal_vote_active_${currentUser}`,
                 List()
             );

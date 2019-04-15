@@ -13,6 +13,7 @@ import * as appActions from 'app/redux/AppReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 import * as transactionActions from 'app/redux/TransactionReducer';
 import * as userActions from 'app/redux/UserReducer';
+import * as proposalActions from 'app/redux/ProposalReducer';
 import { DEBT_TICKER } from 'app/client_config';
 import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 
@@ -88,7 +89,7 @@ function* preBroadcast_update_proposal_votes({ operation, username }) {
     if (!operation.voter) operation.voter = username;
     const { voter, proposal_ids } = operation;
     yield put(
-        globalActions.addActiveProposalVote({
+        proposalActions.addActiveProposalVote({
             voter,
             proposal_ids,
         })
@@ -375,7 +376,7 @@ function* accepted_update_proposal_votes({
     });
 
     yield put(
-        globalActions.removeActiveProposalVote({
+        proposalActions.removeActiveProposalVote({
             voter,
             proposal_ids,
         })

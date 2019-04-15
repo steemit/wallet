@@ -1,6 +1,6 @@
 import { api } from '@blocktradesdev/steem-js';
 import { call, put, takeEvery } from 'redux-saga/effects';
-import * as globalActions from './GlobalReducer';
+import * as proposalActions from './ProposalReducer';
 
 const LIST_PROPOSALS = 'fetchDataSaga/LIST_PROPOSALS';
 const LIST_VOTER_PROPOSALS = 'fetchDataSaga/LIST_VOTER_PROPOSALS';
@@ -55,7 +55,7 @@ export function* listProposals({
         }
     }
 
-    yield put(globalActions.receiveListProposals({ proposals }));
+    yield put(proposalActions.receiveListProposals({ proposals }));
     if (resolve && proposals) {
         resolve(proposals);
     } else if (reject && !proposals) {
@@ -108,7 +108,7 @@ export function* listVoterProposals({
         }
     }
 
-    yield put(globalActions.receiveListVoterProposals({ voterProposals }));
+    yield put(proposalActions.receiveListVoterProposals({ voterProposals }));
     if (resolve && voterProposals[start].length > 0) {
         resolve(voterProposals);
     } else if (reject && !voterProposals) {
