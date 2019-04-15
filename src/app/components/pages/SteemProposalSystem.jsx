@@ -22,6 +22,8 @@ class SteemProposalSystem extends React.Component {
         'voted',
     ];
 
+    interval = 2 * 60 * 1000;
+
     orderedProposalKeys = [
         'id',
         'creator',
@@ -61,12 +63,23 @@ class SteemProposalSystem extends React.Component {
         }
     }
 
+    componentDidMount() {
+        this.intervalId = setInterval(() => {
+            const { limit, status, last_id } = this.state;
+            this.getProposals(limit, status, last_id);
+        }, this.interval);
+    }
+
     componentWillReceiveProps(nextProps) {
         const { currentUser } = nextProps;
 
         if (currentUser && currentUser !== this.props.currentUser) {
             this.getVoterProposals(currentUser);
         }
+    }
+
+    componentWillUnmount() {
+        clearInterval(this.intervalId);
     }
 
     getSpsUrl(creator, permlink) {
