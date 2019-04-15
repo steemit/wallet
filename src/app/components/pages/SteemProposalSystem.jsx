@@ -1,6 +1,6 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import { actions as fetchDataSagaActions } from 'app/redux/FetchDataSaga';
+import { actions as proposalActions } from 'app/redux/ProposalSaga';
 import PropTypes from 'prop-types';
 import { List } from 'immutable';
 import tt from 'counterpart';
@@ -14,36 +14,12 @@ class SteemProposalSystem extends React.Component {
     pages = new Map();
 
     filterDropdownItems = [
-        {
-            value: 'all',
-            onClick: () => {
-                this.onFilterListProposals('all');
-            },
-        },
-        {
-            value: 'active',
-            onClick: () => {
-                this.onFilterListProposals('active');
-            },
-        },
-        {
-            value: 'inactive',
-            onClick: () => {
-                this.onFilterListProposals('inactive');
-            },
-        },
-        {
-            value: 'expired',
-            onClick: () => {
-                this.onFilterListProposals('expired');
-            },
-        },
-        {
-            value: 'votable',
-            onClick: () => {
-                this.onFilterListProposals('votable');
-            },
-        },
+        'all',
+        'active',
+        'inactive',
+        'expired',
+        'votable',
+        'voted',
     ];
 
     orderedProposalKeys = [
@@ -116,6 +92,9 @@ class SteemProposalSystem extends React.Component {
         order_direction = 'direction_descending',
         start = ''
     ) {
+        if (status === 'voted') {
+            start = this.props.currentUser;
+        }
         this.props.listProposals({
             start,
             order_by,
@@ -191,6 +170,17 @@ class SteemProposalSystem extends React.Component {
             return votedProposals.size ? true : false;
         }
         return false;
+    }
+
+    getDropdownItems() {
+        return this.filterDropdownItems
+            .filter(
+                value => (this.props.currentUser ? true : value !== 'voted')
+            )
+            .map(value => ({
+                value,
+                onClick: () => this.onFilterListProposals(value),
+            }));
     }
 
     formatTableDiv(
@@ -320,7 +310,7 @@ class SteemProposalSystem extends React.Component {
                             <div className="proposals-filter-wrapper">
                                 <div className="dropdowns">
                                     <DropdownMenu
-                                        items={this.filterDropdownItems}
+                                        items={this.getDropdownItems()}
                                         el="div"
                                         key="proposals-filter"
                                         selected={status}
@@ -439,7 +429,7 @@ module.exports = {
                         ),
                         successCallback: () => {
                             dispatch(
-                                fetchDataSagaActions.listProposals({
+                                proposalActions.listProposals({
                                     start: '',
                                     order_by: 'by_total_votes',
                                     order_direction: 'direction_descending',
@@ -449,7 +439,7 @@ module.exports = {
                                 })
                             );
                             dispatch(
-                                fetchDataSagaActions.listVoterProposals({
+                                proposalActions.listVoterProposals({
                                     start: proposal_owner,
                                     order_by: 'by_creator',
                                     order_direction: 'direction_ascending',
@@ -464,7 +454,7 @@ module.exports = {
             listProposals: payload =>
                 new Promise((resolve, reject) => {
                     dispatch(
-                        fetchDataSagaActions.listProposals({
+                        proposalActions.listProposals({
                             ...payload,
                             resolve,
                             reject,
@@ -474,7 +464,7 @@ module.exports = {
             listVoterProposals: payload =>
                 new Promise((resolve, reject) => {
                     dispatch(
-                        fetchDataSagaActions.listVoterProposals({
+                        proposalActions.listVoterProposals({
                             ...payload,
                             resolve,
                             reject,
