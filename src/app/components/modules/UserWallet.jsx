@@ -76,7 +76,53 @@ class UserWallet extends React.Component {
                 'https://blocktrades.us/unregistered_trade/sbd/eth';
         };
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
+        this.componentDidUpdate = () => {
+            const { currentUser } = this.props;
+            const postingPrivateKey = currentUser.getIn(['private_keys', 'posting_private']);
+
+            if (postingPrivateKey !== undefined) {
+                const transferPrefilledData = this.checkPrefilledHashParams();
+
+                if (transferPrefilledData) {
+                    this.props.showTransfer({
+                        to: null,
+                        asset: 'STEEM',
+                        transferType: 'Transfer to Account',
+                        transferPrefilledData: transferPrefilledData
+                    });
+                }
+            }
+        }
     }
+
+    checkPrefilledHashParams = () => {
+        const hash = window.location.hash;
+        const hashParams = hash.split('!');
+        let permlink, currency, amount, toAccount;
+
+        for(let hi=0; hi<hashParams.length; hi++) {
+            const param = hashParams[hi];
+            const [key, value] = param.split('=');
+            switch(key) {
+                case 'p':
+                    permlink = value;
+                    break;
+
+                case 't':
+                    toAccount = value;
+                    break;
+            }
+        }
+
+        if (permlink && toAccount) {
+            return {
+                permlink: permlink,
+                toAccount: toAccount,
+            };
+        }
+
+        return null;
+    };
 
     handleClaimRewards = account => {
         this.setState({ claimInProgress: true }); // disable the claim button

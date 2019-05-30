@@ -50,6 +50,20 @@ class TransferForm extends Component {
         runTests();
 
         this.buildTransferAutocomplete();
+
+        const { transferPrefilledData } = this.props.initialValues;
+        if (transferPrefilledData) {
+            this.setState({
+                memo: {
+                    ...this.state.memo,
+                    value: transferPrefilledData.permlink
+                },
+                to: {
+                    ...this.state.to,
+                    value: transferPrefilledData.toAccount
+                }
+            });
+        }
     }
 
     buildTransferAutocomplete() {
@@ -216,11 +230,16 @@ class TransferForm extends Component {
         this.state.amount.props.onChange(this.balanceValue().split(' ')[0]);
     };
 
+    // TODO: seems we don't need this... remove ?
     onChangeTo = value => {
         this.state.to.props.onChange(value.toLowerCase().trim());
         this.setState({
             to: { ...this.state.to, value: value.toLowerCase().trim() },
         });
+    };
+
+    handleMemoChange = e => {
+        this.setState({ memo: { ...this.state.memo, value: e.target.value } });
     };
 
     render() {
@@ -478,6 +497,8 @@ class TransferForm extends Component {
                                 autoCapitalize="off"
                                 spellCheck="false"
                                 disabled={loading}
+                                value={this.state.memo.value}
+                                onChange={this.handleMemoChange}
                             />
                             <div className="error">
                                 {memo.touched && memo.error && memo.error}&nbsp;
