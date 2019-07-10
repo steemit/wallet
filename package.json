@@ -24,7 +24,7 @@
   "license": "MIT",
   "dependencies": {
     "@steem/crypto-session": "git+https://github.com/steemit/crypto-session.git#83a90b319ce5bc6a70362d52a15a815de7e729bb",
-    "@steemit/steem-js": "git+https://github.com/steemit/steem-js.git#92a7ba45d41439bec62b7eb5acfc23a1546486a9",
+    "@steemit/steem-js": "git+https://github.com/steemit/steem-js.git#b910ef19894c81d2d98595c286e384dfb94c6ea1",
     "assert": "1.4.1",
     "autoprefixer-loader": "3.2.0",
     "babel-cli": "6.26.0",
