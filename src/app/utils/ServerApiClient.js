@@ -1,4 +1,4 @@
-import { api } from '@blocktradesdev/steem-js';
+import { api } from '@steemit/steem-js';
 
 const request_base = {
     method: 'post',

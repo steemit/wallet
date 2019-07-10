@@ -39,7 +39,7 @@ module.exports = {
             'react',
             'react-dom',
             'react-router',
-            '@blocktradesdev/steem-js',
+            '@steemit/steem-js',
             'bytebuffer',
             'immutable',
             'autolinker',

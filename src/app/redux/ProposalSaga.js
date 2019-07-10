@@ -1,4 +1,4 @@
-import { api } from '@blocktradesdev/steem-js';
+import { api } from '@steemit/steem-js';
 import { call, put, takeEvery } from 'redux-saga/effects';
 import * as proposalActions from './ProposalReducer';
 
