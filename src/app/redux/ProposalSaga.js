@@ -29,28 +29,35 @@ export function* listProposals({
     reject,
 }) {
     let proposals;
+    console.log(
+        'ProposalSaga->listProposals()::start, order_by, order_direction, limit, status',
+        start,
+        order_by,
+        order_direction,
+        limit,
+        status
+    );
+
     while (!proposals) {
         if (status === 'voted') {
             const voterProposals = yield call(
                 [api, api.listProposalsAsync],
-                start,
+                [start],
+                limit,
                 order_by,
                 order_direction,
-                limit,
-                'votable',
-                last_id
+                'votable'
             );
 
             proposals = voterProposals[start];
         } else {
             proposals = yield call(
                 [api, api.listProposalsAsync],
-                start,
+                [start],
+                limit,
                 order_by,
                 order_direction,
-                limit,
-                status,
-                last_id
+                status
             );
         }
     }
@@ -77,14 +84,22 @@ export function* listVoterProposals({
     let isLast = false;
 
     while (!isLast) {
-        const data = yield call(
-            [api, api.listProposalsAsync],
+        console.log(
+            'ProposalSaga->listVoterProposals()::start, order_by, order_direction, limit, status',
             start,
             order_by,
             order_direction,
             limit,
-            status,
-            last_id
+            status
+        );
+
+        const data = yield call(
+            [api, api.listProposalsAsync],
+            [start],
+            limit,
+            order_by,
+            order_direction,
+            status
         );
 
         if (data) {

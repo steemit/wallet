@@ -49,7 +49,7 @@ class SteemProposalSystem extends React.Component {
             last_id: null,
             limit: 11,
             limitPerPage: 10,
-            status: 'votable',
+            status: 'all',
             selectedSorter: 'ascending',
         };
         this.onNext = this.onNext.bind(this);
@@ -91,9 +91,9 @@ class SteemProposalSystem extends React.Component {
         this.props.listVoterProposals({
             start: user,
             order_by: 'by_creator',
-            order_direction: 'direction_ascending',
+            order_direction: 'ascending',
             limit: 1000,
-            status: 'votable',
+            status: 'all',
         });
     }
 
@@ -101,8 +101,8 @@ class SteemProposalSystem extends React.Component {
         limit,
         status,
         last_id,
-        order_by = 'by_total_votes',
-        order_direction = 'direction_descending',
+        order_by = 'by_creator',
+        order_direction = 'ascending',
         start = ''
     ) {
         if (status === 'voted') {
@@ -110,11 +110,10 @@ class SteemProposalSystem extends React.Component {
         }
         this.props.listProposals({
             start,
+            limit,
             order_by,
             order_direction,
-            limit,
             status,
-            last_id,
         });
     }
 
@@ -444,19 +443,19 @@ module.exports = {
                             dispatch(
                                 proposalActions.listProposals({
                                     start: '',
-                                    order_by: 'by_total_votes',
-                                    order_direction: 'direction_descending',
                                     limit: 11,
+                                    order_by: 'by_creator',
+                                    order_direction: 'ascending',
                                     status: 'all',
                                 })
                             );
                             dispatch(
                                 proposalActions.listVoterProposals({
                                     start: proposal_owner,
-                                    order_by: 'by_creator',
-                                    order_direction: 'direction_ascending',
                                     limit: 1000,
-                                    status: 'votable',
+                                    order_by: 'by_creator',
+                                    order_direction: 'ascending',
+                                    status: 'all',
                                 })
                             );
                         },
