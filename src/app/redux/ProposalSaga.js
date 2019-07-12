@@ -32,7 +32,7 @@ export function* listProposals({
     while (!proposals) {
         if (status === 'voted') {
             const voterProposals = yield call(
-                [api, api.listVoterProposalsAsync],
+                [api, api.listProposalsAsync],
                 start,
                 order_by,
                 order_direction,
@@ -78,7 +78,7 @@ export function* listVoterProposals({
 
     while (!isLast) {
         const data = yield call(
-            [api, api.listVoterProposalsAsync],
+            [api, api.listProposalsAsync],
             start,
             order_by,
             order_direction,

@@ -29,9 +29,9 @@
   dependencies:
     "@steemit/libcrypto" "^1.0.1"
 
-"@steemit/steem-js@git+https://github.com/steemit/steem-js.git#b910ef19894c81d2d98595c286e384dfb94c6ea1":
+"@steemit/steem-js@git+https://github.com/steemit/steem-js.git#791c7930a952415a0ee45855142e52ee0c657f8e":
   version "0.7.5"
-  resolved "git+https://github.com/steemit/steem-js.git#b910ef19894c81d2d98595c286e384dfb94c6ea1"
+  resolved "git+https://github.com/steemit/steem-js.git#791c7930a952415a0ee45855142e52ee0c657f8e"
   dependencies:
     "@steemit/rpc-auth" "^1.1.1"
     bigi "^1.4.2"

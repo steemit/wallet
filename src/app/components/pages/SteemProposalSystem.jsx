@@ -448,7 +448,6 @@ module.exports = {
                                     order_direction: 'direction_descending',
                                     limit: 11,
                                     status: 'all',
-                                    last_id: null,
                                 })
                             );
                             dispatch(

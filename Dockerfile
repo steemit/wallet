@@ -24,6 +24,8 @@ COPY . /var/app
 #  ./node_modules/.bin/eslint . && \
 #  npm run build
 
+RUN cd ./node_modules/@steemit/steem-js && yarn install && yarn build-browser && cd -
+
 RUN mkdir tmp && \
     yarn test && yarn build
 
