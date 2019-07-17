@@ -33,7 +33,7 @@ db.Sequelize = Sequelize;
 
 if (env === 'development') {
     // in dev, sync all table schema automatically for convenience
-    // sequelize.sync();
+    sequelize.sync();
 }
 
 function esc(value, max_length = 256) {

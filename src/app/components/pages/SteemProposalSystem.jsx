@@ -41,14 +41,15 @@ class SteemProposalSystem extends React.Component {
         listVoterProposals: PropTypes.func,
         removeProposal: PropTypes.func,
         updateProposalVotes: PropTypes.func,
+        createProposal: PropTypes.func,
     };
     constructor() {
         super();
         this.state = {
             currentPage: 1,
             last_id: null,
-            limit: 11,
-            limitPerPage: 10,
+            limit: 100,
+            limitPerPage: 100,
             status: 'all',
             selectedSorter: 'ascending',
         };
@@ -379,16 +380,28 @@ class SteemProposalSystem extends React.Component {
     }
 
     render() {
-        const { proposals } = this.props;
+        const { proposals, createProposal, currentUser } = this.props;
+        // this.props.createProposal()
 
         // TODO: implement loading indicator
         // if (loading) return <span>Loading...</span>;
+        console.log('render', currentUser);
 
         return (
             <div className="SteemProposalSystem">
                 <div className="row">
                     <div className="column">
-                        <h2>{tt('steem_proposal_system_jsx.top_sps')}</h2>
+                        <h2>
+                            {tt('steem_proposal_system_jsx.top_sps')}
+                            <button
+                                className="UserWallet__buysp button hollow"
+                                onClick={() =>
+                                    createProposal(currentUser, currentUser)
+                                }
+                            >
+                                Create Proposal
+                            </button>
+                        </h2>
                         {this.renderProposalTable(proposals)}
                     </div>
                 </div>
@@ -401,6 +414,7 @@ module.exports = {
     path: 'steem_proposal_system',
     component: connect(
         state => {
+            console.log('state.proposal', state.proposal.toJS());
             const user = state.user.get('current');
             const currentUser = user && user.get('username');
             const proposals = state.proposal.get('proposals', List());
@@ -414,6 +428,7 @@ module.exports = {
                 `transaction_proposal_vote_active_${currentUser}`,
                 List()
             );
+
             return {
                 currentUser,
                 proposals: newProposals,
@@ -422,66 +437,121 @@ module.exports = {
                 votesInProgress,
             };
         },
-        dispatch => ({
-            updateProposalVotes: (voter, proposal_ids, approve) => {
+        dispatch => {
+            const successCallback = () => {
+                console.log('successCallback', arguments);
                 dispatch(
-                    transactionActions.broadcastOperation({
-                        type: 'update_proposal_votes',
-                        operation: { voter, proposal_ids, approve },
+                    proposalActions.listProposals({
+                        start: '',
+                        limit: 1000,
+                        order_by: 'by_creator',
+                        order_direction: 'ascending',
+                        status: 'all',
                     })
                 );
-            },
-            removeProposal: (proposal_owner, proposal_ids) => {
                 dispatch(
-                    transactionActions.broadcastOperation({
-                        type: 'remove_proposal',
-                        operation: { proposal_owner, proposal_ids },
-                        confirm: tt(
-                            'steem_proposal_system_jsx.confirm_remove_proposal_description'
-                        ),
-                        successCallback: () => {
-                            dispatch(
-                                proposalActions.listProposals({
-                                    start: '',
-                                    limit: 11,
-                                    order_by: 'by_creator',
-                                    order_direction: 'ascending',
-                                    status: 'all',
-                                })
-                            );
-                            dispatch(
-                                proposalActions.listVoterProposals({
-                                    start: proposal_owner,
-                                    limit: 1000,
-                                    order_by: 'by_creator',
-                                    order_direction: 'ascending',
-                                    status: 'all',
-                                })
-                            );
-                        },
+                    proposalActions.listVoterProposals({
+                        start: proposal_owner,
+                        limit: 1000,
+                        order_by: 'by_creator',
+                        order_direction: 'ascending',
+                        status: 'all',
                     })
                 );
-            },
-            listProposals: payload =>
-                new Promise((resolve, reject) => {
+            };
+            const errorCallback = () => {
+                console.log('errorCallback', arguments);
+                // dispatch(
+                //     proposalActions.listProposals({
+                //         start: '',
+                //         limit: 11,
+                //         order_by: 'by_creator',
+                //         order_direction: 'ascending',
+                //         status: 'all',
+                //     })
+                // );
+                // dispatch(
+                //     proposalActions.listVoterProposals({
+                //         start: proposal_owner,
+                //         limit: 1000,
+                //         order_by: 'by_creator',
+                //         order_direction: 'ascending',
+                //         status: 'all',
+                //     })
+                // );
+            };
+            return {
+                updateProposalVotes: (voter, proposal_ids, approve) => {
                     dispatch(
-                        proposalActions.listProposals({
-                            ...payload,
-                            resolve,
-                            reject,
+                        transactionActions.broadcastOperation({
+                            type: 'update_proposal_votes',
+                            operation: { voter, proposal_ids, approve },
+                            successCallback,
+                            errorCallback: errorCallback,
                         })
                     );
-                }),
-            listVoterProposals: payload =>
-                new Promise((resolve, reject) => {
+                },
+                createProposal: (
+                    creator,
+                    receiver,
+                    start_date,
+                    end_date,
+                    daily_pay,
+                    subject,
+                    permlink
+                ) => {
+                    console.log('create_proposal', arguments);
                     dispatch(
-                        proposalActions.listVoterProposals({
-                            ...payload,
-                            resolve,
-                            reject,
+                        transactionActions.broadcastOperation({
+                            type: 'create_proposal',
+                            operation: {
+                                creator: creator,
+                                receiver: receiver,
+                                start_date: '2019-07-20T11:22:39',
+                                end_date: '2019-08-30T11:22:39',
+                                daily_pay: '3000.000 TBD',
+                                subject: 'Test Proposal',
+                                permlink: 'remove-delegations',
+                            },
+                            successCallback,
+                            errorCallback: errorCallback,
                         })
                     );
-                }),
-        })
+                },
+                removeProposal: (proposal_owner, proposal_ids) => {
+                    dispatch(
+                        transactionActions.broadcastOperation({
+                            type: 'remove_proposal',
+                            operation: { proposal_owner, proposal_ids },
+                            confirm: tt(
+                                'steem_proposal_system_jsx.confirm_remove_proposal_description'
+                            ),
+                            successCallback,
+                            errorCallback: errorCallback,
+                        })
+                    );
+                },
+                listProposals: payload =>
+                    new Promise((resolve, reject) => {
+                        dispatch(
+                            proposalActions.listProposals({
+                                ...payload,
+                                resolve,
+                                reject,
+                            })
+                        );
+                    }),
+                listVoterProposals: payload =>
+                    new Promise((resolve, reject) => {
+                        dispatch(
+                            proposalActions.listVoterProposals({
+                                ...payload,
+                                resolve,
+                                reject,
+                            })
+                        );
+                    }),
+            };
+        }
     )(SteemProposalSystem),
 };
