@@ -138,15 +138,15 @@ module.exports = {
                         status: 'all',
                     })
                 );
-                dispatch(
-                    proposalActions.listVoterProposals({
-                        start: proposal_owner,
-                        limit: 1000,
-                        order_by: 'by_creator',
-                        order_direction: 'ascending',
-                        status: 'all',
-                    })
-                );
+                // dispatch(
+                //     proposalActions.listVoterProposals({
+                //         start: proposal_owner,
+                //         limit: 1000,
+                //         order_by: 'by_creator',
+                //         order_direction: 'ascending',
+                //         status: 'all',
+                //     })
+                // );
             };
             const errorCallback = () => {
                 console.log('errorCallback', arguments);

@@ -16,7 +16,7 @@ class ProposalContainer extends React.Component {
     }
 
     onUpvote = () => {
-        this.setState(('isVoting': true));
+        this.setState({ isVoting: true });
         this.props.upvoteProposal(this.id);
     };
 
