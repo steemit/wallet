@@ -1,0 +1,89 @@
+.ProposalsList {
+    flex-direction: column;
+    display: flex;
+    width: 80%;
+    margin-left: auto;
+    margin-right: auto;
+    .proposals__header {
+        flex-direction: row;
+        justify-content: center;
+        display: flex;
+
+        .proposals__votes {
+            display: flex;
+            align-items: center;
+            max-width: 200px;
+            width: 20%;
+        }
+        .proposals__amount {
+            display: flex;
+            align-items: center;
+            max-width: 200px;
+            width: 20%;
+
+            flex-direction: row;
+            justify-content: flex-start;
+        }
+        .proposals__description {
+            display: flex;
+            align-items: center;
+            max-width: 800px;
+            width: 60%;
+        }
+    }
+    .proposals__row {
+        border-bottom: 1px rgba(0, 0, 0, 0.2) dashed;
+        flex-direction: row;
+        justify-content: center;
+        display: flex;
+
+        small {
+            font-size: 12px;
+        }
+
+        .proposals__votes {
+            display: flex;
+            align-items: center;
+            max-width: 200px;
+            width: 20%;
+            font-size: 2em;
+            flex-direction: row;
+            justify-content: flex-start;
+            a {
+                padding-right: 10px;
+            }
+        }
+        .proposals__amount {
+            display: flex;
+            align-items: center;
+            max-width: 200px;
+            width: 20%;
+            font-size: 1.5em;
+            flex-direction: column;
+            align-items: flex-start;
+            small {
+                color: rgba(0, 0, 0, 0.5);
+            }
+        }
+        .proposals__description {
+            max-width: 800px;
+            width: 60%;
+            .date {
+                color: rgba(0, 0, 0, 0.5);
+            }
+        }
+    }
+    .proposals__statusTag {
+        font-weight: 400;
+        display: inline;
+        padding: 0.1rem 0.2rem;
+        margin: 0 1rem 0 0.5rem;
+        border-radius: 0.3rem;
+        font-size: 0.7rem;
+        vertical-align: 15%;
+        @include themify($themes) {
+            background-color: themed('colorAccent');
+            color: themed('buttonText');
+        }
+    }
+}

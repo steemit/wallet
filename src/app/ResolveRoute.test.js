@@ -34,6 +34,7 @@ describe('resolveRoute', () => {
         ['/market', { page: 'Market' }],
         ['/~witnesses', { page: 'Witnesses' }],
         ['/steem_proposal_system', { page: 'SteemProposalSystem' }],
+        ['/proposals', { page: 'Proposals' }],
         ['/@gdpr/nice345', { page: 'NotFound' }],
         ['/taggy/@gdpr/nice345', { page: 'NotFound' }],
     ];
@@ -49,12 +50,14 @@ describe('resolveRoute', () => {
         expect(resolveRoute('/xss/test')).toEqual({ page: 'XSSTest' });
         delete process.env.NODE_ENV;
     });
+
     it('should resolve benchmark route in development environment', () => {
         expect(resolveRoute('/benchmark')).toEqual({ page: 'NotFound' });
         process.env.OFFLINE_SSR_TEST = true;
         expect(resolveRoute('/benchmark')).toEqual({ page: 'Benchmark' });
         delete process.env.OFFLINE_SSR_TEST;
     });
+
     it('should resolve an unknown route to NotFound', () => {
         expect(resolveRoute('/randomness')).toEqual({ page: 'NotFound' });
     });

@@ -94,7 +94,7 @@ export function* listVoterProposals({
         );
 
         const data = yield call(
-            [api, api.listProposalsAsync],
+            [api, api.listVoterProposalsAsync],
             [start],
             limit,
             order_by,
@@ -113,7 +113,7 @@ export function* listVoterProposals({
                     isLast = true;
                 } else {
                     const nextProposals = [...data[start]];
-                    last_id = nextProposals[nextProposals.length - 1]['id'];
+                    last_id = nextProposals[nextProposals.length - 1].id;
                     nextProposals.splice(-1, 1);
                     proposals = [...voterProposals[start], ...nextProposals];
                 }
@@ -125,6 +125,10 @@ export function* listVoterProposals({
 
     yield put(proposalActions.receiveListVoterProposals({ voterProposals }));
     if (resolve && voterProposals[start].length > 0) {
+        console.log(
+            'if (resolve && voterProposals[start].length > 0){',
+            voterProposals
+        );
         resolve(voterProposals);
     } else if (reject && !voterProposals) {
         reject();

@@ -46,6 +46,8 @@ export default {
             cb(null, [require('app/components/pages/Witnesses')]);
         } else if (route.page === 'SteemProposalSystem') {
             cb(null, [require('app/components/pages/SteemProposalSystem')]);
+        } else if (route.page === 'Proposals') {
+            cb(null, [require('app/components/pages/Proposals')]);
         } else if (route.page === 'UserProfile') {
             cb(null, [require('app/components/pages/UserProfile')]);
         } else if (route.page === 'Market') {

@@ -61,14 +61,20 @@ export default function resolveRoute(path) {
     if (path === '/steem_proposal_system') {
         return { page: 'SteemProposalSystem' };
     }
+    if (path === '/proposals') {
+        console.log('/proposals');
+        return { page: 'Proposals' };
+    }
     match =
         path.match(routeRegex.UserProfile1) ||
         path.match(routeRegex.UserProfile2);
     if (match) {
+        console.log('MATCH');
         if (GDPRUserList.includes(match[1].substring(1))) {
             return { page: 'NotFound' };
         }
         return { page: 'UserProfile', params: match.slice(1) };
     }
+    console.log('NO MATCH');
     return { page: 'NotFound' };
 }
