@@ -15,7 +15,7 @@ Proposal.propTypes = {
     end_date: PropTypes.string.isRequired,
     daily_pay: PropTypes.object.isRequired, // TODO: Specify shape.
     subject: PropTypes.string.isRequired,
-    total_votes: PropTypes.string.isRequired,
+    total_votes: PropTypes.number.isRequired,
     permlink: PropTypes.string.isRequired,
     onUpvote: PropTypes.func.isRequired,
     isVoting: PropTypes.bool.isRequired,
@@ -23,7 +23,7 @@ Proposal.propTypes = {
 };
 
 export default function Proposal(props) {
-    console.log('Proposal.jsx->()', props);
+    // console.log('Proposal.jsx->()', props);
     const {
         id,
         creator,
@@ -34,6 +34,8 @@ export default function Proposal(props) {
         permlink,
         onUpvote,
         isVoting,
+        voteFailed,
+        voteSucceeded,
         upVoted,
     } = props;
 
@@ -47,6 +49,8 @@ export default function Proposal(props) {
     const classUp =
         'Voting__button Voting__button-up' +
         (upVoted > 0 ? ' Voting__button--upvoted' : '') +
+        (voteSucceeded > 0 ? ' Voting__button--upvoted' : '') +
+        (voteFailed > 0 ? ' Voting__button--downvoted' : '') +
         (isVoting ? ' votingUp' : '');
     return (
         <div className="proposals__row">
@@ -65,7 +69,7 @@ export default function Proposal(props) {
             <div className="proposals__description">
                 <span>
                     <a
-                        href={permlink}
+                        href={urlifyPermlink(creator, permlink)}
                         target="_blank"
                         alt={startedOrFinishedInWordsLongVersion(start, end)}
                         title={startedOrFinishedInWordsLongVersion(start, end)}
@@ -213,20 +217,6 @@ function durationInWords(duration) {
 }
 
 /**
- * Given a username, return an HTML A tag pointing to that user.
- * @param {string} username - username
- * @returns {string} - return a linkified strong
- */
-function linkifyUsername(linkText, username = '') {
-    if (username == '') username = linkText;
-    return (
-        <a href={`https://steemit.com/@${username}/feed`} target="_blank">
-            {linkText}
-        </a>
-    );
-}
-
-/**
  * Given two usernames, see if they are the same. Optionally. specify a value to return if they are the same. If not the same, returns username b.
  * @param {string} usernamea- usernamea
  * @param {string} usernameb- usernameb
@@ -241,4 +231,29 @@ function checkIfSameUser(usernamea, usernameb, valueIfSame = true) {
         return valueIfSame;
     }
     return usernameb;
+}
+
+/**
+ * Given a username, return an HTML A tag pointing to that user.
+ * @param {string} linkText - linkText
+ * @param {string} username - username
+ * @returns {string} - return a linkified strong
+ */
+function linkifyUsername(linkText, username = '') {
+    if (username == '') username = linkText;
+    return (
+        <a href={`https://steemit.com/@${username}/feed`} target="_blank">
+            {linkText}
+        </a>
+    );
+}
+
+/**
+ * Given a username, and post permlink id return a URL worthy strong.
+ * @param {string} username - username
+ * @param {string} permlink - permlink id of the linked post
+ * @returns {string} - return a URL string
+ */
+function urlifyPermlink(username, permlink) {
+    return `https://steemit.com/@${username}/${permlink}`;
 }

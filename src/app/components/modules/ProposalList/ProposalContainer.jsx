@@ -5,31 +5,53 @@ import Proposal from './Proposal';
 
 class ProposalContainer extends React.Component {
     constructor(props) {
-        console.log('ProposalContainer.jsx::constructor()', props);
+        // console.log('ProposalContainer.jsx::constructor()', props);
         super(props);
-        this.state = {};
+        this.state = {
+            isVoting: false,
+            voteFailed: false,
+            voteSucceeded: false,
+        };
         this.id = this.props.proposal.id;
     }
 
     async componentWillMount() {
-        await console.log('ProposalContainer.jsx::componentWillMount()');
+        // await console.log('ProposalContainer.jsx::componentWillMount()');
     }
 
     onUpvote = () => {
-        this.setState({ isVoting: true });
-        this.props.upvoteProposal(this.id);
+        this.setState({
+            isVoting: true,
+            voteFailed: false,
+            voteSucceeded: false,
+        });
+        this.props.upvoteProposal(
+            this.id,
+            () => {
+                // console.log('upvoteProposal->success()', arguments)
+                this.setState({
+                    isVoting: false,
+                    voteFailed: false,
+                    voteSucceeded: true,
+                });
+            },
+            () => {
+                // console.log('upvoteProposal->failure()', arguments)
+                this.setState({
+                    isVoting: false,
+                    voteFailed: true,
+                    voteSucceeded: false,
+                });
+            }
+        );
     };
 
     render() {
         const { proposal } = this.props;
-        console.log('ProposalContainer.jsx::render()', this.props);
+        // console.log('ProposalContainer.jsx::render()', this.props);
 
         return (
-            <Proposal
-                {...proposal}
-                onUpvote={this.onUpvote}
-                isVoting={this.state.isVoting}
-            />
+            <Proposal {...proposal} onUpvote={this.onUpvote} {...this.state} />
         );
     }
 }

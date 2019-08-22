@@ -18,18 +18,31 @@ import ProposalListContainer from 'app/components/modules/ProposalList/ProposalL
 class Proposals extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { proposals: [], userProposals: [] };
+        this.state = { proposals: [], loading: true };
     }
     async componentWillMount() {
-        const proposals = (await this.getAllProposals(10, 'all', 0)) || [];
-        const userProposals = (await this.getAllProposals(10, 'all', 0)) || [];
-        console.log('componentWillMount', proposals, userProposals);
-        this.setState({ proposals, userProposals });
+        await this.load();
+        console.log('componentWillMount', this.state);
+    }
+
+    async load() {
+        this.setState({ loading: true });
+        const proposals = await this.getAllProposals(100, 'all', 0);
+        // const userProposals = (await this.getAllProposals(100, 'all', 0)) || [];
+        // const upvotedProposals =
+        //     (await this.getUpvotedProposals(100, 'all', 0)) || [];
+        console.log(
+            'Proposals->load',
+            proposals
+            // userProposals,
+            // upvotedProposals
+        );
+        this.setState({ proposals, loading: false });
     }
 
     getAllProposals(
         limit,
-        status,
+        status = 'all',
         last_id,
         order_by = 'by_creator',
         order_direction = 'ascending',
@@ -39,6 +52,7 @@ class Proposals extends React.Component {
             start = this.props.currentUser;
         }
         return this.props.listProposals({
+            voter_id: this.props.currentUser,
             start,
             limit,
             order_by,
@@ -49,7 +63,7 @@ class Proposals extends React.Component {
 
     getUserProposals(
         limit,
-        status,
+        status = 'all',
         last_id,
         order_by = 'by_creator',
         order_direction = 'ascending',
@@ -69,21 +83,42 @@ class Proposals extends React.Component {
         });
     }
 
-    upvoteProposal = proposalId => {
+    getUpvotedProposals(
+        limit = 1000,
+        status = 'all',
+        order_by = 'by_creator',
+        order_direction = 'ascending'
+    ) {
+        // if (this.props.currentUser) {
+        return this.props.listVotedOnProposals({
+            voter_id: this.props.currentUser,
+            limit,
+            order_by: 'by_proposal_voter',
+            order_direction,
+            status,
+        });
+        // }
+        // return [];
+    }
+
+    upvoteProposal = (proposalId, onSuccess, onFailure) => {
         return this.props.upvoteProposal(
             this.props.currentUser,
             [proposalId],
-            true
+            true,
+            onSuccess,
+            onFailure
         );
     };
 
     render() {
-        const { proposals } = this.state;
+        const { proposals, loading } = this.state;
         return (
             <div>
                 <ProposalListContainer
                     upvoteProposal={this.upvoteProposal}
                     proposals={proposals}
+                    loading={loading}
                 />
             </div>
         );
@@ -92,9 +127,9 @@ class Proposals extends React.Component {
 
 Proposals.propTypes = {
     listProposals: PropTypes.func.isRequired,
-    listProposalsByVoter: PropTypes.func.isRequired,
+    // listVotedOnProposals: PropTypes.func.isRequired,
     removeProposal: PropTypes.func.isRequired,
-    updateProposalVotes: PropTypes.func.isRequired,
+    // updateProposalVotes: PropTypes.func.isRequired,
     createProposal: PropTypes.func.isRequired,
     upvoteProposal: PropTypes.func.isRequired,
 };
@@ -112,65 +147,72 @@ module.exports = {
                 (proposals.size && proposals.get(last).get('id')) || null;
             const newProposals =
                 proposals.size >= 10 ? proposals.delete(last) : proposals;
-            const voterProposals = state.proposal.get('voterProposals', List());
-            const votesInProgress = state.proposal.get(
-                `transaction_proposal_vote_active_${currentUser}`,
-                List()
-            );
+            // const voterProposals = state.proposal.get('voterProposals', List());
+            // const votesInProgress = state.proposal.get(
+            //     `transaction_proposal_vote_active_${currentUser}`,
+            //     List()
+            // );
 
             return {
                 currentUser,
                 proposals: newProposals,
-                voterProposals,
+                // voterProposals,
                 last_id,
-                votesInProgress,
+                // votesInProgress,
             };
         },
         dispatch => {
-            const successCallback = () => {
-                console.log('successCallback', arguments);
-                dispatch(
-                    proposalActions.listProposals({
-                        start: '',
-                        limit: 1000,
-                        order_by: 'by_creator',
-                        order_direction: 'ascending',
-                        status: 'all',
-                    })
-                );
-                // dispatch(
-                //     proposalActions.listVoterProposals({
-                //         start: proposal_owner,
-                //         limit: 1000,
-                //         order_by: 'by_creator',
-                //         order_direction: 'ascending',
-                //         status: 'all',
-                //     })
-                // );
-            };
-            const errorCallback = () => {
-                console.log('errorCallback', arguments);
-                // dispatch(
-                //     proposalActions.listProposals({
-                //         start: '',
-                //         limit: 11,
-                //         order_by: 'by_creator',
-                //         order_direction: 'ascending',
-                //         status: 'all',
-                //     })
-                // );
-                // dispatch(
-                //     proposalActions.listVoterProposals({
-                //         start: proposal_owner,
-                //         limit: 1000,
-                //         order_by: 'by_creator',
-                //         order_direction: 'ascending',
-                //         status: 'all',
-                //     })
-                // );
-            };
+            // const successCallback = () => {
+            //     console.log('successCallback', arguments);
+            //     dispatch(
+            //         proposalActions.listProposals({
+            //             start: '',
+            //             limit: 1000,
+            //             order_by: 'by_creator',
+            //             order_direction: 'ascending',
+            //             status: 'all',
+            //         })
+            //     );
+            //     // dispatch(
+            //     //     proposalActions.listVoterProposals({
+            //     //         start: proposal_owner,
+            //     //         limit: 1000,
+            //     //         order_by: 'by_creator',
+            //     //         order_direction: 'ascending',
+            //     //         status: 'all',
+            //     //     })
+            //     // );
+            // };
+            // const errorCallback = () => {
+            //     console.log('errorCallback', arguments);
+            //     // dispatch(
+            //     //     proposalActions.listProposals({
+            //     //         start: '',
+            //     //         limit: 11,
+            //     //         order_by: 'by_creator',
+            //     //         order_direction: 'ascending',
+            //     //         status: 'all',
+            //     //     })
+            //     // );
+            //     // dispatch(
+            //     //     proposalActions.listVoterProposals({
+            //     //         start: proposal_owner,
+            //     //         limit: 1000,
+            //     //         order_by: 'by_creator',
+            //     //         order_direction: 'ascending',
+            //     //         status: 'all',
+            //     //     })
+            //     // );
+            // };
             return {
-                upvoteProposal: (voter, proposal_ids, approve) => {
+                upvoteProposal: (
+                    voter,
+                    proposal_ids,
+                    approve,
+                    successCallback,
+                    errorCallback
+                ) => {
+                    console.log('upvoteProposal', arguments);
                     dispatch(
                         transactionActions.broadcastOperation({
                             type: 'update_proposal_votes',
@@ -187,9 +229,11 @@ module.exports = {
                     end_date,
                     daily_pay,
                     subject,
-                    permlink
+                    permlink,
+                    successCallback,
+                    errorCallback
                 ) => {
-                    console.log('create_proposal', arguments);
+                    console.log('createProposal', arguments);
                     dispatch(
                         transactionActions.broadcastOperation({
                             type: 'create_proposal',
@@ -207,7 +251,13 @@ module.exports = {
                         })
                     );
                 },
-                removeProposal: (proposal_owner, proposal_ids) => {
+                removeProposal: (
+                    proposal_owner,
+                    proposal_ids,
+                    successCallback,
+                    errorCallback
+                ) => {
+                    console.log('removeProposal', arguments);
                     dispatch(
                         transactionActions.broadcastOperation({
                             type: 'remove_proposal',
@@ -220,8 +270,9 @@ module.exports = {
                         })
                     );
                 },
-                listProposals: payload =>
-                    new Promise((resolve, reject) => {
+                listProposals: payload => {
+                    console.log('listProposals', arguments);
+                    return new Promise((resolve, reject) => {
                         dispatch(
                             proposalActions.listProposals({
                                 ...payload,
@@ -229,17 +280,18 @@ module.exports = {
                                 reject,
                             })
                         );
-                    }),
-                listProposalsByVoter: payload =>
-                    new Promise((resolve, reject) => {
-                        dispatch(
-                            proposalActions.listVoterProposals({
-                                ...payload,
-                                resolve,
-                                reject,
-                            })
-                        );
-                    }),
+                    });
+                },
+                // listVotedOnProposals: payload =>
+                //     new Promise((resolve, reject) => {
+                //         dispatch(
+                //             proposalActions.listVotedOnProposals({
+                //                 ...payload,
+                //                 resolve,
+                //                 reject,
+                //             })
+                //         );
+                //     }),
             };
         }
     )(Proposals),

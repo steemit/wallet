@@ -6,29 +6,24 @@ import ProposalList from './ProposalList';
 ProposalList.propTypes = {
     proposals: PropTypes.array.isRequired, // TODO: Specify shape.
     upvoteProposal: PropTypes.func.isRequired,
+    loading: PropTypes.bool.isRequired,
 };
 
 class ProposalListContainer extends React.Component {
     constructor(props) {
-        console.log('ProposalListContainer.jsx::constructor()', props);
+        // console.log('ProposalListContainer.jsx::constructor()', props);
         super(props);
-        this.state = {};
     }
 
     async componentWillMount() {
-        await console.log('ProposalListContainer.jsx::componentWillMount()');
+        // await console.log('ProposalListContainer.jsx::componentWillMount()');
     }
 
     render() {
-        const { proposals, upvoteProposal } = this.props;
-        console.log('ProposalListContainer.jsx::render()', arguments);
+        const { proposals, upvoteProposal, loading } = this.props;
+        // console.log('ProposalListContainer.jsx::render()', arguments);
 
-        return (
-            <ProposalList
-                upvoteProposal={upvoteProposal}
-                proposals={proposals}
-            />
-        );
+        return <ProposalList {...this.props} />;
     }
 }
 

@@ -21,8 +21,32 @@ ProposalList.propTypes = {
 };
 
 export default function ProposalList(props) {
-    console.log('ProposalList.jsx->()', props);
+    // console.log('ProposalList.jsx->()', props);
     const { proposals, upvoteProposal, loading } = props;
+    const proposalCount = proposals.length;
+
+    if (!loading && proposalCount == 0) {
+        return (
+            <center>
+                <h5>
+                    Sorry, I can't show you any proposals right now.<br />
+                    <small>
+                        It's probably because there are not any matching your
+                        criteria.
+                    </small>
+                </h5>
+            </center>
+        );
+    } else if (loading) {
+        return (
+            <center>
+                <h5>
+                    Loading<br />
+                    <small>It's worth the wait. ;)</small>
+                </h5>
+            </center>
+        );
+    }
 
     return (
         <div className="ProposalsList">
