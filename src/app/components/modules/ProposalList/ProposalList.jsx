@@ -37,7 +37,7 @@ export default function ProposalList(props) {
                 </h5>
             </center>
         );
-    } else if (loading) {
+    } else if (loading && proposals.length == 0) {
         return (
             <center>
                 <h5>
@@ -62,7 +62,6 @@ export default function ProposalList(props) {
                     proposal={proposal}
                 />
             ))}
-            {loading ? <h2>Loading...</h2> : ''}
         </div>
     );
 }

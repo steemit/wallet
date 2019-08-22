@@ -26,28 +26,32 @@ export function* listVotedOnProposalsCaller(action) {
 
 export function* listProposals({
     voter_id,
-    start,
+    last_proposal,
     order_by,
     order_direction,
     limit,
     status,
-    last_id,
     resolve,
     reject,
 }) {
     console.log(
-        'ProposalSaga->listProposals()::voter_id, start, order_by, order_direction, limit, status',
+        'ProposalSaga->listProposals()::voter_id, last_proposal, order_by, order_direction, limit, status',
         voter_id,
-        start,
+        last_proposal,
         order_by,
         order_direction,
         limit,
         status
     );
+    let start = [];
+    if (last_proposal) {
+        //TODO: Switch on the logic for the different types of orders.
+        start = [last_proposal.id];
+    }
 
     const proposals = yield call(
         [api, api.listProposalsAsync],
-        [start],
+        start,
         limit,
         order_by,
         order_direction,

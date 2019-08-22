@@ -18,7 +18,13 @@ import ProposalListContainer from 'app/components/modules/ProposalList/ProposalL
 class Proposals extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { proposals: [], loading: true };
+        this.state = {
+            proposals: [],
+            loading: true,
+            limit: 2,
+            last_proposal: false,
+            status: 'all',
+        };
     }
     async componentWillMount() {
         await this.load();
@@ -26,8 +32,21 @@ class Proposals extends React.Component {
     }
 
     async load() {
+        console.log('load', this.state);
+        // if (this.state.proposals && this.state.proposals.length > 0) {
+        //     this.setState({ loading: false });
+        // } else {
         this.setState({ loading: true });
-        const proposals = await this.getAllProposals(100, 'all', 0);
+        // }
+
+        const proposals =
+            (await this.getAllProposals(
+                this.state.last_proposal,
+                'by_total_votes',
+                'ascending',
+                this.state.limit + this.state.proposals.length,
+                this.state.status
+            )) || [];
         // const userProposals = (await this.getAllProposals(100, 'all', 0)) || [];
         // const upvotedProposals =
         //     (await this.getUpvotedProposals(100, 'all', 0)) || [];
@@ -37,69 +56,71 @@ class Proposals extends React.Component {
             // userProposals,
             // upvotedProposals
         );
-        this.setState({ proposals, loading: false });
+        let last_proposal = false;
+        if (proposals.length > 0) {
+            last_proposal = proposals[0];
+        }
+
+        this.setState({
+            proposals,
+            loading: false,
+            last_proposal,
+        });
     }
 
-    getAllProposals(
-        limit,
-        status = 'all',
-        last_id,
-        order_by = 'by_creator',
-        order_direction = 'ascending',
-        start = ''
-    ) {
-        if (status === 'voted') {
-            start = this.props.currentUser;
-        }
+    getAllProposals(last_proposal, order_by, order_direction, limit, status) {
+        // if (status === 'voted') {
+        //     start = this.props.currentUser;
+        // }export function* listProposals({
         return this.props.listProposals({
             voter_id: this.props.currentUser,
-            start,
-            limit,
+            last_proposal,
             order_by,
             order_direction,
-            status,
-        });
-    }
-
-    getUserProposals(
-        limit,
-        status = 'all',
-        last_id,
-        order_by = 'by_creator',
-        order_direction = 'ascending',
-        start = ''
-    ) {
-        if (!this.props.currentUser) return [];
-
-        // if (status === 'voted') {
-        start = this.props.currentUser;
-        // }
-        return this.props.listProposalsByVoter({
-            start,
             limit,
-            order_by,
-            order_direction,
             status,
         });
     }
-
-    getUpvotedProposals(
-        limit = 1000,
-        status = 'all',
-        order_by = 'by_creator',
-        order_direction = 'ascending'
-    ) {
-        // if (this.props.currentUser) {
-        return this.props.listVotedOnProposals({
-            voter_id: this.props.currentUser,
-            limit,
-            order_by: 'by_proposal_voter',
-            order_direction,
-            status,
-        });
-        // }
-        // return [];
-    }
+    //
+    // getUserProposals(
+    //     limit,
+    //     status = 'all',
+    //     last_id,
+    //     order_by = 'by_creator',
+    //     order_direction = 'ascending',
+    //     start = ''
+    // ) {
+    //     if (!this.props.currentUser) return [];
+    //
+    //     // if (status === 'voted') {
+    //     start = this.props.currentUser;
+    //     // }
+    //     return this.props.listProposalsByVoter({
+    //         start,
+    //         limit,
+    //         order_by,
+    //         order_direction,
+    //         status,
+    //     });
+    // }
+    //
+    // getUpvotedProposals(
+    //     limit = 1000,
+    //     status = 'all',
+    //     order_by = 'by_creator',
+    //     order_direction = 'ascending'
+    // ) {
+    //     // if (this.props.currentUser) {
+    //     return this.props.listVotedOnProposals({
+    //         voter_id: this.props.currentUser,
+    //         limit,
+    //         order_by: 'by_proposal_voter',
+    //         order_direction,
+    //         status,
+    //     });
+    //     // }
+    //     // return [];
+    // }
 
     upvoteProposal = (proposalId, onSuccess, onFailure) => {
         return this.props.upvoteProposal(
@@ -111,8 +132,19 @@ class Proposals extends React.Component {
         );
     };
 
+    onClickLoadMoreProposals = e => {
+        e.preventDefault();
+        console.log('onClickLoadMoreProposals::clicked');
+        this.load();
+    };
+
     render() {
+        console.log('Proposals->render()', this.state);
         const { proposals, loading } = this.state;
+        let showBottomLoading = false;
+        if (loading && proposals && proposals.length > 0) {
+            showBottomLoading = true;
+        }
         return (
             <div>
                 <ProposalListContainer
@@ -120,6 +152,17 @@ class Proposals extends React.Component {
                     proposals={proposals}
                     loading={loading}
                 />
+                <center>
+                    {!loading ? (
+                        <a href="#" onClick={this.onClickLoadMoreProposals}>
+                            {`Load ${this.state.limit} more...`}
+                        </a>
+                    ) : null}
+
+                    {showBottomLoading ? (
+                        <a>{`Loading ${this.state.limit} more...`}</a>
+                    ) : null}
+                </center>
             </div>
         );
     }
