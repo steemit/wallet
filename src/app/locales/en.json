@@ -550,7 +550,7 @@
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
             "Converted %(VESTING_TOKEN)s can be sent to yourself or someone else but can not transfer again without converting back to %(LIQUID_TOKEN)s.",
         "part_of_your_steem_power_is_currently_delegated":
-            "Part of %(user_name)s's STEEM POWER is currently delegated. Delegation is donated for influence or to help new users perform actions on steemit. Your delegation amount can fluctuate.",
+            "Part of %(user_name)s's STEEM POWER is currently delegated. Delegation is donated for influence or to help new users perform actions on Steemit. Your delegation amount can fluctuate.",
         "steem_power_apr":
             "By holding STEEM POWER, you currently benefit from an estimate APR of %(value)s&#37;, subject to blockchain variance. For more information about STEEM economics, check the <a href=\"http://localhost/faq.html#How_many_new_tokens_are_generated_by_the_blockchain\">FAQ</a>."
     },
