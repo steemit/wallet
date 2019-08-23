@@ -12,7 +12,7 @@ export const marketWatches = [
     takeLatest(marketActions.UPDATE_MARKET, reloadMarket),
 ];
 
-const wait = ms =>
+export const wait = ms =>
     new Promise(resolve => {
         setTimeout(() => resolve(), ms);
     });
