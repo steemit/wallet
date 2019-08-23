@@ -10,6 +10,7 @@ import userReducer from './UserReducer';
 import transactionReducer from './TransactionReducer';
 import offchainReducer from './OffchainReducer';
 import proposalReducer from './ProposalReducer';
+import communityReducer from './CommunityReducer';
 
 function initReducer(reducer, type) {
     return (state, action) => {
@@ -54,6 +55,7 @@ export default combineReducers({
     discussion: initReducer((state = {}) => state),
     routing: initReducer(routerReducer),
     app: initReducer(appReducer),
+    community: initReducer(communityReducer),
     form: formReducer,
     proposal: initReducer(proposalReducer, 'proposal'),
 });
