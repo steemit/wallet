@@ -4,6 +4,7 @@ import { marketWatches } from 'app/redux/MarketSaga';
 import { sharedWatches } from 'app/redux/SagaShared';
 import { userWatches } from 'app/redux/UserSaga';
 import { authWatches } from 'app/redux/AuthSaga';
+import { communityWatches } from 'app/redux/CommunitySaga';
 import { transactionWatches } from 'app/redux/TransactionSaga';
 
 export default function* rootSaga() {
@@ -14,5 +15,6 @@ export default function* rootSaga() {
         ...authWatches,
         ...transactionWatches,
         ...marketWatches,
+        ...communityWatches,
     ]);
 }
