@@ -11,6 +11,7 @@ import { actions as fetchDataSagaActions } from 'app/redux/FetchDataSaga';
 import Icon from 'app/components/elements/Icon';
 import UserKeys from 'app/components/elements/UserKeys';
 import PasswordReset from 'app/components/elements/PasswordReset';
+import CreateCommunity from 'app/components/elements/CreateCommunity';
 import UserWallet from 'app/components/modules/UserWallet';
 import Settings from 'app/components/modules/Settings';
 import CurationRewards from 'app/components/modules/CurationRewards';
@@ -74,6 +75,8 @@ export default class UserProfile extends React.Component {
 
         // Redirect user homepage to transfers page
         let { section } = this.props.routeParams;
+        debugger;
+        console.log('section is', section);
         if (!section) {
             if (process.env.BROWSER) {
                 browserHistory.replace(`/@${accountname}/transfers`);
@@ -160,6 +163,22 @@ export default class UserProfile extends React.Component {
                     </div>
                     <br />
                     <PasswordReset account={accountImm} />
+                </div>
+            );
+        } else if (section === 'communities') {
+            walletClass = 'active';
+            tab_content = (
+                <div>
+                    <div className="row">
+                        <div className="column">
+                            <WalletSubMenu
+                                accountname={account.name}
+                                isMyAccount={isMyAccount}
+                            />
+                        </div>
+                    </div>
+                    <br />
+                    <CreateCommunity account={accountImm} />
                 </div>
             );
         } else {
