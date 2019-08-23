@@ -83,6 +83,38 @@ class UserWallet extends React.Component {
         this.props.claimRewards(account);
     };
 
+    getCurrentApr = gprops => {
+        // The inflation was set to 9.5% at block 7m
+        const initialInflationRate = 9.5;
+        const initialBlock = 7000000;
+
+        // It decreases by 0.01% every 250k blocks
+        const decreaseRate = 250000;
+        const decreasePercentPerIncrement = 0.01;
+
+        // How many increments have happened since block 7m?
+        const headBlock = gprops.head_block_number;
+        const deltaBlocks = headBlock - initialBlock;
+        const decreaseIncrements = deltaBlocks / decreaseRate;
+
+        // Current inflation rate
+        let currentInflationRate =
+            initialInflationRate -
+            decreaseIncrements * decreasePercentPerIncrement;
+
+        // Cannot go lower than 0.95%
+        if (currentInflationRate < 0.95) {
+            currentInflationRate = 0.95;
+        }
+
+        // Now lets calculate the "APR"
+        const virtualSupply = gprops.virtual_supply.split(' ').shift();
+        const totalVestingFunds = gprops.total_vesting_fund_steem
+            .split(' ')
+            .shift();
+        return virtualSupply * currentInflationRate * 0.15 / totalVestingFunds;
+    };
+
     render() {
         const {
             onShowDepositSteem,
@@ -503,6 +535,8 @@ class UserWallet extends React.Component {
             );
         }
 
+        const spApr = this.getCurrentApr(gprops);
+
         return (
             <div className="UserWallet">
                 {claimbox}
@@ -580,6 +614,11 @@ class UserWallet extends React.Component {
                                 )}
                             </span>
                         ) : null}
+                        <FormattedHTMLMessage
+                            className="secondary"
+                            id="tips_js.steem_power_apr"
+                            params={{ value: spApr.toFixed(2) }}
+                        />{' '}
                     </div>
                     <div className="column small-12 medium-4">
                         {isMyAccount ? (
