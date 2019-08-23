@@ -4,7 +4,6 @@ import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import { connect } from 'react-redux';
 
 const CreateCommunity = ({ accountName }) => {
-    //const { accountName } = this.props;
     return (
         <div className="row">
             <div className="column large-6 small-12">

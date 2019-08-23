@@ -1,5 +1,5 @@
 import { call, put, takeLatest, select } from 'redux-saga/effects';
-import dsteem from 'dsteem';
+import * as dsteem from 'dsteem';
 import * as communityActions from './CommunityReducer';
 import { wait } from './MarketSaga';
 
