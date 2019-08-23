@@ -552,7 +552,7 @@
         "part_of_your_steem_power_is_currently_delegated":
             "Part of %(user_name)s's STEEM POWER is currently delegated. Delegation is donated for influence or to help new users perform actions on steemit. Your delegation amount can fluctuate.",
         "steem_power_apr":
-            "By holding STEEM POWER, you currently benefit of an APR of approximately %(value)s&#37;. For more information about STEEM economics, check the <a href=\"http://localhost/faq.html#How_many_new_tokens_are_generated_by_the_blockchain\">FAQ</a>"
+            "By holding STEEM POWER, you currently benefit from an estimate APR of %(value)s&#37;, subject to blockchain variance. For more information about STEEM economics, check the <a href=\"http://localhost/faq.html#How_many_new_tokens_are_generated_by_the_blockchain\">FAQ</a>"
     },
     "promote_post_jsx": {
         "promote_post": "Promote Post",
