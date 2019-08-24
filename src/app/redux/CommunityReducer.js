@@ -10,7 +10,7 @@ const SET_COMMUNITY_OWNER_ACCOUNT_NAME =
 const SET_COMMUNITY_OWNER_MASTER_PASSWORD =
     'community/SET_COMMUNITY_OWNER_MASTER_PASSWORD';
 
-const CREATE_COMMUNITY_ACCOUNT = 'community/CREATE_COMMUNITY_ACCOUNT'; // Has saga.
+export const CREATE_COMMUNITY_ACCOUNT = 'community/CREATE_COMMUNITY_ACCOUNT'; // Has saga.
 const CREATE_COMMUNITY_ACCOUNT_PENDING =
     'community/CREATE_COMMUNITY_ACCOUNT_PENDING';
 const CREATE_COMMUNITY_ACCOUNT_ERROR =
@@ -37,7 +37,6 @@ const defaultState = fromJS({
 
 export default function reducer(state = defaultState, action) {
     const payload = action.payload;
-
     switch (action.type) {
         case SET_COMMUNITY_TITLE: {
             const title = fromJS(payload);
