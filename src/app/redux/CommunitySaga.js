@@ -1,17 +1,17 @@
 import { call, put, takeLatest, select } from 'redux-saga/effects';
-import * as dsteem from 'dsteem';
+import { Client, PrivateKey } from 'dsteem';
 import * as communityActions from './CommunityReducer';
 import { wait } from './MarketSaga';
 
 // TODO: use steem endpoint from env var.
-const dSteemClient = new dsteem.Client('https://api.steemit.com');
+const dSteemClient = new Client('https://api.steemit.com');
 
 const usernameSelector = state => state.user.current.username;
 const activeKeySelector = state => state.user.current.pub_keys_used.active;
 const communityTitleSelector = state => state.community.communityTitle;
 
 const generateAuth = (user, pass, type) => {
-    const key = dsteem.PrivateKey.fromLogin(user, pass, type).createPublic();
+    const key = PrivateKey.fromLogin(user, pass, type).createPublic();
     if (type == 'memo') return key;
     return { weight_threshold: 1, account_auths: [], key_auths: [[key, 1]] };
 };
@@ -34,10 +34,14 @@ const generateHivemindOperation = (
 };
 
 export const communityWatches = [
-    takeLatest(communityActions.createCommunityAccount, createCommunityAccount),
+    takeLatest(
+        communityActions.CREATE_COMMUNITY_ACCOUNT,
+        createCommunityAccount
+    ),
 ];
 
 export function* createCommunityAccount(createCommunityAction) {
+    debugger;
     yield put({
         type: communityActions.createCommunityAccountPending,
         payload: true,
@@ -67,7 +71,7 @@ export function* createCommunityAccount(createCommunityAction) {
         // The client cannot submit custom_json and account_create in the same block. The easiest way around this, for now, is to pause for 3 seconds after the account is created before submitting the ops.
         yield call(wait, 3000);
         // Call the custom ops sagas.
-        const ownerPosting = dsteem.PrivateKey.fromLogin(
+        const ownerPosting = PrivateKey.fromLogin(
             community,
             password,
             'posting'
