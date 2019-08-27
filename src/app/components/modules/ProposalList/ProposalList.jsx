@@ -5,7 +5,7 @@ import ProposalContainer from './ProposalContainer';
 
 ProposalList.propTypes = {
     proposals: PropTypes.array.isRequired,
-    upvoteProposal: PropTypes.func.isRequired,
+    voteOnProposal: PropTypes.func.isRequired,
     loading: PropTypes.bool.isRequired,
     // proposals: PropTypes.arrayOf(
     //     PropTypes.shape({
@@ -22,7 +22,7 @@ ProposalList.propTypes = {
 
 export default function ProposalList(props) {
     // console.log('ProposalList.jsx->()', props);
-    const { proposals, upvoteProposal, loading } = props;
+    const { proposals, voteOnProposal, loading } = props;
     const proposalCount = proposals.length;
 
     if (!loading && proposalCount == 0) {
@@ -58,7 +58,7 @@ export default function ProposalList(props) {
             {proposals.map(proposal => (
                 <ProposalContainer
                     key={proposal.id}
-                    upvoteProposal={upvoteProposal}
+                    voteOnProposal={voteOnProposal}
                     proposal={proposal}
                 />
             ))}

@@ -5,7 +5,7 @@ import ProposalList from './ProposalList';
 
 ProposalList.propTypes = {
     proposals: PropTypes.array.isRequired, // TODO: Specify shape.
-    upvoteProposal: PropTypes.func.isRequired,
+    voteOnProposal: PropTypes.func.isRequired,
     loading: PropTypes.bool.isRequired,
 };
 
@@ -20,7 +20,7 @@ class ProposalListContainer extends React.Component {
     }
 
     render() {
-        const { proposals, upvoteProposal, loading } = this.props;
+        const { proposals, voteOnProposal, loading } = this.props;
         // console.log('ProposalListContainer.jsx::render()', arguments);
 
         return <ProposalList {...this.props} />;

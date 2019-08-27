@@ -17,9 +17,9 @@ Proposal.propTypes = {
     subject: PropTypes.string.isRequired,
     total_votes: PropTypes.number.isRequired,
     permlink: PropTypes.string.isRequired,
-    onUpvote: PropTypes.func.isRequired,
+    onVote: PropTypes.func.isRequired,
     isVoting: PropTypes.bool.isRequired,
-    upVoted: PropTypes.bool.isRequired,
+    isUpVoted: PropTypes.bool.isRequired,
 };
 
 export default function Proposal(props) {
@@ -32,11 +32,11 @@ export default function Proposal(props) {
         subject,
         total_votes,
         permlink,
-        onUpvote,
+        onVote,
         isVoting,
         voteFailed,
         voteSucceeded,
-        upVoted,
+        isUpVoted,
     } = props;
 
     const start = new Date(props.start_date);
@@ -45,17 +45,23 @@ export default function Proposal(props) {
     const durationInDays = Moment(end).diff(Moment(start), 'days');
     const totalPayout = durationInDays * daily_pay.amount;
 
-    // console.log('daily_pay', daily_pay, durationInDays);
+    console.log(
+        'PROPOSAL-RENDER(isUpVoted, voteSucceeded, voteFailed, isVoting)',
+        props,
+        isUpVoted,
+        voteSucceeded,
+        voteFailed,
+        isVoting
+    );
     const classUp =
         'Voting__button Voting__button-up' +
-        (upVoted > 0 ? ' Voting__button--upvoted' : '') +
-        (voteSucceeded > 0 ? ' Voting__button--upvoted' : '') +
-        (voteFailed > 0 ? ' Voting__button--downvoted' : '') +
+        (isUpVoted ? ' Voting__button--upvoted' : '') +
+        (voteFailed ? ' Voting__button--downvoted' : '') +
         (isVoting ? ' votingUp' : '');
     return (
         <div className="proposals__row">
             <div className="proposals__votes">
-                <a onClick={onUpvote}>
+                <a onClick={onVote}>
                     <span className={classUp}>
                         <Icon
                             name={isVoting ? 'empty' : 'chevron-up-circle'}

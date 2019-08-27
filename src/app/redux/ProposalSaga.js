@@ -43,10 +43,10 @@ export function* listProposals({
         limit,
         status
     );
-    let start = [];
+    const start = [-1, 0];
     if (last_proposal) {
         //TODO: Switch on the logic for the different types of orders.
-        start = [last_proposal.id];
+        // start = [last_proposal.id];
     }
 
     const proposals = yield call(
@@ -65,6 +65,7 @@ export function* listProposals({
     console.log('ProposalSaga->listProposals()::proposalIds', proposalIds);
 
     let proposalVotesIds = [];
+    console.log('ProposalSaga->listProposals()::if(voter_id)', voter_id);
     if (voter_id) {
         const proposalVotes = yield call(
             [api, api.listProposalVotesAsync],
@@ -81,9 +82,21 @@ export function* listProposals({
 
         proposalVotesIds = proposalVotes
             .filter(d => {
+                console.log(
+                    'ProposalSaga->listProposals()::proposalVotes.filter::d.voter == voter_id',
+                    d.voter == voter_id,
+                    d,
+                    voter_id
+                );
                 return d.voter == voter_id;
             })
             .map(p => {
+                console.log(
+                    'ProposalSaga->listProposals()::proposalVotes.map((p)',
+                    p.id,
+                    p,
+                    voter_id
+                );
                 return p.id;
             });
         console.log(
@@ -92,10 +105,18 @@ export function* listProposals({
         );
     }
     const mungedProposals = proposals.map(p => {
+        console.log(
+            'ProposalSaga->listProposals()::proposalVotesIds.indexOf(p.proposal_id)',
+            proposalVotesIds.indexOf(p.proposal_id),
+            proposalVotesIds
+        );
+        console.log('ProposalSaga->listProposals()::p', p, p.upVoted);
         if (proposalVotesIds.indexOf(p.proposal_id) != -1) {
             p.upVoted = true;
+        } else {
+            p.upVoted = false;
         }
-        p.upVoted = false;
+        console.log('ProposalSaga->listProposals()::p', p, p.upVoted);
         return p;
     });
 
@@ -146,7 +167,9 @@ export function* listVotedOnProposals({
         const proposals = data.filter(d => {
             return d.voter == voter_id;
         });
-        console.log(`Proposals matching a vote from '${voter_id}', proposals`);
+        console.log(
+            `ProposalSaga->listVotedOnProposals()::Proposals matching a vote from '${voter_id}', proposals`
+        );
         yield put(
             proposalActions.receiveListProposalVotes({
                 proposals,

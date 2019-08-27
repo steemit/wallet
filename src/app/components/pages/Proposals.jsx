@@ -21,7 +21,7 @@ class Proposals extends React.Component {
         this.state = {
             proposals: [],
             loading: true,
-            limit: 2,
+            limit: 10,
             last_proposal: false,
             status: 'all',
         };
@@ -31,19 +31,23 @@ class Proposals extends React.Component {
         console.log('componentWillMount', this.state);
     }
 
-    async load() {
+    async load(quiet = false) {
         console.log('load', this.state);
         // if (this.state.proposals && this.state.proposals.length > 0) {
         //     this.setState({ loading: false });
         // } else {
-        this.setState({ loading: true });
+        if (quiet) {
+            this.setState({ loading: true });
+        }
         // }
 
         const proposals =
             (await this.getAllProposals(
                 this.state.last_proposal,
                 'by_total_votes',
-                'ascending',
+                // 'by_creator',
+                // 'ascending',
+                'descending',
                 this.state.limit + this.state.proposals.length,
                 this.state.status
             )) || [];
@@ -122,13 +126,27 @@ class Proposals extends React.Component {
     //     // return [];
     // }
 
-    upvoteProposal = (proposalId, onSuccess, onFailure) => {
-        return this.props.upvoteProposal(
+    // voteOnProposal = (proposalId, voteForIt, onSuccess, onFailure) => {
+    //     return this.props.voteOnProposal(
+    //         this.props.currentUser,
+    //         [proposalId],
+    //         voteForIt,
+    //         onSuccess,
+    //         onFailure
+    //     );
+    // };
+
+    voteOnProposal = async (proposalId, voteForIt, onSuccess, onFailure) => {
+        return this.props.voteOnProposal(
             this.props.currentUser,
             [proposalId],
-            true,
-            onSuccess,
-            onFailure
+            voteForIt,
+            async () => {
+                if (onSuccess) onSuccess();
+            },
+            () => {
+                if (onFailure) onFailure();
+            }
         );
     };
 
@@ -148,7 +166,7 @@ class Proposals extends React.Component {
         return (
             <div>
                 <ProposalListContainer
-                    upvoteProposal={this.upvoteProposal}
+                    voteOnProposal={this.voteOnProposal}
                     proposals={proposals}
                     loading={loading}
                 />
@@ -174,7 +192,7 @@ Proposals.propTypes = {
     removeProposal: PropTypes.func.isRequired,
     // updateProposalVotes: PropTypes.func.isRequired,
     createProposal: PropTypes.func.isRequired,
-    upvoteProposal: PropTypes.func.isRequired,
+    voteOnProposal: PropTypes.func.isRequired,
 };
 
 module.exports = {
@@ -183,7 +201,12 @@ module.exports = {
         state => {
             console.log('state.proposal', state.proposal.toJS());
             const user = state.user.get('current');
+            console.log("const user = state.user.get('current');", user);
             const currentUser = user && user.get('username');
+            console.log(
+                "const currentUser = user && user.get('username');",
+                currentUser
+            );
             const proposals = state.proposal.get('proposals', List());
             const last = proposals.size - 1;
             const last_id =
@@ -248,14 +271,14 @@ module.exports = {
             //     // );
             // };
             return {
-                upvoteProposal: (
+                voteOnProposal: (
                     voter,
                     proposal_ids,
                     approve,
                     successCallback,
                     errorCallback
                 ) => {
-                    console.log('upvoteProposal', arguments);
+                    console.log('voteOnProposal', arguments);
                     dispatch(
                         transactionActions.broadcastOperation({
                             type: 'update_proposal_votes',
