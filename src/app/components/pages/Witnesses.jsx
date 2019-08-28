@@ -103,8 +103,10 @@ class Witnesses extends React.Component {
             const thread = item.get('url');
             const myVote = witness_votes ? witness_votes.has(owner) : null;
             const signingKey = item.get('signing_key');
-            const isDisabled = signingKey == DISABLED_SIGNING_KEY;
             const lastBlock = item.get('last_confirmed_block_num');
+            const noBlock7days = (head_block - lastBlock) * 3 > 604800;
+            const isDisabled =
+                signingKey == DISABLED_SIGNING_KEY || noBlock7days;
             const votingActive = witnessVotesInProgress.has(owner);
             const classUp =
                 'Voting__button Voting__button-up' +
