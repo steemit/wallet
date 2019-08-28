@@ -30,6 +30,8 @@ module.exports = {
         current_reserve_ratio: 200000000,
         average_block_size: 15136,
         max_virtual_bandwidth: '264241152000000000000',
+        vesting_reward_percent: 1500,
+        // @TODO: add other extended fields from https://github.com/steemit/steem/pull/3484/commits/47dc797f59be23a9db8493958748956b8b73750a
     },
     tag_idx: {
         trending: [
