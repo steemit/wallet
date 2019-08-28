@@ -107,11 +107,11 @@ export function* listProposals({
     const mungedProposals = proposals.map(p => {
         console.log(
             'ProposalSaga->listProposals()::proposalVotesIds.indexOf(p.proposal_id)',
-            proposalVotesIds.indexOf(p.proposal_id),
+            proposalVotesIds.includes(p.proposal_id),
             proposalVotesIds
         );
         console.log('ProposalSaga->listProposals()::p', p, p.upVoted);
-        if (proposalVotesIds.indexOf(p.proposal_id) != -1) {
+        if (proposalVotesIds.includes(p.proposal_id)) {
             p.upVoted = true;
         } else {
             p.upVoted = false;
