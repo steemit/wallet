@@ -108,11 +108,17 @@ class UserWallet extends React.Component {
         }
 
         // Now lets calculate the "APR"
+        const vestingRewardPercent = gprops.vesting_reward_percent / 10000;
         const virtualSupply = gprops.virtual_supply.split(' ').shift();
         const totalVestingFunds = gprops.total_vesting_fund_steem
             .split(' ')
             .shift();
-        return virtualSupply * currentInflationRate * 0.15 / totalVestingFunds;
+        return (
+            virtualSupply *
+            currentInflationRate *
+            vestingRewardPercent /
+            totalVestingFunds
+        );
     };
 
     render() {
