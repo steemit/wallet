@@ -920,13 +920,13 @@ You can view your current voting power using third party tools such as https://s
 
 The rewards are allocated so that 50% of the payout goes to the author of the post/comment, and 50% goes to the curator.
 
-Of the 50% that goes to the curator, that portion will be split between the author and the curator if the curator votes within the first 5 minutes. The split of the 50% between the author and curator during the first 5 minutes is calculated linearly based on the time the vote is cast.
+Of the 50% that goes to the curator, that portion will be split between going back to the reward pool and the curator if the curator votes within the first 5 minutes. The split of the 50% during the first 5 minutes is calculated linearly based on the time the vote is cast.
 
-- If a post is upvoted the moment of posting, 100% of the curation reward goes to the author.
-- At 3 minutes, 90% goes to the author and 10% to the curator.
-- At 15 minutes it's a 50/50 split.
-- At 27 minutes, 10% goes to the author and 90% to the curator.
-- If a post is upvoted 30 min after posting, 100% of the curation reward goes to the curator.
+- If a post is upvoted the moment of posting, 100% of the curation reward goes back to the reward pool.
+- At 0.5 minutes, 10% goes to the curator and 90% goes back.
+- At 2.5 minutes it's a 50/50 split.
+- At 4.5 minutes, 90% goes to the curator and 10% goes back.
+- If a post is upvoted 5 min after posting, 100% of the curation reward goes to the curator.
 
 <a href="#Table_of_Contents_Voting_and_Curating">^</a>
 ## <span id="Can_I_get_curation_rewards_for_upvoting_comments">Can I get curation rewards for upvoting comments?</span>
