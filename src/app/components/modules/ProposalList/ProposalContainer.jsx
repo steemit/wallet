@@ -11,7 +11,7 @@ class ProposalContainer extends React.Component {
             isVoting: false,
             voteFailed: false,
             voteSucceeded: false,
-            isUpVoted: props.proposal.isUpVoted,
+            isUpVoted: props.proposal.upVoted,
         };
         this.id = this.props.proposal.id;
     }
