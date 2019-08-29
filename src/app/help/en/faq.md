@@ -673,8 +673,9 @@ Starting with the network's 16th hard fork in December 2016, Steem began creatin
 ## <span id="How_are_the_new_tokens_distributed">How are the new tokens distributed?</span>
 
 Out of the new tokens that are generated:
-- 75% go to the reward pool, which is split between authors and curators.
+- 65% go to the reward pool, which is split between authors (50%) and curators (50%).
 - 15% of the new tokens are awarded to holders of Steem Power.
+- 10% of the new tokens are being used to generate SBD for the SPS (@steem.dao)
 - The remaining 10% pays for the witnesses to power the blockchain.
 
 <a href="#Table_of_Contents_Economics">^</a>
@@ -708,9 +709,9 @@ Every day, a fixed amount of STEEM tokens are allocated to the network reward fu
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="How_is_the_reward_pool_split_between_authors_and_curators">How is the reward pool split between authors and curators?</span>
 
-Up to 25% of a post's payout is awarded to curators (the people who upvoted the post) as a reward for discovering the content. The other 75% is awarded to the author.
+Up to 50% of a post's payout is awarded to curators (the people who upvoted the post) as a reward for discovering the content. The other 50% is awarded to the author.
 
-If curators vote for a post within the first 30 minutes of it being created, a portion of their curation reward is added to the author payout. This portion is linear to the age of the post between 0 and 30 minutes. As an example: upvoting at 15 minutes will donate half of your potential curation reward to the author.
+If curators vote for a post within the first 5 minutes of it being created, a portion of their curation reward is going back to the reward pool. This portion is linear to the age of the post between 0 and 5 minutes. As an example: upvoting at 15 minutes will donate half of your potential curation reward back to the reward pool.
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="Will_the_reward_pool_pay_out_more_or_less_depending_on_who_votes">Will the reward pool pay out more or less depending on who votes?</span>
@@ -917,9 +918,9 @@ You can view your current voting power using third party tools such as https://s
 <a href="#Table_of_Contents_Voting_and_Curating">^</a>
 ## <span id="What_determines_how_much_of_the_curation_reward_goes_to_the_author_versus_curators">What determines how much of the curation reward goes to the author versus curators?</span>
 
-The rewards are allocated so that 75% of the payout goes to the author of the post/comment, and 25% goes to the curator.
+The rewards are allocated so that 50% of the payout goes to the author of the post/comment, and 50% goes to the curator.
 
-Of the 25% that goes to the curator, that portion will be split between the author and the curator if the curator votes within the first 30 minutes. The split of the 25% between the author and curator during the first 30 minutes is calculated linearly based on the time the vote is cast.
+Of the 50% that goes to the curator, that portion will be split between the author and the curator if the curator votes within the first 5 minutes. The split of the 50% between the author and curator during the first 5 minutes is calculated linearly based on the time the vote is cast.
 
 - If a post is upvoted the moment of posting, 100% of the curation reward goes to the author.
 - At 3 minutes, 90% goes to the author and 10% to the curator.
