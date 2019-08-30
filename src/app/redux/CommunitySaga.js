@@ -1,17 +1,18 @@
 import { call, put, takeLatest, select } from 'redux-saga/effects';
-import { Client, PrivateKey } from 'dsteem';
+import * as dsteem from 'dsteem';
 import * as communityActions from './CommunityReducer';
 import { wait } from './MarketSaga';
 
 // TODO: use steem endpoint from env var.
-const dSteemClient = new Client('https://api.steemit.com');
 
 const usernameSelector = state => state.user.current.username;
-const activeKeySelector = state => state.user.current.pub_keys_used.active;
+const activeKeySelector = state => {
+    return state.user.getIn(['pub_keys_used']).active;
+};
 const communityTitleSelector = state => state.community.communityTitle;
 
 const generateAuth = (user, pass, type) => {
-    const key = PrivateKey.fromLogin(user, pass, type).createPublic();
+    const key = dsteem.PrivateKey.fromLogin(user, pass, type).createPublic();
     if (type == 'memo') return key;
     return { weight_threshold: 1, account_auths: [], key_auths: [[key, 1]] };
 };
@@ -41,59 +42,95 @@ export const communityWatches = [
 ];
 
 export function* createCommunityAccount(createCommunityAction) {
+    const dSteemClient = new dsteem.Client('https://api.steemit.com');
     debugger;
     yield put({
         type: communityActions.createCommunityAccountPending,
         payload: true,
     });
-    const { community, password } = createCommunityAction.payload;
+    const {
+        accountName,
+        communityTitle,
+        communityDescription,
+        communityNSFW,
+        communityOwnerName,
+        communityOwnerWifPassword,
+    } = createCommunityAction.payload;
+    debugger;
+
     try {
-        // Get the currently logged in user.
-        const creatorName = yield select(usernameSelector);
+        // Get the currently logged in user active key.
         const creatorActiveKey = yield select(activeKeySelector);
+
         const op = [
             'account_create',
             {
                 fee: '3.00 STEEM',
-                creator: creatorName,
-                owner: generateAuth(community, password, 'owner'),
-                active: generateAuth(community, password, 'active'),
-                posting: generateAuth(community, password, 'posting'),
-                memo_key: generateAuth(community, password, 'memo'),
+                creator: accountName,
+                owner: generateAuth(
+                    communityOwnerName,
+                    communityOwnerWifPassword,
+                    'owner'
+                ),
+                active: generateAuth(
+                    communityOwnerName,
+                    communityOwnerWifPassword,
+                    'active'
+                ),
+                posting: generateAuth(
+                    communityOwnerName,
+                    communityOwnerWifPassword,
+                    'posting'
+                ),
+                memo_key: generateAuth(
+                    communityOwnerPosting,
+                    communityOwnerWifPassword,
+                    'memo'
+                ),
                 json_metadata: '',
             },
         ];
+        debugger;
+
         yield call(
-            dSteemClient.broadcast.sendOperations,
+            [dSteemClient, dSteemClient.broadcast.sendOperations],
             [op],
             creatorActiveKey
         );
+
         // The client cannot submit custom_json and account_create in the same block. The easiest way around this, for now, is to pause for 3 seconds after the account is created before submitting the ops.
         yield call(wait, 3000);
-        // Call the custom ops sagas.
-        const ownerPosting = PrivateKey.fromLogin(
-            community,
-            password,
+        debugger;
+        const communityOwnerPosting = dsteem.PrivateKey.fromLogin(
+            communityOwnerName,
+            communityOwnerWifPassword,
             'posting'
         );
-        const communityTitle = yield select(communityTitleSelector);
         const setRoleOperation = generateHivemindOperation(
             'setRole',
-            { community, account: creatorName, role: 'admin' },
-            community,
-            ownerPosting
+            { communityOwnerName, account: accountName, role: 'admin' },
+            communityOwnerName,
+            communityOwnerPosting
         );
+        // TODO: Should this op update the community description and NSFW prop?
         const updatePropsOperation = generateHivemindOperation(
             'updateProps',
-            { community, props: { title: communityTitle } },
-            community,
-            ownerPosting
+            { communityOwnerName, props: { title: communityTitle } },
+            communityOwnerName,
+            communityOwnerPosting
         );
-        yield call(dSteemClient.broadcast.sendOperations, [
-            setRoleOperation,
-            updatePropsOperation,
-        ]);
+        yield call(
+            [dSteemClient, dSteemClient.broadcast.sendOperations],
+            [setRoleOperation, updatePropsOperation]
+        );
+        debugger;
+        yield put({
+            type: communityActions.createCommunitySuccess,
+            payload: true,
+        });
     } catch (error) {
+        debugger;
+        console.log(error);
         yield put({
             type: communityActions.createCommunityAccountError,
             payload: true,

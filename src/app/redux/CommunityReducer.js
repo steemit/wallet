@@ -1,4 +1,4 @@
-import { fromJS, Map } from 'immutable';
+import { fromJS } from 'immutable';
 
 // Action constants
 const SET_COMMUNITY_TITLE = 'community/SET_COMMUNITY_TITLE';
@@ -7,7 +7,7 @@ const SET_COMMUNITY_NSFW = 'community/SET_COMMUNITY_NSFW';
 
 const SET_COMMUNITY_OWNER_ACCOUNT_NAME =
     'community/SET_COMMUNITY_OWNER_ACCOUNT_NAME';
-const SET_COMMUNITY_OWNER_MASTER_PASSWORD =
+const SET_COMMUNITY_OWNER_WIF_PASSWORD =
     'community/SET_COMMUNITY_OWNER_MASTER_PASSWORD';
 
 export const CREATE_COMMUNITY_ACCOUNT = 'community/CREATE_COMMUNITY_ACCOUNT'; // Has saga.
@@ -15,6 +15,7 @@ const CREATE_COMMUNITY_ACCOUNT_PENDING =
     'community/CREATE_COMMUNITY_ACCOUNT_PENDING';
 const CREATE_COMMUNITY_ACCOUNT_ERROR =
     'community/CREATE_COMMUNITY_ACCOUNT_ERROR';
+const CREATE_COMMUNITY_SUCCESS = 'community/CREATE_COMMUNITY_SUCCESS';
 
 const COMMUNITY_HIVEMIND_OPERATION = 'community/COMMUNITY_HIVEMIND_OPERATION'; // Has saga.
 const COMMUNITY_HIVEMIND_OPERATION_PENDING =
@@ -28,11 +29,12 @@ const defaultState = fromJS({
     communityDescription: '',
     communityNSFW: false,
     communityOwnerName: '',
-    communityOwnerMasterPassword: '',
+    communityOwnerWifPassword: '',
     communityCreatePending: false,
     communityCreateError: false,
     communityHivemindOperationPending: false,
     communityHivemindOperationError: false,
+    communityCreateSuccess: false,
 });
 
 export default function reducer(state = defaultState, action) {
@@ -54,9 +56,9 @@ export default function reducer(state = defaultState, action) {
             const name = fromJS(payload);
             return state.merge({ communityOwnerName: name });
         }
-        case SET_COMMUNITY_OWNER_MASTER_PASSWORD: {
+        case SET_COMMUNITY_OWNER_WIF_PASSWORD: {
             const password = fromJS(payload);
-            return state.merge({ communityOwnerMasterPassword: password });
+            return state.merge({ communityOwnerWifPassword: password });
         }
         // Has a saga watcher.
         case CREATE_COMMUNITY_ACCOUNT: {
@@ -71,13 +73,19 @@ export default function reducer(state = defaultState, action) {
             const err = fromJS(payload);
             return state.merge({ communityCreateError: err });
         }
+        case CREATE_COMMUNITY_SUCCESS: {
+            const success = fromJS(payload);
+            return state.merge({ communityCreateSuccess: success });
+        }
         // Has a saga watcher.
         case COMMUNITY_HIVEMIND_OPERATION: {
             return state;
         }
         case COMMUNITY_HIVEMIND_OPERATION_PENDING: {
             const pending = fromJS(payload);
-            return state.merge({ communityHivemindOperationPending: pending });
+            return state.merge({
+                communityHivemindOperationPending: pending,
+            });
         }
         case COMMUNITY_HIVEMIND_OPERATION_ERROR: {
             const err = fromJS(payload);
@@ -107,11 +115,12 @@ export const setCommunityOwnerAccountName = payload => ({
     type: SET_COMMUNITY_OWNER_ACCOUNT_NAME,
     payload,
 });
-export const setCommunityOwnerMasterPassword = payload => ({
-    type: SET_COMMUNITY_OWNER_MASTER_PASSWORD,
+export const setCommunityOwnerWifPassword = payload => ({
+    type: SET_COMMUNITY_OWNER_WIF_PASSWORD,
     payload,
 });
-export const createCommunityAccount = payload => ({
+// Has a saga.
+export const createCommunity = payload => ({
     type: CREATE_COMMUNITY_ACCOUNT,
     payload,
 });
@@ -122,6 +131,10 @@ export const createCommunityAccountPending = payload => ({
 });
 export const createCommunityAccountError = payload => ({
     type: CREATE_COMMUNITY_ACCOUNT_ERROR,
+    payload,
+});
+export const createCommunityAccountSuccess = payload => ({
+    type: CREATE_COMMUNITY_SUCCESS,
     payload,
 });
 export const communityHivemindOperation = payload => ({
