@@ -46,7 +46,6 @@ const CreateCommunity = ({
     };
 
     const handleCommunitySubmit = e => {
-        debugger;
         e.preventDefault();
         const createCommunitypayload = {
             accountName,
@@ -56,7 +55,6 @@ const CreateCommunity = ({
             communityOwnerName,
             communityOwnerWifPassword,
         };
-        debugger;
         createCommunity(createCommunitypayload);
     };
 

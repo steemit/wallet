@@ -1,10 +1,12 @@
 import { call, put, takeLatest, select } from 'redux-saga/effects';
 import * as dsteem from 'dsteem';
+import { PrivateKey, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
+import steem, { api, broadcast, auth, memo } from '@steemit/steem-js';
 import * as communityActions from './CommunityReducer';
 import { wait } from './MarketSaga';
 
 // TODO: use steem endpoint from env var.
-
+const dSteemClient = new dsteem.Client('https://api.steemit.com');
 const usernameSelector = state => state.user.current.username;
 const activeKeySelector = state => {
     return state.user.getIn(['pub_keys_used']).active;
@@ -42,8 +44,6 @@ export const communityWatches = [
 ];
 
 export function* createCommunityAccount(createCommunityAction) {
-    const dSteemClient = new dsteem.Client('https://api.steemit.com');
-    debugger;
     yield put({
         type: communityActions.createCommunityAccountPending,
         payload: true,
@@ -56,56 +56,66 @@ export function* createCommunityAccount(createCommunityAction) {
         communityOwnerName,
         communityOwnerWifPassword,
     } = createCommunityAction.payload;
-    debugger;
-
     try {
         // Get the currently logged in user active key.
         const creatorActiveKey = yield select(activeKeySelector);
 
-        const op = [
-            'account_create',
-            {
-                fee: '3.00 STEEM',
-                creator: accountName,
-                owner: generateAuth(
-                    communityOwnerName,
-                    communityOwnerWifPassword,
-                    'owner'
-                ),
-                active: generateAuth(
-                    communityOwnerName,
-                    communityOwnerWifPassword,
-                    'active'
-                ),
-                posting: generateAuth(
-                    communityOwnerName,
-                    communityOwnerWifPassword,
-                    'posting'
-                ),
-                memo_key: generateAuth(
-                    communityOwnerPosting,
-                    communityOwnerWifPassword,
-                    'memo'
-                ),
-                json_metadata: '',
-            },
-        ];
-        debugger;
+        const op = {
+            fee: '3.00 STEEM',
+            creator: accountName,
+            owner: generateAuth(
+                communityOwnerName,
+                communityOwnerWifPassword,
+                'owner'
+            ),
+            active: generateAuth(
+                communityOwnerName,
+                communityOwnerWifPassword,
+                'active'
+            ),
+            posting: generateAuth(
+                communityOwnerName,
+                communityOwnerWifPassword,
+                'posting'
+            ),
+            memo_key: generateAuth(
+                communityOwnerPosting,
+                communityOwnerWifPassword,
+                'memo'
+            ),
+            json_metadata: '',
+        };
 
         yield call(
-            [dSteemClient, dSteemClient.broadcast.sendOperations],
-            [op],
-            creatorActiveKey
+            [api, broadcast.accountCreate],
+            creatorActiveKey,
+            op.fee,
+            op.creator,
+            op.owner,
+            op.active,
+            op.posting,
+            op.memo_key,
+            op.json_metadata
         );
 
         // The client cannot submit custom_json and account_create in the same block. The easiest way around this, for now, is to pause for 3 seconds after the account is created before submitting the ops.
         yield call(wait, 3000);
         debugger;
+        /*
         const communityOwnerPosting = dsteem.PrivateKey.fromLogin(
             communityOwnerName,
             communityOwnerWifPassword,
             'posting'
         );
+        */
+        const communityOwnerPosting = yield call(
+            [api, auth.getPrivateKeys],
+            communityOwnerName,
+            communityOwnerWifPassword,
+            'posting'
+        );
+
+        debugger;
         const setRoleOperation = generateHivemindOperation(
             'setRole',
             { communityOwnerName, account: accountName, role: 'admin' },
