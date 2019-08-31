@@ -11,11 +11,11 @@ const SET_COMMUNITY_OWNER_WIF_PASSWORD =
     'community/SET_COMMUNITY_OWNER_MASTER_PASSWORD';
 
 export const CREATE_COMMUNITY_ACCOUNT = 'community/CREATE_COMMUNITY_ACCOUNT'; // Has saga.
-const CREATE_COMMUNITY_ACCOUNT_PENDING =
+export const CREATE_COMMUNITY_ACCOUNT_PENDING =
     'community/CREATE_COMMUNITY_ACCOUNT_PENDING';
-const CREATE_COMMUNITY_ACCOUNT_ERROR =
+export const CREATE_COMMUNITY_ACCOUNT_ERROR =
     'community/CREATE_COMMUNITY_ACCOUNT_ERROR';
-const CREATE_COMMUNITY_SUCCESS = 'community/CREATE_COMMUNITY_SUCCESS';
+export const CREATE_COMMUNITY_SUCCESS = 'community/CREATE_COMMUNITY_SUCCESS';
 
 const COMMUNITY_HIVEMIND_OPERATION = 'community/COMMUNITY_HIVEMIND_OPERATION'; // Has saga.
 const COMMUNITY_HIVEMIND_OPERATION_PENDING =
@@ -133,10 +133,11 @@ export const createCommunityAccountError = payload => ({
     type: CREATE_COMMUNITY_ACCOUNT_ERROR,
     payload,
 });
-export const createCommunityAccountSuccess = payload => ({
+export const createCommunitySuccess = payload => ({
     type: CREATE_COMMUNITY_SUCCESS,
     payload,
 });
+
 export const communityHivemindOperation = payload => ({
     type: COMMUNITY_HIVEMIND_OPERATION,
     payload,
