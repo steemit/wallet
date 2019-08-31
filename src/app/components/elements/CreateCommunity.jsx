@@ -29,6 +29,7 @@ const CreateCommunity = ({
     updateCommunityOwnerAccountName,
     updateCommunityOwnerWifPassword,
 }) => {
+    console.log('success:', communityCreateSuccess);
     const handleCommunityTitleInput = e => {
         if (e.target.value.length > 32) {
             return;
@@ -118,57 +119,73 @@ const CreateCommunity = ({
         <input type="submit" value="Submit" />
     );
 
+    const createCommunitySuccessMessage = (
+        <div>
+            Your community was created!
+            <a href={`https://steemitdev.com/trending/${communityOwnerName}`}>
+                Visit your community.
+            </a>
+        </div>
+    );
+
+    const createCommunityLoading = <div>Creating the community.</div>;
+
+    const createCommunityForm = (
+        <form onSubmit={handleCommunitySubmit}>
+            <div>CREATE A COMMUNITY</div>
+            <label htmlFor="community_title">
+                Title
+                <input
+                    id="community_title"
+                    name="community_title"
+                    type="text"
+                    minLength="4"
+                    maxLength="30"
+                    onChange={handleCommunityTitleInput}
+                    value={communityTitle}
+                    required
+                />
+            </label>
+            <label htmlFor="community_description">
+                Description
+                <input
+                    id="community_description"
+                    name="community_description"
+                    type="text"
+                    minLength="10"
+                    maxLength="140"
+                    onChange={handleCommunityDescriptionInput}
+                    value={communityDescription}
+                    required
+                />
+            </label>
+            <label id="is_nsfw" htmlFor="is_nsfw">
+                Is NSFW.
+                <input
+                    type="checkbox"
+                    name="is_nsfw"
+                    checked={communityNSFW}
+                    onChange={handleCommunityNSFWInput}
+                />
+            </label>
+            {communityOwnerWifPassword.length <= 0 &&
+                generateCommunityCredentialsButton}
+            {communityOwnerWifPassword.length > 0 && rememberCredentialsPrompt}
+            {communityOwnerWifPassword.length > 0 &&
+                rememberCredentialsCheckbox1}
+            {communityOwnerWifPassword.length > 0 &&
+                rememberCredentialsCheckbox2}
+            {communityOwnerWifPassword.length > 0 &&
+                submitCreateCommunityFormButton}
+        </form>
+    );
     return (
         <div className="row">
             <div className="column large-6 small-12">
-                <form onSubmit={handleCommunitySubmit}>
-                    <div>CREATE A COMMUNITY</div>
-                    <label htmlFor="community_title">
-                        Title
-                        <input
-                            id="community_title"
-                            name="community_title"
-                            type="text"
-                            minLength="4"
-                            maxLength="30"
-                            onChange={handleCommunityTitleInput}
-                            value={communityTitle}
-                            required
-                        />
-                    </label>
-                    <label htmlFor="community_description">
-                        Description
-                        <input
-                            id="community_description"
-                            name="community_description"
-                            type="text"
-                            minLength="10"
-                            maxLength="140"
-                            onChange={handleCommunityDescriptionInput}
-                            value={communityDescription}
-                            required
-                        />
-                    </label>
-                    <label id="is_nsfw" htmlFor="is_nsfw">
-                        Is NSFW.
-                        <input
-                            type="checkbox"
-                            name="is_nsfw"
-                            checked={communityNSFW}
-                            onChange={handleCommunityNSFWInput}
-                        />
-                    </label>
-                    {communityOwnerWifPassword.length <= 0 &&
-                        generateCommunityCredentialsButton}
-                    {communityOwnerWifPassword.length > 0 &&
-                        rememberCredentialsPrompt}
-                    {communityOwnerWifPassword.length > 0 &&
-                        rememberCredentialsCheckbox1}
-                    {communityOwnerWifPassword.length > 0 &&
-                        rememberCredentialsCheckbox2}
-                    {communityOwnerWifPassword.length > 0 &&
-                        submitCreateCommunityFormButton}
-                </form>
+                {communityCreatePending
+                    ? createCommunityLoading
+                    : createCommunityForm}
+                {communityCreateSuccess && createCommunitySuccessMessage}
             </div>
         </div>
     );
