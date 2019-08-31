@@ -1,18 +1,11 @@
 import { call, put, takeLatest, select } from 'redux-saga/effects';
-import * as dsteem from 'dsteem';
-import { PrivateKey, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
-import steem, { api, broadcast, auth, memo } from '@steemit/steem-js';
+import { api, broadcast, auth } from '@steemit/steem-js';
 import * as communityActions from './CommunityReducer';
 import { wait } from './MarketSaga';
-import { send } from '@steemit/steem-js/lib/broadcast';
 
-// TODO: use steem endpoint from env var.
-const dSteemClient = new dsteem.Client('https://api.steemit.com');
-const usernameSelector = state => state.user.current.username;
 const activeKeySelector = state => {
     return state.user.getIn(['pub_keys_used']).active;
 };
-const communityTitleSelector = state => state.community.communityTitle;
 
 const generateAuth = (user, pass, type) => {
     const key = dsteem.PrivateKey.fromLogin(user, pass, type).createPublic();
@@ -20,12 +13,7 @@ const generateAuth = (user, pass, type) => {
     return { weight_threshold: 1, account_auths: [], key_auths: [[key, 1]] };
 };
 
-const generateHivemindOperation = (
-    action,
-    params,
-    actor_name,
-    actor_posting
-) => {
+const generateHivemindOperation = (action, params, actor_name) => {
     return [
         'custom_json',
         {
