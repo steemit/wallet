@@ -29,7 +29,6 @@ const CreateCommunity = ({
     updateCommunityOwnerAccountName,
     updateCommunityOwnerWifPassword,
 }) => {
-    console.log('success:', communityCreateSuccess);
     const handleCommunityTitleInput = e => {
         if (e.target.value.length > 32) {
             return;

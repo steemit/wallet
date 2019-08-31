@@ -124,13 +124,11 @@ export function* createCommunityAccount(createCommunityAction) {
             [api, broadcast.send],
             [setRoleOperation, updatePropsOperation]
         );
-
         yield put({
             type: communityActions.CREATE_COMMUNITY_SUCCESS,
             payload: true,
         });
     } catch (error) {
-        console.log('ERR!: ', error);
         yield put({
             type: communityActions.CREATE_COMMUNITY_ACCOUNT_ERROR,
             payload: true,
