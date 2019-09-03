@@ -20,48 +20,6 @@ export function* listVotedOnProposalsCaller(action) {
     yield listVotedOnProposals(action.payload);
 }
 
-/*
-async function getVotesOnProposalById(proposal) {
-    let votes = [];
-    let nextVotes = [];
-    let beyondThisProposal = false;
-    while(true) {
-        nextVotes = call(
-            [api, api.listProposalVotesAsync],
-            [proposal],
-            100,
-            'by_proposal_voter',
-            'ascending',
-            'all'
-        );
-        votes.push(nextVotes);
-        if(nextVotes.count() < 100)
-            return votes;
-        beyondThisProposal = nextVotes.map(p => {
-            if(p.proposal_id != proposal)
-                return true;
-        })
-        if(beyondThisProposal)
-            return votes;
-    }
-}*/
-
-/*
-export function* getNextProposalVotes(proposalId, startVoter, limit) {
-    return yield call(
-        [api, api.listProposalVotesAsync],
-        [proposalId, startVoter],
-        limit,
-        'by_proposal_voter',
-        'ascending',
-        'all'
-    );
-}*/
-
-// export function* listVoterProposalsCaller(action) {
-//     yield listVoterProposals(action.payload);
-// }
-
 export function* listProposals({
     voter_id,
     last_proposal,
@@ -104,7 +62,7 @@ export function* listProposals({
 
     let proposalVotesIds = [];
     console.log('ProposalSaga->listProposals()::if(voter_id)', voter_id);
-    
+
     if (voter_id) {
 
         let proposalVotes = yield proposalIds.map(function* (pId) {
