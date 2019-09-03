@@ -20,6 +20,44 @@ export function* listVotedOnProposalsCaller(action) {
     yield listVotedOnProposals(action.payload);
 }
 
+/*
+async function getVotesOnProposalById(proposal) {
+    let votes = [];
+    let nextVotes = [];
+    let beyondThisProposal = false;
+    while(true) {
+        nextVotes = call(
+            [api, api.listProposalVotesAsync],
+            [proposal],
+            100,
+            'by_proposal_voter',
+            'ascending',
+            'all'
+        );
+        votes.push(nextVotes);
+        if(nextVotes.count() < 100)
+            return votes;
+        beyondThisProposal = nextVotes.map(p => {
+            if(p.proposal_id != proposal)
+                return true;
+        })
+        if(beyondThisProposal)
+            return votes;
+    }
+}*/
+
+/*
+export function* getNextProposalVotes(proposalId, startVoter, limit) {
+    return yield call(
+        [api, api.listProposalVotesAsync],
+        [proposalId, startVoter],
+        limit,
+        'by_proposal_voter',
+        'ascending',
+        'all'
+    );
+}*/
+
 // export function* listVoterProposalsCaller(action) {
 //     yield listVoterProposals(action.payload);
 // }
@@ -66,15 +104,41 @@ export function* listProposals({
 
     let proposalVotesIds = [];
     console.log('ProposalSaga->listProposals()::if(voter_id)', voter_id);
+    
     if (voter_id) {
-        const proposalVotes = yield call(
-            [api, api.listProposalVotesAsync],
-            proposalIds,
-            limit,
-            'by_proposal_voter',
-            'ascending',
-            'all'
-        );
+
+        let proposalVotes = yield proposalIds.map(function* (pId) {
+            let votes = [];
+            let nextVotes = [];
+            let lastVoter = "";
+            let beyondThisProposal = false;
+            let maxVotes = 100;
+            // ¯\_(ツ)_/¯
+            while(true) {
+                nextVotes = yield call(
+                    [api, api.listProposalVotesAsync],
+                    [pId, lastVoter],
+                    maxVotes,
+                    'by_proposal_voter',
+                    'ascending',
+                    'all'
+                );
+                votes = votes.concat(nextVotes);
+                lastVoter = nextVotes[nextVotes.length-1].voter;
+                if(nextVotes.length < maxVotes)
+                    return votes;
+                beyondThisProposal = false;
+                nextVotes.map(d => {
+                    if(d.proposal.proposal_id != pId)
+                        beyondThisProposal = true;
+                });
+                if(beyondThisProposal)
+                    return votes;
+            }
+        });
+
+        proposalVotes = proposalVotes.reduce((a, b) => a.concat(b), []);
+        
         console.log(
             'ProposalSaga->listProposals()::proposalVotes',
             proposalVotes
@@ -93,11 +157,11 @@ export function* listProposals({
             .map(p => {
                 console.log(
                     'ProposalSaga->listProposals()::proposalVotes.map((p)',
-                    p.id,
+                    p.proposal.id,
                     p,
                     voter_id
                 );
-                return p.id;
+                return p.proposal.id;
             });
         console.log(
             'ProposalSaga->listProposals()::proposalVotesIds',
@@ -107,11 +171,11 @@ export function* listProposals({
     const mungedProposals = proposals.map(p => {
         console.log(
             'ProposalSaga->listProposals()::proposalVotesIds.indexOf(p.proposal_id)',
-            proposalVotesIds.includes(p.proposal_id),
+            proposalVotesIds.indexOf(p.proposal_id),
             proposalVotesIds
         );
         console.log('ProposalSaga->listProposals()::p', p, p.upVoted);
-        if (proposalVotesIds.includes(p.proposal_id)) {
+        if (proposalVotesIds.indexOf(p.proposal_id) != -1) {
             p.upVoted = true;
         } else {
             p.upVoted = false;
