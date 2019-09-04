@@ -20,10 +20,6 @@ export function* listVotedOnProposalsCaller(action) {
     yield listVotedOnProposals(action.payload);
 }
 
-// export function* listVoterProposalsCaller(action) {
-//     yield listVoterProposals(action.payload);
-// }
-
 export function* listProposals({
     voter_id,
     last_proposal,
@@ -66,15 +62,41 @@ export function* listProposals({
 
     let proposalVotesIds = [];
     console.log('ProposalSaga->listProposals()::if(voter_id)', voter_id);
+
     if (voter_id) {
-        const proposalVotes = yield call(
-            [api, api.listProposalVotesAsync],
-            proposalIds,
-            limit,
-            'by_proposal_voter',
-            'ascending',
-            'all'
-        );
+
+        let proposalVotes = yield proposalIds.map(function* (pId) {
+            let votes = [];
+            let nextVotes = [];
+            let lastVoter = "";
+            let beyondThisProposal = false;
+            let maxVotes = 100;
+            // ¯\_(ツ)_/¯
+            while(true) {
+                nextVotes = yield call(
+                    [api, api.listProposalVotesAsync],
+                    [pId, lastVoter],
+                    maxVotes,
+                    'by_proposal_voter',
+                    'ascending',
+                    'all'
+                );
+                votes = votes.concat(nextVotes);
+                lastVoter = nextVotes[nextVotes.length-1].voter;
+                if(nextVotes.length < maxVotes)
+                    return votes;
+                beyondThisProposal = false;
+                nextVotes.map(d => {
+                    if(d.proposal.proposal_id != pId)
+                        beyondThisProposal = true;
+                });
+                if(beyondThisProposal)
+                    return votes;
+            }
+        });
+
+        proposalVotes = proposalVotes.reduce((a, b) => a.concat(b), []);
+        
         console.log(
             'ProposalSaga->listProposals()::proposalVotes',
             proposalVotes
@@ -93,11 +115,11 @@ export function* listProposals({
             .map(p => {
                 console.log(
                     'ProposalSaga->listProposals()::proposalVotes.map((p)',
-                    p.id,
+                    p.proposal.id,
                     p,
                     voter_id
                 );
-                return p.id;
+                return p.proposal.id;
             });
         console.log(
             'ProposalSaga->listProposals()::proposalVotesIds',
