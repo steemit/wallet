@@ -43,7 +43,7 @@ export default function Proposal(props) {
     const end = new Date(props.end_date);
     const duration = end - start;
     const durationInDays = Moment(end).diff(Moment(start), 'days');
-    const totalPayout = durationInDays * daily_pay.amount;
+    const totalPayout = durationInDays * daily_pay.split(' SBD')[0]; // ¯\_(ツ)_/¯
 
     console.log(
         'PROPOSAL-RENDER(isUpVoted, voteSucceeded, voteFailed, isVoting)',
