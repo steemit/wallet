@@ -170,16 +170,14 @@ class Proposals extends React.Component {
                     proposals={proposals}
                     loading={loading}
                 />
-                <center>
+                <center style={{ paddingTop: '1em', paddingBottom: '1em' }}>
                     {!loading ? (
                         <a href="#" onClick={this.onClickLoadMoreProposals}>
-                            {`Load ${this.state.limit} more...`}
+                            {`Load more...`}
                         </a>
                     ) : null}
 
-                    {showBottomLoading ? (
-                        <a>{`Loading ${this.state.limit} more...`}</a>
-                    ) : null}
+                    {showBottomLoading ? <a>{`Loading more...`}</a> : null}
                 </center>
             </div>
         );

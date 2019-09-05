@@ -126,7 +126,7 @@ export default function Proposal(props) {
  * @returns {string} - return a fancy string
  */
 function formatCurrency(amount = 0) {
-    return numberWithCommas('$' + Number.parseFloat(amount).toFixed(2));
+    return numberWithCommas(Number.parseFloat(amount).toFixed(2) + 'SBD');
 }
 
 /**
