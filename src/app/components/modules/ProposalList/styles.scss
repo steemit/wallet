@@ -1,7 +1,14 @@
 .ProposalsList {
     flex-direction: column;
     display: flex;
-    width: 80%;
+
+    @media only screen and (min-width: 768px) {
+        width: 80%;
+    }
+    @media only screen and (max-width: 768px) {
+        width: 98%;
+    }
+
     margin-left: auto;
     margin-right: auto;
     .proposals__header {
@@ -9,11 +16,19 @@
         justify-content: center;
         display: flex;
 
+        @media only screen and (max-width: 768px) {
+            padding-left: 1em;
+        }
+
         .proposals__votes {
             display: flex;
             align-items: center;
             max-width: 200px;
             width: 20%;
+            @media only screen and (max-width: 768px) {
+                justify-content: center;
+                width: 30%;
+            }
         }
         .proposals__amount {
             display: flex;
@@ -32,23 +47,50 @@
         }
     }
     .proposals__row {
-        border-bottom: 1px rgba(0, 0, 0, 0.2) dashed;
+        @include themify($themes) {
+            // border: themed('borderAccent');
+            border-bottom: themed('borderLight');
+        }
+        // border-bottom: 1px rgba(0, 0, 0, 0.2) dashed;
         flex-direction: row;
         justify-content: center;
         display: flex;
 
+        @media only screen and (max-width: 768px) {
+            padding-top: 0.7em;
+            padding-bottom: 0.7em;
+        }
+
         small {
-            font-size: 12px;
+            // font-size: 12px;
+            @media only screen and (max-width: 768px) {
+                font-size: 0.7em;
+            }
+            @include themify($themes) {
+                color: themed('textColorSecondary');
+            }
         }
 
         .proposals__votes {
             display: flex;
             align-items: center;
             max-width: 200px;
-            width: 20%;
-            font-size: 2em;
-            flex-direction: row;
-            justify-content: flex-start;
+
+            @media only screen and (min-width: 768px) {
+                font-size: 1.5em;
+                flex-direction: row;
+                justify-content: flex-start;
+                width: 20%;
+            }
+            @media only screen and (max-width: 768px) {
+                font-size: 0.8em;
+                flex-direction: row;
+                justify-content: center;
+                align-items: flex-start;
+                padding-top: 0.1em;
+                width: 30%;
+            }
+
             a {
                 padding-right: 10px;
             }
@@ -58,18 +100,36 @@
             align-items: center;
             max-width: 200px;
             width: 20%;
-            font-size: 1.5em;
+            // span {
+            //     @media only screen and (min-width: 768px) {
+            //         font-size: 1.5em;
+            //     }
+            //     @media only screen and (max-width: 768px) {
+            //         font-size: 0.8em;
+            //     }
+            // }
             flex-direction: column;
             align-items: flex-start;
-            small {
-                color: rgba(0, 0, 0, 0.5);
-            }
+            // small {
+            //     @include themify($themes) {
+            //         color: themed('textColorSecondary');
+            //     }
+            //     // @media only screen and (max-width: 768px) {
+            //     //     font-size: 0.7em;
+            //     // }
+            // }
         }
+
         .proposals__description {
             max-width: 800px;
             width: 60%;
             .date {
-                color: rgba(0, 0, 0, 0.5);
+                @include themify($themes) {
+                    color: themed('textColorSecondary');
+                }
+                @media only screen and (max-width: 768px) {
+                    font-size: 0.7em;
+                }
             }
         }
     }
