@@ -51,7 +51,7 @@ export default function ProposalList(props) {
     return (
         <div className="ProposalsList">
             <div className="proposals__header">
-                <div className="proposals__votes">Votes</div>
+                <div className="proposals__votes">Vote SP</div>
                 <div className="proposals__description">Proposal</div>
                 <div className="proposals__amount">Amount</div>
             </div>
