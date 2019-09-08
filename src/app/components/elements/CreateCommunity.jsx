@@ -16,13 +16,10 @@ const CreateCommunity = ({
     communityCreateSuccess,
     createCommunity,
     communityDescription,
-    communityHivemindOperationError,
-    communityHivemindOperationPending,
     communityNSFW,
     communityOwnerWifPassword,
     communityOwnerName,
     communityTitle,
-    isMyAccount,
     updateCommunityTitle,
     updateCommunityDescription,
     updateCommunityNSFW,
@@ -120,10 +117,15 @@ const CreateCommunity = ({
 
     const createCommunitySuccessMessage = (
         <div>
-            Your community was created!
+            <p>Your community was created!</p>
             <a href={`https://steemitdev.com/trending/${communityOwnerName}`}>
                 Visit your community.
             </a>
+        </div>
+    );
+    const createCommunityErrorMessage = (
+        <div>
+            Oops, there was an error creating the community, please try again.
         </div>
     );
 
@@ -178,13 +180,16 @@ const CreateCommunity = ({
                 submitCreateCommunityFormButton}
         </form>
     );
+    debugger;
     return (
         <div className="row">
             <div className="column large-6 small-12">
-                {communityCreatePending
-                    ? createCommunityLoading
-                    : createCommunityForm}
+                {!communityCreatePending &&
+                    !communityCreateSuccess &&
+                    createCommunityForm}
+                {communityCreatePending && createCommunityLoading}
                 {communityCreateSuccess && createCommunitySuccessMessage}
+                {communityCreateError && createCommunityErrorMessage}
             </div>
         </div>
     );
