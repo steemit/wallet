@@ -1,13 +1,9 @@
-import React, { Component } from 'react';
+import React from 'react';
 import { APP_NAME } from 'app/client_config';
 import { connect } from 'react-redux';
 import * as communityActions from 'app/redux/CommunityReducer';
 import tt from 'counterpart';
-import {
-    PrivateKey,
-    PublicKey,
-    key_utils,
-} from '@steemit/steem-js/lib/auth/ecc';
+import { key_utils } from '@steemit/steem-js/lib/auth/ecc';
 
 const CreateCommunity = ({
     accountName,
@@ -90,8 +86,12 @@ const CreateCommunity = ({
 
     const rememberCredentialsPrompt = (
         <div>
-            <div>{`Your community owner name is: ${communityOwnerName}`}</div>
-            <div>{`Your password is: ${communityOwnerWifPassword}`}</div>
+            <div>{`${tt('g.community_owner_name_is')}: ${
+                communityOwnerName
+            }`}</div>
+            <div>{`${tt('g.community_password_is')}: ${
+                communityOwnerWifPassword
+            }`}</div>
         </div>
     );
 
@@ -119,21 +119,17 @@ const CreateCommunity = ({
         <div>
             <p>Your community was created!</p>
             <a href={`https://steemitdev.com/trending/${communityOwnerName}`}>
-                Visit your community.
+                {tt('g.community_visit')}
             </a>
         </div>
     );
-    const createCommunityErrorMessage = (
-        <div>
-            Oops, there was an error creating the community, please try again.
-        </div>
-    );
+    const createCommunityErrorMessage = <div>{tt('g.community_error')}</div>;
 
-    const createCommunityLoading = <div>Creating the community.</div>;
+    const createCommunityLoading = <div>{tt('g.community_creating')}</div>;
 
     const createCommunityForm = (
         <form onSubmit={handleCommunitySubmit}>
-            <div>CREATE A COMMUNITY</div>
+            <div>{tt('g.community_create')}</div>
             <label htmlFor="community_title">
                 Title
                 <input
@@ -148,7 +144,7 @@ const CreateCommunity = ({
                 />
             </label>
             <label htmlFor="community_description">
-                Description
+                {tt('g.community_description')}
                 <input
                     id="community_description"
                     name="community_description"
@@ -161,7 +157,7 @@ const CreateCommunity = ({
                 />
             </label>
             <label id="is_nsfw" htmlFor="is_nsfw">
-                Is NSFW.
+                {tt('g.community_nsfw')}
                 <input
                     type="checkbox"
                     name="is_nsfw"
@@ -180,7 +176,6 @@ const CreateCommunity = ({
                 submitCreateCommunityFormButton}
         </form>
     );
-    debugger;
     return (
         <div className="row">
             <div className="column large-6 small-12">
