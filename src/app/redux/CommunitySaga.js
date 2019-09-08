@@ -1,5 +1,6 @@
 import { call, put, takeLatest, select } from 'redux-saga/effects';
 import { api, broadcast, auth } from '@steemit/steem-js';
+import { PrivateKey } from '@steemit/steem-js/lib/auth/ecc';
 import * as communityActions from './CommunityReducer';
 import { wait } from './MarketSaga';
 
@@ -8,9 +9,14 @@ const activeKeySelector = state => {
 };
 
 const generateAuth = (user, pass, type) => {
-    const key = dsteem.PrivateKey.fromLogin(user, pass, type).createPublic();
-    if (type == 'memo') return key;
-    return { weight_threshold: 1, account_auths: [], key_auths: [[key, 1]] };
+    const key = auth.getPrivateKeys(user, pass, [type]);
+    const publicKey = auth.wifToPublic(Object.values(key)[0]);
+    if (type == 'memo') return Object.values(key)[0];
+    return {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [[publicKey, 1]],
+    };
 };
 
 const generateHivemindOperation = (action, params, actor_name) => {
@@ -73,7 +79,6 @@ export function* createCommunityAccount(createCommunityAction) {
             ),
             json_metadata: '',
         };
-
         yield call(
             [api, broadcast.accountCreate],
             creatorActiveKey,
@@ -88,7 +93,6 @@ export function* createCommunityAccount(createCommunityAction) {
 
         // The client cannot submit custom_json and account_create in the same block. The easiest way around this, for now, is to pause for 3 seconds after the account is created before submitting the ops.
         yield call(wait, 3000);
-
         const communityOwnerPosting = auth.getPrivateKeys(
             communityOwnerName,
             communityOwnerWifPassword,
