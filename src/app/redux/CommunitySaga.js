@@ -108,7 +108,14 @@ export function* createCommunityAccount(createCommunityAction) {
         // TODO: Should this op update the community description and NSFW prop?
         const updatePropsOperation = generateHivemindOperation(
             'updateProps',
-            { communityOwnerName, props: { title: communityTitle } },
+            {
+                communityOwnerName,
+                props: {
+                    title: communityTitle,
+                    description: communityDescription,
+                    is_nsfw: !!communityNSFW,
+                },
+            },
             communityOwnerName,
             communityOwnerPosting
         );
