@@ -8,25 +8,47 @@ import { formatter } from '@steemit/steem-js';
 
 export const numberWithCommas = x => x.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
-export function vestsToSpf(state, vesting_shares) {
-    const { global } = state;
-    let vests = vesting_shares;
+export function vestsToSpf(
+    total_vesting_shares,
+    total_vesting_fund_steem,
+    vesting_shares
+) {
+    console.log('vesting_shares', vesting_shares);
+    let vests = `${vesting_shares}`;
     if (typeof vesting_shares === 'string') {
         vests = assetFloat(vesting_shares, VEST_TICKER);
     }
-    const total_vests = assetFloat(
-        global.getIn(['props', 'total_vesting_shares']),
-        VEST_TICKER
-    );
+    // console.log('vests', vests);
+    const total_vests = assetFloat(total_vesting_shares, VEST_TICKER);
+    // console.log('total_vests', total_vests);
     const total_vest_steem = assetFloat(
-        global.getIn(['props', 'total_vesting_fund_steem']),
+        total_vesting_fund_steem,
         LIQUID_TICKER
+    );
+    console.log(
+        'return total_vest_steem * (vests / total_vests);',
+        total_vest_steem,
+        vests,
+        total_vests
     );
     return total_vest_steem * (vests / total_vests);
 }
 
 export function vestsToSp(state, vesting_shares) {
-    return vestsToSpf(state, vesting_shares).toFixed(3);
+    console.log('export function vestsToSp(state, vesting_shares) {', state);
+    const total_vesting_shares = state.global.getIn([
+        'props',
+        'total_vesting_shares',
+    ]);
+    const total_vesting_fund_steem = state.global.getIn([
+        'props',
+        'total_vesting_fund_steem',
+    ]);
+    return vestsToSpf(
+        total_vesting_shares,
+        total_vesting_fund_steem,
+        vesting_shares
+    ).toFixed(3);
 }
 
 export function spToVestsf(state, steem_power) {
@@ -43,7 +65,7 @@ export function spToVestsf(state, steem_power) {
         global.getIn(['props', 'total_vesting_fund_steem']),
         LIQUID_TICKER
     );
-    return steem_power / total_vest_steem * total_vests;
+    return (steem_power / total_vest_steem) * total_vests;
 }
 
 export function spToVests(state, vesting_shares) {

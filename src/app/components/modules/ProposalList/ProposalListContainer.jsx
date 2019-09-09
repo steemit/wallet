@@ -7,6 +7,8 @@ ProposalList.propTypes = {
     proposals: PropTypes.array.isRequired, // TODO: Specify shape.
     voteOnProposal: PropTypes.func.isRequired,
     loading: PropTypes.bool.isRequired,
+    total_vesting_shares: PropTypes.number.isRequired,
+    total_vesting_fund_steem: PropTypes.number.isRequired,
 };
 
 class ProposalListContainer extends React.Component {
@@ -20,7 +22,7 @@ class ProposalListContainer extends React.Component {
     }
 
     render() {
-        const { proposals, voteOnProposal, loading } = this.props;
+        // const { proposals, voteOnProposal, loading } = this.props;
         // console.log('ProposalListContainer.jsx::render()', arguments);
 
         return <ProposalList {...this.props} />;
