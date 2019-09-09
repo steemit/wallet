@@ -48,10 +48,8 @@
     }
     .proposals__row {
         @include themify($themes) {
-            // border: themed('borderAccent');
             border-bottom: themed('borderLight');
         }
-        // border-bottom: 1px rgba(0, 0, 0, 0.2) dashed;
         flex-direction: row;
         justify-content: center;
         display: flex;
@@ -62,7 +60,6 @@
         }
 
         small {
-            // font-size: 12px;
             @media only screen and (max-width: 768px) {
                 font-size: 0.7em;
             }
@@ -100,24 +97,8 @@
             align-items: center;
             max-width: 200px;
             width: 20%;
-            // span {
-            //     @media only screen and (min-width: 768px) {
-            //         font-size: 1.5em;
-            //     }
-            //     @media only screen and (max-width: 768px) {
-            //         font-size: 0.8em;
-            //     }
-            // }
             flex-direction: column;
             align-items: flex-start;
-            // small {
-            //     @include themify($themes) {
-            //         color: themed('textColorSecondary');
-            //     }
-            //     // @media only screen and (max-width: 768px) {
-            //     //     font-size: 0.7em;
-            //     // }
-            // }
         }
 
         .proposals__description {
