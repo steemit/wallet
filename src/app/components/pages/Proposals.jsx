@@ -159,6 +159,7 @@ class Proposals extends React.Component {
     render() {
         console.log('Proposals->render()', this.state);
         const { proposals, loading } = this.state;
+        const { total_vesting_shares, total_vesting_fund_steem } = this.props;
         let showBottomLoading = false;
         if (loading && proposals && proposals.length > 0) {
             showBottomLoading = true;
@@ -169,6 +170,8 @@ class Proposals extends React.Component {
                     voteOnProposal={this.voteOnProposal}
                     proposals={proposals}
                     loading={loading}
+                    total_vesting_shares={total_vesting_shares}
+                    total_vesting_fund_steem={total_vesting_fund_steem}
                 />
                 <center style={{ paddingTop: '1em', paddingBottom: '1em' }}>
                     {!loading ? (
@@ -191,6 +194,8 @@ Proposals.propTypes = {
     // updateProposalVotes: PropTypes.func.isRequired,
     createProposal: PropTypes.func.isRequired,
     voteOnProposal: PropTypes.func.isRequired,
+    total_vesting_shares: PropTypes.number.isRequired,
+    total_vesting_fund_steem: PropTypes.number.isRequired,
 };
 
 module.exports = {
@@ -216,13 +221,21 @@ module.exports = {
             //     `transaction_proposal_vote_active_${currentUser}`,
             //     List()
             // );
+            const total_vesting_shares = state.global.getIn([
+                'props',
+                'total_vesting_shares',
+            ]);
+            const total_vesting_fund_steem = state.global.getIn([
+                'props',
+                'total_vesting_fund_steem',
+            ]);
 
             return {
                 currentUser,
                 proposals: newProposals,
-                // voterProposals,
+                total_vesting_shares,
+                total_vesting_fund_steem,
                 last_id,
-                // votesInProgress,
             };
         },
         dispatch => {
@@ -327,7 +340,7 @@ module.exports = {
                             type: 'remove_proposal',
                             operation: { proposal_owner, proposal_ids },
                             confirm: tt(
-                                'steem_proposal_system_jsx.confirm_remove_proposal_description'
+                                'steem_proposals.confirm_remove_proposal_description'
                             ),
                             successCallback,
                             errorCallback,

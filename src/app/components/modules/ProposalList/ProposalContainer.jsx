@@ -61,10 +61,22 @@ class ProposalContainer extends React.Component {
     };
 
     render() {
-        const { proposal } = this.props;
+        const {
+            proposal,
+            total_vesting_shares,
+            total_vesting_fund_steem,
+        } = this.props;
         // console.log('ProposalContainer.jsx::render()', this.props);
 
-        return <Proposal {...proposal} onVote={this.onVote} {...this.state} />;
+        return (
+            <Proposal
+                {...proposal}
+                onVote={this.onVote}
+                {...this.state}
+                total_vesting_shares={total_vesting_shares}
+                total_vesting_fund_steem={total_vesting_fund_steem}
+            />
+        );
     }
 }
 
@@ -72,6 +84,8 @@ ProposalContainer.propTypes = {
     proposal: PropTypes.shape({ creator: PropTypes.string.isRequired })
         .isRequired,
     voteOnProposal: PropTypes.func.isRequired,
+    total_vesting_shares: PropTypes.number.isRequired,
+    total_vesting_fund_steem: PropTypes.number.isRequired,
 };
 
 export default connect((state, ownProps) => {

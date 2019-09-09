@@ -272,7 +272,7 @@
         "smt_whitepaper": "SMT Whitepaper",
         "whitepaper": "Steem Whitepaper",
         "jobs": "Jobs at Steemit",
-        "steem_proposal_system": "Steem Proposal System"
+        "steem_proposals": "Steem Proposals"
     },
     "reply_editor": {
         "shorten_title": "Shorten title",
@@ -665,7 +665,7 @@
         "author_rewards_by": "Author rewards by %(username)s",
         "replies_to": "Replies to %(username)s",
         "comments_by": "Comments by %(username)s",
-        "steem_proposal_system": "Steem Proposal System"
+        "steem_proposals": "Steem Proposals"
     },
     "loginform_jsx": {
         "you_need_a_private_password_or_key":
@@ -882,8 +882,8 @@
         "sbd_symbol": "SBD",
         "sbd_description": "Seeks price stability with USD"
     },
-    "steem_proposal_system_jsx": {
-        "top_sps": "Steem Proposal System",
+    "steem_proposals": {
+        "top_sps": "Steem Proposals",
         "votes_update_info": "* Only updated once per hour",
         "table": {
             "id": "Id",

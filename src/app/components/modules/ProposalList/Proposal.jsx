@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import Moment from 'moment';
 import NumAbbr from 'number-abbreviate';
-import { numberWithCommas } from 'app/utils/StateFunctions';
+import { numberWithCommas, vestsToSpf } from 'app/utils/StateFunctions';
 
 import Icon from 'app/components/elements/Icon';
 
@@ -22,7 +22,7 @@ Proposal.propTypes = {
     isUpVoted: PropTypes.bool.isRequired,
     // passed through connect from global state object to calc vests to sp
     total_vesting_shares: PropTypes.string.isRequired,
-    total_vesting_fund_steem: PropTypes.string.isRequired,
+    total_vesting_fund_steem: PropTypes.string.isRequired
 };
 
 export default function Proposal(props) {
@@ -40,13 +40,19 @@ export default function Proposal(props) {
         voteFailed,
         voteSucceeded,
         isUpVoted,
+        total_vesting_shares,
+        total_vesting_fund_steem,
     } = props;
 
     const start = new Date(props.start_date);
     const end = new Date(props.end_date);
-    const duration = end - start;
     const durationInDays = Moment(end).diff(Moment(start), 'days');
     const totalPayout = durationInDays * daily_pay.split(' SBD')[0]; // ¯\_(ツ)_/¯
+    const total_votes_in_sp = vestsToSpf(
+        total_vesting_shares,
+        total_vesting_fund_steem,
+        parseFloat(total_votes)
+    ).toFixed(3);
 
     console.log(
         'PROPOSAL-RENDER(isUpVoted, voteSucceeded, voteFailed, isVoting)',
@@ -54,7 +60,11 @@ export default function Proposal(props) {
         isUpVoted,
         voteSucceeded,
         voteFailed,
-        isVoting
+        isVoting,
+        total_votes_in_sp,
+        total_vesting_shares,
+        total_vesting_fund_steem,
+        total_votes
     );
     const classUp =
         'Voting__button Voting__button-up' +
@@ -72,7 +82,6 @@ export default function Proposal(props) {
                         />
                     </span>
                 </a>
-
                 <span>{abbreviateNumber(
                         simpleVotesToSp(
                             total_votes,
@@ -120,7 +129,7 @@ export default function Proposal(props) {
                     </a>
                 </span>
                 <small>
-                    ${abbreviateNumber(daily_pay.amount)} per day for{' '}
+                    ${abbreviateNumber(daily_pay.split(' SBD')[0])} per day for{' '}
                     {durationInDays} days
                 </small>
             </div>

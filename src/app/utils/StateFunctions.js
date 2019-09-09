@@ -43,7 +43,7 @@ export function spToVestsf(state, steem_power) {
         global.getIn(['props', 'total_vesting_fund_steem']),
         LIQUID_TICKER
     );
-    return steem_power / total_vest_steem * total_vests;
+    return (steem_power / total_vest_steem) * total_vests;
 }
 
 export function spToVests(state, vesting_shares) {

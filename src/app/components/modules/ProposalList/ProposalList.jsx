@@ -7,6 +7,8 @@ ProposalList.propTypes = {
     proposals: PropTypes.array.isRequired,
     voteOnProposal: PropTypes.func.isRequired,
     loading: PropTypes.bool.isRequired,
+    total_vesting_shares: PropTypes.number.isRequired,
+    total_vesting_fund_steem: PropTypes.number.isRequired,
     // proposals: PropTypes.arrayOf(
     //     PropTypes.shape({
     //         color: PropTypes.string.isRequired,
@@ -22,7 +24,13 @@ ProposalList.propTypes = {
 
 export default function ProposalList(props) {
     // console.log('ProposalList.jsx->()', props);
-    const { proposals, voteOnProposal, loading } = props;
+    const {
+        proposals,
+        voteOnProposal,
+        loading,
+        total_vesting_shares,
+        total_vesting_fund_steem,
+    } = props;
     const proposalCount = proposals.length;
 
     if (!loading && proposalCount == 0) {
@@ -60,6 +68,8 @@ export default function ProposalList(props) {
                     key={proposal.id}
                     voteOnProposal={voteOnProposal}
                     proposal={proposal}
+                    total_vesting_shares={total_vesting_shares}
+                    total_vesting_fund_steem={total_vesting_fund_steem}
                 />
             ))}
         </div>

@@ -33,7 +33,6 @@ describe('resolveRoute', () => {
         ['/recover_account_step_2', { page: 'RecoverAccountStep2' }],
         ['/market', { page: 'Market' }],
         ['/~witnesses', { page: 'Witnesses' }],
-        ['/steem_proposal_system', { page: 'SteemProposalSystem' }],
         ['/proposals', { page: 'Proposals' }],
         ['/@gdpr/nice345', { page: 'NotFound' }],
         ['/taggy/@gdpr/nice345', { page: 'NotFound' }],
