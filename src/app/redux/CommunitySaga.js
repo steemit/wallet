@@ -55,7 +55,7 @@ export function* createCommunityAccount(createCommunityAction) {
         // Get the currently logged in user active key.
         const creatorActiveKey = yield select(activeKeySelector);
         const op = {
-            fee: '3.00 STEEM',
+            fee: '3.000 STEEM',
             creator: accountName,
             owner: generateAuth(
                 communityOwnerName,
