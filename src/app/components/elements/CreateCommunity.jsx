@@ -52,7 +52,7 @@ const CreateCommunity = ({
     };
 
     const generateCommunityOwnerName = () => {
-        return `hive-${Math.floor(Math.random() * 90000) + 10000}`;
+        return `hive-${Math.floor(Math.random() * 100000) + 100000}`;
     };
 
     const generateCreatorWifPassword = () => {
