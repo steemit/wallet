@@ -82,15 +82,19 @@ class ProposalContainer extends React.Component {
 
 ProposalContainer.propTypes = {
     proposal: PropTypes.shape({ creator: PropTypes.string.isRequired })
-        .isRequired,
+        .isRequired, // TODO: Add Shape
     voteOnProposal: PropTypes.func.isRequired,
-    total_vesting_shares: PropTypes.number.isRequired,
-    total_vesting_fund_steem: PropTypes.number.isRequired,
 };
 
 export default connect((state, ownProps) => {
     // pulling these out of state object to calculate vests to sp
-    const total_vesting_shares = state.global.getIn(['props', 'total_vesting_shares']);
-    const total_vesting_fund_steem = state.global.getIn(['props', 'total_vesting_fund_steem']);
+    const total_vesting_shares = state.global.getIn([
+        'props',
+        'total_vesting_shares',
+    ]);
+    const total_vesting_fund_steem = state.global.getIn([
+        'props',
+        'total_vesting_fund_steem',
+    ]);
     return { total_vesting_shares, total_vesting_fund_steem, ...ownProps };
 })(ProposalContainer);

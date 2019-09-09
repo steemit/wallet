@@ -112,20 +112,7 @@ class Powerdown extends React.Component {
             );
         }
         if (notes.length === 0) {
-            const total_vesting_shares = this.props.state.getIn([
-                'props',
-                'total_vesting_shares',
-            ]);
-            const total_vesting_fund_steem = this.props.state.getIn([
-                'props',
-                'total_vesting_fund_steem',
-            ]);
-            let AMOUNT =
-                vestsToSpf(
-                    total_vesting_shares,
-                    total_vesting_fund_steem,
-                    new_withdraw
-                ) / 13;
+            let AMOUNT = vestsToSpf(this.props.state, new_withdraw) / 13;
             AMOUNT = AMOUNT.toFixed(AMOUNT >= 10 ? 0 : 1);
             notes.push(
                 <li key="per_week">

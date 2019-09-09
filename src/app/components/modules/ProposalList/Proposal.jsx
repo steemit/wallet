@@ -7,26 +7,8 @@ import { numberWithCommas, vestsToSpf } from 'app/utils/StateFunctions';
 import Icon from 'app/components/elements/Icon';
 
 const numAbbr = new NumAbbr();
-Proposal.propTypes = {
-    id: PropTypes.number.isRequired,
-    creator: PropTypes.string.isRequired,
-    receiver: PropTypes.string.isRequired,
-    start_date: PropTypes.string.isRequired,
-    end_date: PropTypes.string.isRequired,
-    daily_pay: PropTypes.object.isRequired, // TODO: Specify shape.
-    subject: PropTypes.string.isRequired,
-    total_votes: PropTypes.number.isRequired,
-    permlink: PropTypes.string.isRequired,
-    onVote: PropTypes.func.isRequired,
-    isVoting: PropTypes.bool.isRequired,
-    isUpVoted: PropTypes.bool.isRequired,
-    // passed through connect from global state object to calc vests to sp
-    total_vesting_shares: PropTypes.string.isRequired,
-    total_vesting_fund_steem: PropTypes.string.isRequired
-};
 
 export default function Proposal(props) {
-    // console.log('Proposal.jsx->()', props);
     const {
         id,
         creator,
@@ -48,24 +30,7 @@ export default function Proposal(props) {
     const end = new Date(props.end_date);
     const durationInDays = Moment(end).diff(Moment(start), 'days');
     const totalPayout = durationInDays * daily_pay.split(' SBD')[0]; // ¯\_(ツ)_/¯
-    const total_votes_in_sp = vestsToSpf(
-        total_vesting_shares,
-        total_vesting_fund_steem,
-        parseFloat(total_votes)
-    ).toFixed(3);
 
-    console.log(
-        'PROPOSAL-RENDER(isUpVoted, voteSucceeded, voteFailed, isVoting)',
-        props,
-        isUpVoted,
-        voteSucceeded,
-        voteFailed,
-        isVoting,
-        total_votes_in_sp,
-        total_vesting_shares,
-        total_vesting_fund_steem,
-        total_votes
-    );
     const classUp =
         'Voting__button Voting__button-up' +
         (isUpVoted ? ' Voting__button--upvoted' : '') +
@@ -82,11 +47,14 @@ export default function Proposal(props) {
                         />
                     </span>
                 </a>
-                <span>{abbreviateNumber(
+                <span>
+                    {abbreviateNumber(
                         simpleVotesToSp(
                             total_votes,
-                            props.total_vesting_shares,
-                            props.total_vesting_fund_steem))}
+                            total_vesting_shares,
+                            total_vesting_fund_steem
+                        )
+                    )}
                 </span>
             </div>
             <div className="proposals__description">
@@ -136,6 +104,24 @@ export default function Proposal(props) {
         </div>
     );
 }
+//TODO: Move Proposal type to a proptypes file and use where we need it.
+Proposal.propTypes = {
+    id: PropTypes.number.isRequired,
+    creator: PropTypes.string.isRequired,
+    receiver: PropTypes.string.isRequired,
+    start_date: PropTypes.string.isRequired,
+    end_date: PropTypes.string.isRequired,
+    daily_pay: PropTypes.string.isRequired,
+    subject: PropTypes.string.isRequired,
+    total_votes: PropTypes.string.isRequired,
+    permlink: PropTypes.string.isRequired,
+    onVote: PropTypes.func.isRequired,
+    isVoting: PropTypes.bool.isRequired,
+    isUpVoted: PropTypes.bool.isRequired,
+    // passed through connect from global state object to calc vests to sp
+    total_vesting_shares: PropTypes.string.isRequired,
+    total_vesting_fund_steem: PropTypes.string.isRequired,
+};
 
 /**
  * Given a number, return a string with the number formatted as currency
@@ -223,7 +209,6 @@ function startedOrFinishedInWordsLongVersion(start, end) {
  */
 function timeUntil(timestamp) {
     return timestamp;
-    // return timeAgo.format(new Date(timestamp));
 }
 
 /**
@@ -236,7 +221,6 @@ function durationInWords(duration) {
     const a = Moment(now);
     const b = Moment(now + duration);
     return b.from(a);
-    // return timeAgo.format(duration, 'time');
 }
 
 /**
@@ -288,8 +272,14 @@ function urlifyPermlink(username, permlink) {
  * @param {string} total_vesting_fund_steem - total steem vesting fund with liquid symbol on end
  * @returns {number} - return the number converted to SP
  */
-function simpleVotesToSp(total_votes, total_vesting_shares, total_vesting_fund_steem) {
+function simpleVotesToSp(
+    total_votes,
+    total_vesting_shares,
+    total_vesting_fund_steem
+) {
     const total_vests = parseFloat(total_vesting_shares);
     const total_vest_steem = parseFloat(total_vesting_fund_steem);
-    return ((total_vest_steem * (total_votes / total_vests)) * 0.000001).toFixed(2);
+    return (total_vest_steem * (total_votes / total_vests) * 0.000001).toFixed(
+        2
+    );
 }
