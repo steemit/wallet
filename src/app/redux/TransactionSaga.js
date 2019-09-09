@@ -7,7 +7,7 @@ import secureRandom from 'secure-random';
 import { PrivateKey, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
 import { api, broadcast, auth, memo } from '@steemit/steem-js';
 
-import { getAccount } from 'app/redux/ProposalSaga';
+import { getAccount } from 'app/redux/SagaShared';
 import { findSigningKey } from 'app/redux/AuthSaga';
 import * as appActions from 'app/redux/AppReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
