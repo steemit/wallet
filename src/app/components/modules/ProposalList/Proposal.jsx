@@ -20,8 +20,9 @@ Proposal.propTypes = {
     onVote: PropTypes.func.isRequired,
     isVoting: PropTypes.bool.isRequired,
     isUpVoted: PropTypes.bool.isRequired,
-    total_vesting_shares: PropTypes.number.isRequired,
-    total_vesting_fund_steem: PropTypes.number.isRequired,
+    // passed through connect from global state object to calc vests to sp
+    total_vesting_shares: PropTypes.string.isRequired,
+    total_vesting_fund_steem: PropTypes.string.isRequired
 };
 
 export default function Proposal(props) {
@@ -81,8 +82,12 @@ export default function Proposal(props) {
                         />
                     </span>
                 </a>
-
-                <span>{abbreviateNumber(total_votes_in_sp)}</span>
+                <span>{abbreviateNumber(
+                        simpleVotesToSp(
+                            total_votes,
+                            props.total_vesting_shares,
+                            props.total_vesting_fund_steem))}
+                </span>
             </div>
             <div className="proposals__description">
                 <span>
@@ -274,4 +279,17 @@ function linkifyUsername(linkText, username = '') {
  */
 function urlifyPermlink(username, permlink) {
     return `https://steemit.com/@${username}/${permlink}`;
+}
+
+/**
+ * Given total votes in vests returns value in SP
+ * @param {number} total_votes - total votes on a proposal (vests from API)
+ * @param {string} total_vesting_shares - vesting shares with vests symbol on end
+ * @param {string} total_vesting_fund_steem - total steem vesting fund with liquid symbol on end
+ * @returns {number} - return the number converted to SP
+ */
+function simpleVotesToSp(total_votes, total_vesting_shares, total_vesting_fund_steem) {
+    const total_vests = parseFloat(total_vesting_shares);
+    const total_vest_steem = parseFloat(total_vesting_fund_steem);
+    return ((total_vest_steem * (total_votes / total_vests)) * 0.000001).toFixed(2);
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-
+import { connect } from 'react-redux';
 import Proposal from './Proposal';
 
 class ProposalContainer extends React.Component {
@@ -12,6 +12,9 @@ class ProposalContainer extends React.Component {
             voteFailed: false,
             voteSucceeded: false,
             isUpVoted: props.proposal.upVoted,
+            // needed from global state object to calculate vests to sp
+            total_vesting_shares: props.total_vesting_shares,
+            total_vesting_fund_steem: props.total_vesting_fund_steem,
         };
         this.id = this.props.proposal.id;
     }
@@ -85,4 +88,9 @@ ProposalContainer.propTypes = {
     total_vesting_fund_steem: PropTypes.number.isRequired,
 };
 
-export default ProposalContainer;
+export default connect((state, ownProps) => {
+    // pulling these out of state object to calculate vests to sp
+    const total_vesting_shares = state.global.getIn(['props', 'total_vesting_shares']);
+    const total_vesting_fund_steem = state.global.getIn(['props', 'total_vesting_fund_steem']);
+    return { total_vesting_shares, total_vesting_fund_steem, ...ownProps };
+})(ProposalContainer);
