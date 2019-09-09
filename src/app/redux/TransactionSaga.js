@@ -13,6 +13,7 @@ import * as appActions from 'app/redux/AppReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 import * as transactionActions from 'app/redux/TransactionReducer';
 import * as userActions from 'app/redux/UserReducer';
+import * as proposalActions from 'app/redux/ProposalReducer';
 import { DEBT_TICKER } from 'app/client_config';
 import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 
@@ -152,22 +153,20 @@ export function* broadcastOperation({
                 password,
             });
             if (signingKey) payload.keys.push(signingKey);
-            else {
-                if (!password) {
-                    yield put(
-                        userActions.showLogin({
-                            operation: {
-                                type,
-                                operation,
-                                username,
-                                successCallback,
-                                errorCallback,
-                                saveLogin: true,
-                            },
-                        })
-                    );
-                    return;
-                }
+            else if (!password) {
+                yield put(
+                    userActions.showLogin({
+                        operation: {
+                            type,
+                            operation,
+                            username,
+                            successCallback,
+                            errorCallback,
+                            saveLogin: true,
+                        },
+                    })
+                );
+                return;
             }
         }
         yield call(broadcastPayload, { payload });
@@ -208,7 +207,6 @@ function hasPrivateKeys(payload) {
 function* broadcastPayload({
     payload: { operations, keys, username, successCallback, errorCallback },
 }) {
-    // console.log('broadcastPayload')
     if ($STM_Config.read_only_mode) return;
     for (const [type] of operations) // see also transaction/ERROR
         yield put(
@@ -362,6 +360,7 @@ function* accepted_account_update({ operation }) {
 }
 
 import diff_match_patch from 'diff-match-patch';
+
 const dmp = new diff_match_patch();
 
 export function createPatch(text1, text2) {

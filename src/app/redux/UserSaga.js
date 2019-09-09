@@ -40,7 +40,7 @@ export const userWatches = [
     function* getLatestFeedPrice() {
         try {
             const history = yield call([api, api.getFeedHistoryAsync]);
-            const feed = history['price_history'];
+            const feed = history.price_history;
             const last = fromJS(feed[feed.length - 1]);
             yield put(userActions.setLatestFeedPrice(last));
         } catch (error) {
@@ -53,6 +53,7 @@ const highSecurityPages = [
     /\/market/,
     /\/@.+\/(transfers|permissions|password)/,
     /\/~witnesses/,
+    /\/proposals/,
 ];
 
 function* loadSavingsWithdraw() {
@@ -209,7 +210,7 @@ function* usernamePasswordLogin({
             login_owner_pubkey,
         },
     });
-    let authority = yield select(state =>
+    const authority = yield select(state =>
         state.user.getIn(['authority', username])
     );
 
@@ -486,8 +487,16 @@ function* uploadImage({
 
     const stateUser = yield select(state => state.user);
     const username = stateUser.getIn(['current', 'username']);
-    const hasPosting = stateUser.getIn(['current', 'private_keys', 'posting_private']);
-    const hasActive = stateUser.getIn(['current', 'private_keys', 'active_private']);
+    const hasPosting = stateUser.getIn([
+        'current',
+        'private_keys',
+        'posting_private',
+    ]);
+    const hasActive = stateUser.getIn([
+        'current',
+        'private_keys',
+        'active_private',
+    ]);
 
     if (!username) {
         progress({ error: 'Please login first.' });
@@ -538,7 +547,10 @@ function* uploadImage({
         formData.append('filebase64', dataBs64);
     }
 
-    const sig = Signature.signBufferSha256(bufSha, (hasPosting ? hasPosting : hasActive));
+    const sig = Signature.signBufferSha256(
+        bufSha,
+        hasPosting ? hasPosting : hasActive
+    );
     const postUrl = `${$STM_Config.upload_image}/${username}/${sig.toHex()}`;
 
     const xhr = new XMLHttpRequest();
@@ -560,7 +572,7 @@ function* uploadImage({
     };
     xhr.upload.onprogress = function(event) {
         if (event.lengthComputable) {
-            const percent = Math.round(event.loaded / event.total * 100);
+            const percent = Math.round((event.loaded / event.total) * 100);
             progress({ message: `Uploading ${percent}%` });
             // console.log('Upload', percent)
         }

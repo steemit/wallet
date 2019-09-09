@@ -72,15 +72,18 @@ const SidePanel = ({ alignment, visible, hideSidePanel, username }) => {
                 label: tt('navigation.vote_for_witnesses'),
                 link: `/~witnesses`,
             },
+            {
+                value: 'proposals',
+                label: tt('navigation.steem_proposals'),
+                link: `/proposals`,
+            },
         ],
         exchanges: [
             {
                 value: 'blocktrades',
                 label: 'Blocktrades',
                 link: username
-                    ? `https://blocktrades.us/?input_coin_type=eth&output_coin_type=steem&receive_address=${
-                          username
-                      }`
+                    ? `https://blocktrades.us/?input_coin_type=eth&output_coin_type=steem&receive_address=${username}`
                     : `https://blocktrades.us/?input_coin_type=eth&output_coin_type=steem`,
             },
             {
@@ -176,23 +179,23 @@ const SidePanel = ({ alignment, visible, hideSidePanel, username }) => {
                 <CloseButton onClick={hideSidePanel} />
                 <ul className={`vertical menu ${loggedIn}`}>
                     {makeInternalLink(
-                        sidePanelLinks['extras'][0],
+                        sidePanelLinks.extras[0],
                         0,
-                        sidePanelLinks['extras']
+                        sidePanelLinks.extras
                     )}
                     {makeExternalLink(
-                        sidePanelLinks['extras'][1],
+                        sidePanelLinks.extras[1],
                         1,
-                        sidePanelLinks['extras']
+                        sidePanelLinks.extras
                     )}
                     {makeInternalLink(
-                        sidePanelLinks['extras'][2],
+                        sidePanelLinks.extras[2],
                         2,
-                        sidePanelLinks['extras']
+                        sidePanelLinks.extras
                     )}
                 </ul>
                 <ul className="vertical menu">
-                    {sidePanelLinks['internal'].map(makeInternalLink)}
+                    {sidePanelLinks.internal.map(makeInternalLink)}
                 </ul>
                 <ul className="vertical menu">
                     <li>
@@ -200,16 +203,16 @@ const SidePanel = ({ alignment, visible, hideSidePanel, username }) => {
                             {tt('navigation.third_party_exchanges')}
                         </a>
                     </li>
-                    {sidePanelLinks['exchanges'].map(makeExternalLink)}
+                    {sidePanelLinks.exchanges.map(makeExternalLink)}
                 </ul>
                 <ul className="vertical menu">
-                    {sidePanelLinks['external'].map(makeExternalLink)}
+                    {sidePanelLinks.external.map(makeExternalLink)}
                 </ul>
                 <ul className="vertical menu">
-                    {sidePanelLinks['organizational'].map(makeExternalLink)}
+                    {sidePanelLinks.organizational.map(makeExternalLink)}
                 </ul>
                 <ul className="vertical menu">
-                    {sidePanelLinks['legal'].map(makeInternalLink)}
+                    {sidePanelLinks.legal.map(makeInternalLink)}
                 </ul>
             </div>
         </div>

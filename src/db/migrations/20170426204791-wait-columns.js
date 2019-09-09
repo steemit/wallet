@@ -10,7 +10,7 @@ module.exports = {
         queryInterface.addColumn('users', 'sign_up_meta', {
             type: Sequelize.TEXT,
         });
-        queryInterface.addColumn('accounts', 'created', {
+        return queryInterface.addColumn('accounts', 'created', {
             type: Sequelize.BOOLEAN,
         });
     },
