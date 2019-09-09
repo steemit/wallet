@@ -7,7 +7,6 @@ import secureRandom from 'secure-random';
 import { PrivateKey, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
 import { api, broadcast, auth, memo } from '@steemit/steem-js';
 
-// import { getAccount, listVoterProposals } from 'app/redux/ProposalSaga';
 import { getAccount } from 'app/redux/ProposalSaga';
 import { findSigningKey } from 'app/redux/AuthSaga';
 import * as appActions from 'app/redux/AppReducer';
@@ -27,13 +26,10 @@ export const transactionWatches = [
 const hook = {
     preBroadcast_transfer,
     preBroadcast_account_witness_vote,
-    // preBroadcast_update_proposal_votes,
-    // preBroadcast_remove_proposal,
     error_account_witness_vote,
     accepted_account_witness_vote,
     accepted_account_update,
     accepted_withdraw_vesting,
-    // accepted_update_proposal_votes,
 };
 
 export function* preBroadcast_transfer({ operation }) {
@@ -85,23 +81,6 @@ function* error_account_witness_vote({
         })
     );
 }
-
-// function* preBroadcast_update_proposal_votes({ operation, username }) {
-//     if (!operation.voter) operation.voter = username;
-//     const { voter, proposal_ids } = operation;
-//     yield put(
-//         proposalActions.addActiveProposalVote({
-//             voter,
-//             proposal_ids,
-//         })
-//     );
-//     return operation;
-// }
-//
-// function preBroadcast_remove_proposal({ operation, username }) {
-//     if (!operation.proposal_owner) operation.proposal_owner = username;
-//     return operation;
-// }
 
 /** Keys, username, and password are not needed for the initial call.  This will check the login and may trigger an action to prompt for the password / key. */
 export function* broadcastOperation({
@@ -228,7 +207,6 @@ function hasPrivateKeys(payload) {
 function* broadcastPayload({
     payload: { operations, keys, username, successCallback, errorCallback },
 }) {
-    // console.log('broadcastPayload')
     if ($STM_Config.read_only_mode) return;
     for (const [type] of operations) // see also transaction/ERROR
         yield put(
@@ -362,25 +340,6 @@ function* accepted_account_witness_vote({
         })
     );
 }
-
-// function* accepted_update_proposal_votes({
-//     operation: { voter, proposal_ids },
-// }) {
-//     yield call(listVoterProposals, {
-//         start: voter,
-//         order_by: 'by_creator',
-//         order_direction: 'ascending',
-//         limit: 1000,
-//         status: 'votable',
-//     });
-//
-//     // yield put(
-//     //     proposalActions.removeActiveProposalVote({
-//     //         voter,
-//     //         proposal_ids,
-//     //     })
-//     // );
-// }
 
 function* accepted_withdraw_vesting({ operation }) {
     let [account] = yield call(

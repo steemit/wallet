@@ -83,22 +83,25 @@ export default function Proposal(props) {
                 </small>
                 <br />
                 <small>
-                    by {linkifyUsername(creator)} for{' '}
-                    {linkifyUsername(
-                        checkIfSameUser(creator, receiver, 'themselves.'),
-                        receiver
-                    )}
+                    by {linkifyUsername(creator)}
+                    {creator != receiver ? ' for ' : null}
+                    {creator != receiver
+                        ? linkifyUsername(
+                              checkIfSameUser(creator, receiver, 'themselves.'),
+                              receiver
+                          )
+                        : null}
                 </small>
             </div>
             <div className="proposals__amount">
                 <span>
                     <a href="#" title={formatCurrency(totalPayout)}>
-                        <em>${abbreviateNumber(totalPayout)}</em>
+                        <em>{abbreviateNumber(totalPayout)} SBD</em>
                     </a>
                 </span>
                 <small>
-                    ${abbreviateNumber(daily_pay.split(' SBD')[0])} per day for{' '}
-                    {durationInDays} days
+                    {abbreviateNumber(daily_pay.split(' SBD')[0])} SBD per day
+                    for {durationInDays} days
                 </small>
             </div>
         </div>

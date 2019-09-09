@@ -28,7 +28,6 @@ export function serverApiLogout() {
 
 let last_call;
 export function serverApiRecordEvent(type, val, rate_limit_ms = 5000) {
-    return;
     if (!process.env.BROWSER || window.$STM_ServerBusy) return;
     if (last_call && new Date() - last_call < rate_limit_ms) return;
     last_call = new Date();
@@ -37,14 +36,13 @@ export function serverApiRecordEvent(type, val, rate_limit_ms = 5000) {
         'overseer.collect',
         { collection: 'event', metadata: { type, value } },
         error => {
-            // if (error) console.warn('overseer error', error, error.data);
+            if (error) console.warn('overseer error', error, error.data);
         }
     );
 }
 
 let last_page, last_views, last_page_promise;
 export function recordPageView(page, referer, account) {
-    return Promise.resolve(0);
     if (last_page_promise && page === last_page) return last_page_promise;
 
     if (!process.env.BROWSER) return Promise.resolve(0);
@@ -64,7 +62,7 @@ export function recordPageView(page, referer, account) {
 
 export function saveCords(x, y) {
     const request = Object.assign({}, request_base, {
-        body: JSON.stringify({ csrf: $STM_csrf, x: x, y: y }),
+        body: JSON.stringify({ csrf: $STM_csrf, x, y }),
     });
     fetch('/api/v1/save_cords', request);
 }
