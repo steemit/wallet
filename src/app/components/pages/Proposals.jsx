@@ -340,7 +340,7 @@ module.exports = {
                             type: 'remove_proposal',
                             operation: { proposal_owner, proposal_ids },
                             confirm: tt(
-                                'steem_proposal_system_jsx.confirm_remove_proposal_description'
+                                'steem_proposals.confirm_remove_proposal_description'
                             ),
                             successCallback,
                             errorCallback,
