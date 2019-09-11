@@ -52,7 +52,6 @@ export function* customOps(action) {
         communityNSFW,
         communityOwnerName,
         communityOwnerWifPassword,
-        successCallback,
     } = action.payload;
     yield call(wait, 9000);
     try {
@@ -83,35 +82,6 @@ export function* customOps(action) {
             communityOwnerPosting
         );
 
-        const setRolePayload = {
-            required_auths: [],
-            required_posting_auths: [communityOwnerName],
-            id: 'community',
-            json: JSON.stringify([
-                'setRole',
-                {
-                    community: communityOwnerName,
-                    account: accountName,
-                    role: 'admin',
-                },
-            ]),
-        };
-        const updatePropsPayload = {
-            required_auths: [],
-            required_posting_auths: [communityOwnerName],
-            id: 'community',
-            json: JSON.stringify([
-                'updateProps',
-                {
-                    community: communityOwnerName,
-                    props: {
-                        title: communityTitle /*description: communityDescription*/,
-                    },
-                },
-            ]),
-        };
-        debugger;
-
         // SteemJs.
         yield broadcast.sendAsync(
             {
@@ -126,13 +96,8 @@ export function* customOps(action) {
                 ),
             ]
         );
+        debugger;
 
-        /*
-        yield call(
-            [api, broadcast.send],
-            [setRoleOperation, updatePropsOperation]
-        );
-        */
         yield put({
             type: communityActions.CREATE_COMMUNITY_SUCCESS,
             payload: true,
@@ -203,10 +168,7 @@ export function* createCommunityAccount(createCommunityAction) {
                 confirm: 'Are you sure?',
                 operation: op,
                 successCallback: res => {
-                    console.log('success', res);
-                    debugger;
                     successCallback();
-                    debugger;
                 },
                 errorCallback: res => {
                     console.log('error', res);
