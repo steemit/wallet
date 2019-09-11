@@ -82,11 +82,10 @@ export function* customOps(action) {
             communityOwnerPosting
         );
 
-        // SteemJs.
         yield broadcast.sendAsync(
             {
                 extensions: [],
-                operations: [[setRoleOperation, updatePropsOperation]],
+                operations: [setRoleOperation, updatePropsOperation],
             },
             [
                 auth.toWif(
@@ -96,13 +95,13 @@ export function* customOps(action) {
                 ),
             ]
         );
-        debugger;
 
         yield put({
             type: communityActions.CREATE_COMMUNITY_SUCCESS,
             payload: true,
         });
     } catch (error) {
+        console.log(error);
         yield put({
             type: communityActions.CREATE_COMMUNITY_ACCOUNT_ERROR,
             payload: true,

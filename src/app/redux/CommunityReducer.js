@@ -122,7 +122,6 @@ export const setCommunityOwnerWifPassword = payload => ({
 });
 // Has a saga.
 export const createCommunity = payload => {
-    debugger;
     return {
         type: CREATE_COMMUNITY_ACCOUNT,
         payload,
@@ -143,7 +142,6 @@ export const createCommunitySuccess = payload => ({
 });
 
 export const communityHivemindOperation = payload => {
-    debugger;
     return {
         type: COMMUNITY_HIVEMIND_OPERATION,
         payload,

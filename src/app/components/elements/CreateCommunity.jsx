@@ -238,7 +238,6 @@ export default connect(
                     successCallback: successCallback,
                     ...createCommunityPayload,
                 };
-                debugger;
                 dispatch(communityActions.createCommunity(payload));
             },
         };
