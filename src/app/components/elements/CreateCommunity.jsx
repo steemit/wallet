@@ -228,9 +228,18 @@ export default connect(
                 );
             },
             createCommunity: createCommunityPayload => {
-                dispatch(
-                    communityActions.createCommunity(createCommunityPayload)
-                );
+                const successCallback = () =>
+                    dispatch(
+                        communityActions.communityHivemindOperation(
+                            createCommunityPayload
+                        )
+                    );
+                const payload = {
+                    successCallback: successCallback,
+                    ...createCommunityPayload,
+                };
+                debugger;
+                dispatch(communityActions.createCommunity(payload));
             },
         };
     }

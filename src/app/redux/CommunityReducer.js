@@ -17,7 +17,8 @@ export const CREATE_COMMUNITY_ACCOUNT_ERROR =
     'community/CREATE_COMMUNITY_ACCOUNT_ERROR';
 export const CREATE_COMMUNITY_SUCCESS = 'community/CREATE_COMMUNITY_SUCCESS';
 
-const COMMUNITY_HIVEMIND_OPERATION = 'community/COMMUNITY_HIVEMIND_OPERATION'; // Has saga.
+export const COMMUNITY_HIVEMIND_OPERATION =
+    'community/COMMUNITY_HIVEMIND_OPERATION'; // Has saga.
 const COMMUNITY_HIVEMIND_OPERATION_PENDING =
     'community/COMMUNITY_HIVEMIND_OPERATION_PENDING';
 const COMMUNITY_HIVEMIND_OPERATION_ERROR =
@@ -120,10 +121,13 @@ export const setCommunityOwnerWifPassword = payload => ({
     payload,
 });
 // Has a saga.
-export const createCommunity = payload => ({
-    type: CREATE_COMMUNITY_ACCOUNT,
-    payload,
-});
+export const createCommunity = payload => {
+    debugger;
+    return {
+        type: CREATE_COMMUNITY_ACCOUNT,
+        payload,
+    };
+};
 
 export const createCommunityAccountPending = payload => ({
     type: CREATE_COMMUNITY_ACCOUNT_PENDING,
@@ -138,10 +142,13 @@ export const createCommunitySuccess = payload => ({
     payload,
 });
 
-export const communityHivemindOperation = payload => ({
-    type: COMMUNITY_HIVEMIND_OPERATION,
-    payload,
-});
+export const communityHivemindOperation = payload => {
+    debugger;
+    return {
+        type: COMMUNITY_HIVEMIND_OPERATION,
+        payload,
+    };
+};
 export const communityHivemindOperationPending = payload => ({
     type: COMMUNITY_HIVEMIND_OPERATION_PENDING,
     payload,

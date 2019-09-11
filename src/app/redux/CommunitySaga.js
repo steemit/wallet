@@ -37,9 +37,10 @@ export const communityWatches = [
         communityActions.CREATE_COMMUNITY_ACCOUNT,
         createCommunityAccount
     ),
+    takeLatest(communityActions.COMMUNITY_HIVEMIND_OPERATION, customOps),
 ];
 
-export function* createCommunityAccount(createCommunityAction) {
+export function* customOps(action) {
     yield put({
         type: communityActions.CREATE_COMMUNITY_ACCOUNT_PENDING,
         payload: true,
@@ -51,52 +52,10 @@ export function* createCommunityAccount(createCommunityAction) {
         communityNSFW,
         communityOwnerName,
         communityOwnerWifPassword,
-    } = createCommunityAction.payload;
+        successCallback,
+    } = action.payload;
+    yield call(wait, 9000);
     try {
-        const op = {
-            fee: '3.000 STEEM',
-            creator: accountName,
-            new_account_name: communityOwnerName,
-            owner: generateAuth(
-                communityOwnerName,
-                communityOwnerWifPassword,
-                'owner'
-            ),
-            active: generateAuth(
-                communityOwnerName,
-                communityOwnerWifPassword,
-                'active'
-            ),
-            posting: generateAuth(
-                communityOwnerName,
-                communityOwnerWifPassword,
-                'posting'
-            ),
-            memo_key: generateAuth(
-                communityOwnerPosting,
-                communityOwnerWifPassword,
-                'memo'
-            ),
-            json_metadata: '',
-        };
-
-        yield put(
-            transactionActions.broadcastOperation({
-                type: 'account_create',
-                confirm: 'Are you sure?',
-                operation: op,
-                successCallback: res => {
-                    console.log('success', res);
-                },
-                errorCallback: res => {
-                    console.log('error', res);
-                },
-            })
-        );
-
-        // The client cannot submit custom_json and account_create in the same block. The easiest way around this, for now, is to pause for 3 seconds after the account is created before submitting the ops.
-        yield call(wait, 9000);
-
         const communityOwnerPosting = auth.getPrivateKeys(
             communityOwnerName,
             communityOwnerWifPassword,
@@ -151,22 +110,13 @@ export function* createCommunityAccount(createCommunityAction) {
                 },
             ]),
         };
+        debugger;
 
         // SteemJs.
         yield broadcast.sendAsync(
             {
                 extensions: [],
-                operations: [
-                    [
-                        'custom_json',
-                        {
-                            id: 'community',
-                            json: setRoleOperation[1].json,
-                            required_auths: [],
-                            required_posting_auths: [communityOwnerName],
-                        },
-                    ],
-                ],
+                operations: [[setRoleOperation, updatePropsOperation]],
             },
             [
                 auth.toWif(
@@ -188,7 +138,6 @@ export function* createCommunityAccount(createCommunityAction) {
             payload: true,
         });
     } catch (error) {
-        console.log(error);
         yield put({
             type: communityActions.CREATE_COMMUNITY_ACCOUNT_ERROR,
             payload: true,
@@ -198,4 +147,83 @@ export function* createCommunityAccount(createCommunityAction) {
         type: communityActions.CREATE_COMMUNITY_ACCOUNT_PENDING,
         payload: false,
     });
+}
+
+export function* createCommunityAccount(createCommunityAction) {
+    yield put({
+        type: communityActions.CREATE_COMMUNITY_ACCOUNT_PENDING,
+        payload: true,
+    });
+    const {
+        accountName,
+        communityTitle,
+        communityDescription,
+        communityNSFW,
+        communityOwnerName,
+        communityOwnerWifPassword,
+        successCallback,
+    } = createCommunityAction.payload;
+
+    const communityOwnerPosting = auth.getPrivateKeys(
+        communityOwnerName,
+        communityOwnerWifPassword,
+        ['posting']
+    );
+    try {
+        const op = {
+            fee: '3.000 STEEM',
+            creator: accountName,
+            new_account_name: communityOwnerName,
+            owner: generateAuth(
+                communityOwnerName,
+                communityOwnerWifPassword,
+                'owner'
+            ),
+            active: generateAuth(
+                communityOwnerName,
+                communityOwnerWifPassword,
+                'active'
+            ),
+            posting: generateAuth(
+                communityOwnerName,
+                communityOwnerWifPassword,
+                'posting'
+            ),
+            memo_key: generateAuth(
+                communityOwnerPosting,
+                communityOwnerWifPassword,
+                'memo'
+            ),
+            json_metadata: '',
+        };
+
+        yield put(
+            transactionActions.broadcastOperation({
+                type: 'account_create',
+                confirm: 'Are you sure?',
+                operation: op,
+                successCallback: res => {
+                    console.log('success', res);
+                    debugger;
+                    successCallback();
+                    debugger;
+                },
+                errorCallback: res => {
+                    console.log('error', res);
+                },
+            })
+        );
+
+        // The client cannot submit custom_json and account_create in the same block. The easiest way around this, for now, is to pause for 3 seconds after the account is created before submitting the ops.
+    } catch (error) {
+        console.log(error);
+        yield put({
+            type: communityActions.CREATE_COMMUNITY_ACCOUNT_ERROR,
+            payload: true,
+        });
+        yield put({
+            type: communityActions.CREATE_COMMUNITY_ACCOUNT_PENDING,
+            payload: false,
+        });
+    }
 }
