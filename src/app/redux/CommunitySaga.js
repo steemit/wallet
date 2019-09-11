@@ -53,8 +53,6 @@ export function* createCommunityAccount(createCommunityAction) {
         communityOwnerWifPassword,
     } = createCommunityAction.payload;
     try {
-        // Get the currently logged in user active key.
-        const creatorActiveKey = yield select(activeKeySelector);
         const op = {
             fee: '3.000 STEEM',
             creator: accountName,
@@ -81,16 +79,19 @@ export function* createCommunityAccount(createCommunityAction) {
             ),
             json_metadata: '',
         };
-        yield call(
-            [api, broadcast.accountCreate],
-            creatorActiveKey,
-            op.fee,
-            op.creator,
-            op.owner,
-            op.active,
-            op.posting,
-            op.memo_key,
-            op.json_metadata
+
+        yield put(
+            transactionActions.broadcastOperation({
+                type: 'account_create',
+                confirm: 'Are you sure?',
+                operation: op[1],
+                successCallback: res => {
+                    console.log('success', res);
+                },
+                errorCallback: res => {
+                    console.log('error', res);
+                },
+            })
         );
 
         // The client cannot submit custom_json and account_create in the same block. The easiest way around this, for now, is to pause for 3 seconds after the account is created before submitting the ops.
@@ -167,7 +168,13 @@ export function* createCommunityAccount(createCommunityAction) {
                     ],
                 ],
             },
-            [auth.toWif(communityOwnerName, communityOwnerWifPassword, 'posting')]
+            [
+                auth.toWif(
+                    communityOwnerName,
+                    communityOwnerWifPassword,
+                    'posting'
+                ),
+            ]
         );
 
         /*
