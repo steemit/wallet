@@ -61,7 +61,7 @@ export default function resolveRoute(path) {
     if (path === '/proposals') {
         return { page: 'Proposals' };
     }
-    const match =
+    match =
         path.match(routeRegex.UserProfile1) ||
         path.match(routeRegex.UserProfile2);
     if (match) {
