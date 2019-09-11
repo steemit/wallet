@@ -158,12 +158,9 @@ export function* createCommunityAccount(createCommunityAction) {
         };
 
         // Dsteem.
-        //const vanillaAsyncCall = await client.broadcast.json(setRolePayload, key);
-        // yield call(client, client.broadcast.json(setRolePayload, key))
-        //yield call(client, client.broadcast.json(updatePropsPayload, key))
+        yield call(client, client.broadcast.json(setRolePayload, key));
 
         // SteemJs.
-
         yield broadcast.sendAsync(
             {
                 extensions: [],
