@@ -63,7 +63,11 @@ export function* customOps(action) {
 
         const setRoleOperation = generateHivemindOperation(
             'setRole',
-            { communityOwnerName, account: accountName, role: 'admin' },
+            {
+                community: communityOwnerName,
+                account: accountName,
+                role: 'admin',
+            },
             communityOwnerName,
             communityOwnerPosting
         );
@@ -71,7 +75,7 @@ export function* customOps(action) {
         const updatePropsOperation = generateHivemindOperation(
             'updateProps',
             {
-                communityOwnerName,
+                community: communityOwnerName,
                 props: {
                     title: communityTitle,
                     description: communityDescription,
