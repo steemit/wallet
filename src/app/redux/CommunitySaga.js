@@ -84,7 +84,7 @@ export function* createCommunityAccount(createCommunityAction) {
             transactionActions.broadcastOperation({
                 type: 'account_create',
                 confirm: 'Are you sure?',
-                operation: op[1],
+                operation: op,
                 successCallback: res => {
                     console.log('success', res);
                 },
