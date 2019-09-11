@@ -12,7 +12,7 @@ const activeKeySelector = state => {
 const generateAuth = (user, pass, type) => {
     const key = auth.getPrivateKeys(user, pass, [type]);
     const publicKey = auth.wifToPublic(Object.values(key)[0]);
-    if (type == 'memo') return Object.values(key)[0];
+    if (type == 'memo') return publicKey;
     return {
         weight_threshold: 1,
         account_auths: [],
@@ -58,6 +58,7 @@ export function* createCommunityAccount(createCommunityAction) {
         const op = {
             fee: '3.000 STEEM',
             creator: accountName,
+            new_account_name: communityOwnerName,
             owner: generateAuth(
                 communityOwnerName,
                 communityOwnerWifPassword,
@@ -166,7 +167,7 @@ export function* createCommunityAccount(createCommunityAction) {
                     ],
                 ],
             },
-            [auth.toWif(communityOwnerName, communityOwnerWifPassword, 'owner')]
+            [auth.toWif(communityOwnerName, communityOwnerWifPassword, 'posting')]
         );
 
         /*
