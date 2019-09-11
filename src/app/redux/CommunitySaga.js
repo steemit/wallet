@@ -4,9 +4,6 @@ import { PrivateKey } from '@steemit/steem-js/lib/auth/ecc';
 import * as communityActions from './CommunityReducer';
 import * as transactionActions from './TransactionReducer';
 import { wait } from './MarketSaga';
-import * as dsteem from 'dsteem';
-
-const client = new dsteem.Client('https://api.steemit.com');
 
 const activeKeySelector = state => {
     return state.user.getIn(['pub_keys_used']).active;
@@ -125,10 +122,6 @@ export function* createCommunityAccount(createCommunityAction) {
             communityOwnerPosting
         );
 
-        const key = dsteem.PrivateKey.fromLogin(
-            communityOwnerName,
-            communityOwnerWifPassword
-        );
         const setRolePayload = {
             required_auths: [],
             required_posting_auths: [communityOwnerName],
@@ -156,9 +149,6 @@ export function* createCommunityAccount(createCommunityAction) {
                 },
             ]),
         };
-
-        // Dsteem.
-        yield call(client, client.broadcast.json(setRolePayload, key));
 
         // SteemJs.
         yield broadcast.sendAsync(
