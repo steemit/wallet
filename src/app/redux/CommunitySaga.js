@@ -2,7 +2,11 @@ import { call, put, takeLatest, select } from 'redux-saga/effects';
 import { api, broadcast, auth } from '@steemit/steem-js';
 import { PrivateKey } from '@steemit/steem-js/lib/auth/ecc';
 import * as communityActions from './CommunityReducer';
+import * as transactionActions from './TransactionReducer';
 import { wait } from './MarketSaga';
+import * as dsteem from 'dsteem';
+
+const client = new dsteem.Client('https://api.steemit.com');
 
 const activeKeySelector = state => {
     return state.user.getIn(['pub_keys_used']).active;
@@ -92,12 +96,14 @@ export function* createCommunityAccount(createCommunityAction) {
         );
 
         // The client cannot submit custom_json and account_create in the same block. The easiest way around this, for now, is to pause for 3 seconds after the account is created before submitting the ops.
-        yield call(wait, 3000);
+        yield call(wait, 9000);
+
         const communityOwnerPosting = auth.getPrivateKeys(
             communityOwnerName,
             communityOwnerWifPassword,
             ['posting']
         );
+
         const setRoleOperation = generateHivemindOperation(
             'setRole',
             { communityOwnerName, account: accountName, role: 'admin' },
@@ -105,7 +111,6 @@ export function* createCommunityAccount(createCommunityAction) {
             communityOwnerPosting
         );
 
-        // TODO: Should this op update the community description and NSFW prop?
         const updatePropsOperation = generateHivemindOperation(
             'updateProps',
             {
@@ -119,15 +124,76 @@ export function* createCommunityAccount(createCommunityAction) {
             communityOwnerName,
             communityOwnerPosting
         );
+
+        const key = dsteem.PrivateKey.fromLogin(
+            communityOwnerName,
+            communityOwnerWifPassword
+        );
+        const setRolePayload = {
+            required_auths: [],
+            required_posting_auths: [communityOwnerName],
+            id: 'community',
+            json: JSON.stringify([
+                'setRole',
+                {
+                    community: communityOwnerName,
+                    account: accountName,
+                    role: 'admin',
+                },
+            ]),
+        };
+        const updatePropsPayload = {
+            required_auths: [],
+            required_posting_auths: [communityOwnerName],
+            id: 'community',
+            json: JSON.stringify([
+                'updateProps',
+                {
+                    community: communityOwnerName,
+                    props: {
+                        title: communityTitle /*description: communityDescription*/,
+                    },
+                },
+            ]),
+        };
+
+        // Dsteem.
+        //const vanillaAsyncCall = await client.broadcast.json(setRolePayload, key);
+        // yield call(client, client.broadcast.json(setRolePayload, key))
+        //yield call(client, client.broadcast.json(updatePropsPayload, key))
+
+        // SteemJs.
+
+        yield broadcast.sendAsync(
+            {
+                extensions: [],
+                operations: [
+                    [
+                        'custom_json',
+                        {
+                            id: 'community',
+                            json: setRoleOperation[1].json,
+                            required_auths: [],
+                            required_posting_auths: [communityOwnerName],
+                        },
+                    ],
+                ],
+            },
+            [auth.toWif(communityOwnerName, communityOwnerWifPassword, 'owner')]
+        );
+
+        /*
         yield call(
             [api, broadcast.send],
             [setRoleOperation, updatePropsOperation]
         );
+        */
         yield put({
             type: communityActions.CREATE_COMMUNITY_SUCCESS,
             payload: true,
         });
     } catch (error) {
+        console.log(error);
         yield put({
             type: communityActions.CREATE_COMMUNITY_ACCOUNT_ERROR,
             payload: true,
