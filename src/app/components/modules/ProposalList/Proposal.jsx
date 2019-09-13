@@ -252,7 +252,7 @@ function checkIfSameUser(usernamea, usernameb, valueIfSame = true) {
 function linkifyUsername(linkText, username = '') {
     if (username == '') username = linkText;
     return (
-        <a href={`https://steemit.com/@${username}/feed`} target="_blank">
+        <a href={`https://steemit.com/@${username}`} target="_blank">
             {linkText}
         </a>
     );
