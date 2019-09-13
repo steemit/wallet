@@ -21,6 +21,8 @@ const CreateCommunity = ({
     updateCommunityNSFW,
     updateCommunityOwnerAccountName,
     updateCommunityOwnerWifPassword,
+    communityHivemindOperationPending,
+    communityHivemindOperationError,
 }) => {
     const handleCommunityTitleInput = e => {
         if (e.target.value.length > 32) {
@@ -86,12 +88,12 @@ const CreateCommunity = ({
 
     const rememberCredentialsPrompt = (
         <div>
-            <div>{`${tt('g.community_owner_name_is')}: ${
-                communityOwnerName
-            }`}</div>
-            <div>{`${tt('g.community_password_is')}: ${
-                communityOwnerWifPassword
-            }`}</div>
+            <div>{`${tt(
+                'g.community_owner_name_is'
+            )}: ${communityOwnerName}`}</div>
+            <div>{`${tt(
+                'g.community_password_is'
+            )}: ${communityOwnerWifPassword}`}</div>
         </div>
     );
 
@@ -123,9 +125,18 @@ const CreateCommunity = ({
             </a>
         </div>
     );
-    const createCommunityErrorMessage = <div>{tt('g.community_error')}</div>;
 
-    const createCommunityLoading = <div>{tt('g.community_creating')}</div>;
+    const createCommunityErrorMessage = <div>{tt('g.community_error')}</div>;
+    const createCommunityLoadingMessage = (
+        <div>{tt('g.community_creating')}</div>
+    );
+    const createCommunityCustomOpsPendingMessage = (
+        <div>{`${tt('g.community_broadcasting_custom_ops')} ${accountName} ${tt(
+            'community_broadcasting_custom_ops_1'
+        )} ${communityTitle}} ${tt(
+            'community_broadcasting_custom_ops_2'
+        )}`}</div>
+    );
 
     const createCommunityForm = (
         <form onSubmit={handleCommunitySubmit}>
@@ -182,7 +193,9 @@ const CreateCommunity = ({
                 {!communityCreatePending &&
                     !communityCreateSuccess &&
                     createCommunityForm}
-                {communityCreatePending && createCommunityLoading}
+                {communityCreatePending && createCommunityLoadingMessage}
+                {communityHivemindOperationPending &&
+                    createCommunityCustomOpsPendingMessage}
                 {communityCreateSuccess && createCommunitySuccessMessage}
                 {communityCreateError && createCommunityErrorMessage}
             </div>
@@ -234,8 +247,13 @@ export default connect(
                             createCommunityPayload
                         )
                     );
+                const errorCallback = () =>
+                    dispatch(
+                        communityActions.createCommunityAccountError(true)
+                    );
                 const payload = {
                     successCallback: successCallback,
+                    errorCallback: errorCallback,
                     ...createCommunityPayload,
                 };
                 dispatch(communityActions.createCommunity(payload));

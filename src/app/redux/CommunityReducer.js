@@ -15,13 +15,13 @@ export const CREATE_COMMUNITY_ACCOUNT_PENDING =
     'community/CREATE_COMMUNITY_ACCOUNT_PENDING';
 export const CREATE_COMMUNITY_ACCOUNT_ERROR =
     'community/CREATE_COMMUNITY_ACCOUNT_ERROR';
+export const CREATE_COMMUNITY_ERROR = 'community/CREATE_COMMUNITY_ERROR';
 export const CREATE_COMMUNITY_SUCCESS = 'community/CREATE_COMMUNITY_SUCCESS';
-
 export const COMMUNITY_HIVEMIND_OPERATION =
     'community/COMMUNITY_HIVEMIND_OPERATION'; // Has saga.
-const COMMUNITY_HIVEMIND_OPERATION_PENDING =
+export const COMMUNITY_HIVEMIND_OPERATION_PENDING =
     'community/COMMUNITY_HIVEMIND_OPERATION_PENDING';
-const COMMUNITY_HIVEMIND_OPERATION_ERROR =
+export const COMMUNITY_HIVEMIND_OPERATION_ERROR =
     'community/COMMUNITY_HIVEMIND_OPERATION_ERROR';
 
 // Saga-related
@@ -65,12 +65,15 @@ export default function reducer(state = defaultState, action) {
         case CREATE_COMMUNITY_ACCOUNT: {
             return state;
         }
-
+        // Has a saga watcher.
+        case CREATE_COMMUNITY_ACCOUNT_ERROR: {
+            return state;
+        }
         case CREATE_COMMUNITY_ACCOUNT_PENDING: {
             const pending = fromJS(payload);
             return state.merge({ communityCreatePending: pending });
         }
-        case CREATE_COMMUNITY_ACCOUNT_ERROR: {
+        case CREATE_COMMUNITY_ERROR: {
             const err = fromJS(payload);
             return state.merge({ communityCreateError: err });
         }
@@ -132,10 +135,12 @@ export const createCommunityAccountPending = payload => ({
     type: CREATE_COMMUNITY_ACCOUNT_PENDING,
     payload,
 });
+
 export const createCommunityAccountError = payload => ({
     type: CREATE_COMMUNITY_ACCOUNT_ERROR,
     payload,
 });
+
 export const createCommunitySuccess = payload => ({
     type: CREATE_COMMUNITY_SUCCESS,
     payload,

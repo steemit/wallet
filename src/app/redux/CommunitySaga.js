@@ -5,10 +5,6 @@ import * as communityActions from './CommunityReducer';
 import * as transactionActions from './TransactionReducer';
 import { wait } from './MarketSaga';
 
-const activeKeySelector = state => {
-    return state.user.getIn(['pub_keys_used']).active;
-};
-
 const generateAuth = (user, pass, type) => {
     const key = auth.getPrivateKeys(user, pass, [type]);
     const publicKey = auth.wifToPublic(Object.values(key)[0]);
@@ -38,7 +34,22 @@ export const communityWatches = [
         createCommunityAccount
     ),
     takeLatest(communityActions.COMMUNITY_HIVEMIND_OPERATION, customOps),
+    takeLatest(
+        communityActions.COMMUNITY_CREATE_ACCOUNT_ERROR,
+        createAccountError
+    ),
 ];
+export function* createAccountError(action) {
+    debugger;
+    yield put({
+        type: communityActions.CREATE_COMMUNITY_ACCOUNT_PENDING,
+        payload: false,
+    });
+    yield put({
+        type: communityActions.CREATE_COMMUNITY_ERROR,
+        payload: true,
+    });
+}
 
 export function* customOps(action) {
     yield put({
@@ -53,7 +64,8 @@ export function* customOps(action) {
         communityOwnerName,
         communityOwnerWifPassword,
     } = action.payload;
-    yield call(wait, 9000);
+    // The client cannot submit custom_json and account_create in the same block. The easiest way around this, for now, is to pause for 3 seconds after the account is created before submitting the ops.
+    yield call(wait, 4000);
     try {
         const communityOwnerPosting = auth.getPrivateKeys(
             communityOwnerName,
@@ -107,7 +119,7 @@ export function* customOps(action) {
     } catch (error) {
         console.log(error);
         yield put({
-            type: communityActions.CREATE_COMMUNITY_ACCOUNT_ERROR,
+            type: communityActions.CREATE_COMMUNITY_ERROR,
             payload: true,
         });
     }
@@ -130,6 +142,7 @@ export function* createCommunityAccount(createCommunityAction) {
         communityOwnerName,
         communityOwnerWifPassword,
         successCallback,
+        errorCallback,
     } = createCommunityAction.payload;
 
     const communityOwnerPosting = auth.getPrivateKeys(
@@ -174,16 +187,15 @@ export function* createCommunityAccount(createCommunityAction) {
                     successCallback();
                 },
                 errorCallback: res => {
+                    debugger;
                     console.log('error', res);
+                    errorCallback(error);
                 },
             })
         );
-
-        // The client cannot submit custom_json and account_create in the same block. The easiest way around this, for now, is to pause for 3 seconds after the account is created before submitting the ops.
     } catch (error) {
-        console.log(error);
         yield put({
-            type: communityActions.CREATE_COMMUNITY_ACCOUNT_ERROR,
+            type: communityActions.CREATE_COMMUNITY_ERROR,
             payload: true,
         });
         yield put({
