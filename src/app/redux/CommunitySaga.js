@@ -35,7 +35,7 @@ export const communityWatches = [
     ),
     takeLatest(communityActions.COMMUNITY_HIVEMIND_OPERATION, customOps),
     takeLatest(
-        communityActions.COMMUNITY_CREATE_ACCOUNT_ERROR,
+        communityActions.CREATE_COMMUNITY_ACCOUNT_ERROR,
         createAccountError
     ),
 ];
@@ -189,7 +189,7 @@ export function* createCommunityAccount(createCommunityAction) {
                 errorCallback: res => {
                     debugger;
                     console.log('error', res);
-                    errorCallback(error);
+                    errorCallback(res);
                 },
             })
         );
