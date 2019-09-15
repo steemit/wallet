@@ -8,13 +8,24 @@ import { key_utils } from '@steemit/steem-js/lib/auth/ecc';
 class CreateCommunity extends React.Component {
     constructor() {
         super();
-        this.state = { error: false };
+        this.state = { error: false, errorMessage: '' };
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        if (this.props.hasTransactionError && !prevProps.hasTransactionError) {
+            this.setState({
+                errorMessage: 'There was a transaction error.',
+            });
+        }
+        if (this.props.loginError && !prevProps.loginError) {
+            this.setState({
+                errorMessage: 'There was a credentials error.',
+            });
+        }
     }
 
     render() {
         const errorCB = () => {
-            debugger;
-            // Can we dispatch from within here.
             this.setState({ error: true });
         };
 
@@ -40,8 +51,6 @@ class CreateCommunity extends React.Component {
             transactionState,
             hasTransactionError,
         } = this.props;
-
-        console.log(this.state.error);
 
         const handleCommunityTitleInput = e => {
             if (e.target.value.length > 32) {
@@ -70,6 +79,7 @@ class CreateCommunity extends React.Component {
                 communityOwnerWifPassword,
             };
             createCommunity(createCommunitypayload, errorCB);
+            this.setState({ error: false, errorMessage: '' });
         };
 
         const generateCommunityOwnerName = () => {
@@ -148,16 +158,14 @@ class CreateCommunity extends React.Component {
         );
 
         const createCommunityErrorMessage = (
-            <div>{tt('g.community_error')}</div>
+            <div>
+                <div>{tt('g.community_error')}</div>
+                <div>{this.state.errorMessage}</div>
+                <div>{tt('g.community_create_try_again')} </div>
+            </div>
         );
         const createCommunityLoadingMessage = (
             <div>{tt('g.community_creating')}</div>
-        );
-        const createCommunityPasswordError = (
-            <div>
-                <div>{tt('g.community_create_password_error')}</div>
-                <div>{loginError}</div>
-            </div>
         );
         const createCommunityCustomOpsPendingMessage = (
             <div>{`${tt(
@@ -222,12 +230,14 @@ class CreateCommunity extends React.Component {
         return (
             <div className="row">
                 <div className="column large-6 small-12">
-                    {loginError && createCommunityPasswordError}
-                    {hasTransactionError && <div>THERE WAS AN ERROR!</div>}
+                    {this.state.error && createCommunityErrorMessage}
+                    {this.state.error && createCommunityForm}
                     {!communityCreatePending &&
                         !communityCreateSuccess &&
                         createCommunityForm}
-                    {communityCreatePending && createCommunityLoadingMessage}
+                    {communityCreatePending &&
+                        !this.state.error &&
+                        createCommunityLoadingMessage}
                     {communityHivemindOperationPending &&
                         createCommunityCustomOpsPendingMessage}
                     {communityCreateSuccess && createCommunitySuccessMessage}

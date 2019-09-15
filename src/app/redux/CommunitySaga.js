@@ -40,7 +40,6 @@ export const communityWatches = [
     ),
 ];
 export function* createAccountError(action) {
-    debugger;
     yield put({
         type: communityActions.CREATE_COMMUNITY_ACCOUNT_PENDING,
         payload: false,
@@ -187,8 +186,6 @@ export function* createCommunityAccount(createCommunityAction) {
                     successCallback();
                 },
                 errorCallback: res => {
-                    debugger;
-                    console.log('error', res);
                     errorCallback(res);
                 },
             })
