@@ -132,7 +132,6 @@ export function* broadcastOperation({
         const warning = tt('g.post_key_warning.warning');
         const checkbox = tt('g.post_key_warning.checkbox');
         operationParam.allowPostUnsafe = true;
-        debugger;
         yield put(
             transactionActions.confirmOperation({
                 confirm,
@@ -183,7 +182,6 @@ export function* broadcastOperation({
         serverApiRecordEvent(eventType, page);
     } catch (error) {
         console.error('TransactionSage', error);
-        debugger;
         if (errorCallback) errorCallback(error.toString());
     }
 }

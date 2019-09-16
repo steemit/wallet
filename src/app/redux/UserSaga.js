@@ -219,7 +219,6 @@ function* usernamePasswordLogin({
         Set()
     );
     if (!fullAuths.size) {
-        debugger;
         console.log('No full auths');
         localStorage.removeItem('autopost2');
         const generated_type = password[0] === 'P' && password.length > 40;
@@ -419,8 +418,12 @@ function* logout(action) {
     yield serverApiLogout();
 }
 
-function* loginError() {
-    yield serverApiLogout();
+function* loginError({
+    payload: {
+        /*error*/
+    },
+}) {
+    serverApiLogout();
 }
 
 /**

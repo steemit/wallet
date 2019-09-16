@@ -25,8 +25,6 @@
         "community_owner_name_is": "Your community owner name is",
         "community_password_is": "Your password is",
         "community_creating": "Your community is being created...",
-        "community_create_password_error":
-            "There was a problem with your credentials:",
         "community_broadcasting_custom_ops": "Making",
         "community_broadcasting_custom_ops_1": "administrator of the",
         "community_broadcasting_custom_ops_2": "community.",

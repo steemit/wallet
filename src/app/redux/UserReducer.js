@@ -49,7 +49,6 @@ const defaultState = fromJS({
     locale: DEFAULT_LANGUAGE,
     show_side_panel: false,
     maybeLoggedIn: false,
-    login_error: undefined,
 });
 
 export default function reducer(state = defaultState, action) {
@@ -203,7 +202,6 @@ export default function reducer(state = defaultState, action) {
             });
 
         case LOGIN_ERROR:
-            debugger;
             return state.merge({
                 login_error: payload.error,
                 logged_out: undefined,
