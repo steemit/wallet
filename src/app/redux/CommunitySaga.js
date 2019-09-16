@@ -34,21 +34,7 @@ export const communityWatches = [
         createCommunityAccount
     ),
     takeLatest(communityActions.COMMUNITY_HIVEMIND_OPERATION, customOps),
-    takeLatest(
-        communityActions.CREATE_COMMUNITY_ACCOUNT_ERROR,
-        createAccountError
-    ),
 ];
-export function* createAccountError(action) {
-    yield put({
-        type: communityActions.CREATE_COMMUNITY_ACCOUNT_PENDING,
-        payload: false,
-    });
-    yield put({
-        type: communityActions.CREATE_COMMUNITY_ERROR,
-        payload: true,
-    });
-}
 
 export function* customOps(action) {
     yield put({
@@ -63,6 +49,10 @@ export function* customOps(action) {
         communityOwnerName,
         communityOwnerWifPassword,
     } = action.payload;
+    yield put({
+        type: communityActions.COMMUNITY_HIVEMIND_OPERATION_ERROR,
+        payload: false,
+    });
     // The client cannot submit custom_json and account_create in the same block. The easiest way around this, for now, is to pause for 3 seconds after the account is created before submitting the ops.
     yield call(wait, 4000);
     try {
@@ -116,9 +106,8 @@ export function* customOps(action) {
             payload: true,
         });
     } catch (error) {
-        console.log(error);
         yield put({
-            type: communityActions.CREATE_COMMUNITY_ERROR,
+            type: communityActions.COMMUNITY_HIVEMIND_OPERATION_ERROR,
             payload: true,
         });
     }
@@ -177,24 +166,28 @@ export function* createCommunityAccount(createCommunityAction) {
             json_metadata: '',
         };
 
-        yield put(
-            transactionActions.broadcastOperation({
-                type: 'account_create',
-                confirm: 'Are you sure?',
-                operation: op,
-                successCallback: res => {
-                    successCallback();
-                },
-                errorCallback: res => {
-                    errorCallback(res);
-                },
-            })
+        const communityAccountAlreadyCreated = yield select(
+            state => state.community.toJS().communityAccountCreated
         );
+        if (communityAccountAlreadyCreated) {
+            successCallback();
+        } else {
+            yield put(
+                transactionActions.broadcastOperation({
+                    type: 'account_create',
+                    confirm: 'Are you sure?',
+                    operation: op,
+                    successCallback: res => {
+                        successCallback();
+                    },
+                    errorCallback: res => {
+                        errorCallback(res);
+                    },
+                })
+            );
+        }
     } catch (error) {
-        yield put({
-            type: communityActions.CREATE_COMMUNITY_ERROR,
-            payload: true,
-        });
+        // Technically this code will not be reached because of the errorCallback in the broadcastOperation
         yield put({
             type: communityActions.CREATE_COMMUNITY_ACCOUNT_PENDING,
             payload: false,

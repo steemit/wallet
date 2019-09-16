@@ -26,7 +26,7 @@
         "community_password_is": "Your password is",
         "community_creating": "Your community is being created...",
         "community_create_password_error":
-            "There was a problem with your credentials:",
+            "Unable to create a new account - there was a problem with your credentials:",
         "community_create_try_again": "Please try again:",
         "community_broadcasting_custom_ops": "Making",
         "community_broadcasting_custom_ops_1": "administrator of the",
