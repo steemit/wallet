@@ -36,12 +36,10 @@ class CreateCommunity extends React.Component {
         } = this.props;
 
         const handleAccountCreateError = () => {
-            debugger;
             this.setState({ accountError: true });
         };
 
         const handleAccountCreateSuccess = () => {
-            debugger;
             this.setState({ accountCreated: true });
         };
 

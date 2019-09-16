@@ -143,7 +143,6 @@ export const createCommunitySuccess = payload => ({
 
 // Has a saga watcher
 export const communityHivemindOperation = payload => {
-    debugger;
     return {
         type: COMMUNITY_HIVEMIND_OPERATION,
         payload,

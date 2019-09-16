@@ -56,7 +56,6 @@ export function* customOps(action) {
         createAccountErrorCB,
         broadcastOpsErrorCB,
     } = action.payload;
-    debugger;
     yield call(wait, 9000);
     try {
         const communityOwnerPosting = auth.getPrivateKeys(
@@ -139,7 +138,6 @@ export function* createCommunityAccount(createCommunityAction) {
         createAccountErrorCB,
         broadcastOpsErrorCB,
     } = createCommunityAction.payload;
-    debugger;
 
     const communityOwnerPosting = auth.getPrivateKeys(
         communityOwnerName,
@@ -173,8 +171,6 @@ export function* createCommunityAccount(createCommunityAction) {
             ),
             json_metadata: '',
         };
-
-        debugger;
 
         yield put(
             transactionActions.broadcastOperation({
