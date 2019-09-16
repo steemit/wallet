@@ -75,6 +75,7 @@ export default function reducer(state = defaultState, action) {
         }
         case CREATE_COMMUNITY_ERROR: {
             const err = fromJS(payload);
+            debugger;
             return state.merge({ communityCreateError: err });
         }
         case CREATE_COMMUNITY_SUCCESS: {
@@ -137,6 +138,7 @@ export const createCommunityAccountPending = payload => ({
 });
 
 export const createCommunityAccountError = payload => {
+    debugger;
     return {
         type: CREATE_COMMUNITY_ACCOUNT_ERROR,
         payload,

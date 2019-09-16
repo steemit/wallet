@@ -203,6 +203,7 @@ export default function reducer(state = defaultState, action) {
             });
 
         case LOGIN_ERROR:
+            debugger;
             return state.merge({
                 login_error: payload.error,
                 logged_out: undefined,

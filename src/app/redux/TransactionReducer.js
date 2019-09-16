@@ -28,6 +28,7 @@ export default function reducer(state = defaultState, action) {
             const operation = fromJS(payload.operation);
             const confirm = payload.confirm;
             const warning = payload.warning;
+            debugger;
             return state.merge({
                 show_confirm_modal: true,
                 confirmBroadcastOperation: operation,
