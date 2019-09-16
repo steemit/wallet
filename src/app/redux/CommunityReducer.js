@@ -9,14 +9,13 @@ const SET_COMMUNITY_OWNER_ACCOUNT_NAME =
     'community/SET_COMMUNITY_OWNER_ACCOUNT_NAME';
 const SET_COMMUNITY_OWNER_WIF_PASSWORD =
     'community/SET_COMMUNITY_OWNER_MASTER_PASSWORD';
-export const SET_COMMUNITY_ACCOUNT_CREATED =
-    'community/SET_COMMUNITY_ACCOUNT_CREATED';
 
 export const CREATE_COMMUNITY_ACCOUNT = 'community/CREATE_COMMUNITY_ACCOUNT'; // Has saga.
 export const CREATE_COMMUNITY_ACCOUNT_PENDING =
     'community/CREATE_COMMUNITY_ACCOUNT_PENDING';
 export const CREATE_COMMUNITY_ACCOUNT_ERROR =
     'community/CREATE_COMMUNITY_ACCOUNT_ERROR';
+export const CREATE_COMMUNITY_ERROR = 'community/CREATE_COMMUNITY_ERROR';
 export const CREATE_COMMUNITY_SUCCESS = 'community/CREATE_COMMUNITY_SUCCESS';
 export const COMMUNITY_HIVEMIND_OPERATION =
     'community/COMMUNITY_HIVEMIND_OPERATION'; // Has saga.
@@ -33,10 +32,10 @@ const defaultState = fromJS({
     communityOwnerName: '',
     communityOwnerWifPassword: '',
     communityCreatePending: false,
-    communityCreateSuccess: false,
+    communityCreateError: false,
     communityHivemindOperationPending: false,
     communityHivemindOperationError: false,
-    communityAccountCreated: false,
+    communityCreateSuccess: false,
 });
 
 export default function reducer(state = defaultState, action) {
@@ -62,10 +61,6 @@ export default function reducer(state = defaultState, action) {
             const password = fromJS(payload);
             return state.merge({ communityOwnerWifPassword: password });
         }
-        case SET_COMMUNITY_ACCOUNT_CREATED: {
-            const creationSuccess = fromJS(payload);
-            return state.merge({ communityAccountCreated: creationSuccess });
-        }
         // Has a saga watcher.
         case CREATE_COMMUNITY_ACCOUNT: {
             return state;
@@ -77,6 +72,10 @@ export default function reducer(state = defaultState, action) {
         case CREATE_COMMUNITY_ACCOUNT_PENDING: {
             const pending = fromJS(payload);
             return state.merge({ communityCreatePending: pending });
+        }
+        case CREATE_COMMUNITY_ERROR: {
+            const err = fromJS(payload);
+            return state.merge({ communityCreateError: err });
         }
         case CREATE_COMMUNITY_SUCCESS: {
             const success = fromJS(payload);
@@ -113,11 +112,6 @@ export const setCommunityDescription = payload => ({
 });
 export const setCommunityNSFW = payload => ({
     type: SET_COMMUNITY_NSFW,
-    payload,
-});
-
-export const setCommunityAccountCreated = payload => ({
-    type: SET_COMMUNITY_ACCOUNT_CREATED,
     payload,
 });
 

@@ -8,19 +8,30 @@ import { key_utils } from '@steemit/steem-js/lib/auth/ecc';
 class CreateCommunity extends React.Component {
     constructor() {
         super();
-        this.state = { error: false, errorMessage: '' }; // Component error state refers to account creation ops. For errors in custom ops, see the communityHivemindOperationError prop.
+        this.state = { error: false, errorMessage: '' };
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        if (this.props.hasTransactionError && !prevProps.hasTransactionError) {
+            this.setState({
+                errorMessage: 'There was a transaction error.',
+            });
+        }
+        if (this.props.loginError && !prevProps.loginError) {
+            this.setState({
+                errorMessage: 'There was a credentials error.',
+            });
+        }
     }
 
     render() {
         const errorCB = () => {
             this.setState({ error: true });
         };
-        const successCB = () => {
-            this.setState({ error: false, errorMessage: '' });
-        };
 
         const {
             accountName,
+            communityCreateError,
             communityCreatePending,
             communityCreateSuccess,
             createCommunity,
@@ -36,7 +47,9 @@ class CreateCommunity extends React.Component {
             updateCommunityOwnerWifPassword,
             communityHivemindOperationPending,
             communityHivemindOperationError,
-            communityAccountCreated, // If the community account was successfully created, but the hivemind ops to assign the currently-logged in user as community account admin fail, the next time the user attempts to create the community, the account-creation step will be skipped.
+            loginError,
+            transactionState,
+            hasTransactionError,
         } = this.props;
 
         const handleCommunityTitleInput = e => {
@@ -65,12 +78,7 @@ class CreateCommunity extends React.Component {
                 communityOwnerName,
                 communityOwnerWifPassword,
             };
-            createCommunity(
-                createCommunitypayload,
-                successCB,
-                errorCB,
-                communityAccountCreated
-            );
+            createCommunity(createCommunitypayload, errorCB);
             this.setState({ error: false, errorMessage: '' });
         };
 
@@ -138,25 +146,9 @@ class CreateCommunity extends React.Component {
             <input type="submit" value="Submit" />
         );
 
-        const createCommunityAccountSuccessMessage = (
-            <div>
-                Community was successfully created on the blockchain, now
-                broadcasting custom operations...
-            </div>
-        );
-
-        const createCommunityCustomOpsErrorMessage = (
-            <div>
-                There was a problem with that operation, please try again.
-            </div>
-        );
-
         const createCommunitySuccessMessage = (
             <div>
-                <p>
-                    Your community was created! And your user assigned the admin
-                    role!
-                </p>
+                <p>Your community was created!</p>
                 <a
                     href={`https://steemitdev.com/trending/${communityOwnerName}`}
                 >
@@ -238,10 +230,6 @@ class CreateCommunity extends React.Component {
         return (
             <div className="row">
                 <div className="column large-6 small-12">
-                    {communityAccountCreated &&
-                        createCommunityAccountSuccessMessage}
-                    {communityHivemindOperationError &&
-                        createCommunityCustomOpsErrorMessage}
                     {this.state.error && createCommunityErrorMessage}
                     {this.state.error && createCommunityForm}
                     {!communityCreatePending &&
@@ -253,6 +241,7 @@ class CreateCommunity extends React.Component {
                     {communityHivemindOperationPending &&
                         createCommunityCustomOpsPendingMessage}
                     {communityCreateSuccess && createCommunitySuccessMessage}
+                    {communityCreateError && createCommunityErrorMessage}
                 </div>
             </div>
         );
@@ -267,6 +256,13 @@ export default connect(
         const current = state.user.get('current');
         // get userLogin error
         console.log('userState', state.user.toJS());
+        console.log('transactionState', state.transaction.toJS());
+        const loginError = state.user.toJS().login_error;
+        const transactionState = state.transaction.toJS();
+        const hasTransactionError =
+            Object.values(state.transaction.toJS().errors).filter(v => !!v)
+                .length > 0;
+        console.log('There was a transaction error:', hasTransactionError);
         const username = current && current.get('username');
         const isMyAccount = username === accountName;
         return {
@@ -275,6 +271,8 @@ export default connect(
             isMyAccount,
             accountName,
             loginError,
+            transactionState,
+            hasTransactionError,
         };
     },
     // mapDispatchToProps
@@ -299,21 +297,13 @@ export default connect(
                     communityActions.setCommunityOwnerWifPassword(password)
                 );
             },
-            createCommunity: (
-                createCommunityPayload,
-                successCB,
-                errorCB,
-                skipAccountCreate
-            ) => {
-                const successCallback = () => {
-                    successCB();
-                    return dispatch(
-                        communityActions.setCommunityAccountCreated(true),
+            createCommunity: (createCommunityPayload, errorCB) => {
+                const successCallback = () =>
+                    dispatch(
                         communityActions.communityHivemindOperation(
                             createCommunityPayload
                         )
                     );
-                };
                 const errorCallback = () => {
                     errorCB();
                 };
@@ -322,15 +312,7 @@ export default connect(
                     errorCallback: errorCallback,
                     ...createCommunityPayload,
                 };
-                if (skipAccountCreate) {
-                    dispatch(communityActions.createCommunity(payload));
-                } else {
-                    dispatch(
-                        communityActions.communityHivemindOperation(
-                            createCommunityPayload
-                        )
-                    );
-                }
+                dispatch(communityActions.createCommunity(payload));
             },
         };
     }
