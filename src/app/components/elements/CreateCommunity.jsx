@@ -11,6 +11,7 @@ class CreateCommunity extends React.Component {
         this.state = {
             accountError: false,
             broadcastOpsError: false,
+            accountCreated: false,
         };
     }
     componentDidMount() {}
@@ -31,7 +32,22 @@ class CreateCommunity extends React.Component {
             updateCommunityNSFW,
             updateCommunityOwnerAccountName,
             updateCommunityOwnerWifPassword,
+            broadcastOps,
         } = this.props;
+
+        const handleAccountCreateError = () => {
+            debugger;
+            this.setState({ accountError: true });
+        };
+
+        const handleAccountCreateSuccess = () => {
+            debugger;
+            this.setState({ accountCreated: true });
+        };
+
+        const handleBroadcastOpsError = () => {
+            this.setState({ broadcastOpsError: false });
+        };
 
         const handleCommunityTitleInput = e => {
             if (e.target.value.length > 32) {
@@ -51,15 +67,22 @@ class CreateCommunity extends React.Component {
 
         const handleCommunitySubmit = e => {
             e.preventDefault();
-            const createCommunitypayload = {
+            const createCommunityPayload = {
                 accountName,
                 communityTitle,
                 communityDescription,
                 communityNSFW,
                 communityOwnerName,
                 communityOwnerWifPassword,
+                createAccountSuccessCB: handleAccountCreateSuccess,
+                createAccountErrorCB: handleAccountCreateError,
+                broadcastOpsErrorCB: handleBroadcastOpsError,
             };
-            createCommunity(createCommunitypayload);
+            if (!this.state.accountCreated) {
+                createCommunity(createCommunityPayload);
+            } else {
+                broadcastOps(createCommunityPayload);
+            }
         };
 
         const generateCommunityOwnerName = () => {
@@ -124,6 +147,27 @@ class CreateCommunity extends React.Component {
 
         const submitCreateCommunityFormButton = (
             <input type="submit" value="Submit" />
+        );
+
+        const createCommunityAccountSuccessMessage = (
+            <div>
+                Community account created on the blockchain. Setting current
+                user to be community admin...
+            </div>
+        );
+
+        const createCommunityAccountErrorMessage = (
+            <div>
+                Unable to create that community. Please ensure you used the
+                correct key.
+            </div>
+        );
+
+        const createCommunityBroadcastOpsErrorMessage = (
+            <div>
+                The community was created but setting current user to be admin
+                failed. Wait a moment and try again
+            </div>
         );
 
         const createCommunitySuccessMessage = (
@@ -195,10 +239,22 @@ class CreateCommunity extends React.Component {
         return (
             <div className="row">
                 <div className="column large-6 small-12">
+                    {this.state.accountError &&
+                        createCommunityAccountErrorMessage}
+                    {this.state.accountCreated &&
+                        !communityCreateSuccess &&
+                        createCommunityAccountSuccessMessage}
+                    {this.state.broadcastOpsError &&
+                        createCommunityBroadcastOpsErrorMessage}
+                    {this.state.accountError && createCommunityForm}
+                    {this.state.broadcastOpsError && createCommunityForm}
                     {!communityCreatePending &&
                         !communityCreateSuccess &&
                         createCommunityForm}
-                    {communityCreatePending && createCommunityLoading}
+                    {communityCreatePending &&
+                        !this.state.accountError &&
+                        !this.state.broadcastOpsError &&
+                        createCommunityLoading}
                     {communityCreateSuccess && createCommunitySuccessMessage}
                     {communityCreateError && createCommunityErrorMessage}
                 </div>
@@ -244,7 +300,7 @@ export default connect(
                     communityActions.setCommunityOwnerWifPassword(password)
                 );
             },
-            createCommunity: (createCommunityPayload, errorCB) => {
+            createCommunity: createCommunityPayload => {
                 const successCallback = () =>
                     dispatch(
                         communityActions.communityHivemindOperation(
@@ -252,10 +308,17 @@ export default connect(
                         )
                     );
                 const payload = {
-                    successCallback: successCallback,
+                    broadcastOpsCb: successCallback,
                     ...createCommunityPayload,
                 };
                 dispatch(communityActions.createCommunity(payload));
+            },
+            broadcastOps: createCommunityPayload => {
+                dispatch(
+                    communityActions.communityHivemindOperation(
+                        createCommunityPayload
+                    )
+                );
             },
         };
     }

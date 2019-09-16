@@ -52,7 +52,11 @@ export function* customOps(action) {
         communityNSFW,
         communityOwnerName,
         communityOwnerWifPassword,
+        createAccountSuccessCB,
+        createAccountErrorCB,
+        broadcastOpsErrorCB,
     } = action.payload;
+    debugger;
     yield call(wait, 9000);
     try {
         const communityOwnerPosting = auth.getPrivateKeys(
@@ -106,6 +110,7 @@ export function* customOps(action) {
         });
     } catch (error) {
         console.log(error);
+        broadcastOpsErrorCB();
         yield put({
             type: communityActions.CREATE_COMMUNITY_ACCOUNT_ERROR,
             payload: true,
@@ -129,8 +134,12 @@ export function* createCommunityAccount(createCommunityAction) {
         communityNSFW,
         communityOwnerName,
         communityOwnerWifPassword,
-        successCallback,
+        broadcastOpsCb,
+        createAccountSuccessCB,
+        createAccountErrorCB,
+        broadcastOpsErrorCB,
     } = createCommunityAction.payload;
+    debugger;
 
     const communityOwnerPosting = auth.getPrivateKeys(
         communityOwnerName,
@@ -165,21 +174,23 @@ export function* createCommunityAccount(createCommunityAction) {
             json_metadata: '',
         };
 
+        debugger;
+
         yield put(
             transactionActions.broadcastOperation({
                 type: 'account_create',
                 confirm: 'Are you sure?',
                 operation: op,
                 successCallback: res => {
-                    successCallback();
+                    createAccountSuccessCB();
+                    broadcastOpsCb();
                 },
                 errorCallback: res => {
                     console.log('error', res);
+                    createAccountErrorCB();
                 },
             })
         );
-
-        // The client cannot submit custom_json and account_create in the same block. The easiest way around this, for now, is to pause for 3 seconds after the account is created before submitting the ops.
     } catch (error) {
         console.log(error);
         yield put({
