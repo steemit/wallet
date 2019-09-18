@@ -81,7 +81,7 @@ export function* customOps(action) {
                 community: communityOwnerName,
                 props: {
                     title: communityTitle,
-                    description: communityDescription,
+                    about: communityDescription,
                     is_nsfw: !!communityNSFW,
                 },
             },
