@@ -36,7 +36,7 @@ export function serverApiRecordEvent(type, val, rate_limit_ms = 5000) {
         'overseer.collect',
         { collection: 'event', metadata: { type, value } },
         error => {
-            // if (error) console.warn('overseer error', error, error.data);
+            if (error) console.warn('overseer error', error, error.data);
         }
     );
 }
@@ -62,7 +62,7 @@ export function recordPageView(page, referer, account) {
 
 export function saveCords(x, y) {
     const request = Object.assign({}, request_base, {
-        body: JSON.stringify({ csrf: $STM_csrf, x: x, y: y }),
+        body: JSON.stringify({ csrf: $STM_csrf, x, y }),
     });
     fetch('/api/v1/save_cords', request);
 }

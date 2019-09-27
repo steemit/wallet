@@ -9,6 +9,7 @@ import marketReducer from './MarketReducer';
 import userReducer from './UserReducer';
 import transactionReducer from './TransactionReducer';
 import offchainReducer from './OffchainReducer';
+import proposalReducer from './ProposalReducer';
 
 function initReducer(reducer, type) {
     return (state, action) => {
@@ -54,4 +55,5 @@ export default combineReducers({
     routing: initReducer(routerReducer),
     app: initReducer(appReducer),
     form: formReducer,
+    proposal: initReducer(proposalReducer, 'proposal'),
 });

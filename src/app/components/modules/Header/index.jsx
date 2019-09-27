@@ -60,10 +60,10 @@ class Header extends React.Component {
 
         /*Set the document.title on each header render.*/
         const route = resolveRoute(pathname);
-        let home_account = false;
+        const home_account = false;
         let page_title = route.page;
 
-        let topic = '';
+        const topic = '';
         let page_name = null;
         if (route.page === 'WalletIndex') {
         } else if (route.page == 'Privacy') {
@@ -81,8 +81,10 @@ class Header extends React.Component {
             route.page == 'RecoverAccountStep2'
         ) {
             page_title = tt('header_jsx.stolen_account_recovery');
+        } else if (route.page === 'Proposals') {
+            page_title = tt('header_jsx.steem_proposals');
         } else if (route.page === 'UserProfile') {
-            let user_name = route.params[0].slice(1);
+            const user_name = route.params[0].slice(1);
             const name = account_meta
                 ? normalizeProfile(account_meta.toJS()).name
                 : null;

@@ -13,6 +13,7 @@ import * as appActions from 'app/redux/AppReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 import * as transactionActions from 'app/redux/TransactionReducer';
 import * as userActions from 'app/redux/UserReducer';
+import * as proposalActions from 'app/redux/ProposalReducer';
 import { DEBT_TICKER } from 'app/client_config';
 import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 import { isLoggedInWithKeychain } from 'app/utils/SteemKeychain';
@@ -399,6 +400,7 @@ function* accepted_account_update({ operation }) {
 }
 
 import diff_match_patch from 'diff-match-patch';
+
 const dmp = new diff_match_patch();
 
 export function createPatch(text1, text2) {

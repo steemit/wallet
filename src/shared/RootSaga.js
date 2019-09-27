@@ -5,6 +5,7 @@ import { sharedWatches } from 'app/redux/SagaShared';
 import { userWatches } from 'app/redux/UserSaga';
 import { authWatches } from 'app/redux/AuthSaga';
 import { transactionWatches } from 'app/redux/TransactionSaga';
+import { proposalWatches } from 'app/redux/ProposalSaga';
 
 export default function* rootSaga() {
     yield all([
@@ -14,5 +15,6 @@ export default function* rootSaga() {
         ...authWatches,
         ...transactionWatches,
         ...marketWatches,
+        ...proposalWatches,
     ]);
 }

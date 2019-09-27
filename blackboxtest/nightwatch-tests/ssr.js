@@ -24,25 +24,36 @@ module.exports = {
             '/market',
             '/~witnesses',
             '/submit.html',
+            '/proposals',
         ].forEach(path => testHttpGet('localhost', 8080, path, browser));
     },
 };
 
 const testHttpGet = (host, port, path, browser) => {
-    http
-    .request({
-        host,
-        port,
-        path,
-        method: 'GET'
-    }, function(res) {
-        browser.assert.equal(res.statusCode, 200, `Response for ${path} is 200`);
-    })
-    .setTimeout(30000, function() {
-        browser.assert.equal(true, false, `request for ${path} took more than 30 seconds`);
-    })
-    .on('error', function (err) {
-        browser.assert.equal(true, false, err);
-    })
-    .end();
+    http.request(
+        {
+            host,
+            port,
+            path,
+            method: 'GET',
+        },
+        (res) => {
+            browser.assert.equal(
+                res.statusCode,
+                200,
+                `Response for ${path} is 200`
+            );
+        }
+    )
+        .setTimeout(30000, () => {
+            browser.assert.equal(
+                true,
+                false,
+                `request for ${path} took more than 30 seconds`
+            );
+        })
+        .on('error', (err) => {
+            browser.assert.equal(true, false, err);
+        })
+        .end();
 };

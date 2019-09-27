@@ -271,7 +271,8 @@
         "bluepaper": "Steem Bluepaper",
         "smt_whitepaper": "SMT Whitepaper",
         "whitepaper": "Steem Whitepaper",
-        "jobs": "Jobs at Steemit"
+        "jobs": "Jobs at Steemit",
+        "steem_proposals": "Steem Proposals"
     },
     "reply_editor": {
         "shorten_title": "Shorten title",
@@ -550,7 +551,9 @@
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
             "Converted %(VESTING_TOKEN)s can be sent to yourself or someone else but can not transfer again without converting back to %(LIQUID_TOKEN)s.",
         "part_of_your_steem_power_is_currently_delegated":
-            "Part of %(user_name)s's STEEM POWER is currently delegated. Delegation is donated for influence or to help new users perform actions on steemit. Your delegation amount can fluctuate."
+            "Part of %(user_name)s's STEEM POWER is currently delegated. Delegation is donated for influence or to help new users perform actions on Steemit. Your delegation amount can fluctuate.",
+        "steem_power_apr":
+            "STEEM POWER increases at an APR of approximately %(value)s&#37;, subject to blockchain variance. <a href=\"/faq.html#How_many_new_tokens_are_generated_by_the_blockchain\">See FAQ for details</a>."
     },
     "promote_post_jsx": {
         "promote_post": "Promote Post",
@@ -663,7 +666,8 @@
         "curation_rewards_by": "Curation rewards by %(username)s",
         "author_rewards_by": "Author rewards by %(username)s",
         "replies_to": "Replies to %(username)s",
-        "comments_by": "Comments by %(username)s"
+        "comments_by": "Comments by %(username)s",
+        "steem_proposals": "Steem Proposals"
     },
     "loginform_jsx": {
         "you_need_a_private_password_or_key":
@@ -880,5 +884,22 @@
         "steem_power_description": "Vesting influence token",
         "sbd_symbol": "SBD",
         "sbd_description": "Seeks price stability with USD"
+    },
+    "steem_proposals": {
+        "top_sps": "Steem Proposals",
+        "votes_update_info": "* Only updated once per hour",
+        "table": {
+            "id": "Id",
+            "creator": "Creator",
+            "receiver": "Receiver",
+            "start_date": "Start Date",
+            "end_date": "End Date",
+            "daily_pay": "Daily Pay",
+            "total_votes": "Total Votes*",
+            "permlink": "",
+            "subject": "Subject"
+        },
+        "confirm_remove_proposal_description":
+            "Proposal removal is permanent and the fee paid for creating the proposal is not refundable."
     }
 }

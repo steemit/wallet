@@ -487,7 +487,7 @@
         "the_active_key_is_used_to_make_transfers_and_place_orders":
             "액티브 키는 스팀 달러나 스팀을 다른 이에게 전송하거나 내부 마켓에서 거래를 할 때 필요합니다.",
         "the_owner_key_is_required_to_change_other_keys":
-            "오너 키는 계정의 마스터 키입니다. 다른 모든 키들을 바꿀 때 필요합니다.",
+            "오너키는 마스터패스워드와 다릅니다. 다른키(포스팅,액티브,오너) 를 바꿀 때 필요합니다.",
         "the_private_key_or_password_should_be_kept_offline":
             "개인 키와 오너 키의 비밀번호는 가능한 많이 오프라인에 저장해두세요.",
         "the_memo_key_is_used_to_create_and_read_memos":

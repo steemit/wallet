@@ -194,7 +194,7 @@ Payouts are made 7 days after the post/comment is created. You can claim your re
 
 The projected payments may fluctuate (up and down) until the final payment amount is reached.
 
-Payments for posts are split between the author (at least 75%) and the curators (up to 25%).
+Payments for posts are split between the author (at least 50%) and the curators (up to 50%).
 
 The author reward is paid 50% in Steem Power and 50% in STEEM/SBD by default.
 
