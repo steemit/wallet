@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import * as communityActions from 'app/redux/CommunityReducer';
 import tt from 'counterpart';
 import { key_utils } from '@steemit/steem-js/lib/auth/ecc';
+import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 
 class CreateCommunity extends React.Component {
     constructor() {
@@ -32,6 +33,7 @@ class CreateCommunity extends React.Component {
             updateCommunityOwnerWifPassword,
             broadcastOps,
             communityCreationPending,
+            socialUrl,
         } = this.props;
 
         const handleAccountCreateError = error => {
@@ -160,46 +162,38 @@ class CreateCommunity extends React.Component {
             />
         );
 
-        const createCommunityAccountSuccessMessage = (
-            <div className="community-message community-message--progress">
-                Community account created on the blockchain. Setting current
-                user to be community admin...
+        const createAccountOk = (
+            <div className="community-message">
+                Account created. Setting @{accountName} as admin...
             </div>
         );
 
-        const createCommunityAccountErrorMessage = (
+        const createAccountErr = (
             <div className="community-message community-message--error">
-                Unable to create that community. Please ensure you used the
+                Unable to create the community. Please ensure you used the
                 correct key.
             </div>
         );
 
-        const createCommunityBroadcastOpsErrorMessage = (
+        const updateSettingsErr = (
             <div className="community-message community-message--error">
-                The community was created but setting current user to be admin
-                failed. Wait a moment and try again
+                The community was created but settings update failed.
             </div>
         );
 
-        const createCommunitySuccessMessage = (
-            <div className="community-message community-message--success">
-                <p>Your community was created!</p>
-                <a
-                    href={`https://steemitdev.com/trending/${communityOwnerName}`}
-                >
-                    {tt('g.community_visit')}
-                </a>
+        const createSuccess = (
+            <div className="community-message">
+                Your community was created!<br />
+                <strong>
+                    <a href={`${socialUrl}/trending/${communityOwnerName}`}>
+                        Get started.
+                    </a>
+                </strong>
             </div>
         );
-        const createCommunityErrorMessage = (
+        const createError = (
             <div className="community-message community-message--error">
                 {tt('g.community_error')}
-            </div>
-        );
-
-        const createCommunityLoading = (
-            <div className="community-message community-message--progress">
-                {tt('g.community_creating')}
             </div>
         );
 
@@ -227,11 +221,9 @@ class CreateCommunity extends React.Component {
                         id="community_description"
                         name="community_description"
                         type="text"
-                        minLength="10"
-                        maxLength="140"
+                        maxLength="120"
                         onChange={handleCommunityDescriptionInput}
                         value={communityDescription}
-                        required
                     />
                 </label>
                 {communityOwnerWifPassword.length <= 0 &&
@@ -250,13 +242,11 @@ class CreateCommunity extends React.Component {
             <div className="row">
                 <div className="column large-6 small-12">
                     <div>{tt('g.community_create')}</div>
-                    {this.state.accountError &&
-                        createCommunityAccountErrorMessage}
+                    {this.state.accountError && createAccountErr}
                     {this.state.accountCreated &&
                         !communityCreateSuccess &&
-                        createCommunityAccountSuccessMessage}
-                    {this.state.broadcastOpsError &&
-                        createCommunityBroadcastOpsErrorMessage}
+                        createAccountOk}
+                    {this.state.broadcastOpsError && updateSettingsErr}
                     {this.state.accountError && createCommunityForm}
                     {this.state.broadcastOpsError && createCommunityForm}
                     {!communityCreatePending &&
@@ -264,10 +254,11 @@ class CreateCommunity extends React.Component {
                         createCommunityForm}
                     {communityCreatePending &&
                         !this.state.accountError &&
-                        !this.state.broadcastOpsError &&
-                        createCommunityLoading}
-                    {communityCreateSuccess && createCommunitySuccessMessage}
-                    {communityCreateError && createCommunityErrorMessage}
+                        !this.state.broadcastOpsError && (
+                            <LoadingIndicator type="circle" />
+                        )}
+                    {communityCreateSuccess && createSuccess}
+                    {communityCreateError && createError}
                 </div>
             </div>
         );
@@ -282,11 +273,13 @@ export default connect(
         const current = state.user.get('current');
         const username = current && current.get('username');
         const isMyAccount = username === accountName;
+        const socialUrl = state.app.get('socialUrl');
         return {
             ...ownProps,
             ...state.community.toJS(),
             isMyAccount,
             accountName,
+            socialUrl,
         };
     },
     // mapDispatchToProps
