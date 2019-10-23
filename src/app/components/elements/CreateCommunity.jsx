@@ -177,20 +177,21 @@ class CreateCommunity extends React.Component {
         const sagaError = communityCreateError;
 
         if (finished) {
+            const url = `${socialUrl}/trending/${communityOwnerName}`;
             return (
-                <div>
-                    Your community was created!<br />
-                    <strong>
-                        <a href={`${socialUrl}/trending/${communityOwnerName}`}>
-                            Get started.
-                        </a>
-                    </strong>
+                <div className="row">
+                    <div className="column large-6 small-12">
+                        Your community was created!<br />
+                        <strong>
+                            <a href={url}>Get started.</a>
+                        </strong>
+                    </div>
                 </div>
             );
         }
 
         const showErr = msg => <div className="community--error">{msg}</div>;
-        const adminMsg = 'Account created. Setting @{accountName} as admin...';
+        const adminMsg = `Account created. Setting @${accountName} as admin...`;
 
         return (
             <div className="row">
