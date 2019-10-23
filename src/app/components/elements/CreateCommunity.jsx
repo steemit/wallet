@@ -31,9 +31,15 @@ class CreateCommunity extends React.Component {
             updateCommunityOwnerAccountName,
             updateCommunityOwnerWifPassword,
             broadcastOps,
+            communityCreationPending,
         } = this.props;
 
-        const handleAccountCreateError = () => {
+        const handleAccountCreateError = error => {
+            // If the user cancels the account creation do not show an error.
+            if (error === undefined) {
+                communityCreationPending(false);
+                return;
+            }
             this.setState({ accountError: true });
         };
 
@@ -319,6 +325,13 @@ export default connect(
                 dispatch(
                     communityActions.communityHivemindOperation(
                         createCommunityPayload
+                    )
+                );
+            },
+            communityCreationPending: createCommunityAccountPending => {
+                dispatch(
+                    communityActions.createCommunityAccountPending(
+                        createCommunityAccountPending
                     )
                 );
             },

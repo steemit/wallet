@@ -185,7 +185,8 @@ export function* createCommunityAccount(createCommunityAction) {
         yield put(
             transactionActions.broadcastOperation({
                 type: 'account_create',
-                confirm: 'Are you sure?',
+                confirm:
+                    'This operation will cost 3 STEEM. Would you like to proceed?',
                 operation: op,
                 successCallback: res => {
                     createAccountSuccessCB();
@@ -193,7 +194,7 @@ export function* createCommunityAccount(createCommunityAction) {
                 },
                 errorCallback: res => {
                     console.log('error', res);
-                    createAccountErrorCB();
+                    createAccountErrorCB(res);
                 },
             })
         );
