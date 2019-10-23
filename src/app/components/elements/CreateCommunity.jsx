@@ -104,106 +104,46 @@ class CreateCommunity extends React.Component {
             updateCommunityOwnerAccountName(ownerUsername);
         };
 
-        const generateCommunityCredentials = () => {
+        const generateCreds = () => {
             generateWif();
             generateUsername();
         };
 
         const generateCommunityCredentialsButton = (
-            <button
-                type="button"
-                className="button hollow community__button"
-                onClick={generateCommunityCredentials}
-            >
-                {tt('g.click_to_generate_password')}
+            <button type="button" className="button" onClick={generateCreds}>
+                Next
             </button>
         );
 
-        const rememberCredentialsPrompt = (
+        const credentialsPane = (
             <div>
-                <div className="community-credentials community-credentials__name">
-                    {`${tt('g.community_owner_name_is')}:`}
-                    <br />
-                    <code className="community-credentials__owner-name">
+                <label>
+                    Owner Name / Password
+                    <code className="pwd">
                         {communityOwnerName}
-                    </code>
-                </div>
-                <div className="community-credentials community-credentials__password">
-                    {`${tt('g.community_password_is')}:`}
-                    <br />
-                    <code className="community-credentials__owner-password">
+                        <br />
                         {communityOwnerWifPassword}
                     </code>
-                </div>
+                </label>
+                <label style={{ marginTop: '0px' }}>
+                    <input type="checkbox" name="box2" required />
+                    I have securely saved my owner name and password.
+                </label>
             </div>
-        );
-
-        const rememberCredentialsCheckbox1 = (
-            <label htmlFor="box1" className="community-credentials">
-                <input type="checkbox" name="box1" required />
-                {tt('g.understand_that_APP_NAME_cannot_recover_password', {
-                    APP_NAME,
-                })}.
-            </label>
-        );
-
-        const rememberCredentialsCheckbox2 = (
-            <label htmlFor="box2" className="community-credentials">
-                <input type="checkbox" name="box2" required />
-                {tt('g.i_saved_password')}.
-            </label>
         );
 
         const submitCreateCommunityFormButton = (
-            <input
-                className="button hollow community__button"
-                type="submit"
-                value="Submit"
-            />
+            <input className="button" type="submit" value="Create Community" />
         );
 
-        const createAccountOk = (
-            <div className="community-message">
-                Account created. Setting @{accountName} as admin...
-            </div>
-        );
-
-        const createAccountErr = (
-            <div className="community-message community-message--error">
-                Unable to create the community. Please ensure you used the
-                correct key.
-            </div>
-        );
-
-        const updateSettingsErr = (
-            <div className="community-message community-message--error">
-                The community was created but settings update failed.
-            </div>
-        );
-
-        const createSuccess = (
-            <div className="community-message">
-                Your community was created!<br />
-                <strong>
-                    <a href={`${socialUrl}/trending/${communityOwnerName}`}>
-                        Get started.
-                    </a>
-                </strong>
-            </div>
-        );
-        const createError = (
-            <div className="community-message community-message--error">
-                {tt('g.community_error')}
-            </div>
-        );
-
-        const createCommunityForm = (
-            <form onSubmit={handleCommunitySubmit}>
-                <label htmlFor="community_title" className="community__label">
+        const hasPass = communityOwnerWifPassword.length > 0;
+        const form = (
+            <form className="community--form" onSubmit={handleCommunitySubmit}>
+                <div>{tt('g.community_create')}</div>
+                <label>
                     Title
                     <input
                         id="community_title"
-                        name="community_title"
                         type="text"
                         minLength="4"
                         maxLength="30"
@@ -212,53 +152,54 @@ class CreateCommunity extends React.Component {
                         required
                     />
                 </label>
-                <label
-                    htmlFor="community_description"
-                    className="community__label"
-                >
+                <label>
                     {tt('g.community_description')}
                     <input
                         id="community_description"
-                        name="community_description"
                         type="text"
                         maxLength="120"
                         onChange={handleCommunityDescriptionInput}
                         value={communityDescription}
                     />
                 </label>
-                {communityOwnerWifPassword.length <= 0 &&
-                    generateCommunityCredentialsButton}
-                {communityOwnerWifPassword.length > 0 &&
-                    rememberCredentialsPrompt}
-                {communityOwnerWifPassword.length > 0 &&
-                    rememberCredentialsCheckbox1}
-                {communityOwnerWifPassword.length > 0 &&
-                    rememberCredentialsCheckbox2}
-                {communityOwnerWifPassword.length > 0 &&
-                    submitCreateCommunityFormButton}
+                {!hasPass && generateCommunityCredentialsButton}
+                {hasPass && credentialsPane}
+                {hasPass && submitCreateCommunityFormButton}
             </form>
         );
+
+        const accountCreated = this.state.accountCreated;
+        const accountError = this.state.accountError;
+        const settingsError = this.state.broadcastOpsError;
+        const errored = accountError || settingsError;
+        const pending = communityCreatePending && !errored;
+        const finished = communityCreateSuccess;
+        const sagaError = communityCreateError;
+
+        if (finished) {
+            return (
+                <div>
+                    Your community was created!<br />
+                    <strong>
+                        <a href={`${socialUrl}/trending/${communityOwnerName}`}>
+                            Get started.
+                        </a>
+                    </strong>
+                </div>
+            );
+        }
+
+        const showErr = msg => <div className="community--error">{msg}</div>;
+        const adminMsg = 'Account created. Setting @{accountName} as admin...';
+
         return (
             <div className="row">
                 <div className="column large-6 small-12">
-                    <div>{tt('g.community_create')}</div>
-                    {this.state.accountError && createAccountErr}
-                    {this.state.accountCreated &&
-                        !communityCreateSuccess &&
-                        createAccountOk}
-                    {this.state.broadcastOpsError && updateSettingsErr}
-                    {this.state.accountError && createCommunityForm}
-                    {this.state.broadcastOpsError && createCommunityForm}
-                    {!communityCreatePending &&
-                        !communityCreateSuccess &&
-                        createCommunityForm}
-                    {communityCreatePending &&
-                        !this.state.accountError &&
-                        !this.state.broadcastOpsError && (
-                            <LoadingIndicator type="circle" />
-                        )}
-                    {communityCreateSuccess && createSuccess}
-                    {communityCreateError && createError}
+                    {accountError && showErr('Account creation failed.')}
+                    {settingsError && showErr('Update settings failed.')}
+                    {sagaError && showErr('Failed. Please report this issue.')}
+                    {accountCreated && <div>{adminMsg}</div>}
+                    {pending ? <LoadingIndicator type="circle" /> : form}
                 </div>
             </div>
         );
