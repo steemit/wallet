@@ -89,10 +89,23 @@ export function* customOps(action) {
             communityOwnerPosting
         );
 
+        const subscribeToCommunityOperation = generateHivemindOperation(
+            'subscribe',
+            {
+                community: communityOwnerName,
+            },
+            communityOwnerName,
+            communityOwnerPosting
+        );
+
         yield broadcast.sendAsync(
             {
                 extensions: [],
-                operations: [setRoleOperation, updatePropsOperation],
+                operations: [
+                    setRoleOperation,
+                    updatePropsOperation,
+                    subscribeToCommunityOperation,
+                ],
             },
             [
                 auth.toWif(
