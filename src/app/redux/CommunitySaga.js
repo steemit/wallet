@@ -49,7 +49,6 @@ export function* customOps(action) {
         accountName,
         communityTitle,
         communityDescription,
-        communityNSFW,
         communityOwnerName,
         communityOwnerWifPassword,
         createAccountSuccessCB,
@@ -82,7 +81,6 @@ export function* customOps(action) {
                 props: {
                     title: communityTitle,
                     about: communityDescription,
-                    is_nsfw: !!communityNSFW,
                 },
             },
             communityOwnerName,
@@ -143,7 +141,6 @@ export function* createCommunityAccount(createCommunityAction) {
         accountName,
         communityTitle,
         communityDescription,
-        communityNSFW,
         communityOwnerName,
         communityOwnerWifPassword,
         broadcastOpsCb,

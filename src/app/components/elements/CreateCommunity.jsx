@@ -23,13 +23,11 @@ class CreateCommunity extends React.Component {
             communityCreateSuccess,
             createCommunity,
             communityDescription,
-            communityNSFW,
             communityOwnerWifPassword,
             communityOwnerName,
             communityTitle,
             updateCommunityTitle,
             updateCommunityDescription,
-            updateCommunityNSFW,
             updateCommunityOwnerAccountName,
             updateCommunityOwnerWifPassword,
             broadcastOps,
@@ -53,14 +51,12 @@ class CreateCommunity extends React.Component {
             }
             updateCommunityTitle(e.target.value);
         };
+
         const handleCommunityDescriptionInput = e => {
             if (e.target.value.length > 120) {
                 return;
             }
             updateCommunityDescription(e.target.value);
-        };
-        const handleCommunityNSFWInput = e => {
-            updateCommunityNSFW(e.target.checked);
         };
 
         const handleCommunitySubmit = e => {
@@ -69,7 +65,6 @@ class CreateCommunity extends React.Component {
                 accountName,
                 communityTitle,
                 communityDescription,
-                communityNSFW,
                 communityOwnerName,
                 communityOwnerWifPassword,
                 createAccountSuccessCB: handleAccountCreateSuccess,
@@ -109,7 +104,7 @@ class CreateCommunity extends React.Component {
         const generateCommunityCredentialsButton = (
             <button
                 type="button"
-                className="button hollow"
+                className="button hollow community__button"
                 onClick={generateCommunityCredentials}
             >
                 {tt('g.click_to_generate_password')}
@@ -118,17 +113,25 @@ class CreateCommunity extends React.Component {
 
         const rememberCredentialsPrompt = (
             <div>
-                <div>{`${tt(
-                    'g.community_owner_name_is'
-                )}: ${communityOwnerName}`}</div>
-                <div>{`${tt(
-                    'g.community_password_is'
-                )}: ${communityOwnerWifPassword}`}</div>
+                <div className="community-credentials community-credentials__name">
+                    {`${tt('g.community_owner_name_is')}:`}
+                    <br />
+                    <code className="community-credentials__owner-name">
+                        {communityOwnerName}
+                    </code>
+                </div>
+                <div className="community-credentials community-credentials__password">
+                    {`${tt('g.community_password_is')}:`}
+                    <br />
+                    <code className="community-credentials__owner-password">
+                        {communityOwnerWifPassword}
+                    </code>
+                </div>
             </div>
         );
 
         const rememberCredentialsCheckbox1 = (
-            <label htmlFor="box1">
+            <label htmlFor="box1" className="community-credentials">
                 <input type="checkbox" name="box1" required />
                 {tt('g.understand_that_APP_NAME_cannot_recover_password', {
                     APP_NAME,
@@ -137,39 +140,43 @@ class CreateCommunity extends React.Component {
         );
 
         const rememberCredentialsCheckbox2 = (
-            <label htmlFor="box2">
+            <label htmlFor="box2" className="community-credentials">
                 <input type="checkbox" name="box2" required />
                 {tt('g.i_saved_password')}.
             </label>
         );
 
         const submitCreateCommunityFormButton = (
-            <input type="submit" value="Submit" />
+            <input
+                className="button hollow community__button"
+                type="submit"
+                value="Submit"
+            />
         );
 
         const createCommunityAccountSuccessMessage = (
-            <div>
+            <div className="community-message community-message--progress">
                 Community account created on the blockchain. Setting current
                 user to be community admin...
             </div>
         );
 
         const createCommunityAccountErrorMessage = (
-            <div>
+            <div className="community-message community-message--error">
                 Unable to create that community. Please ensure you used the
                 correct key.
             </div>
         );
 
         const createCommunityBroadcastOpsErrorMessage = (
-            <div>
+            <div className="community-message community-message--error">
                 The community was created but setting current user to be admin
                 failed. Wait a moment and try again
             </div>
         );
 
         const createCommunitySuccessMessage = (
-            <div>
+            <div className="community-message community-message--success">
                 <p>Your community was created!</p>
                 <a
                     href={`https://steemitdev.com/trending/${communityOwnerName}`}
@@ -179,15 +186,20 @@ class CreateCommunity extends React.Component {
             </div>
         );
         const createCommunityErrorMessage = (
-            <div>{tt('g.community_error')}</div>
+            <div className="community-message community-message--error">
+                {tt('g.community_error')}
+            </div>
         );
 
-        const createCommunityLoading = <div>{tt('g.community_creating')}</div>;
+        const createCommunityLoading = (
+            <div className="community-message community-message--progress">
+                {tt('g.community_creating')}
+            </div>
+        );
 
         const createCommunityForm = (
             <form onSubmit={handleCommunitySubmit}>
-                <div>{tt('g.community_create')}</div>
-                <label htmlFor="community_title">
+                <label htmlFor="community_title" className="community__label">
                     Title
                     <input
                         id="community_title"
@@ -200,7 +212,10 @@ class CreateCommunity extends React.Component {
                         required
                     />
                 </label>
-                <label htmlFor="community_description">
+                <label
+                    htmlFor="community_description"
+                    className="community__label"
+                >
                     {tt('g.community_description')}
                     <input
                         id="community_description"
@@ -211,15 +226,6 @@ class CreateCommunity extends React.Component {
                         onChange={handleCommunityDescriptionInput}
                         value={communityDescription}
                         required
-                    />
-                </label>
-                <label id="is_nsfw" htmlFor="is_nsfw">
-                    {tt('g.community_nsfw')}
-                    <input
-                        type="checkbox"
-                        name="is_nsfw"
-                        checked={communityNSFW}
-                        onChange={handleCommunityNSFWInput}
                     />
                 </label>
                 {communityOwnerWifPassword.length <= 0 &&
@@ -237,6 +243,7 @@ class CreateCommunity extends React.Component {
         return (
             <div className="row">
                 <div className="column large-6 small-12">
+                    <div>{tt('g.community_create')}</div>
                     {this.state.accountError &&
                         createCommunityAccountErrorMessage}
                     {this.state.accountCreated &&
@@ -284,9 +291,6 @@ export default connect(
             },
             updateCommunityDescription: description => {
                 dispatch(communityActions.setCommunityDescription(description));
-            },
-            updateCommunityNSFW: isNSFW => {
-                dispatch(communityActions.setCommunityNSFW(isNSFW));
             },
             updateCommunityOwnerAccountName: accountName => {
                 dispatch(
