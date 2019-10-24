@@ -39,7 +39,7 @@ class CreateCommunity extends React.Component {
 
         const handleAccountCreateError = error => {
             // If the user cancels the account creation do not show an error.
-            if (error === undefined) {
+            if (error === undefined || error === 'Canceled') {
                 communityCreationPending(false);
                 return;
             }
