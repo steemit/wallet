@@ -263,9 +263,6 @@ const mapDispatchToProps = dispatch => ({
     },
 });
 
-const connectedHeader = connect(
-    mapStateToProps,
-    mapDispatchToProps
-)(Header);
+const connectedHeader = connect(mapStateToProps, mapDispatchToProps)(Header);
 
 export default connectedHeader;
