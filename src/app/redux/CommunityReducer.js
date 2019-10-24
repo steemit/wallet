@@ -3,7 +3,6 @@ import { fromJS } from 'immutable';
 // Action constants
 const SET_COMMUNITY_TITLE = 'community/SET_COMMUNITY_TITLE';
 const SET_COMMUNITY_DESCRIPTION = 'community/SET_COMMUNITY_DESCRIPTION';
-const SET_COMMUNITY_NSFW = 'community/SET_COMMUNITY_NSFW';
 
 const SET_COMMUNITY_OWNER_ACCOUNT_NAME =
     'community/SET_COMMUNITY_OWNER_ACCOUNT_NAME';
@@ -28,7 +27,6 @@ const COMMUNITY_HIVEMIND_OPERATION_ERROR =
 const defaultState = fromJS({
     communityTitle: '',
     communityDescription: '',
-    communityNSFW: false,
     communityOwnerName: '',
     communityOwnerWifPassword: '',
     communityCreatePending: false,
@@ -48,10 +46,6 @@ export default function reducer(state = defaultState, action) {
         case SET_COMMUNITY_DESCRIPTION: {
             const description = fromJS(payload);
             return state.merge({ communityDescription: description });
-        }
-        case SET_COMMUNITY_NSFW: {
-            const nsfw = fromJS(payload);
-            return state.merge({ communityNSFW: nsfw });
         }
         case SET_COMMUNITY_OWNER_ACCOUNT_NAME: {
             const name = fromJS(payload);
@@ -105,10 +99,6 @@ export const setCommunityTitle = payload => ({
 
 export const setCommunityDescription = payload => ({
     type: SET_COMMUNITY_DESCRIPTION,
-    payload,
-});
-export const setCommunityNSFW = payload => ({
-    type: SET_COMMUNITY_NSFW,
     payload,
 });
 

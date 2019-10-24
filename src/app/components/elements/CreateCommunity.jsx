@@ -4,6 +4,8 @@ import { connect } from 'react-redux';
 import * as communityActions from 'app/redux/CommunityReducer';
 import tt from 'counterpart';
 import { key_utils } from '@steemit/steem-js/lib/auth/ecc';
+import LoadingIndicator from 'app/components/elements/LoadingIndicator';
+import Unicode from 'app/utils/Unicode';
 
 class CreateCommunity extends React.Component {
     constructor() {
@@ -23,19 +25,24 @@ class CreateCommunity extends React.Component {
             communityCreateSuccess,
             createCommunity,
             communityDescription,
-            communityNSFW,
             communityOwnerWifPassword,
             communityOwnerName,
             communityTitle,
             updateCommunityTitle,
             updateCommunityDescription,
-            updateCommunityNSFW,
             updateCommunityOwnerAccountName,
             updateCommunityOwnerWifPassword,
             broadcastOps,
+            communityCreationPending,
+            socialUrl,
         } = this.props;
 
-        const handleAccountCreateError = () => {
+        const handleAccountCreateError = error => {
+            // If the user cancels the account creation do not show an error.
+            if (error === undefined) {
+                communityCreationPending(false);
+                return;
+            }
             this.setState({ accountError: true });
         };
 
@@ -53,14 +60,12 @@ class CreateCommunity extends React.Component {
             }
             updateCommunityTitle(e.target.value);
         };
+
         const handleCommunityDescriptionInput = e => {
             if (e.target.value.length > 120) {
                 return;
             }
             updateCommunityDescription(e.target.value);
-        };
-        const handleCommunityNSFWInput = e => {
-            updateCommunityNSFW(e.target.checked);
         };
 
         const handleCommunitySubmit = e => {
@@ -69,7 +74,6 @@ class CreateCommunity extends React.Component {
                 accountName,
                 communityTitle,
                 communityDescription,
-                communityNSFW,
                 communityOwnerName,
                 communityOwnerWifPassword,
                 createAccountSuccessCB: handleAccountCreateSuccess,
@@ -101,160 +105,115 @@ class CreateCommunity extends React.Component {
             updateCommunityOwnerAccountName(ownerUsername);
         };
 
-        const generateCommunityCredentials = () => {
+        const generateCreds = () => {
             generateWif();
             generateUsername();
         };
 
         const generateCommunityCredentialsButton = (
-            <button
-                type="button"
-                className="button hollow"
-                onClick={generateCommunityCredentials}
-            >
-                {tt('g.click_to_generate_password')}
+            <button type="button" className="button" onClick={generateCreds}>
+                Next
             </button>
         );
 
-        const rememberCredentialsPrompt = (
+        const credentialsPane = (
             <div>
-                <div>{`${tt(
-                    'g.community_owner_name_is'
-                )}: ${communityOwnerName}`}</div>
-                <div>{`${tt(
-                    'g.community_password_is'
-                )}: ${communityOwnerWifPassword}`}</div>
+                <label>
+                    Owner Name / Password
+                    <code className="pwd">
+                        {communityOwnerName}
+                        <br />
+                        {communityOwnerWifPassword}
+                    </code>
+                </label>
+                <label style={{ marginTop: '0px' }}>
+                    <input type="checkbox" name="box2" required />
+                    I have securely saved my owner name and password.
+                </label>
             </div>
         );
 
-        const rememberCredentialsCheckbox1 = (
-            <label htmlFor="box1">
-                <input type="checkbox" name="box1" required />
-                {tt('g.understand_that_APP_NAME_cannot_recover_password', {
-                    APP_NAME,
-                })}.
-            </label>
+        const submitCreateCommunityFormButton = error => (
+            <input
+                className="button"
+                type="submit"
+                value="Create Community"
+                disabled={!!error}
+            />
         );
 
-        const rememberCredentialsCheckbox2 = (
-            <label htmlFor="box2">
-                <input type="checkbox" name="box2" required />
-                {tt('g.i_saved_password')}.
-            </label>
-        );
+        const hasPass = communityOwnerWifPassword.length > 0;
 
-        const submitCreateCommunityFormButton = (
-            <input type="submit" value="Submit" />
-        );
+        let formError = null;
+        const rx = new RegExp('^[' + Unicode.L + ']');
+        if (!rx.test(communityTitle) && (communityTitle || hasPass))
+            formError = 'Must start with a letter.';
 
-        const createCommunityAccountSuccessMessage = (
-            <div>
-                Community account created on the blockchain. Setting current
-                user to be community admin...
-            </div>
-        );
-
-        const createCommunityAccountErrorMessage = (
-            <div>
-                Unable to create that community. Please ensure you used the
-                correct key.
-            </div>
-        );
-
-        const createCommunityBroadcastOpsErrorMessage = (
-            <div>
-                The community was created but setting current user to be admin
-                failed. Wait a moment and try again
-            </div>
-        );
-
-        const createCommunitySuccessMessage = (
-            <div>
-                <p>Your community was created!</p>
-                <a
-                    href={`https://steemitdev.com/trending/${communityOwnerName}`}
-                >
-                    {tt('g.community_visit')}
-                </a>
-            </div>
-        );
-        const createCommunityErrorMessage = (
-            <div>{tt('g.community_error')}</div>
-        );
-
-        const createCommunityLoading = <div>{tt('g.community_creating')}</div>;
-
-        const createCommunityForm = (
-            <form onSubmit={handleCommunitySubmit}>
+        const form = (
+            <form className="community--form" onSubmit={handleCommunitySubmit}>
                 <div>{tt('g.community_create')}</div>
-                <label htmlFor="community_title">
+                <label>
                     Title
                     <input
                         id="community_title"
-                        name="community_title"
                         type="text"
-                        minLength="4"
-                        maxLength="30"
+                        minLength="3"
+                        maxLength="20"
                         onChange={handleCommunityTitleInput}
                         value={communityTitle}
                         required
                     />
                 </label>
-                <label htmlFor="community_description">
+                {formError && <span className="error">{formError}</span>}
+                <label>
                     {tt('g.community_description')}
                     <input
                         id="community_description"
-                        name="community_description"
                         type="text"
-                        minLength="10"
-                        maxLength="140"
+                        maxLength="120"
                         onChange={handleCommunityDescriptionInput}
                         value={communityDescription}
-                        required
                     />
                 </label>
-                <label id="is_nsfw" htmlFor="is_nsfw">
-                    {tt('g.community_nsfw')}
-                    <input
-                        type="checkbox"
-                        name="is_nsfw"
-                        checked={communityNSFW}
-                        onChange={handleCommunityNSFWInput}
-                    />
-                </label>
-                {communityOwnerWifPassword.length <= 0 &&
-                    generateCommunityCredentialsButton}
-                {communityOwnerWifPassword.length > 0 &&
-                    rememberCredentialsPrompt}
-                {communityOwnerWifPassword.length > 0 &&
-                    rememberCredentialsCheckbox1}
-                {communityOwnerWifPassword.length > 0 &&
-                    rememberCredentialsCheckbox2}
-                {communityOwnerWifPassword.length > 0 &&
-                    submitCreateCommunityFormButton}
+                {!hasPass && generateCommunityCredentialsButton}
+                {hasPass && credentialsPane}
+                {hasPass && submitCreateCommunityFormButton(formError)}
             </form>
         );
+
+        const accountCreated = this.state.accountCreated;
+        const accountError = this.state.accountError;
+        const settingsError = this.state.broadcastOpsError;
+        const errored = accountError || settingsError;
+        const pending = communityCreatePending && !errored;
+        const finished = communityCreateSuccess;
+        const sagaError = communityCreateError;
+
+        if (finished) {
+            const url = `${socialUrl}/trending/${communityOwnerName}`;
+            return (
+                <div className="row">
+                    <div className="column large-6 small-12">
+                        Your community was created!<br />
+                        <strong>
+                            <a href={url}>Get started.</a>
+                        </strong>
+                    </div>
+                </div>
+            );
+        }
+
+        const showErr = msg => <div className="community--error">{msg}</div>;
+        const adminMsg = `Account created. Setting @${accountName} as admin...`;
+
         return (
             <div className="row">
                 <div className="column large-6 small-12">
-                    {this.state.accountError &&
-                        createCommunityAccountErrorMessage}
-                    {this.state.accountCreated &&
-                        !communityCreateSuccess &&
-                        createCommunityAccountSuccessMessage}
-                    {this.state.broadcastOpsError &&
-                        createCommunityBroadcastOpsErrorMessage}
-                    {this.state.accountError && createCommunityForm}
-                    {this.state.broadcastOpsError && createCommunityForm}
-                    {!communityCreatePending &&
-                        !communityCreateSuccess &&
-                        createCommunityForm}
-                    {communityCreatePending &&
-                        !this.state.accountError &&
-                        !this.state.broadcastOpsError &&
-                        createCommunityLoading}
-                    {communityCreateSuccess && createCommunitySuccessMessage}
-                    {communityCreateError && createCommunityErrorMessage}
+                    {accountError && showErr('Account creation failed.')}
+                    {settingsError && showErr('Update settings failed.')}
+                    {sagaError && showErr('Failed. Please report this issue.')}
+                    {accountCreated && <div>{adminMsg}</div>}
+                    {pending ? <LoadingIndicator type="circle" /> : form}
                 </div>
             </div>
         );
@@ -269,11 +228,13 @@ export default connect(
         const current = state.user.get('current');
         const username = current && current.get('username');
         const isMyAccount = username === accountName;
+        const socialUrl = state.app.get('socialUrl');
         return {
             ...ownProps,
             ...state.community.toJS(),
             isMyAccount,
             accountName,
+            socialUrl,
         };
     },
     // mapDispatchToProps
@@ -284,9 +245,6 @@ export default connect(
             },
             updateCommunityDescription: description => {
                 dispatch(communityActions.setCommunityDescription(description));
-            },
-            updateCommunityNSFW: isNSFW => {
-                dispatch(communityActions.setCommunityNSFW(isNSFW));
             },
             updateCommunityOwnerAccountName: accountName => {
                 dispatch(
@@ -315,6 +273,13 @@ export default connect(
                 dispatch(
                     communityActions.communityHivemindOperation(
                         createCommunityPayload
+                    )
+                );
+            },
+            communityCreationPending: createCommunityAccountPending => {
+                dispatch(
+                    communityActions.createCommunityAccountPending(
+                        createCommunityAccountPending
                     )
                 );
             },

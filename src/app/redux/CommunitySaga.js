@@ -20,7 +20,7 @@ const generateAuth = (user, pass, type) => {
     };
 };
 
-const generateHivemindOperation = (action, params, actor_name) => {
+const generateHivemindOperation = (actor_name, action, params) => {
     return [
         'custom_json',
         {
@@ -49,14 +49,16 @@ export function* customOps(action) {
         accountName,
         communityTitle,
         communityDescription,
-        communityNSFW,
         communityOwnerName,
         communityOwnerWifPassword,
         createAccountSuccessCB,
         createAccountErrorCB,
         broadcastOpsErrorCB,
     } = action.payload;
-    yield call(wait, 9000);
+
+    // wait 3s for account creation to settle
+    yield call(wait, 3000);
+
     try {
         const communityOwnerPosting = auth.getPrivateKeys(
             communityOwnerName,
@@ -65,28 +67,33 @@ export function* customOps(action) {
         );
 
         const setRoleOperation = generateHivemindOperation(
+            communityOwnerName,
             'setRole',
             {
                 community: communityOwnerName,
                 account: accountName,
                 role: 'admin',
-            },
-            communityOwnerName,
-            communityOwnerPosting
+            }
         );
 
         const updatePropsOperation = generateHivemindOperation(
+            communityOwnerName,
             'updateProps',
             {
                 community: communityOwnerName,
                 props: {
                     title: communityTitle,
                     about: communityDescription,
-                    is_nsfw: !!communityNSFW,
                 },
-            },
-            communityOwnerName,
-            communityOwnerPosting
+            }
+        );
+
+        const subscribeToCommunityOperation = generateHivemindOperation(
+            accountName,
+            'subscribe',
+            {
+                community: communityOwnerName,
+            }
         );
 
         yield broadcast.sendAsync(
@@ -102,6 +109,23 @@ export function* customOps(action) {
                 ),
             ]
         );
+
+        // subscription op must be broadcast from logged in user
+        yield put(
+            transactionActions.broadcastOperation({
+                type: subscribeToCommunityOperation[0],
+                operation: subscribeToCommunityOperation[1],
+                successCallback: res => {
+                    console.log('subscribed');
+                },
+                errorCallback: res => {
+                    console.log('subscribe error', res);
+                },
+            })
+        );
+
+        // wait a few blocks for hivemind to index ops before alerting user
+        yield call(wait, 6000);
 
         yield put({
             type: communityActions.CREATE_COMMUNITY_SUCCESS,
@@ -130,7 +154,6 @@ export function* createCommunityAccount(createCommunityAction) {
         accountName,
         communityTitle,
         communityDescription,
-        communityNSFW,
         communityOwnerName,
         communityOwnerWifPassword,
         broadcastOpsCb,
@@ -175,7 +198,8 @@ export function* createCommunityAccount(createCommunityAction) {
         yield put(
             transactionActions.broadcastOperation({
                 type: 'account_create',
-                confirm: 'Are you sure?',
+                confirm:
+                    'This operation will cost 3 STEEM. Would you like to proceed?',
                 operation: op,
                 successCallback: res => {
                     createAccountSuccessCB();
@@ -183,7 +207,7 @@ export function* createCommunityAccount(createCommunityAction) {
                 },
                 errorCallback: res => {
                     console.log('error', res);
-                    createAccountErrorCB();
+                    createAccountErrorCB(res);
                 },
             })
         );

@@ -29,8 +29,7 @@
         "community_error":
             "Oops, there was an error creating the community, please try again.",
         "community_create": "CREATE A COMMUNITY",
-        "community_description": "Description",
-        "community_nsfw": "Is Not Safe For Work",
+        "community_description": "About",
         "confirm": "Confirm",
         "convert": "Convert",
         "date": "Date",
