@@ -20,7 +20,7 @@ const generateAuth = (user, pass, type) => {
     };
 };
 
-const generateHivemindOperation = (action, params, actor_name) => {
+const generateHivemindOperation = (actor_name, action, params) => {
     return [
         'custom_json',
         {
@@ -55,7 +55,10 @@ export function* customOps(action) {
         createAccountErrorCB,
         broadcastOpsErrorCB,
     } = action.payload;
+
+    // wait 3s for account creation to settle
     yield call(wait, 3000);
+
     try {
         const communityOwnerPosting = auth.getPrivateKeys(
             communityOwnerName,
@@ -64,17 +67,17 @@ export function* customOps(action) {
         );
 
         const setRoleOperation = generateHivemindOperation(
+            communityOwnerName,
             'setRole',
             {
                 community: communityOwnerName,
                 account: accountName,
                 role: 'admin',
-            },
-            communityOwnerName,
-            communityOwnerPosting
+            }
         );
 
         const updatePropsOperation = generateHivemindOperation(
+            communityOwnerName,
             'updateProps',
             {
                 community: communityOwnerName,
@@ -82,28 +85,21 @@ export function* customOps(action) {
                     title: communityTitle,
                     about: communityDescription,
                 },
-            },
-            communityOwnerName,
-            communityOwnerPosting
+            }
         );
 
         const subscribeToCommunityOperation = generateHivemindOperation(
+            accountName,
             'subscribe',
             {
                 community: communityOwnerName,
-            },
-            communityOwnerName,
-            communityOwnerPosting
+            }
         );
 
         yield broadcast.sendAsync(
             {
                 extensions: [],
-                operations: [
-                    setRoleOperation,
-                    updatePropsOperation,
-                    subscribeToCommunityOperation,
-                ],
+                operations: [setRoleOperation, updatePropsOperation],
             },
             [
                 auth.toWif(
@@ -114,6 +110,21 @@ export function* customOps(action) {
             ]
         );
 
+        // subscription op must be broadcast from logged in user
+        yield put(
+            transactionActions.broadcastOperation({
+                type: subscribeToCommunityOperation[0],
+                operation: subscribeToCommunityOperation[1],
+                successCallback: res => {
+                    console.log('subscribed');
+                },
+                errorCallback: res => {
+                    console.log('subscribe error', res);
+                },
+            })
+        );
+
+        // wait a few blocks for hivemind to index ops before alerting user
         yield call(wait, 6000);
 
         yield put({
