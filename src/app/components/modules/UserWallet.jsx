@@ -114,9 +114,7 @@ class UserWallet extends React.Component {
             .split(' ')
             .shift();
         return (
-            virtualSupply *
-            currentInflationRate *
-            vestingRewardPercent /
+            (virtualSupply * currentInflationRate * vestingRewardPercent) /
             totalVestingFunds
         );
     };
@@ -541,7 +539,11 @@ class UserWallet extends React.Component {
             );
         }
 
-        const spApr = this.getCurrentApr(gprops);
+        let spApr;
+        try {
+            // TODO: occasionally fails. grops not loaded yet?
+            spApr = this.getCurrentApr(gprops);
+        } catch (e) {}
 
         return (
             <div className="UserWallet">
@@ -620,11 +622,13 @@ class UserWallet extends React.Component {
                                 )}
                             </span>
                         ) : null}
-                        <FormattedHTMLMessage
-                            className="secondary"
-                            id="tips_js.steem_power_apr"
-                            params={{ value: spApr.toFixed(2) }}
-                        />{' '}
+                        {spApr && (
+                            <FormattedHTMLMessage
+                                className="secondary"
+                                id="tips_js.steem_power_apr"
+                                params={{ value: spApr.toFixed(2) }}
+                            />
+                        )}{' '}
                     </div>
                     <div className="column small-12 medium-4">
                         {isMyAccount ? (
