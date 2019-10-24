@@ -5,6 +5,7 @@ import * as communityActions from 'app/redux/CommunityReducer';
 import tt from 'counterpart';
 import { key_utils } from '@steemit/steem-js/lib/auth/ecc';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
+import Unicode from 'app/utils/Unicode';
 
 class CreateCommunity extends React.Component {
     constructor() {
@@ -132,11 +133,22 @@ class CreateCommunity extends React.Component {
             </div>
         );
 
-        const submitCreateCommunityFormButton = (
-            <input className="button" type="submit" value="Create Community" />
+        const submitCreateCommunityFormButton = error => (
+            <input
+                className="button"
+                type="submit"
+                value="Create Community"
+                disabled={!!error}
+            />
         );
 
         const hasPass = communityOwnerWifPassword.length > 0;
+
+        let formError = null;
+        const rx = new RegExp('^[' + Unicode.L + ']');
+        if (!rx.test(communityTitle) && (communityTitle || hasPass))
+            formError = 'Must start with a letter.';
+
         const form = (
             <form className="community--form" onSubmit={handleCommunitySubmit}>
                 <div>{tt('g.community_create')}</div>
@@ -145,13 +157,14 @@ class CreateCommunity extends React.Component {
                     <input
                         id="community_title"
                         type="text"
-                        minLength="4"
-                        maxLength="30"
+                        minLength="3"
+                        maxLength="20"
                         onChange={handleCommunityTitleInput}
                         value={communityTitle}
                         required
                     />
                 </label>
+                {formError && <span className="error">{formError}</span>}
                 <label>
                     {tt('g.community_description')}
                     <input
@@ -164,7 +177,7 @@ class CreateCommunity extends React.Component {
                 </label>
                 {!hasPass && generateCommunityCredentialsButton}
                 {hasPass && credentialsPane}
-                {hasPass && submitCreateCommunityFormButton}
+                {hasPass && submitCreateCommunityFormButton(formError)}
             </form>
         );
 
