@@ -380,6 +380,8 @@ function* usernamePasswordLogin({
     }
 
     if (!autopost && saveLogin) yield put(userActions.saveLogin());
+
+    /*
     // Feature Flags
     if (useKeychain || private_keys.get('posting_private')) {
         yield fork(
@@ -388,6 +390,8 @@ function* usernamePasswordLogin({
             useKeychain ? null : private_keys.get('posting_private').toString()
         );
     }
+    */
+
     // TOS acceptance
     yield fork(promptTosAcceptance, username);
 }
@@ -700,7 +704,7 @@ function* uploadImage({
     };
     xhr.upload.onprogress = function(event) {
         if (event.lengthComputable) {
-            const percent = Math.round(event.loaded / event.total * 100);
+            const percent = Math.round((event.loaded / event.total) * 100);
             progress({ message: `Uploading ${percent}%` });
             // console.log('Upload', percent)
         }
