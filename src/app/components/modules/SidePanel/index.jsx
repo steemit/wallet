@@ -83,7 +83,9 @@ const SidePanel = ({ alignment, visible, hideSidePanel, username }) => {
                 value: 'blocktrades',
                 label: 'Blocktrades',
                 link: username
-                    ? `https://blocktrades.us/?input_coin_type=eth&output_coin_type=steem&receive_address=${username}`
+                    ? `https://blocktrades.us/?input_coin_type=eth&output_coin_type=steem&receive_address=${
+                          username
+                      }`
                     : `https://blocktrades.us/?input_coin_type=eth&output_coin_type=steem`,
             },
             {
