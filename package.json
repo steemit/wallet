@@ -87,7 +87,7 @@
         "minimist": "1.2.0",
         "mixpanel": "0.5.0",
         "moment": "^2.24.0",
-        "mysql": "2.15.0",
+        "mysql2": "^2.0.0",
         "net": "1.0.2",
         "node-sass": "4.9.0",
         "number-abbreviate": "^2.0.0",
