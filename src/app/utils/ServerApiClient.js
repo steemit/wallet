@@ -78,6 +78,8 @@ export function setUserPreferences(payload) {
 }
 
 export function isTosAccepted() {
+    // TODO: endpoint down. re-enable
+    return true;
     const request = Object.assign({}, request_base, {
         body: JSON.stringify({ csrf: window.$STM_csrf }),
     });
