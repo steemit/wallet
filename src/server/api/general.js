@@ -147,7 +147,7 @@ export default function useGeneralApi(app) {
             // const existing_created_account = yield models.Account.findOne({
             //     attributes: ['id'],
             //     where: {user_id, ignored: false, created: true},
-            //     order: 'id DESC'
+            //     order: [['id', 'DESC']]
             // });
             // if (existing_created_account) {
             //     throw new Error("Only one Steem account per user is allowed in order to prevent abuse");
@@ -158,7 +158,7 @@ export default function useGeneralApi(app) {
             const same_ip_account = yield models.Account.findOne({
                 attributes: ['created_at'],
                 where: { remote_ip: esc(remote_ip), created: true },
-                order: 'id DESC',
+                order: [['id', 'DESC']],
             });
             if (same_ip_account) {
                 const minutes =
@@ -236,7 +236,7 @@ export default function useGeneralApi(app) {
             const existing_account = yield models.Account.findOne({
                 attributes: ['id'],
                 where: { user_id, name: account.name },
-                order: 'id DESC',
+                order: [['id', 'DESC']],
             });
             if (existing_account) {
                 yield existing_account.update(account_attrs);
@@ -368,9 +368,7 @@ export default function useGeneralApi(app) {
                             if (!sigHex) return;
                             if (weight !== 1 || weight_threshold !== 1) {
                                 console.error(
-                                    `/login_account login_challenge unsupported ${
-                                        type
-                                    } auth configuration: ${account}`
+                                    `/login_account login_challenge unsupported ${type} auth configuration: ${account}`
                                 );
                             } else {
                                 const sig = parseSig(sigHex);
