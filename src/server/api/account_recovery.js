@@ -48,7 +48,7 @@ export default function useAccountRecoveryApi(app) {
         const arec = yield models.AccountRecoveryRequest.findOne({
             attributes: ['id', 'account_name', 'owner_key'],
             where: { validation_code: esc(code) },
-            order: 'id desc',
+            order: ['id', 'DESC'],
         });
         if (arec) {
             this.session.arec = arec.id;
