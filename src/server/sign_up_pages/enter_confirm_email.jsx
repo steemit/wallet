@@ -266,9 +266,7 @@ export default function useEnterAndConfirmEmailPages(app) {
         ]);
         if (check_account_res && check_account_res.length > 0) {
             this.flash = {
-                error: `${
-                    picked_account_name
-                } is already taken, please try another name`,
+                error: `${picked_account_name} is already taken, please try another name`,
             };
             this.redirect('/pick_account' + makeParams(params));
             return;
@@ -455,7 +453,7 @@ export default function useEnterAndConfirmEmailPages(app) {
                 const existing_account = yield models.Account.findOne({
                     attributes: ['id'],
                     where: { user_id: user.id, name: account },
-                    order: 'id DESC',
+                    order: [['id', 'DESC']],
                 });
                 if (!existing_account) {
                     yield models.Account.create({
