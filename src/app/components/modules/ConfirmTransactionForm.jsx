@@ -91,6 +91,7 @@ class ConfirmTransactionForm extends Component {
                 <button
                     type="button hollow"
                     className="button hollow"
+                    style={{ float: 'right' }}
                     onClick={onCancel}
                 >
                     {tt('g.cancel')}
