@@ -56,11 +56,27 @@ export default function reducer(state = defaultState, action) {
 
             let errorStr = error.toString();
             let errorKey = 'Transaction broadcast error.';
-            for (const [type /*, operation*/] of operations) {
+            for (const [type, operation] of operations) {
                 switch (type) {
                     case 'transfer':
                         if (/get_balance/.test(errorStr)) {
                             errorKey = 'Insufficient balance.';
+                        } else {
+                            for (
+                                let ei = 0;
+                                ei < error.data.stack.length;
+                                ei += 1
+                            ) {
+                                const errorStackItem = error.data.stack[ei];
+
+                                if (
+                                    errorStackItem.data.name === operation.to &&
+                                    errorStackItem.data.what === 'unknown key'
+                                ) {
+                                    errorKey = 'Unknown recipient';
+                                    break;
+                                }
+                            }
                         }
                         break;
                     case 'withdraw_vesting':
