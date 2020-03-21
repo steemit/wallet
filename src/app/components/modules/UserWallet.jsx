@@ -41,39 +41,31 @@ class UserWallet extends React.Component {
             const name = this.props.currentUser.get('username');
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location =
-                'https://blocktrades.us/?input_coin_type=eth&output_coin_type=steem&receive_address=' +
-                name;
+            new_window.location = 'https://poloniex.com/exchange#btc_steem';
         };
         this.onShowWithdrawSteem = e => {
             e.preventDefault();
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location =
-                'https://blocktrades.us/unregistered_trade/steem/eth';
+            new_window.location = 'https://poloniex.com/exchange#btc_steem';
         };
-        this.onShowDepositPower = (currentUserName, e) => {
+        this.onShowDepositPower = e => {
             e.preventDefault();
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location =
-                'https://blocktrades.us/?input_coin_type=eth&output_coin_type=steem_power&receive_address=' +
-                currentUserName;
+            new_window.location = 'https://poloniex.com/exchange#btc_steem';
         };
-        this.onShowDepositSBD = (currentUserName, e) => {
+        this.onShowDepositSBD = e => {
             e.preventDefault();
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location =
-                'https://blocktrades.us/?input_coin_type=eth&output_coin_type=sbd&receive_address=' +
-                currentUserName;
+            new_window.location = 'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD';
         };
         this.onShowWithdrawSBD = e => {
             e.preventDefault();
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location =
-                'https://blocktrades.us/unregistered_trade/sbd/eth';
+            new_window.location ='https://global.bittrex.com/Market/Index?MarketName=BTC-SBD';
         };
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
     }
