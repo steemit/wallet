@@ -87,7 +87,7 @@ const SidePanel = ({ alignment, visible, hideSidePanel, username }) => {
             {
                 value: 'poloniex',
                 label: 'Poloniex',
-                link: 'https://poloniex.com/exchange#btc_steem',
+                link: 'https://poloniex.com/exchange#trx_steem',
             },
         ],
         external: [

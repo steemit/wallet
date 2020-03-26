@@ -646,7 +646,7 @@
         "transfers_are_temporary_disabled": "转移功能暂时被禁用。",
         "history": "历史",
         "redeem_rewards": "赎回奖励(转移至余额)",
-        "buy_steem_or_steem_power": "购买STEEM或STEEM Power"
+        "buy_steem_or_steem_power": "购买STEEM"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",

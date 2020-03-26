@@ -700,7 +700,7 @@
             "현재 일시적인 이유로 송금이 불가능합니다.",
         "history": "거래 내역",
         "redeem_rewards": "내 지갑으로 입금하기",
-        "buy_steem_or_steem_power": "STEEM, STEEM POWER 구입"
+        "buy_steem_or_steem_power": "STEEM 구입"
     },
     "powerdown_jsx": {
         "power_down": "파워 다운",

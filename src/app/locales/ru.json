@@ -720,7 +720,7 @@
         "transfers_are_temporary_disabled": "Переводы временно преостановлены.",
         "history": "ИСТОРИЯ",
         "redeem_rewards": "Получить вознаграждение",
-        "buy_steem_or_steem_power": "Купить STEEM или STEEM POWER"
+        "buy_steem_or_steem_power": "Купить STEEM"
     },
     "powerdown_jsx": {
         "power_down": "Уменьшить силу голоса (power down)",

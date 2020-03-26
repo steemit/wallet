@@ -827,7 +827,7 @@
         "transfers_are_temporary_disabled": "Transfers are temporary disabled.",
         "history": "HISTORY",
         "redeem_rewards": "Redeem Rewards (Transfer to Balance)",
-        "buy_steem_or_steem_power": "Buy STEEM or STEEM POWER"
+        "buy_steem_or_steem_power": "Buy STEEM"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",

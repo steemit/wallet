@@ -686,7 +686,7 @@
         "transfers_are_temporary_disabled": "Transfery tymczasowo wyłączone.",
         "history": "HISTORIA",
         "redeem_rewards": "Odbierz nagrody (transfer do salda)",
-        "buy_steem_or_steem_power": "Kup STEEM lub STEEM POWER"
+        "buy_steem_or_steem_power": "Kup STEEM"
     },
     "powerdown_jsx": {
         "power_down": "Zmniejsz moc",
