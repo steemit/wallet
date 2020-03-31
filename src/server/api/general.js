@@ -147,7 +147,7 @@ export default function useGeneralApi(app) {
             // const existing_created_account = yield models.Account.findOne({
             //     attributes: ['id'],
             //     where: {user_id, ignored: false, created: true},
-            //     order: 'id DESC'
+            //     order: [['id', 'DESC']]
             // });
             // if (existing_created_account) {
             //     throw new Error("Only one Steem account per user is allowed in order to prevent abuse");

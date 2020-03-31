@@ -533,7 +533,7 @@ class UserWallet extends React.Component {
             );
         }
 
-        let spApr;
+        let spApr = 0;
         try {
             // TODO: occasionally fails. grops not loaded yet?
             spApr = this.getCurrentApr(gprops);
