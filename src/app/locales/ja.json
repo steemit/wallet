@@ -619,7 +619,8 @@
         "signup_button": "サインアップして",
         "signup_button_emphasis": "STEEMを手に入れよう！",
         "sign_up_get_steem": "登録してSTEEMを手に入れよう！",
-        "returning_users": "再"
+        "returning_users": "再",
+        "use_keychain": "Use keychain extension"
     },
     "chainvalidation_js": {
         "account_name_should": "アカウント名",
@@ -700,7 +701,7 @@
             "送金は一時的に無効になっています。",
         "history": "履歴",
         "redeem_rewards": "報酬の請求 (残高に送る)",
-        "buy_steem_or_steem_power": "STEEMやSTEEM POWERを購入する"
+        "buy_steem_or_steem_power": "STEEMを購入する"
     },
     "powerdown_jsx": {
         "power_down": "パワーダウン",

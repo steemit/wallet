@@ -405,11 +405,6 @@ export const loadSavingsWithdraw = payload => ({
     payload,
 });
 
-export const uploadImage = payload => ({
-    type: UPLOAD_IMAGE,
-    payload,
-});
-
 export const showSidePanel = () => ({
     type: SHOW_SIDE_PANEL,
 });

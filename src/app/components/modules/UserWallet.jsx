@@ -38,19 +38,16 @@ class UserWallet extends React.Component {
         };
         this.onShowDepositSteem = e => {
             if (e && e.preventDefault) e.preventDefault();
-            const name = this.props.currentUser.get('username');
+            // const name = this.props.currentUser.get('username');
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location =
-                'https://blocktrades.us/?input_coin_type=eth&output_coin_type=steem&receive_address=' +
-                name;
+            new_window.location = 'https://poloniex.com/exchange#trx_steem';
         };
         this.onShowWithdrawSteem = e => {
             e.preventDefault();
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location =
-                'https://blocktrades.us/unregistered_trade/steem/eth';
+            new_window.location = 'https://poloniex.com/exchange#trx_steem';
         };
         this.onShowDepositPower = (currentUserName, e) => {
             e.preventDefault();
@@ -65,15 +62,14 @@ class UserWallet extends React.Component {
             const new_window = window.open();
             new_window.opener = null;
             new_window.location =
-                'https://blocktrades.us/?input_coin_type=eth&output_coin_type=sbd&receive_address=' +
-                currentUserName;
+                'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD';
         };
         this.onShowWithdrawSBD = e => {
             e.preventDefault();
             const new_window = window.open();
             new_window.opener = null;
             new_window.location =
-                'https://blocktrades.us/unregistered_trade/sbd/eth';
+                'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD';
         };
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
     }
@@ -143,11 +139,11 @@ class UserWallet extends React.Component {
         // do not render if state appears to contain only lite account info
         if (!account.has('vesting_shares')) return null;
 
-        let vesting_steem = vestingSteem(account.toJS(), gprops);
-        let delegated_steem = delegatedSteem(account.toJS(), gprops);
-        let powerdown_steem = powerdownSteem(account.toJS(), gprops);
+        const vesting_steem = vestingSteem(account.toJS(), gprops);
+        const delegated_steem = delegatedSteem(account.toJS(), gprops);
+        const powerdown_steem = powerdownSteem(account.toJS(), gprops);
 
-        let isMyAccount =
+        const isMyAccount =
             currentUser && currentUser.get('username') === account.get('name');
 
         const disabledWarning = false;
@@ -209,10 +205,8 @@ class UserWallet extends React.Component {
             savings_withdraws.forEach(withdraw => {
                 const [amount, asset] = withdraw.get('amount').split(' ');
                 if (asset === 'STEEM') savings_pending += parseFloat(amount);
-                else {
-                    if (asset === 'SBD')
-                        savings_sbd_pending += parseFloat(amount);
-                }
+                else if (asset === 'SBD')
+                    savings_sbd_pending += parseFloat(amount);
             });
         }
 
@@ -296,7 +290,7 @@ class UserWallet extends React.Component {
             saving_balance_steem +
             savings_pending +
             steemOrders;
-        let total_value =
+        const total_value =
             '$' +
             numberWithCommas(
                 (total_steem * price_per_steem + total_sbd).toFixed(2)
@@ -341,7 +335,7 @@ class UserWallet extends React.Component {
             .filter(el => !!el)
             .reverse();
 
-        let steem_menu = [
+        const steem_menu = [
             {
                 value: tt('userwallet_jsx.transfer'),
                 link: '#',
@@ -370,14 +364,14 @@ class UserWallet extends React.Component {
                 ),
             },
         ];
-        let power_menu = [
+        const power_menu = [
             {
                 value: tt('userwallet_jsx.power_down'),
                 link: '#',
                 onClick: powerDown.bind(this, false),
             },
         ];
-        let dollar_menu = [
+        const dollar_menu = [
             {
                 value: tt('g.transfer'),
                 link: '#',
@@ -408,14 +402,14 @@ class UserWallet extends React.Component {
                 value: tt('userwallet_jsx.market'),
                 link: '/market',
             });
-            power_menu.push({
-                value: tt('g.buy'),
-                link: '#',
-                onClick: onShowDepositPower.bind(
-                    this,
-                    currentUser.get('username')
-                ),
-            });
+            // power_menu.push({
+            //     value: tt('g.buy'),
+            //     link: '#',
+            //     onClick: onShowDepositPower.bind(
+            //         this,
+            //         currentUser.get('username')
+            //     ),
+            // });
             dollar_menu.push({
                 value: tt('g.buy'),
                 link: '#',
@@ -497,7 +491,7 @@ class UserWallet extends React.Component {
                 ? account.get('reward_vesting_steem').replace('STEEM', 'SP')
                 : null;
 
-        let rewards = [];
+        const rewards = [];
         if (reward_steem) rewards.push(reward_steem);
         if (reward_sbd) rewards.push(reward_sbd);
         if (reward_sp) rewards.push(reward_sp);
@@ -622,11 +616,13 @@ class UserWallet extends React.Component {
                                 )}
                             </span>
                         ) : null}
-                        <FormattedHTMLMessage
-                            className="secondary"
-                            id="tips_js.steem_power_apr"
-                            params={{ value: spApr.toFixed(2) }}
-                        />{' '}
+                        {spApr && (
+                            <FormattedHTMLMessage
+                                className="secondary"
+                                id="tips_js.steem_power_apr"
+                                params={{ value: spApr.toFixed(2) }}
+                            />
+                        )}{' '}
                     </div>
                     <div className="column small-12 medium-4">
                         {isMyAccount ? (

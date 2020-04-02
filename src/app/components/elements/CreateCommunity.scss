@@ -1,0 +1,19 @@
+.community--form {
+    label {margin-top: 1rem;}
+    .button {margin-top: 1rem;}
+
+    .pwd {
+        text-transform: none;
+        display: block;
+        padding: 0.2rem 0.5rem;
+        color: rgb(199, 37, 78);
+        font-size: 1rem;
+        background: #fff;
+        word-break: break-all;
+        text-align: left;
+    }
+}
+
+.community--error {
+    color: rgb(199, 37, 78);
+}

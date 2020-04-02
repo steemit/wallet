@@ -638,7 +638,8 @@
         "sign_up_get_steem": "Sign up. Get STEEM",
         "signup_button": "Sign up now to earn ",
         "signup_button_emphasis": "FREE STEEM!",
-        "returning_users": "Utilisateurs de retour: "
+        "returning_users": "Utilisateurs de retour: ",
+        "use_keychain": "Use keychain extension"
     },
     "chainvalidation_js": {
         "account_name_should": "Le nom du compte doit ",
@@ -722,7 +723,7 @@
             "Les transferts sont temporairement désactivés.",
         "history": "HISTORIQUE",
         "redeem_rewards": "Réclamer les gains (transférer vers le solde)",
-        "buy_steem_or_steem_power": "Acheter du STEEM ou du STEEM POWER"
+        "buy_steem_or_steem_power": "Acheter du STEEM"
     },
     "powerdown_jsx": {
         "power_down": "Diminuer son influence",

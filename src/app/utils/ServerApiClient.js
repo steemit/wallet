@@ -43,6 +43,7 @@ export function serverApiRecordEvent(type, val, rate_limit_ms = 5000) {
 
 let last_page, last_views, last_page_promise;
 export function recordPageView(page, referer, account) {
+    return; // TODO: disabled until overseer update
     if (last_page_promise && page === last_page) return last_page_promise;
 
     if (!process.env.BROWSER) return Promise.resolve(0);
@@ -77,6 +78,8 @@ export function setUserPreferences(payload) {
 }
 
 export function isTosAccepted() {
+    // TODO: endpoint down. re-enable
+    return true;
     const request = Object.assign({}, request_base, {
         body: JSON.stringify({ csrf: window.$STM_csrf }),
     });

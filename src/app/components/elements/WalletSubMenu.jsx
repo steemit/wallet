@@ -33,6 +33,16 @@ export default ({ accountname, isMyAccount }) => {
                     </Link>
                 </li>
             ) : null}
+            {isMyAccount ? (
+                <li>
+                    <Link
+                        to={`/@${accountname}/communities`}
+                        activeClassName="active"
+                    >
+                        {tt('g.communities')}
+                    </Link>
+                </li>
+            ) : null}
         </ul>
     );
 };

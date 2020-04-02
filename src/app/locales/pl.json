@@ -607,7 +607,8 @@
         "keep_me_logged_in": "Nie wylogowuj mnie",
         "sign_up_now_to_earn": "Zarejestruj się aby zarabiać ",
         "free_money": "DARMOWY STEEM!",
-        "returning_users": "Powracający użytkownicy: "
+        "returning_users": "Powracający użytkownicy: ",
+        "use_keychain": "Use keychain extension"
     },
     "chainvalidation_js": {
         "account_name_should": "Nazwa konta powinna ",
@@ -685,7 +686,7 @@
         "transfers_are_temporary_disabled": "Transfery tymczasowo wyłączone.",
         "history": "HISTORIA",
         "redeem_rewards": "Odbierz nagrody (transfer do salda)",
-        "buy_steem_or_steem_power": "Kup STEEM lub STEEM POWER"
+        "buy_steem_or_steem_power": "Kup STEEM"
     },
     "powerdown_jsx": {
         "power_down": "Zmniejsz moc",

@@ -21,6 +21,15 @@
         "close": "Close",
         "collapse_or_expand": "Collapse/Expand",
         "comments": "Comments",
+        "communities": "Communities",
+        "community_owner_name_is": "Your community owner name is",
+        "community_password_is": "Your password is",
+        "community_creating": "Your community is being created...",
+        "community_visit": "Visit your community",
+        "community_error":
+            "Oops, there was an error creating the community, please try again.",
+        "community_create": "CREATE A COMMUNITY",
+        "community_description": "About",
         "confirm": "Confirm",
         "convert": "Convert",
         "date": "Date",
@@ -715,6 +724,7 @@
         "returning_users": "Returning Users: ",
         "login_to_wallet": "Login to Wallet",
         "sign_transfer": "Sign to complete transfer",
+        "use_keychain": "Use keychain extension",
         "dont_have_an_account": "Don't have a Steem account?"
     },
     "chainvalidation_js": {
@@ -817,7 +827,7 @@
         "transfers_are_temporary_disabled": "Transfers are temporary disabled.",
         "history": "HISTORY",
         "redeem_rewards": "Redeem Rewards (Transfer to Balance)",
-        "buy_steem_or_steem_power": "Buy STEEM or STEEM POWER"
+        "buy_steem_or_steem_power": "Buy STEEM"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
