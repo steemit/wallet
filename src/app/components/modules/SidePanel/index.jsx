@@ -91,11 +91,11 @@ const SidePanel = ({ alignment, visible, hideSidePanel, username }) => {
             },
         ],
         external: [
-            {
-                value: 'chat',
-                label: tt('navigation.chat'),
-                link: 'https://steem.chat/home',
-            },
+            // {
+            //     value: 'chat',
+            //     label: tt('navigation.chat'),
+            //     link: 'https://steem.chat/home',
+            // },
             {
                 value: 'jobs',
                 label: tt('navigation.jobs'),
