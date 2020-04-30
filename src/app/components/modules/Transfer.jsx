@@ -213,7 +213,6 @@ class TransferForm extends Component {
     };
 
     errorCallback = estr => {
-        debugger;
         this.setState({ trxError: estr, loading: false });
     };
 
@@ -239,8 +238,6 @@ class TransferForm extends Component {
                     : null;
         if (toDelegate) {
             balanceValue = currentAccount.get('savings_balance');
-            // Calculate the Vesting balance...
-
             const avail =
                 parseFloat(currentAccount.get('vesting_shares')) -
                 (parseFloat(currentAccount.get('to_withdraw')) -
@@ -249,9 +246,6 @@ class TransferForm extends Component {
                 parseFloat(currentAccount.get('delegated_vesting_shares'));
 
             const vestSteem = totalVestingFund * (avail / totalVestingShares);
-
-            const balance = `Available Vests for ${name}: ${avail} VESTS ~ ${vestSteem} STEEM POWER<br/><br/>`;
-            console.log('Vesting Balance is...');
             balanceValue = avail;
         }
         return balanceValue;
