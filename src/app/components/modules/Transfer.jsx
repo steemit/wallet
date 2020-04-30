@@ -157,7 +157,9 @@ class TransferForm extends Component {
             transferType !== 'Transfer to Savings' &&
             transferType !== 'Savings Withdraw'
         )
-            fields.push('memo');
+            if (!toDelegate) {
+                fields.push('memo');
+            }
         reactForm({
             name: 'transfer',
             instance: this,
@@ -211,6 +213,7 @@ class TransferForm extends Component {
     };
 
     errorCallback = estr => {
+        debugger;
         this.setState({ trxError: estr, loading: false });
     };
 
@@ -248,6 +251,7 @@ class TransferForm extends Component {
             const vestSteem = totalVestingFund * (avail / totalVestingShares);
 
             const balance = `Available Vests for ${name}: ${avail} VESTS ~ ${vestSteem} STEEM POWER<br/><br/>`;
+            console.log('Vesting Balance is...');
             balanceValue = avail;
         }
         return balanceValue;
@@ -297,8 +301,6 @@ class TransferForm extends Component {
         const { submitting, valid, handleSubmit } = this.state.transfer;
         // const isMemoPrivate = memo && /^#/.test(memo.value); -- private memos are not supported yet
         const isMemoPrivate = false;
-
-        debugger;
 
         const form = (
             <form
@@ -697,6 +699,7 @@ export default connect(
             memo,
             transferType,
             toVesting,
+            toDelegate,
             currentUser,
             errorCallback,
         }) => {
@@ -732,29 +735,36 @@ export default connect(
                 amount: parseFloat(amount, 10).toFixed(3) + ' ' + asset2,
                 memo: toVesting ? undefined : memo ? memo : '',
             };
-            if (toDelegate) {
-                operation = {
-                    from: username,
-                    to,
-                    amount: 'NOT SURE!',
-                };
-            }
             const confirm = () => <ConfirmTransfer operation={operation} />;
             if (transferType === 'Savings Withdraw')
                 operation.request_id = Math.floor(
                     (Date.now() / 1000) % 4294967295
                 );
+
+            let transactionType = toVesting
+                ? 'transfer_to_vesting'
+                : transferType === 'Transfer to Account'
+                    ? 'transfer'
+                    : transferType === 'Transfer to Savings'
+                        ? 'transfer_to_savings'
+                        : transferType === 'Savings Withdraw'
+                            ? 'transfer_from_savings'
+                            : null;
+
+            if (toDelegate) {
+                operation = {
+                    delegator: username,
+                    delegatee: to,
+                    vesting_shares:
+                        parseFloat(amount, 10).toFixed(6) + ' ' + asset2,
+                };
+                console.log('DELEGATION OPERATION IS:', operation);
+                transactionType = 'delegate_vesting_shares';
+            }
+
             dispatch(
                 transactionActions.broadcastOperation({
-                    type: toVesting
-                        ? 'transfer_to_vesting'
-                        : transferType === 'Transfer to Account'
-                            ? 'transfer'
-                            : transferType === 'Transfer to Savings'
-                                ? 'transfer_to_savings'
-                                : transferType === 'Savings Withdraw'
-                                    ? 'transfer_from_savings'
-                                    : null,
+                    type: transactionType,
                     operation,
                     successCallback,
                     errorCallback,
