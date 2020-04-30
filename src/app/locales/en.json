@@ -812,6 +812,7 @@
         "transfer_to_savings": "Transfer to Savings",
         "power_up": "Power Up",
         "power_down": "Power Down",
+        "delegate": "Delegate",
         "market": "Market",
         "convert_to_LIQUID_TOKEN": "Convert to %(LIQUID_TOKEN)s",
         "withdraw_LIQUID_TOKEN": "Withdraw %(LIQUID_TOKEN)s",
