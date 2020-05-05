@@ -238,15 +238,18 @@ class TransferForm extends Component {
                     : null;
         if (toDelegate) {
             balanceValue = currentAccount.get('savings_balance');
+
+            // Available Vests Calculation.
             const avail =
                 parseFloat(currentAccount.get('vesting_shares')) -
                 (parseFloat(currentAccount.get('to_withdraw')) -
                     parseFloat(currentAccount.get('withdrawn'))) /
                     1e6 -
                 parseFloat(currentAccount.get('delegated_vesting_shares'));
-
+            // Representation of available Vests as Steem.
             const vestSteem = totalVestingFund * (avail / totalVestingShares);
-            balanceValue = avail;
+
+            balanceValue = vestSteem;
         }
         return balanceValue;
     }
@@ -490,7 +493,7 @@ class TransferForm extends Component {
                                             border: 'none',
                                         }}
                                     >
-                                        <option value="VESTS">VESTS</option>
+                                        <option value="STEEM">STEEM</option>
                                     </select>
                                 </span>
                             )}
@@ -696,6 +699,8 @@ export default connect(
             toDelegate,
             currentUser,
             errorCallback,
+            totalVestingFund,
+            totalVestingShares,
         }) => {
             if (
                 !toVesting &&
@@ -746,11 +751,16 @@ export default connect(
                             : null;
 
             if (toDelegate) {
+                // Convert amount in steem to vests...
+                const amountSteemAsVests =
+                    (amount * totalVestingShares) / totalVestingFund;
                 operation = {
                     delegator: username,
                     delegatee: to,
                     vesting_shares:
-                        parseFloat(amount, 10).toFixed(6) + ' ' + asset2,
+                        parseFloat(amountSteemAsVests, 10).toFixed(6) +
+                        ' ' +
+                        asset2,
                 };
                 console.log('DELEGATION OPERATION IS:', operation);
                 transactionType = 'delegate_vesting_shares';
