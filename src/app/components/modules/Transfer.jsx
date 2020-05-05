@@ -11,6 +11,7 @@ import * as userActions from 'app/redux/UserReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import ConfirmTransfer from 'app/components/elements/ConfirmTransfer';
+import ConfirmDelegationTransfer from 'app/components/elements/ConfirmDelegationTransfer';
 import runTests, { browserTests } from 'app/utils/BrowserTests';
 import {
     validate_account_name_with_memo,
@@ -286,6 +287,7 @@ class TransferForm extends Component {
         );
         const { to, amount, asset, memo } = this.state;
         const { loading, trxError, advanced } = this.state;
+
         const {
             currentUser,
             currentAccount,
@@ -293,6 +295,8 @@ class TransferForm extends Component {
             toDelegate,
             transferToSelf,
             dispatchSubmit,
+            totalVestingFund,
+            totalVestingShares,
         } = this.props;
         const { transferType } = this.props.initialValues;
         const { submitting, valid, handleSubmit } = this.state.transfer;
@@ -310,6 +314,8 @@ class TransferForm extends Component {
                         toVesting,
                         toDelegate,
                         transferType,
+                        totalVestingShares,
+                        totalVestingFund,
                     });
                 })}
                 onChange={this.clearError}
@@ -734,7 +740,7 @@ export default connect(
                 amount: parseFloat(amount, 10).toFixed(3) + ' ' + asset2,
                 memo: toVesting ? undefined : memo ? memo : '',
             };
-            const confirm = () => <ConfirmTransfer operation={operation} />;
+            let confirm = () => <ConfirmTransfer operation={operation} />;
             if (transferType === 'Savings Withdraw')
                 operation.request_id = Math.floor(
                     (Date.now() / 1000) % 4294967295
@@ -762,7 +768,14 @@ export default connect(
                         ' ' +
                         asset2,
                 };
-                console.log('DELEGATION OPERATION IS:', operation);
+
+                confirm = () => (
+                    <ConfirmDelegationTransfer
+                        operation={operation}
+                        amount={amount}
+                    />
+                );
+
                 transactionType = 'delegate_vesting_shares';
             }
 
