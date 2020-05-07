@@ -94,7 +94,7 @@ class Delegations extends React.Component {
                       </div>
                   );
               })
-            : 'HELLO';
+            : 'No Delegations Found';
 
         const power_menu = [
             {
