@@ -370,6 +370,15 @@ class UserWallet extends React.Component {
                 link: '#',
                 onClick: powerDown.bind(this, false),
             },
+            {
+                value: tt('userwallet_jsx.delegate'),
+                link: '#',
+                onClick: showTransfer.bind(
+                    this,
+                    'DELEGATE_VESTS',
+                    'Delegate to Account'
+                ),
+            },
         ];
         const dollar_menu = [
             {
