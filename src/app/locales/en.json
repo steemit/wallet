@@ -7,6 +7,7 @@
         "ask": "Ask",
         "balance": "Balance: %(balanceValue)s",
         "balances": "Balances",
+        "delegations": "Delegations",
         "bid": "Bid",
         "blog": "Blog",
         "browse": "Browse",
