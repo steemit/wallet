@@ -38,7 +38,8 @@ const HIDE_SIDE_PANEL = 'user/HIDE_SIDE_PANEL';
 // Saga-related
 export const LOAD_SAVINGS_WITHDRAW = 'user/LOAD_SAVINGS_WITHDRAW';
 export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
-
+export const GET_VESTING_DELEGATIONS = 'user/GET_VESTING_DELEGATIONS';
+export const SET_VESTING_DELEGATIONS = 'user/SET_VESTING_DELEGATIONS';
 const defaultState = fromJS({
     current: null,
     show_login_modal: false,
@@ -49,6 +50,7 @@ const defaultState = fromJS({
     locale: DEFAULT_LANGUAGE,
     show_side_panel: false,
     maybeLoggedIn: false,
+    vestingDelegations: null,
 });
 
 export default function reducer(state = defaultState, action) {
@@ -102,6 +104,9 @@ export default function reducer(state = defaultState, action) {
         case SAVE_LOGIN:
             // Use only for low security keys (like posting only keys)
             return state;
+
+        case SET_VESTING_DELEGATIONS:
+            return state.set('vestingDelegations', payload);
 
         case REMOVE_HIGH_SECURITY_KEYS: {
             if (!state.hasIn(['current', 'private_keys'])) return state;
@@ -414,3 +419,15 @@ export const hideSidePanel = () => {
         type: HIDE_SIDE_PANEL,
     };
 };
+
+export const getVestingDelegations = payload => {
+    return {
+        type: GET_VESTING_DELEGATIONS,
+        payload,
+    };
+};
+
+export const setVestingDelegations = payload => ({
+    type: SET_VESTING_DELEGATIONS,
+    payload,
+});

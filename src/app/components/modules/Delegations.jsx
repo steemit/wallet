@@ -26,6 +26,7 @@ import {
 } from 'app/client_config';
 import * as transactionActions from 'app/redux/TransactionReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
+import * as userActions from 'app/redux/UserReducer';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
 
 const assetPrecision = 1000;
@@ -36,6 +37,16 @@ class Delegations extends React.Component {
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'Delegations');
     }
 
+    componentWillMount() {
+        this.props.getVestingDelegations(
+            this.props.account.get('name'),
+            (err, res) => {
+                debugger;
+                this.props.setVestingDelegations(res);
+            }
+        );
+    }
+
     render() {
         const {
             convertToSteem,
@@ -44,6 +55,7 @@ class Delegations extends React.Component {
             account,
             currentUser,
             open_orders,
+            vestingDelegations,
         } = this.props;
         const gprops = this.props.gprops.toJS();
 
@@ -72,38 +84,17 @@ class Delegations extends React.Component {
 
         /// transfer log
         let idx = 0;
-        debugger;
         // https://github.com/steemit/steem-js/tree/master/doc#get-vesting-delegations
-        const delegation_log = account
-            .get('transfer_history')
-            .map(item => {
-                const data = item.getIn([1, 'op', 1]);
-                const type = item.getIn([1, 'op', 0]);
-
-                // Filter out rewards
-                if (
-                    type === 'curation_reward' ||
-                    type === 'author_reward' ||
-                    type === 'comment_benefactor_reward'
-                ) {
-                    return null;
-                }
-
-                if (
-                    data.sbd_payout === '0.000 SBD' &&
-                    data.vesting_payout === '0.000000 VESTS'
-                )
-                    return null;
-                return (
-                    <TransferHistoryRow
-                        key={idx++}
-                        op={item.toJS()}
-                        context={account.get('name')}
-                    />
-                );
-            })
-            .filter(el => !!el)
-            .reverse();
+        const delegation_log = vestingDelegations
+            ? vestingDelegations.map(item => {
+                  return (
+                      <div>
+                          {item.delegator}
+                          {item.delegatee}
+                      </div>
+                  );
+              })
+            : 'HELLO';
 
         const power_menu = [
             {
@@ -162,6 +153,8 @@ export default connect(
         const savings_withdraws = state.user.get('savings_withdraws');
         const gprops = state.global.get('props');
         const sbd_interest = gprops.get('sbd_interest_rate');
+        const vestingDelegations = state.user.get('vestingDelegations');
+        console.log(state.user.toJS());
         return {
             ...ownProps,
             open_orders: state.market.get('open_orders'),
@@ -169,8 +162,19 @@ export default connect(
             savings_withdraws,
             sbd_interest,
             gprops,
+            vestingDelegations,
         };
     },
     // mapDispatchToProps
-    dispatch => ({})
+    dispatch => ({
+        getVestingDelegations: (account, successCallback) => {
+            debugger;
+            dispatch(
+                userActions.getVestingDelegations({ account, successCallback })
+            );
+        },
+        setVestingDelegations: payload => {
+            dispatch(userActions.setVestingDelegations(payload));
+        },
+    })
 )(Delegations);

@@ -32,6 +32,7 @@ export const userWatches = [
     takeLatest(userActions.USERNAME_PASSWORD_LOGIN, usernamePasswordLogin),
     takeLatest(userActions.SAVE_LOGIN, saveLogin_localStorage),
     takeLatest(userActions.LOGOUT, logout),
+    takeLatest(userActions.GET_VESTING_DELEGATIONS, getVestingDelegationsSaga),
     takeLatest(userActions.LOGIN_ERROR, loginError),
     takeLatest(userActions.LOAD_SAVINGS_WITHDRAW, loadSavingsWithdraw),
     takeLatest(userActions.ACCEPT_TERMS, function*() {
@@ -55,10 +56,23 @@ export const userWatches = [
 
 const highSecurityPages = [
     /\/market/,
-    /\/@.+\/(transfers|permissions|password|communities)/,
+    /\/@.+\/(transfers|permissions|password|communities|delegations)/,
     /\/~witnesses/,
     /\/proposals/,
 ];
+
+function* getVestingDelegationsSaga(action) {
+    console.log(action);
+    try {
+        const vestingDelegations = yield call(
+            [api, api.getVestingDelegations],
+            action.payload.account,
+            '',
+            100,
+            action.payload.successCallback
+        );
+    } catch (error) {}
+}
 
 function* loadSavingsWithdraw() {
     const username = yield select(state =>
