@@ -13,6 +13,14 @@ export default ({ accountname, isMyAccount }) => {
                     {tt('g.balances')}
                 </Link>
             </li>
+            <li>
+                <Link
+                    to={`/@${accountname}/delegations`}
+                    activeClassName="active"
+                >
+                    {tt('g.delegations')}
+                </Link>
+            </li>
             {isMyAccount ? (
                 <li>
                     <Link

@@ -13,6 +13,7 @@ import UserKeys from 'app/components/elements/UserKeys';
 import PasswordReset from 'app/components/elements/PasswordReset';
 import CreateCommunity from 'app/components/elements/CreateCommunity';
 import UserWallet from 'app/components/modules/UserWallet';
+import Delegations from 'app/components/modules/Delegations';
 import Settings from 'app/components/modules/Settings';
 import CurationRewards from 'app/components/modules/CurationRewards';
 import AuthorRewards from 'app/components/modules/AuthorRewards';
@@ -115,6 +116,19 @@ export default class UserProfile extends React.Component {
             tab_content = (
                 <div>
                     <UserWallet
+                        account={accountImm}
+                        showTransfer={this.props.showTransfer}
+                        showPowerdown={this.props.showPowerdown}
+                        currentUser={currentUser}
+                        withdrawVesting={this.props.withdrawVesting}
+                    />
+                </div>
+            );
+        } else if (section === 'delegations') {
+            walletClass = 'active';
+            tab_content = (
+                <div>
+                    <Delegations
                         account={accountImm}
                         showTransfer={this.props.showTransfer}
                         showPowerdown={this.props.showPowerdown}
