@@ -28,7 +28,17 @@ class Delegations extends React.Component {
     }
 
     render() {
-        const { account, currentUser, vestingDelegations } = this.props;
+        const {
+            account,
+            currentUser,
+            vestingDelegations,
+            totalVestingFund,
+            totalVestingShares,
+        } = this.props;
+
+        const convertVestsToSteem = vests => {
+            return (vests * totalVestingFund) / totalVestingShares;
+        };
 
         // do not render if account is not loaded or available
         if (!account) return null;
@@ -54,10 +64,14 @@ class Delegations extends React.Component {
         // https://github.com/steemit/steem-js/tree/master/doc#get-vesting-delegations
         const delegation_log = vestingDelegations
             ? vestingDelegations.map(item => {
+                  const vestsAsSteem = convertVestsToSteem(
+                      parseFloat(item.vesting_shares)
+                  );
                   return (
                       <div>
-                          {item.delegator}
-                          {item.delegatee}
+                          {`${item.delegator} -> ${
+                              item.delegatee
+                          } ${vestsAsSteem} STEEM`}
                       </div>
                   );
               })
@@ -103,9 +117,33 @@ export default connect(
     // mapStateToProps
     (state, ownProps) => {
         const vestingDelegations = state.user.get('vestingDelegations');
+
+        const totalVestingShares = state.global.getIn([
+            'props',
+            'total_vesting_shares',
+        ])
+            ? parseFloat(
+                  state.global
+                      .getIn(['props', 'total_vesting_shares'])
+                      .split(' ')[0]
+              )
+            : 0;
+
+        const totalVestingFund = state.global.getIn([
+            'props',
+            'total_vesting_fund_steem',
+        ])
+            ? parseFloat(
+                  state.global
+                      .getIn(['props', 'total_vesting_fund_steem'])
+                      .split(' ')[0]
+              )
+            : 0;
         return {
             ...ownProps,
             vestingDelegations,
+            totalVestingShares,
+            totalVestingFund,
         };
     },
     // mapDispatchToProps
