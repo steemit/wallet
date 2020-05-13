@@ -12,6 +12,7 @@ import WalletSubMenu from 'app/components/elements/WalletSubMenu';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import * as userActions from 'app/redux/UserReducer';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
+import TimeAgoWrapper from 'app/components/elements/TimeAgoWrapper';
 
 class Delegations extends React.Component {
     constructor() {
@@ -39,10 +40,9 @@ class Delegations extends React.Component {
             totalVestingShares,
             vestingDelegationsPending,
         } = this.props;
-        console.log(vestingDelegationsPending);
 
         const convertVestsToSteem = vests => {
-            return (vests * totalVestingFund) / totalVestingShares;
+            return ((vests * totalVestingFund) / totalVestingShares).toFixed(2);
         };
 
         // do not render if account is not loaded or available
@@ -67,20 +67,28 @@ class Delegations extends React.Component {
         /// transfer log
         let idx = 0;
         // https://github.com/steemit/steem-js/tree/master/doc#get-vesting-delegations
-        const delegation_log = vestingDelegations
-            ? vestingDelegations.map(item => {
-                  const vestsAsSteem = convertVestsToSteem(
-                      parseFloat(item.vesting_shares)
-                  );
-                  return (
-                      <div>
-                          {`${item.delegator} -> ${
-                              item.delegatee
-                          } ${vestsAsSteem} STEEM`}
-                      </div>
-                  );
-              })
-            : 'No Delegations Found';
+        const delegation_log = vestingDelegations ? (
+            vestingDelegations.map(item => {
+                const vestsAsSteem = convertVestsToSteem(
+                    parseFloat(item.vesting_shares)
+                );
+                return (
+                    <tr
+                        key={`${item.delegator}--${item.delegatee}--${
+                            item.min_delegation_time
+                        }`}
+                    >
+                        <td className={'red'}>{vestsAsSteem} STEEM</td>
+                        <td>{item.delegatee}</td>
+                        <td>
+                            <TimeAgoWrapper date={item.min_delegation_time} />
+                        </td>
+                    </tr>
+                );
+            })
+        ) : (
+            <tr>No Delegations Found</tr>
+        );
 
         const power_menu = [
             {
