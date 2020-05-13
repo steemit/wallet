@@ -39,6 +39,7 @@ const HIDE_SIDE_PANEL = 'user/HIDE_SIDE_PANEL';
 export const LOAD_SAVINGS_WITHDRAW = 'user/LOAD_SAVINGS_WITHDRAW';
 export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
 export const GET_VESTING_DELEGATIONS = 'user/GET_VESTING_DELEGATIONS';
+export const VESTING_DELEGATIONS_LOADING = 'user/VESTING_DELEGATIONS_LOADING';
 export const SET_VESTING_DELEGATIONS = 'user/SET_VESTING_DELEGATIONS';
 const defaultState = fromJS({
     current: null,
@@ -107,6 +108,9 @@ export default function reducer(state = defaultState, action) {
 
         case SET_VESTING_DELEGATIONS:
             return state.set('vestingDelegations', payload);
+
+        case VESTING_DELEGATIONS_LOADING:
+            return state.set('vestingDelegationsLoading', payload);
 
         case REMOVE_HIGH_SECURITY_KEYS: {
             if (!state.hasIn(['current', 'private_keys'])) return state;
@@ -429,5 +433,9 @@ export const getVestingDelegations = payload => {
 
 export const setVestingDelegations = payload => ({
     type: SET_VESTING_DELEGATIONS,
+    payload,
+});
+export const vestingDelegationsLoading = payload => ({
+    type: VESTING_DELEGATIONS_LOADING,
     payload,
 });

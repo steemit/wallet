@@ -11,6 +11,7 @@ import {
 import WalletSubMenu from 'app/components/elements/WalletSubMenu';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import * as userActions from 'app/redux/UserReducer';
+import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 
 class Delegations extends React.Component {
     constructor() {
@@ -19,10 +20,12 @@ class Delegations extends React.Component {
     }
 
     componentWillMount() {
+        this.props.vestingDelegationsLoading(true);
         this.props.getVestingDelegations(
             this.props.account.get('name'),
             (err, res) => {
                 this.props.setVestingDelegations(res);
+                this.props.vestingDelegationsLoading(false);
             }
         );
     }
@@ -34,7 +37,9 @@ class Delegations extends React.Component {
             vestingDelegations,
             totalVestingFund,
             totalVestingShares,
+            vestingDelegationsPending,
         } = this.props;
+        console.log(vestingDelegationsPending);
 
         const convertVestsToSteem = vests => {
             return (vests * totalVestingFund) / totalVestingShares;
@@ -99,10 +104,12 @@ class Delegations extends React.Component {
                         />
                     </div>
                 </div>
-
                 <div className="row">
                     <div className="column small-12">
                         <h4>Delegations</h4>
+                        {vestingDelegationsPending && (
+                            <LoadingIndicator type="circle" />
+                        )}
                         <table>
                             <tbody>{delegation_log}</tbody>
                         </table>
@@ -118,6 +125,9 @@ export default connect(
     (state, ownProps) => {
         const vestingDelegations = state.user.get('vestingDelegations');
 
+        const vestingDelegationsPending = state.user.get(
+            'vestingDelegationsLoading'
+        );
         const totalVestingShares = state.global.getIn([
             'props',
             'total_vesting_shares',
@@ -144,6 +154,7 @@ export default connect(
             vestingDelegations,
             totalVestingShares,
             totalVestingFund,
+            vestingDelegationsPending,
         };
     },
     // mapDispatchToProps
@@ -155,6 +166,9 @@ export default connect(
         },
         setVestingDelegations: payload => {
             dispatch(userActions.setVestingDelegations(payload));
+        },
+        vestingDelegationsLoading: payload => {
+            dispatch(userActions.vestingDelegationsLoading(payload));
         },
     })
 )(Delegations);
