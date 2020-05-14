@@ -9,8 +9,11 @@ import {
     pricePerSteem,
 } from 'app/utils/StateFunctions';
 import WalletSubMenu from 'app/components/elements/WalletSubMenu';
+import ConfirmDelegationTransfer from 'app/components/elements/ConfirmDelegationTransfer';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import * as userActions from 'app/redux/UserReducer';
+import * as transactionActions from 'app/redux/TransactionReducer';
+import * as appActions from 'app/redux/AppReducer';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import TimeAgoWrapper from 'app/components/elements/TimeAgoWrapper';
 
@@ -39,29 +42,40 @@ class Delegations extends React.Component {
             totalVestingFund,
             totalVestingShares,
             vestingDelegationsPending,
+            revokeDelegation,
+            getVestingDelegations,
+            setVestingDelegations,
+            vestingDelegationsLoading,
         } = this.props;
 
         const convertVestsToSteem = vests => {
             return ((vests * totalVestingFund) / totalVestingShares).toFixed(2);
         };
 
+        const isMyAccount =
+            currentUser && currentUser.get('username') === account.get('name');
         // do not render if account is not loaded or available
         if (!account) return null;
 
         // do not render if state appears to contain only lite account info
         if (!account.has('vesting_shares')) return null;
 
-        const isMyAccount =
-            currentUser && currentUser.get('username') === account.get('name');
-
-        // Used to show delegation transfer modal.
-        const showTransfer = (asset, transferType, e) => {
-            e.preventDefault();
-            this.props.showTransfer({
-                to: isMyAccount ? null : account.get('name'),
-                asset,
-                transferType,
-            });
+        const showTransferHandler = delegatee => {
+            const refetchCB = () => {
+                vestingDelegationsLoading(true);
+                getVestingDelegations(
+                    this.props.account.get('name'),
+                    (err, res) => {
+                        setVestingDelegations(res);
+                        vestingDelegationsLoading(false);
+                    }
+                );
+            };
+            revokeDelegation(
+                this.props.account.get('name'),
+                delegatee,
+                refetchCB
+            );
         };
 
         /// transfer log
@@ -83,24 +97,27 @@ class Delegations extends React.Component {
                         <td>
                             <TimeAgoWrapper date={item.min_delegation_time} />
                         </td>
+                        {isMyAccount && (
+                            <td>
+                                <span
+                                    onClick={e => {
+                                        e.preventDefault();
+                                        showTransferHandler(item.delegatee);
+                                    }}
+                                >
+                                    {' '}
+                                    Revoke{' '}
+                                </span>
+                            </td>
+                        )}
                     </tr>
                 );
             })
         ) : (
-            <tr>No Delegations Found</tr>
+            <tr>
+                <td>No Delegations Found</td>
+            </tr>
         );
-
-        const power_menu = [
-            {
-                value: tt('userwallet_jsx.delegate'),
-                link: '#',
-                onClick: showTransfer.bind(
-                    this,
-                    'DELEGATE_VESTS',
-                    'Delegate to Account'
-                ),
-            },
-        ];
 
         return (
             <div className="UserWallet">
@@ -127,7 +144,6 @@ class Delegations extends React.Component {
         );
     }
 }
-
 export default connect(
     // mapStateToProps
     (state, ownProps) => {
@@ -177,6 +193,47 @@ export default connect(
         },
         vestingDelegationsLoading: payload => {
             dispatch(userActions.vestingDelegationsLoading(payload));
+        },
+        revokeDelegation: (username, to, refetchDelegations) => {
+            const operation = {
+                delegator: username,
+                delegatee: to,
+                // Revoke is always 0
+                vesting_shares: parseFloat(0, 10).toFixed(6) + ' ' + 'VESTS',
+            };
+
+            const confirm = () => (
+                <ConfirmDelegationTransfer operation={operation} amount={0.0} />
+            );
+
+            const transactionType = 'delegate_vesting_shares';
+            const successCallback = () => {
+                dispatch(
+                    appActions.addNotification({
+                        key: 'Revoke Delegation',
+                        message: 'Delegation Successfully Revoked.',
+                    })
+                );
+                refetchDelegations();
+            };
+            const errorCallback = () => {
+                dispatch(
+                    appActions.addNotification({
+                        key: 'Revoke Delegation',
+                        message: 'Delegation failed to revoke.',
+                    })
+                );
+            };
+
+            dispatch(
+                transactionActions.broadcastOperation({
+                    type: transactionType,
+                    operation,
+                    successCallback,
+                    errorCallback,
+                    confirm,
+                })
+            );
         },
     })
 )(Delegations);
