@@ -518,7 +518,7 @@
         "estimated_value":
             "El valor estimado está basado en el valor medio de 1%(LIQUID_TOKEN)s en US dollars.",
         "non_transferable":
-            "%(VESTING_TOKEN)s es intransferible y requiere 3 meses (13 pagos) para convertir de vuelta a %(LIQUID_TOKEN)s.",
+            "%(VESTING_TOKEN)s es intransferible y requiere 1 mes (4 pagos) para convertir de vuelta a %(LIQUID_TOKEN)s.",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
             "Los %(VESTING_TOKEN)s convertidos pueden ser enviados a ti mismo o a otras personas pero no pueden ser transferidos de nuevo sin convertirlos de vuelta a %(LIQUID_TOKEN)s.",
         "part_of_your_steem_power_is_currently_delegated":

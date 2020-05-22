@@ -519,7 +519,7 @@
         "estimated_value":
             "推定値は%(LIQUID_TOKEN)sの平均値に基いてUSドルで表されます。",
         "non_transferable":
-            "%(VESTING_TOKEN)sは移転不可能であり、再び%(LIQUID_TOKEN)sに変換するには、3ヶ月（13週間）かかります。",
+            "%(VESTING_TOKEN)sは移転不可能であり、再び%(LIQUID_TOKEN)sに変換するには、1ヶ月（4週間）かかります。",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
             "変換した%(VESTING_TOKEN)sは、自分自身や他の人に送ることが可能ですが、もう一度送るには%(LIQUID_TOKEN)sに変換する必要があります。",
         "part_of_your_steem_power_is_currently_delegated":

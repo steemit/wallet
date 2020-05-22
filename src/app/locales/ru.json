@@ -536,7 +536,7 @@
         "estimated_value":
             "Сметная стоимость основана на среднем значении %(LIQUID_TOKEN)s в долларах США.",
         "non_transferable":
-            "%(VESTING_TOKEN)s - не ликвидные токены, требуется три месяца (13 еженедальных выплат) чтобы сконвертировать их в ликвидные токены %(LIQUID_TOKEN)s.",
+            "%(VESTING_TOKEN)s - не ликвидные токены, требуется Один месяц (4 еженедальных выплат) чтобы сконвертировать их в ликвидные токены %(LIQUID_TOKEN)s.",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
             "Конвертированные %(VESTING_TOKEN)s токены могут быть отправлены себе или кому-либо еще, но не могут быть переданы вновь без конвертации в %(LIQUID_TOKEN)s.",
         "part_of_your_steem_power_is_currently_delegated":
