@@ -507,7 +507,7 @@
         "estimated_value":
             "Szacowana wartość bazuje na średniej cenie tokenu %(LIQUID_TOKEN)s w dolarach amerykańskich.",
         "non_transferable":
-            "Jednostki %(VESTING_TOKEN)s są niezbywalne i wymagają 3 miesięcy (w 13 ratach) do konwersji z powrotem na tokeny %(LIQUID_TOKEN)s.",
+            "Jednostki %(VESTING_TOKEN)s są niezbywalne i wymagają 1 miesiąc (w 4 ratach) do konwersji z powrotem na tokeny %(LIQUID_TOKEN)s.",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
             "Przekonwertowane jednostki %(VESTING_TOKEN)s możesz wysłać sobie lub komuś innemu ale nie możesz ich wysłać ponownie bez konwersji z powrotem do tokenów %(LIQUID_TOKEN)s.",
         "part_of_your_steem_power_is_currently_delegated":
