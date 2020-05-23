@@ -112,11 +112,11 @@ class Powerdown extends React.Component {
             );
         }
         if (notes.length === 0) {
-            let AMOUNT = vestsToSpf(this.props.state, new_withdraw) / 4;
-            AMOUNT = AMOUNT.toFixed(AMOUNT >= 10 ? 0 : 1);
+            const AMOUNT = vestsToSpf(this.props.state, new_withdraw) / 4;
+            const AMOUNT_TEXT = AMOUNT.toFixed(AMOUNT >= 10 ? 0 : 1);
             notes.push(
                 <li key="per_week">
-                    {tt('powerdown_jsx.per_week', { AMOUNT, LIQUID_TICKER })}
+                    {tt('powerdown_jsx.per_week', { AMOUNT_TEXT, LIQUID_TICKER })}
                 </li>
             );
         }
