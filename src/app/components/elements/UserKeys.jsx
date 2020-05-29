@@ -362,11 +362,11 @@ class UserKeys extends Component {
                                 <a
                                     className="public-keys__link"
                                     href={
-                                        'https://steemd.com/@' +
+                                        'https://steemscan.com/account/' +
                                         account.get('name')
                                     }
                                 >
-                                    steemd.com/@{account.get('name')}
+                                    steemscan.com/account/{account.get('name')}
                                 </a>
                             </p>
                         </div>

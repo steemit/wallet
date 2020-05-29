@@ -96,9 +96,10 @@ A lot of users mingle and chat when they are not posting or browsing Steemit. It
 
 There is a link to sign up in the main menu in the upper right corner.
 
-Your [steem.chat](https://steem.chat/home) account is a separate account from your Steem account.
+<!-- Your [steem.chat](https://steem.chat/home) account is a separate account from your Steem account. -->
 
-Some channels allow you to share links, but others don't. For instance, [general](https://steem.chat/channel/general) is for discussion without link promotion, while [postpromotion](https://steem.chat/channel/postpromotion) is for promoting your posts.
+Some channels allow you to share links, but others don't.
+<!-- For instance, [general](https://steem.chat/channel/general) is for discussion without link promotion, while [postpromotion](https://steem.chat/channel/postpromotion) is for promoting your posts. -->
 
 Each channel will have its rules posted in the "Room Info" section.
 
@@ -218,7 +219,7 @@ You can exchange SBD for STEEM in the [Currency Market](https://steemit.com/mark
 
 You can spend your SBD at the [Peerhub Store](https://www.peerhub.com/).
 
-You can also exchange your STEEM and SBD for bitcoin on a third-party exchange such as [BlockTrades](https://blocktrades.us/) or [Bittrex](https://bittrex.com/).
+You can also exchange your STEEM and SBD for bitcoin on a third-party exchange such as [Poloniex](https://poloniex.com/) or [Bittrex](https://bittrex.com/).
 
 <a href="#Table_of_Contents">^</a>
 ### <span id="Plagiarism">Plagiarism</span>
@@ -298,14 +299,14 @@ Don't get discouraged if you don't earn much at first. Keep up the good work!
 - [FAQ](https://steemit.com/faq.html) - Answers to commonly asked questions
 - [Bluepaper](https://steem.io/steem-bluepaper.pdf) - Explanation of how the platform works
 - [The Steem Whitepaper](https://steem.io/SteemWhitePaper.pdf) - Technical details of the Steem blockchain
-- [Apps Built on Steem](https://steemprojects.com/) - Directory of apps, sites and tools built by Steem community
-- [Steem Block Explorer](https://steemd.com/) - Shows the raw Steem blockchain data 
-- [Steem Blockchain Explorer](https://steemdb.com/) - Analysis pages for the Steem blockchain data
+- [Apps Built on Steem] will come up soon  - Directory of apps, sites and tools built by Steem community
+- [Steem Blockchain Explorer](https://Steemdb.io/) - Analysis pages for the Steem blockchain data
+- [Steem Blockchain Explorer](https://steemscan.com/) - Analysis pages for the Steem blockchain data
 
 <a href="#Table_of_Contents">^</a>
 ## <span id="Get_Help">Get Help</span>
 
-Ask your general questions in the [help](https://steem.chat/channel/help) channel of [steem.chat](https://steem.chat/home). Users in the channel will typically respond to questions within a few hours.
+<!-- Ask your general questions in the [help](https://steem.chat/channel/help) channel of [steem.chat](https://steem.chat/home). Users in the channel will typically respond to questions within a few hours. -->
 
 New Member Support Community is a group of people dedicated to helping new users find their way around Steemit. You can find them in the [New Member Support Community](https://discord.gg/HYj4yvw) channel of Discord Chat.
 

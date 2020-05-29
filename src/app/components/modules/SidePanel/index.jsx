@@ -101,11 +101,11 @@ const SidePanel = ({ alignment, visible, hideSidePanel, username }) => {
                 label: tt('navigation.jobs'),
                 link: 'https://jobs.lever.co/steemit',
             },
-            {
-                value: 'tools',
-                label: tt('navigation.app_center'),
-                link: 'https://steemprojects.com/',
-            },
+            // {
+            //     value: 'tools',
+            //     label: tt('navigation.app_center'),
+            //     link: 'https://steemprojects.com/',
+            // },
             {
                 value: 'business',
                 label: tt('navigation.business_center'),
