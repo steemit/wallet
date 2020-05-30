@@ -1132,7 +1132,7 @@ The Steem blockchain schedules witnesses to produce a new block every 3 seconds.
 ## <span id="Is_there_a_way_to_see_the_raw_data_that_is_stored_in_the_blockchain">Is there a way to see the raw data that is stored in the blockchain?</span>
 
 Yes. The blockchain data can be viewed in different ways with third-party tools such as <a href="https://steemscan.com/">steemscan.com</a> and 
-<a href="https://steemdb.io/">steemdb.com</a>
+<a href="https://steemdb.io/">steemdb.io</a>
 
 <a href="#Table_of_Contents_Blockchain">^</a>
 ## <span id="Where_can_I_find_the_information_for_the_official_launch_of_the_blockchain">Where can I find the information for the official launch of the blockchain?</span>
@@ -1345,7 +1345,7 @@ You can also create a post on steemit.com with the tag #help, and someone in the
 
 ## <span id="Third_Party_References_and_User_Links">Third Party References and User Links</span>
 
-AnonSteem, Binance, bitcoinfees, Bitcointalk, Bithumb, BitShares, Bittrex, blockchain.info, Busy.org, Changelly, @cheetah, Coinbase, DTube, GOBADA, HitBTC, Huobi, LocalBitcoinCash, Localbitcoins, Markdown Cheatsheet, Pexels, Pixabay, Poloniex, Postimage, Shapeshift.io, Steemcleaners, SteemConnect, SteemCreate, steemd, SteemStats, SteemProjects, Streemian, The Steemit Shop, UpBit, Utopian.io, Vessel, and Yensesa are third party applications/services, and are not owned or maintained by Steemit, Inc. Their listing here, as well as any other third party applications or websites that are listed, does not constitute and endorsement or recommendation on behalf of Steemit, Inc.
+Binance, bitcoinfees, Bitcointalk, Bithumb, BitShares, Bittrex, blockchain.info, Busy.org, Changelly, @cheetah, Coinbase, DTube, GOBADA, HitBTC, Huobi, LocalBitcoinCash, Localbitcoins, Markdown Cheatsheet, Pexels, Pixabay, Poloniex, Postimage, Shapeshift.io, Steemcleaners, SteemCreate, steemd, SteemStats, SteemProjects, Streemian, The Steemit Shop, UpBit, Utopian.io, Vessel, and Yensesa are third party applications/services, and are not owned or maintained by Steemit, Inc. Their listing here, as well as any other third party applications or websites that are listed, does not constitute and endorsement or recommendation on behalf of Steemit, Inc.
 
 All links to user posts were created by our users and do not necessarily represent the views of Steemit, Inc. or its management. Their listing here does not constitute and endorsement or recommendation on behalf of Steemit, Inc.
 
