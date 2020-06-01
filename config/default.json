@@ -7,7 +7,7 @@
         "directives": {
             "childSrc": "'self'",
             "connectSrc":
-                "'self' steemit.com https://api.steemit.com https://testnet.steemitdev.com api.blocktrades.us",
+                "'self' steemit.com https://api.steemit.com https://testnet.steemitdev.com",
             "defaultSrc": "'self'",
             "fontSrc": "data: fonts.gstatic.com",
             "frameAncestors": "'none'",

@@ -312,7 +312,7 @@ New Member Support Community is a group of people dedicated to helping new users
 <a href="#Table_of_Contents">^</a>
 ## <span id="Third_Party_References">Third Party References</span>
 
-Peerhub, BlockTrades, Bittrex, Steem Chat, New Member Support Community, and Discord Chat, as well as the tools listed under "Other Resources", are third party applications/services and are not owned or maintained by Steemit, Inc. Their listing here does not constitute an endorsement or recommendation on behalf of Steemit, Inc.
+Peerhub,Bittrex, Steem Chat, New Member Support Community, and Discord Chat, as well as the tools listed under "Other Resources", are third party applications/services and are not owned or maintained by Steemit, Inc. Their listing here does not constitute an endorsement or recommendation on behalf of Steemit, Inc.
 
 All of the links in the "Helpful Posts from Steemit Users" section were created by our users and do not necessarily represent the views of Steemit, Inc. or its management.
 

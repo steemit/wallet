@@ -203,7 +203,6 @@ Bug fixes
  - add contributors.md #825
  - support for secure server sessions #823
  - fix post footer promo text #822
- - translation of blocktrades deposit #821
  - display pending conversions & add them to account value #804
  - fix follow counts #802
  - fix unknown account flashing #801
