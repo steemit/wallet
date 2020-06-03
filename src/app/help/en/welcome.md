@@ -18,9 +18,8 @@ Below that is a list of recommended users to follow, a collection of other resou
 3. <a href="#Read_the_Helpful_Posts_from_Steemit_Users">Read the Helpful Posts from Steemit Users</a>
 4. <a href="#Setup_your_Profile_Avatar_and_Cover_Image">Setup your Profile, Avatar, and Cover Image</a>
 5. <a href="#Choose_your_NSFW_(Not_Safe_for_Work)_Display_Preference">Choose your "NSFW" (Not Safe for Work) Display Preferences, Language, and Rewards</a>
-6. <a href="#Sign_Up_for_Steem_Chat">Sign Up for Steem Chat</a>
-7. <a href="#Create_your_introduceyourself_post">Create your "Introduceyourself" Post</a>
-8. <a href="#Learn_more">Learn More</a>
+6. <a href="#Create_your_introduceyourself_post">Create your "Introduceyourself" Post</a>
+7. <a href="#Learn_more">Learn More</a>
 
 ### Quick Start Guide
 
@@ -88,19 +87,6 @@ By default, content that users have tagged as "NSFW" will be hidden, but a link 
 You can select the language you wish to display the website in. Currently, English, Spanish, Russian, French, Italian, Korean, Japanese, Polish and Chinese are available to choose from.
 
 You can also choose how you will receive your Blog post rewards and Comment post rewards. It is recommended that you read the <a href="#Digital_Currencies">Digital Currencies</a> section first. 
-
-<a href="#Table_of_Contents">^</a>
-### <span id="Sign_Up_for_Steem_Chat">6. Sign Up for Steem Chat</span>
-
-A lot of users mingle and chat when they are not posting or browsing Steemit. It is a great place to meet people!
-
-There is a link to sign up in the main menu in the upper right corner.
-
-
-Some channels allow you to share links, but others don't.
-
-
-Each channel will have its rules posted in the "Room Info" section.
 
 <a href="#Table_of_Contents">^</a>
 ### <span id="Create_your_introduceyourself_post">7. Create your "Introduceyourself" Post</span>
@@ -308,7 +294,7 @@ New Member Support Community is a group of people dedicated to helping new users
 <a href="#Table_of_Contents">^</a>
 ## <span id="Third_Party_References">Third Party References</span>
 
-Bittrex, Steem Chat, New Member Support Community, and Discord Chat, as well as the tools listed under "Other Resources", are third party applications/services and are not owned or maintained by Steemit, Inc. Their listing here does not constitute an endorsement or recommendation on behalf of Steemit, Inc.
+Bittrex, New Member Support Community, and Discord Chat, as well as the tools listed under "Other Resources", are third party applications/services and are not owned or maintained by Steemit, Inc. Their listing here does not constitute an endorsement or recommendation on behalf of Steemit, Inc.
 
 All of the links in the "Helpful Posts from Steemit Users" section were created by our users and do not necessarily represent the views of Steemit, Inc. or its management.
 
