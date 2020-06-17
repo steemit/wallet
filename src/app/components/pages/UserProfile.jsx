@@ -74,7 +74,7 @@ export default class UserProfile extends React.Component {
         const username = currentUser ? currentUser.get('username') : null;
 
         // Redirect user homepage to transfers page
-        let { section } = this.props.routeParams;
+        const { section } = this.props.routeParams;
         if (!section) {
             if (process.env.BROWSER) {
                 browserHistory.replace(`/@${accountname}/transfers`);
@@ -89,7 +89,7 @@ export default class UserProfile extends React.Component {
         const fetching = (status && status.fetching) || this.props.loading;
 
         let account;
-        let accountImm = this.props.account;
+        const accountImm = this.props.account;
         if (accountImm) {
             account = accountImm.toJS();
         } else if (fetching) {
@@ -140,6 +140,7 @@ export default class UserProfile extends React.Component {
                             <WalletSubMenu
                                 accountname={account.name}
                                 isMyAccount={isMyAccount}
+                                showTab="permissions"
                             />
                         </div>
                     </div>
@@ -156,6 +157,7 @@ export default class UserProfile extends React.Component {
                             <WalletSubMenu
                                 accountname={account.name}
                                 isMyAccount={isMyAccount}
+                                showTab="password"
                             />
                         </div>
                     </div>
@@ -172,6 +174,7 @@ export default class UserProfile extends React.Component {
                             <WalletSubMenu
                                 accountname={account.name}
                                 isMyAccount={isMyAccount}
+                                showTab="communities"
                             />
                         </div>
                     </div>
@@ -202,7 +205,7 @@ export default class UserProfile extends React.Component {
             }
         }
 
-        let rewardsMenu = [
+        const rewardsMenu = [
             {
                 link: `/@${accountname}/curation-rewards`,
                 label: tt('g.curation_rewards'),
@@ -337,7 +340,7 @@ module.exports = {
             const currentUser = state.user.get('current');
             const socialUrl = state.app.get('socialUrl');
             const accountname = ownProps.routeParams.accountname.toLowerCase();
-            let isMyAccount =
+            const isMyAccount =
                 currentUser && currentUser.get('username') === accountname;
 
             return {
@@ -347,7 +350,7 @@ module.exports = {
                 discussions: state.global.get('discussion_idx'),
                 wifShown,
                 currentUser,
-                accountname: accountname,
+                accountname,
                 isMyAccount,
                 socialUrl,
             };
