@@ -41,7 +41,9 @@ class UserKeys extends Component {
         if (wifShown !== hasWif) setWifShown(hasWif);
     }
     render() {
-        const { props: { account, isMyAccount } } = this;
+        const {
+            props: { account, isMyAccount },
+        } = this;
         const { onKey } = this;
         let idx = 0;
 
@@ -101,7 +103,7 @@ class UserKeys extends Component {
         });
 
         return (
-            <div className="UserKeys">
+            <div className="UserKeys columns">
                 <div className="UserKeys__intro">
                     <div className="UserKeys__intro-col">
                         <h1>Keys & Permissions </h1>

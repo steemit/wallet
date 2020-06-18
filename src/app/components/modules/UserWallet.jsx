@@ -547,6 +547,7 @@ class UserWallet extends React.Component {
                         <WalletSubMenu
                             accountname={account.get('name')}
                             isMyAccount={isMyAccount}
+                            showTab="balance"
                         />
                     </div>
                     {
