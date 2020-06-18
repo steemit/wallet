@@ -325,7 +325,7 @@ export default class UserProfile extends React.Component {
                 <div className="UserProfile__top-nav row expanded noPrint">
                     {top_menu}
                 </div>
-                <div>{printLink}</div>
+                {/* <div>{printLink}</div> */}
                 <div>{tab_content}</div>
             </div>
         );
