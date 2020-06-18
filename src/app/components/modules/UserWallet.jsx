@@ -49,7 +49,7 @@ class UserWallet extends React.Component {
             new_window.opener = null;
             new_window.location = 'https://poloniex.com/exchange#trx_steem';
         };
-        this.onShowDepositPower = (currentUserName, e) => {
+        this.onShowDepositPower = (currentUserName, e) => {   // this function will not be called since power menu comment
             e.preventDefault();
             const new_window = window.open();
             new_window.opener = null;

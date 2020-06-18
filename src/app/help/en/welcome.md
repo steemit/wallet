@@ -18,9 +18,8 @@ Below that is a list of recommended users to follow, a collection of other resou
 3. <a href="#Read_the_Helpful_Posts_from_Steemit_Users">Read the Helpful Posts from Steemit Users</a>
 4. <a href="#Setup_your_Profile_Avatar_and_Cover_Image">Setup your Profile, Avatar, and Cover Image</a>
 5. <a href="#Choose_your_NSFW_(Not_Safe_for_Work)_Display_Preference">Choose your "NSFW" (Not Safe for Work) Display Preferences, Language, and Rewards</a>
-6. <a href="#Sign_Up_for_Steem_Chat">Sign Up for Steem Chat</a>
-7. <a href="#Create_your_introduceyourself_post">Create your "Introduceyourself" Post</a>
-8. <a href="#Learn_more">Learn More</a>
+6. <a href="#Create_your_introduceyourself_post">Create your "Introduceyourself" Post</a>
+7. <a href="#Learn_more">Learn More</a>
 
 ### Quick Start Guide
 
@@ -88,19 +87,6 @@ By default, content that users have tagged as "NSFW" will be hidden, but a link 
 You can select the language you wish to display the website in. Currently, English, Spanish, Russian, French, Italian, Korean, Japanese, Polish and Chinese are available to choose from.
 
 You can also choose how you will receive your Blog post rewards and Comment post rewards. It is recommended that you read the <a href="#Digital_Currencies">Digital Currencies</a> section first. 
-
-<a href="#Table_of_Contents">^</a>
-### <span id="Sign_Up_for_Steem_Chat">6. Sign Up for Steem Chat</span>
-
-A lot of users mingle and chat when they are not posting or browsing Steemit. It is a great place to meet people!
-
-There is a link to sign up in the main menu in the upper right corner.
-
-Your [steem.chat](https://steem.chat/home) account is a separate account from your Steem account.
-
-Some channels allow you to share links, but others don't. For instance, [general](https://steem.chat/channel/general) is for discussion without link promotion, while [postpromotion](https://steem.chat/channel/postpromotion) is for promoting your posts.
-
-Each channel will have its rules posted in the "Room Info" section.
 
 <a href="#Table_of_Contents">^</a>
 ### <span id="Create_your_introduceyourself_post">7. Create your "Introduceyourself" Post</span>
@@ -216,9 +202,7 @@ Your reputation will go up as you earn upvotes for your posts and comments, but 
 
 You can exchange SBD for STEEM in the [Currency Market](https://steemit.com/market). Once you have STEEM, you can "Power Up" in your wallet to gain additional Steem Power.
 
-You can spend your SBD at the [Peerhub Store](https://www.peerhub.com/).
-
-You can also exchange your STEEM and SBD for bitcoin on a third-party exchange such as [BlockTrades](https://blocktrades.us/) or [Bittrex](https://bittrex.com/).
+You can also exchange your STEEM and SBD for bitcoin on a third-party exchange such as [Poloniex](https://poloniex.com/) or [Bittrex](https://bittrex.com/).
 
 <a href="#Table_of_Contents">^</a>
 ### <span id="Plagiarism">Plagiarism</span>
@@ -255,38 +239,36 @@ Don't get discouraged if you don't earn much at first. Keep up the good work!
 
 ## <span id="Helpful_Posts_from_Steemit_Users">Helpful Posts from Steemit Users</span>
 ### <span id="Blogging">Blogging</span>
-- [Advice on How To Build a Following](/steemit/@allasyummyfood/how-i-build-a-following-of-160-k-from-scratch)
-- [Steemit Etiquette Guide](/steemit/@thecryptofiend/the-complete-steemit-etiquette-guide-revision-2-0)
-- [8 Mistakes to Avoid](/steemit/@alcibiades/8-mistakes-i-see-beginners-make-on-steemit)
-- [The Importance of Citation](/steemcleaners/@steemcleaners/the-importance-of-citation)
-- [How to Find Success as a Steemit Blogger](/blog/@inquiringtimes/how-to-find-sucess-as-a-steemit-blogger)
-- [The Art of Commenting](/steemcleaners/@steemcleaners/the-art-of-commenting)
-- [Blogging Tools](/blogging/@munteanu/blogging-tools)
-- [The Ultimate Guide of Tips for New Steem Users](/steem-help/@timcliff/the-ultimate-guide-of-tips-for-new-steem-users)
-- [Ways to Find Free and Legal Images](/steem-help/@mindover/don-t-plagiarize-images-here-are-13-free-and-legal-ways-to-find-high-quality-photos-you-can-use-on-steemit)
-- [The Game of Tags](/steemcleaners/@steemcleaners/the-game-of-tags)
-- [Steemit for Artists](/art/@voronoi/steemit-for-artists-a-new-stage-for-craft)
-- [Video interview on how to be successful](/blog/@terrybrock/steemit-success-series--timcliff-on-who-to-target-with-your-content-1512178826-124805)
+- [Advice on How To Build a Following](https://steemit.com/@allasyummyfood/how-i-build-a-following-of-160-k-from-scratch)
+- [Steemit Etiquette Guide](https://steemit.com/@thecryptofiend/the-complete-steemit-etiquette-guide-revision-2-0)
+- [8 Mistakes to Avoid](https://steemit.com/@alcibiades/8-mistakes-i-see-beginners-make-on-steemit)
+- [The Importance of Citation](https://steemit.com/steemcleaners/@steemcleaners/the-importance-of-citation)
+- [How to Find Success as a Steemit Blogger](https://steemit.com/blog/@inquiringtimes/how-to-find-sucess-as-a-steemit-blogger)
+- [The Art of Commenting](https://steemit.com/steemcleaners/@steemcleaners/the-art-of-commenting)
+- [Blogging Tools](https://steemit.com/blogging/@munteanu/blogging-tools)
+- [The Ultimate Guide of Tips for New Steem Users](https://steemit.com/steem-help/@timcliff/the-ultimate-guide-of-tips-for-new-steem-users)
+- [Ways to Find Free and Legal Images](https://steemit.com/steem-help/@mindover/don-t-plagiarize-images-here-are-13-free-and-legal-ways-to-find-high-quality-photos-you-can-use-on-steemit)
+- [The Game of Tags](https://steemit.com/steemcleaners/@steemcleaners/the-game-of-tags)
+- [Steemit for Artists](https://steemit.com/art/@voronoi/steemit-for-artists-a-new-stage-for-craft)
+- [Video interview on how to be successful](https://steemit.com/blog/@terrybrock/steemit-success-series--timcliff-on-who-to-target-with-your-content-1512178826-124805)
 
 ### <span id="Curation">Curation</span>
-- [Curation Rewards Explained](/curation/@liberosist/mind-your-votes-ii-a-guide-to-maximizing-your-curation-rewards)
-- [More Information on Curation Rewards](/steemit/@calamus056/curation-rewards-explained-in-great-detail)
-- [Everything you need to know about potential payouts and flagging](/payout/@timcliff/everything-you-need-to-know-about-potential-payouts-and-flagging-for-new-users)
-- [Guide To Steemit Payouts](/steemit/@shenanigator/the-ultimate-guide-to-steemit-payouts)
+- [Curation Rewards Explained](https://steemit.com/curation/@liberosist/mind-your-votes-ii-a-guide-to-maximizing-your-curation-rewards)
+- [More Information on Curation Rewards](https://steemit.com/steemit/@calamus056/curation-rewards-explained-in-great-detail)
+- [Everything you need to know about potential payouts and flagging](https://steemit.com/payout/@timcliff/everything-you-need-to-know-about-potential-payouts-and-flagging-for-new-users)
+- [Guide To Steemit Payouts](https://steemit.com/steemit/@shenanigator/the-ultimate-guide-to-steemit-payouts)
 
 ### <span id="Formatting">Formatting</span>
-- [Emojis for Steemit](/emojis/@blueorgy/steemit-emojis-master-list)
-- [5 'Markdown' Tips](/steemit/@steemitguide/markdown-and-html-code-guide-for-beginners-that-includes-5-useful-tips-to-edit-posts-and-comments-using-the-raw-editor)
+- [Emojis for Steemit](https://steemit.com/emojis/@blueorgy/steemit-emojis-master-list)
+- [5 'Markdown' Tips](https://steemit.com/@steemitguide/markdown-and-html-code-guide-for-beginners-that-includes-5-useful-tips-to-edit-posts-and-comments-using-the-raw-editor)
 
 ### <span id="Wallet_and_Keys">Wallet and Keys</span>
-- [Understanding Your Wallet](/steemit-help/@merej99/the-steemit-newbie-s-comprehensive-guide-to-understanding-your-wallet-by-merej99)
-- [Steem Keys and Passwords Guide](/steemit-guides/@pfunk/a-user-s-guide-to-the-different-steem-keys-or-passwords)
-- [A Guide To Cashing Out Your STEEM/SBD Using PayPal](/tutorial/@son-of-satire/a-minnows-guide-to-cashing-out-your-steem-sbd-using-paypal-without-using-coinbase-and-their-invasive-identity-checks)
+- [Understanding Your Wallet](https://steemit.com/steemit-help/@merej99/the-steemit-newbie-s-comprehensive-guide-to-understanding-your-wallet-by-merej99)
+- [A Guide To Cashing Out Your STEEM/SBD Using PayPal](https://steemit.com/tutorial/@son-of-satire/a-minnows-guide-to-cashing-out-your-steem-sbd-using-paypal-without-using-coinbase-and-their-invasive-identity-checks)
 
 ### <span id="Witnesses">Witnesses</span>
-- [Witness Voting Guide](/witness-category/@timcliff/witness-voting-guide)
+- [Witness Voting Guide](https://steemit.com/witness-category/@timcliff/witness-voting-guide)
 
-<a href="#Table_of_Contents">^</a>
 ## <span id="Users_to_Follow">Users to Follow</span>
 
 - @steemitblog - Official Steemit Announcements
@@ -298,21 +280,21 @@ Don't get discouraged if you don't earn much at first. Keep up the good work!
 - [FAQ](https://steemit.com/faq.html) - Answers to commonly asked questions
 - [Bluepaper](https://steem.io/steem-bluepaper.pdf) - Explanation of how the platform works
 - [The Steem Whitepaper](https://steem.io/SteemWhitePaper.pdf) - Technical details of the Steem blockchain
-- [Apps Built on Steem](https://steemprojects.com/) - Directory of apps, sites and tools built by Steem community
-- [Steem Block Explorer](https://steemd.com/) - Shows the raw Steem blockchain data 
-- [Steem Blockchain Explorer](https://steemdb.com/) - Analysis pages for the Steem blockchain data
+- [Apps Built on Steem] will come up soon  - Directory of apps, sites and tools built by Steem community
+- [Steem Blockchain Explorer](https://Steemdb.io/) - Analysis pages for the Steem blockchain data
+- [Steem Blockchain Explorer](https://steemscan.com/) - Analysis pages for the Steem blockchain data
 
 <a href="#Table_of_Contents">^</a>
 ## <span id="Get_Help">Get Help</span>
 
-Ask your general questions in the [help](https://steem.chat/channel/help) channel of [steem.chat](https://steem.chat/home). Users in the channel will typically respond to questions within a few hours.
+
 
 New Member Support Community is a group of people dedicated to helping new users find their way around Steemit. You can find them in the [New Member Support Community](https://discord.gg/HYj4yvw) channel of Discord Chat.
 
 <a href="#Table_of_Contents">^</a>
 ## <span id="Third_Party_References">Third Party References</span>
 
-Peerhub, BlockTrades, Bittrex, Steem Chat, New Member Support Community, and Discord Chat, as well as the tools listed under "Other Resources", are third party applications/services and are not owned or maintained by Steemit, Inc. Their listing here does not constitute an endorsement or recommendation on behalf of Steemit, Inc.
+Bittrex, New Member Support Community, and Discord Chat, as well as the tools listed under "Other Resources", are third party applications/services and are not owned or maintained by Steemit, Inc. Their listing here does not constitute an endorsement or recommendation on behalf of Steemit, Inc.
 
 All of the links in the "Helpful Posts from Steemit Users" section were created by our users and do not necessarily represent the views of Steemit, Inc. or its management.
 
