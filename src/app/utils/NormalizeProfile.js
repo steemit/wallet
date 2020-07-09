@@ -18,23 +18,23 @@ export default function normalizeProfile(account) {
 
     // Parse
     let profile = {};
-    if (account.json_metadata) {
+    if (account.posting_json_metadata) {
         try {
-            const md = JSON.parse(account.json_metadata);
+            const md = JSON.parse(account.posting_json_metadata);
             if (md.profile) {
                 profile = md.profile;
             }
             if (!(typeof profile == 'object')) {
                 console.error(
-                    'Expecting object in account.json_metadata.profile:',
+                    'Expecting object in account.posting_json_metadata.profile:',
                     profile
                 );
                 profile = {};
             }
         } catch (e) {
             console.error(
-                'Invalid json metadata string',
-                account.json_metadata,
+                'Invalid posting_json_metadata string',
+                account.posting_json_metadata,
                 'in account',
                 account.name
             );
