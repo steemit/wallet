@@ -440,6 +440,26 @@ export default function useGeneralApi(app) {
         logRequest('logout_account', this);
         try {
             this.session.a = null;
+            // login checkpoint
+            api.call(
+                'overseer.collect',
+                [
+                    'custom',
+                    {
+                        measurement: 'user_login',
+                        tags: {
+                            entry: 'wallet',
+                        },
+                        fields: {
+                            username: account,
+                        },
+                    },
+                ],
+                error => {
+                    if (error) console.warn('overseer error', error);
+                }
+            );
+            // response
             this.body = JSON.stringify({ status: 'ok' });
         } catch (error) {
             console.error(
