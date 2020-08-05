@@ -646,7 +646,13 @@
         "transfers_are_temporary_disabled": "转移功能暂时被禁用。",
         "history": "历史",
         "redeem_rewards": "赎回奖励(转移至余额)",
-        "buy_steem_or_steem_power": "购买STEEM"
+        "buy_steem_or_steem_power": "购买STEEM",
+        "trx_description":
+            "TRX链接了整个TRON生态系统，可以在任何时候发送给任何地方.通过冻结和投票参与TRON生态建设，获得客观收益. TRX奖励根据你可以赎回的SP,按个数等比例发放.",
+        "create_trx_description":
+            "还没创建TRON账户,请点击右侧创建TRON账号按钮创建并领取TRX奖励",
+        "create_trx_button": "创建TRON账户",
+        "update_trx_account": "更新TRON账户"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
