@@ -49,7 +49,8 @@ class UserWallet extends React.Component {
             new_window.opener = null;
             new_window.location = 'https://poloniex.com/exchange#trx_steem';
         };
-        this.onShowDepositPower = (currentUserName, e) => {   // this function will not be called since power menu comment
+        this.onShowDepositPower = (currentUserName, e) => {
+            // this function will not be called since power menu comment
             e.preventDefault();
             const new_window = window.open();
             new_window.opener = null;
@@ -720,6 +721,20 @@ class UserWallet extends React.Component {
                         )}
                     </div>
                 </div>
+                <div className="UserWallet__balance row">
+                    <div className="column small-12 medium-8">
+                        TRX
+                        <div className="secondary">
+                            {tt('userwallet_jsx.create_trx_description')}
+                            <br />
+                            {tt('userwallet_jsx.trx_description')}
+                        </div>
+                    </div>
+                    <div className="column small-12 medium-4">
+                        {estimate_output}
+                    </div>
+                </div>
+
                 <div className="UserWallet__balance row">
                     <div className="column small-12 medium-8">
                         {tt('userwallet_jsx.estimated_account_value')}

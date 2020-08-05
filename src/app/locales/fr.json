@@ -723,7 +723,13 @@
             "Les transferts sont temporairement désactivés.",
         "history": "HISTORIQUE",
         "redeem_rewards": "Réclamer les gains (transférer vers le solde)",
-        "buy_steem_or_steem_power": "Acheter du STEEM"
+        "buy_steem_or_steem_power": "Acheter du STEEM",
+        "trx_description":
+            "TRX connecte tous les systèmes TRON ECO, qui peuvent être envoyés partout et à tout moment. Vous pouvez recevoir une récompense décente en votant et en gelant trx pour le système TRON ECO. Le nombre de récompenses TRX est basé sur le pourcentage x de la récompense SP.",
+        "create_trx_description":
+            "Vous n'avez pas de compte TRX? il suffit de cliquer avec le bouton droit de la souris pour créer un compte TRX où une récompense TRX peut être reçue.",
+        "create_trx_button": "CRÉER UN COMPTE TRON",
+        "update_trx_account": "mettre à jour le compte TRON"
     },
     "powerdown_jsx": {
         "power_down": "Diminuer son influence",

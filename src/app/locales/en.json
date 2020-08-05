@@ -827,7 +827,13 @@
         "transfers_are_temporary_disabled": "Transfers are temporary disabled.",
         "history": "HISTORY",
         "redeem_rewards": "Redeem Rewards (Transfer to Balance)",
-        "buy_steem_or_steem_power": "Buy STEEM"
+        "buy_steem_or_steem_power": "Buy STEEM",
+        "trx_description":
+            "TRX connects all TRON ECO system, which can be sent to anywhere at anytime. You can receive a decent reward by voting and freezing trx for TRON ECO system. The number of reward TRX is based on the x percentage of the reward SP.",
+        "create_trx_description":
+            "Not have TRX account? just click right creating TRX account button where a TRX reward can be received.",
+        "create_trx_button": "CREATE TRON ACCOUNT",
+        "update_trx_account": "update TRON account"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
