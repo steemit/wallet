@@ -72,6 +72,8 @@ class UserWallet extends React.Component {
             new_window.location =
                 'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD';
         };
+        this.onCreateTronAccount = e => {};
+
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
     }
 
@@ -385,6 +387,12 @@ class UserWallet extends React.Component {
             },
             { value: tt('userwallet_jsx.market'), link: '/market' },
         ];
+        const trx_menu = [
+            {
+                value: tt('userwallet_jsx.market'),
+                link: 'https://poloniex.com/exchange#trx_steem',
+            },
+        ];
         if (isMyAccount) {
             steem_menu.push({
                 value: tt('g.buy'),
@@ -425,6 +433,30 @@ class UserWallet extends React.Component {
                 onClick: onShowWithdrawSBD,
             });
         }
+        // todo: isTRXAccount
+        // todo: need a function to check trx account
+        let isTrxAccount = true;
+        if (isTrxAccount) {
+            // todo: need replace with trx buy/sell/transfer function
+            trx_menu.push({
+                value: tt('g.sell'),
+                link: '#',
+                // onClick: onShowWithdrawSBD,
+            });
+            trx_menu.push({
+                value: tt('g.buy'),
+                link: '#',
+                // onClick: onShowWithdrawSBD,
+            });
+            trx_menu.push({
+                value: tt('g.transfer'),
+                link: '#',
+                // todo  replace with TRX function
+                // onClick: showTransfer.bind(this, 'SBD', 'Transfer to Account'),
+            });
+        }
+        // todo: get trx address
+        const TRX_address = 'trx address ';
         if (divesting) {
             power_menu.push({
                 value: 'Cancel Power Down',
@@ -556,7 +588,7 @@ class UserWallet extends React.Component {
                             {isMyAccount && (
                                 <button
                                     className="UserWallet__buysp button hollow"
-                                    onClick={onShowDepositSteem}
+                                    onClick={this.onCreateTronAccount}
                                 >
                                     {tt(
                                         'userwallet_jsx.buy_steem_or_steem_power'
@@ -725,13 +757,41 @@ class UserWallet extends React.Component {
                     <div className="column small-12 medium-8">
                         TRX
                         <div className="secondary">
-                            {tt('userwallet_jsx.create_trx_description')}
+                            {!isTrxAccount
+                                ? tt('userwallet_jsx.create_trx_description')
+                                : TRX_address}
                             <br />
                             {tt('userwallet_jsx.trx_description')}
                         </div>
                     </div>
+                    {/* <div className="column small-12 medium-2"> ..</div> */}
                     <div className="column small-12 medium-4">
-                        {estimate_output}
+                        {isMyAccount && isTrxAccount ? (
+                            <DropdownMenu
+                                className="Wallet_dropdown"
+                                items={trx_menu}
+                                el="li"
+                                selected={sbd_balance_str}
+                            />
+                        ) : (
+                            sbd_balance_str
+                        )}
+
+                        {
+                            <div className="columns shrink">
+                                {isMyAccount &&
+                                    !isTrxAccount && (
+                                        <button
+                                            className="UserWallet__buysp button buttonSmall hollow"
+                                            onClick={onShowDepositSteem}
+                                        >
+                                            {tt(
+                                                'userwallet_jsx.create_trx_button'
+                                            )}
+                                        </button>
+                                    )}
+                            </div>
+                        }
                     </div>
                 </div>
 

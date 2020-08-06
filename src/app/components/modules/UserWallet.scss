@@ -18,7 +18,9 @@
     margin-right: 0 !important;
     margin-top: 1rem;
 }
-
+.buttonSmall{
+    font-size: 10px;
+}
 .UserWallet__claimbox {
     margin: 1.5rem 0 0.5rem;
     padding: 1rem 1rem 1.1rem 1rem;
@@ -46,6 +48,10 @@
     @media only screen and (max-width: 680px) {
         .button {
             margin: 8px 0 0 0;
+        }
+        .buttonSmall{
+            font-size: 10px;
+            margin-left: -20px;
         }
     }
 }
