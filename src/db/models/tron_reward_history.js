@@ -1,7 +1,7 @@
 'use strict';
 module.exports = (sequelize, DataTypes) => {
-    var tron_reward = sequelize.define(
-        'tron_reward',
+    var tron_reward_history = sequelize.define(
+        'tron_reward_history',
         {
             username: {
                 allowNull: false,
@@ -17,6 +17,10 @@ module.exports = (sequelize, DataTypes) => {
             },
             steem_tx_id: {
                 allowNull: false,
+                type: DataTypes.CHAR,
+            },
+            tron_tx_id: {
+                allowNull: true,
                 type: DataTypes.CHAR,
             },
             reward_vests: {
@@ -37,12 +41,12 @@ module.exports = (sequelize, DataTypes) => {
             },
         },
         {
-            tableName: 'tron_reward',
+            tableName: 'tron_reward_history',
             createdAt: 'created_at',
             updatedAt: 'updated_at',
             timestamps: true,
             underscored: true,
         }
     );
-    return tron_reward;
+    return tron_reward_history;
 };
