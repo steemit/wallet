@@ -1,7 +1,7 @@
 'use strict';
 module.exports = (sequelize, DataTypes) => {
-    var tron_user = sequelize.define(
-        'tron_user',
+    var tron_reward = sequelize.define(
+        'tron_reward',
         {
             username: {
                 allowNull: false,
@@ -33,7 +33,7 @@ module.exports = (sequelize, DataTypes) => {
             },
         },
         {
-            tableName: 'tron_user',
+            tableName: 'tron_reward',
             createdAt: 'created_at',
             updatedAt: 'updated_at',
             timestamps: true,

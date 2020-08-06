@@ -2,7 +2,7 @@
 module.exports = {
     up: (queryInterface, Sequelize) => {
         return queryInterface
-            .createTable('tron_user', {
+            .createTable('tron_reward', {
                 id: {
                     allowNull: false,
                     autoIncrement: true,
@@ -17,25 +17,29 @@ module.exports = {
                     allowNull: true,
                     type: Sequelize.CHAR(34),
                 },
-                pending_claim_tron_reward: {
+                block_num: {
+                    allowNull: false,
+                    type: Sequelize.INTEGER.UNSIGNED,
+                },
+                steem_tx_id: {
+                    allowNull: false,
+                    type: Sequelize.CHAR(40),
+                },
+                reward_vests: {
                     allowNull: false,
                     type: Sequelize.BIGINT.UNSIGNED,
                 },
-                is_new_user: {
+                reward_steem: {
                     allowNull: false,
-                    type: Sequelize.BOOLEAN,
+                    type: Sequelize.BIGINT.UNSIGNED,
                 },
-                is_tron_addr_actived: {
+                reward_sbd: {
                     allowNull: false,
-                    type: Sequelize.BOOLEAN,
+                    type: Sequelize.BIGINT.UNSIGNED,
                 },
-                tran_addr_active_time: {
+                vests_per_steem: {
                     allowNull: false,
-                    type: Sequelize.DATE,
-                },
-                tip_count: {
-                    allowNull: false,
-                    type: Sequelize.INTEGER.UNSIGNED,
+                    type: Sequelize.FLOAT,
                 },
                 createdAt: {
                     allowNull: false,
@@ -47,13 +51,13 @@ module.exports = {
                 },
             })
             .then(function() {
-                queryInterface.addIndex('tron_user', ['username'], {
-                    indicesType: 'UNIQUE',
-                });
-                queryInterface.addIndex('tron_user', ['tron_addr']);
+                queryInterface.addIndex('tron_reward', ['username']);
+                queryInterface.addIndex('tron_reward', ['tron_addr']);
+                queryInterface.addIndex('tron_reward', ['block_num']);
+                queryInterface.addIndex('tron_reward', ['steem_tx_id']);
             });
     },
     down: (queryInterface, Sequelize) => {
-        return queryInterface.dropTable('tron_user');
+        return queryInterface.dropTable('tron_reward');
     },
 };
