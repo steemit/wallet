@@ -14,6 +14,12 @@ module.exports = (sequelize, DataTypes) => {
             pending_claim_tron_reward: {
                 allowNull: false,
                 type: DataTypes.BIGINT.UNSIGNED,
+                get: function() {
+                    return `${this.getDataValue('reward_steem') / 1e5}`;
+                },
+                set: function(v) {
+                    this.setDataValue('reward_steem', parseInt(v * 1e5, 10));
+                },
             },
             is_new_user: {
                 allowNull: false,
