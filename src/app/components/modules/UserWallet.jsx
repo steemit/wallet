@@ -72,6 +72,14 @@ class UserWallet extends React.Component {
             new_window.location =
                 'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD';
         };
+        this.onShowTRX = e => {
+            e.preventDefault();
+            const new_window = window.open();
+            new_window.opener = null;
+            new_window.location = 'https://poloniex.com/exchange#usdt_trx';
+        };
+
+        // todo: create a tron account
         this.onCreateTronAccount = e => {};
 
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
@@ -125,6 +133,7 @@ class UserWallet extends React.Component {
             onShowDepositSBD,
             onShowWithdrawSBD,
             onShowDepositPower,
+            onShowTRX,
         } = this;
         const {
             convertToSteem,
@@ -390,7 +399,8 @@ class UserWallet extends React.Component {
         const trx_menu = [
             {
                 value: tt('userwallet_jsx.market'),
-                link: 'https://poloniex.com/exchange#trx_steem',
+                link: '#',
+                onClick: onShowTRX,
             },
         ];
         if (isMyAccount) {
@@ -441,12 +451,12 @@ class UserWallet extends React.Component {
             trx_menu.push({
                 value: tt('g.sell'),
                 link: '#',
-                // onClick: onShowWithdrawSBD,
+                onClick: onShowTRX,
             });
             trx_menu.push({
                 value: tt('g.buy'),
                 link: '#',
-                // onClick: onShowWithdrawSBD,
+                onClick: onShowTRX,
             });
             trx_menu.push({
                 value: tt('g.transfer'),
@@ -454,9 +464,16 @@ class UserWallet extends React.Component {
                 // todo  replace with TRX function
                 // onClick: showTransfer.bind(this, 'SBD', 'Transfer to Account'),
             });
+            trx_menu.push({
+                value: tt('g.vote'),
+                link: '#',
+                // todo  replace with TRX function
+                // onClick: showTransfer.bind(this, 'SBD', 'Transfer to Account'),
+            });
         }
         // todo: get trx address
         const TRX_address = 'trx address ';
+
         if (divesting) {
             power_menu.push({
                 value: 'Cancel Power Down',
@@ -486,6 +503,8 @@ class UserWallet extends React.Component {
         const savings_sbd_balance_str = numberWithCommas(
             '$' + sbd_balance_savings.toFixed(3)
         );
+        // todo: get the number of trx
+        const trx_balance_str = numberWithCommas('0.000');
 
         const savings_menu = [
             {
@@ -771,10 +790,10 @@ class UserWallet extends React.Component {
                                 className="Wallet_dropdown"
                                 items={trx_menu}
                                 el="li"
-                                selected={sbd_balance_str}
+                                selected={trx_balance_str + ' TRX'}
                             />
                         ) : (
-                            sbd_balance_str
+                            trx_balance_str + ' TRX'
                         )}
 
                         {
@@ -783,7 +802,7 @@ class UserWallet extends React.Component {
                                     !isTrxAccount && (
                                         <button
                                             className="UserWallet__buysp button buttonSmall hollow"
-                                            onClick={onShowDepositSteem}
+                                            onClick={onCreateTronAccount}
                                         >
                                             {tt(
                                                 'userwallet_jsx.create_trx_button'
