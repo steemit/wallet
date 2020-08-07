@@ -29,7 +29,7 @@ module.exports = {
                     allowNull: false,
                     type: Sequelize.BOOLEAN,
                 },
-                tran_addr_active_time: {
+                tron_addr_active_time: {
                     allowNull: false,
                     type: Sequelize.DATE,
                 },
