@@ -23,6 +23,7 @@ class UserKeys extends Component {
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserKeys');
         this.state = {
             activeTab: 1,
+            tron_address: 'asdfdfs',
         };
         this.onKey = {};
         keyTypes.forEach(key => {
@@ -51,7 +52,7 @@ class UserKeys extends Component {
     render() {
         const {
             props: { account, isMyAccount },
-            state: { activeTab },
+            state: { activeTab, tron_address },
         } = this;
         const { onKey } = this;
         let idx = 0;
@@ -208,14 +209,48 @@ class UserKeys extends Component {
                                     <p className="key__description">
                                         {tt('userkeys_jsx.tron_account.desc2')}
                                     </p>
-                                    <Keys
-                                        account={account}
-                                        authType="posting"
-                                        onKey={onKey.Posting}
-                                        title={
-                                            'userkeys_jsx.tron_account.address'
-                                        }
-                                    />
+                                    <div className="ShowKey">
+                                        <div className="row key__private">
+                                            <div className="key__private-title">
+                                                <h5>
+                                                    {tt(
+                                                        'userkeys_jsx.tron_account.address'
+                                                    )}
+                                                </h5>
+                                            </div>
+
+                                            <div className="key__private-container">
+                                                <div className="key__private-input">
+                                                    <input
+                                                        className="key__input"
+                                                        type="text"
+                                                        value={
+                                                            tron_address
+                                                                ? tron_address
+                                                                : '•'.repeat(44)
+                                                        }
+                                                        readOnly
+                                                    />
+                                                </div>
+                                                <div className="key__reveal">
+                                                    {tron_address ? (
+                                                        <QRCode
+                                                            text={tron_address}
+                                                        />
+                                                    ) : (
+                                                        <a
+                                                            // onClick={showLogin}
+                                                            className="hollow button"
+                                                        >
+                                                            {tt(
+                                                                'userkeys_jsx.Reveal'
+                                                            )}
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <h5 style={{ marginTop: '20px' }}>
                                         {tt(
                                             'userkeys_jsx.tron_account.tron_key'
@@ -540,34 +575,6 @@ class UserKeys extends Component {
                                     </a>
                                 </p>
                             </div>
-                            {/* <div className="public-keys__container">
-                            <div className="public-keys__intro">
-                                <h3 className="public-keys__h3">Public Keys</h3>
-                                <p className="public-keys__description">
-                                    Each Steem Key has a public and private key to
-                                    encrypt and decrypt data. Public keys are
-                                    associated with usernames and can be used to
-                                    look up associated transactions on the
-                                    blockchain. Your public keys are not required
-                                    for login on Steemit.com and you don't need to
-                                    store these safely.
-                                </p>
-                                <p className="public-keys__description">
-                                    View public key information for this account (in
-                                    the 'Authorities' module):{' '}
-                                    <a
-                                        className="public-keys__link"
-                                        href={
-                                            'https://steemscan.com/account/' +
-                                            account.get('name')
-                                        }
-                                    >
-                                        steemscan.com/account/{account.get('name')}
-                                    </a>
-                                </p>
-                            </div>
-                            <div>{wifQrs && <span>{wifQrs}</span>}</div>
-                        </div> */}
                         </div>
                     )}
                 </div>

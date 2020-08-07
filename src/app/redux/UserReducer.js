@@ -12,6 +12,8 @@ const REMOVE_HIGH_SECURITY_KEYS = 'user/REMOVE_HIGH_SECURITY_KEYS';
 const CHANGE_LANGUAGE = 'user/CHANGE_LANGUAGE';
 const SHOW_TRANSFER = 'user/SHOW_TRANSFER';
 const HIDE_TRANSFER = 'user/HIDE_TRANSFER';
+const SHOW_TRON_TRANSFER = 'user/SHOW_TRON_TRANSFER';
+const HIDE_TRON_TRANSFER = 'user/HIDE_TRON_TRANSFER';
 const SHOW_POWERDOWN = 'user/SHOW_POWERDOWN';
 const HIDE_POWERDOWN = 'user/HIDE_POWERDOWN';
 const SET_TRANSFER_DEFAULTS = 'user/SET_TRANSFER_DEFAULTS';
@@ -139,6 +141,12 @@ export default function reducer(state = defaultState, action) {
 
         case HIDE_TRANSFER:
             return state.set('show_transfer_modal', false);
+
+        case SHOW_TRON_TRANSFER:
+            return state.set('show_tron_transfer_modal', true);
+
+        case HIDE_TRON_TRANSFER:
+            return state.set('show_tron_transfer_modal', false);
 
         case SHOW_POWERDOWN:
             return state.set('show_powerdown_modal', true);
@@ -297,6 +305,15 @@ export const showTransfer = payload => ({
 
 export const hideTransfer = payload => ({
     type: HIDE_TRANSFER,
+    payload,
+});
+export const showTronTransfer = payload => ({
+    type: SHOW_TRON_TRANSFER,
+    payload,
+});
+
+export const hideTronTransfer = payload => ({
+    type: HIDE_TRON_TRANSFER,
     payload,
 });
 

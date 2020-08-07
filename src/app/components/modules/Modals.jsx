@@ -12,6 +12,7 @@ import * as transactionActions from 'app/redux/TransactionReducer';
 import LoginForm from 'app/components/modules/LoginForm';
 import ConfirmTransactionForm from 'app/components/modules/ConfirmTransactionForm';
 import Transfer from 'app/components/modules/Transfer';
+import TronTransfer from 'app/components/modules/TronTransfer';
 import SignUp from 'app/components/modules/SignUp';
 import Powerdown from 'app/components/modules/Powerdown';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
@@ -27,6 +28,7 @@ class Modals extends React.Component {
         show_bandwidth_error_modal: false,
         show_powerdown_modal: false,
         show_transfer_modal: false,
+        show_tron_transfer_modal: false,
         show_confirm_modal: false,
         show_login_modal: false,
         show_post_advanced_settings_modal: '',
@@ -35,6 +37,7 @@ class Modals extends React.Component {
         show_login_modal: PropTypes.bool,
         show_confirm_modal: PropTypes.bool,
         show_transfer_modal: PropTypes.bool,
+        show_tron_transfer_modal: PropTypes.bool,
         show_powerdown_modal: PropTypes.bool,
         show_bandwidth_error_modal: PropTypes.bool,
         show_signup_modal: PropTypes.bool,
@@ -44,6 +47,7 @@ class Modals extends React.Component {
         hideConfirm: PropTypes.func.isRequired,
         hideSignUp: PropTypes.func.isRequired,
         hideTransfer: PropTypes.func.isRequired,
+        hideTronTransfer: PropTypes.func.isRequired,
         hidePowerdown: PropTypes.func.isRequired,
         hideBandwidthError: PropTypes.func.isRequired,
         notifications: PropTypes.object,
@@ -61,12 +65,14 @@ class Modals extends React.Component {
             show_login_modal,
             show_confirm_modal,
             show_transfer_modal,
+            show_tron_transfer_modal,
             show_powerdown_modal,
             show_signup_modal,
             show_bandwidth_error_modal,
             show_post_advanced_settings_modal,
             hideLogin,
             hideTransfer,
+            hideTronTransfer,
             hidePowerdown,
             hideConfirm,
             hideSignUp,
@@ -88,8 +94,7 @@ class Modals extends React.Component {
             if (e && e.preventDefault) e.preventDefault();
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location =
-                'https://poloniex.com/exchange#trx_steem';
+            new_window.location = 'https://poloniex.com/exchange#trx_steem';
         };
 
         return (
@@ -109,6 +114,15 @@ class Modals extends React.Component {
                     <Reveal onHide={hideTransfer} show={show_transfer_modal}>
                         <CloseButton onClick={hideTransfer} />
                         <Transfer />
+                    </Reveal>
+                )}
+                {show_tron_transfer_modal && (
+                    <Reveal
+                        onHide={hideTronTransfer}
+                        show={show_tron_transfer_modal}
+                    >
+                        <CloseButton onClick={hideTronTransfer} />
+                        <TronTransfer />
                     </Reveal>
                 )}
                 {show_powerdown_modal && (
@@ -180,6 +194,9 @@ export default connect(
             show_login_modal: state.user.get('show_login_modal'),
             show_confirm_modal: state.transaction.get('show_confirm_modal'),
             show_transfer_modal: state.user.get('show_transfer_modal'),
+            show_tron_transfer_modal: state.user.get(
+                'show_tron_transfer_modal'
+            ),
             show_powerdown_modal: state.user.get('show_powerdown_modal'),
             show_signup_modal: state.user.get('show_signup_modal'),
             notifications: state.app.get('notifications'),
@@ -210,6 +227,10 @@ export default connect(
         hideTransfer: e => {
             if (e) e.preventDefault();
             dispatch(userActions.hideTransfer());
+        },
+        hideTronTransfer: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.hideTronTransfer());
         },
         hidePowerdown: e => {
             if (e) e.preventDefault();

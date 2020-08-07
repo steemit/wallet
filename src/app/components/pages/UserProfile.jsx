@@ -117,6 +117,7 @@ export default class UserProfile extends React.Component {
                     <UserWallet
                         account={accountImm}
                         showTransfer={this.props.showTransfer}
+                        showTronTransfer={this.props.showTronTransfer}
                         showPowerdown={this.props.showPowerdown}
                         currentUser={currentUser}
                         withdrawVesting={this.props.withdrawVesting}
@@ -365,6 +366,9 @@ module.exports = {
             showTransfer: transferDefaults => {
                 dispatch(userActions.setTransferDefaults(transferDefaults));
                 dispatch(userActions.showTransfer());
+            },
+            showTronTransfer: () => {
+                dispatch(userActions.showTronTransfer());
             },
             clearPowerdownDefaults: () => {
                 dispatch(userActions.clearPowerdownDefaults());
