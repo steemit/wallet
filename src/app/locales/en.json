@@ -528,7 +528,12 @@
         "the_private_key_or_password_should_be_kept_offline":
             "The private key or password for the owner key should be kept offline as much as possible.",
         "the_memo_key_is_used_to_create_and_read_memos":
-            "This key can be used to send and view encrypted memos on the Steem blockchain."
+            "This key can be used to send and view encrypted memos on the Steem blockchain.",
+        "userkeys_info_1":
+            "Any password or key is more likely to get compromised the more it is used. That's why Steem uses a hierarchical key system to keep you safe. You are issued with Steem and TRON keys which have different permissions. For example, the Posting Key (which is intended to be used frequently) has a limited set of permissions for social actions that require less security. You'll need to be more careful with your Active Key since it has permissions to perform wallet related actions.",
+        "userkeys_info_2":
+            "Please take note of your Steem and TRON Keys listed below. Ideally, use a Password Manager (like 1Password or LastPass) or store an offline copy safely (on a piece of paper or on a file on a USB drive).",
+        "leare_more": "Learn more"
     },
     "suggestpassword_jsx": {
         "APP_NAME_cannot_recover_passwords_keep_this_page_in_a_secure_location":

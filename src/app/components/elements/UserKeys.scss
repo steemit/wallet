@@ -78,6 +78,11 @@
 	.button.hollow {
 		@extend .e-btn-hollow;
 	}
+	.user-keys-tabs{
+		border: 1px solid #eee;
+		padding-left: 20px;
+		margin-bottom: 0;
+	}
 }
 
 
@@ -85,7 +90,8 @@
 	margin-bottom: 2em;
 	@include themify($themes) {
 	   	border: themed('border');  
-	   	background: themed('moduleBackgroundColor');
+			background: themed('moduleBackgroundColor');
+			border-top: 0;
 	} 		
 	&__description {
 		@include font-size(16px);
@@ -96,6 +102,7 @@
 
 	}	  	
 	&__title-container {
+		display: none;
 		padding: 16px;
 		@include MQ(FL) {
 			padding: 18px 24px;

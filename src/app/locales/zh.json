@@ -454,7 +454,91 @@
         "the_private_key_or_password_should_be_kept_offline":
             "Owner Key的私钥或密码应尽可能保持离线。",
         "the_memo_key_is_used_to_create_and_read_memos":
-            "Memo Key用于创建和读取备注。"
+            "Memo Key用于创建和读取备注。",
+        "userkeys_desc_1":
+            "密码或密钥使用时间越长，安全隐患就越高。 因此 Steem 采用等级制密钥系统来保证您的账户安全。 您将分别获得 Steem 与TRON的密钥，对应不同权限。 例如，“发帖密钥”是一种常用密钥，用于一些安全要求较低的社交操作权限。 而“活跃密钥”用于钱包相关的操作权限，需要您更谨慎保管。",
+        "userkeys_desc_2":
+            "请记录下方您的 Steem 和TRON密钥。 建议使用密码管理软件（如 1Password 和 LastPass），或用离线的安全手段保存密码（如记录在纸上或 U 盘文件中）。",
+        "leare_more": "了解更多",
+        "tron_account": {
+            "title": "TRON账户",
+            "desc1":
+                "TRON账户地址用于接受 TRX 奖励。 TRX 奖励根据您可以赎回的 SP 数，按个数等比例发放。",
+            "desc2":
+                "TRON账户地址也是TRON账户的公钥， 用于转账。 您进行代币转账的接收地址就是公钥。",
+            "desc3":
+                "该私钥对应您TRON账户的最高权限， 用于您在TRON的交易签名，例如代币转账，冻结代币和投票。",
+            "address": "TRON账户地址",
+            "tron_key": "TRON账户私钥",
+            "tron_key_tip": "请在带有TRON账户公私钥的PDF中查看。",
+            "tron_account_permissions": "TRON 私钥权限",
+            "tron_account_permissions1": "您的 TRON 私钥可用于：",
+            "tron_account_permissions2": "代币转账",
+            "tron_account_permissions3": "冻结和解冻 TRX",
+            "tron_account_permissions4": "为TRON超级代表（SR）投票",
+            "tron_account_permissions5": "探索TRON生态"
+        },
+        "Reveal": "显示",
+        "posting_key": {
+            "title": "发帖密钥",
+            "desc1":
+                "该密钥用于在社交媒体上进行操作，如发帖、评论和投票等。 该密钥权限有限，不适用于资金操作。 若他人获得该密钥，您的财产不会受影响。",
+            "desc2":
+                "该密钥可用于登录其他 Steem 支持的社交平台，如 Steemit，Busy 和 eSteem。 请妥善保管该密钥。",
+            "posting_key_title": "您的私人发帖密钥",
+            "Posting_Key_permissions": "发帖密钥权限",
+            "Posting_Key_permissions1": "您的发帖密钥可用于：",
+            "Posting_Key_permissions2": "发布帖子或评论",
+            "Posting_Key_permissions3": "编辑帖子或评论",
+            "Posting_Key_permissions4": "投支持或反对票",
+            "Posting_Key_permissions5": "分享内容",
+            "Posting_Key_permissions6": "关注用户",
+            "Posting_Key_permissions7": "关闭通知"
+        },
+        "active_key": {
+            "title": "活跃密钥",
+            "desc1": "此密钥拥有资金操作权限，如进行转账和代币交易。",
+            "desc2":
+                "当执行与钱包相关的操作时，系统会提示您使用活跃密钥验证身份。 请仅在您信任的应用中输入活跃密钥，因为得到此密钥的人可能提取您的代币。 请您为自己负责，妥善保管好此密钥以防代币丢失。",
+            "active_key_title": "您的私人活跃密钥",
+            "active_Key_permissions": "活跃密钥权限",
+            "active_Key_permissions1": "您的活跃密钥可用于：",
+            "active_Key_permissions2": "代币转账",
+            "active_Key_permissions3": "Power up或power down STEEM",
+            "active_Key_permissions4": "SBD 转换",
+            "active_Key_permissions5": "为证人投票",
+            "active_Key_permissions6": "在交易所下单",
+            "active_Key_permissions7": "部分个人档案修改",
+            "active_Key_permissions8": "发布证人喂价",
+            "active_Key_permissions9": "创建新用户"
+        },
+        "owner_key": {
+            "title": "拥有者密钥",
+            "desc":
+                "拥有者密钥用于修改其他密钥。 这一密钥具有额外权限，可用于恢复您的账户或修改您其他的密钥。 拥有者密钥是最重要的密钥，您应将其离线存储在安全位置。",
+            "owner_key_title": "您的私人拥有者密钥",
+            "owner_Key_permissions": "拥有者密钥权限",
+            "owner_Key_permissions1": "您的拥有者密钥可用于：",
+            "owner_Key_permissions2": "重置拥有者、活跃及发帖密钥",
+            "owner_Key_permissions3": "找回您的账号",
+            "owner_Key_permissions4": "拒绝投票权"
+        },
+        "memo_key": {
+            "title": "备注密钥",
+            "desc":
+                "备注密钥比较特殊。 它唯一的功能就是对由区块链发送的私人消息进行加密和解密。 这在未来可能成为一个十分强大的功能，但其当前还未被广泛使用。 如果您收到一条私人消息并想要对其解密，您应使用所需授权最少的密钥。这样的情况下，您应该使用备注密钥。",
+            "memo_key_title": "您的私人备注密钥",
+            "memo_Key_permissions": "备注密钥权限",
+            "memo_Key_permissions1": "您的备注密钥可用于：",
+            "memo_Key_permissions2": "发送一条加密消息",
+            "memo_Key_permissions3": "查看一条加密消息"
+        },
+        "public_key": {
+            "title": "公钥",
+            "desc1":
+                "每一个 Steem 密钥都有一个公钥和私钥用于加密和解密数据。 公钥与用户名相关联，可用于查找区块链上的相关交易。 您无需使用公钥登录 Steemit.com，因此您不用特意存储公钥。",
+            "desc2": "查看此账户的公钥信息（在“授权”模块中查看）"
+        }
     },
     "suggestpassword_jsx": {
         "APP_NAME_cannot_recover_passwords_keep_this_page_in_a_secure_location":
