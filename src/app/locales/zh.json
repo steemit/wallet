@@ -672,5 +672,17 @@
         "ownership_changed_on": "所有权变更",
         "deadline_for_recovery_is": "恢复的截止日期是",
         "i_understand_dont_show_again": "我明白，不要再显示"
+    },
+    "tron_jsx": {
+        "content0":
+            "使用TRX为节点投票,参与TRON生态建设, 您将享受最高百分之八年收益率.",
+        "content1": "投票前需要先将TRX进行冻结获得投票权",
+        "content2": "具体步骤如下:",
+        "step1": "Step1: 点击\"去投票\" 按钮 , 进入Tron scan 投票月面",
+        "step2": "Step2: 点击 \"链接钱包\",选择 \"倒入和登陆\"",
+        "step3": "Step3: 输入TRON账号私钥后 点击\"登陆\"",
+        "step4": "Step4: 点击 \"投票\" 按钮 并跟谁引导进行操作",
+        "vote_button": "去投票",
+        "step": "步骤"
     }
 }

@@ -27,6 +27,7 @@ import {
 import * as transactionActions from 'app/redux/TransactionReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
+import * as userActions from 'app/redux/UserReducer';
 
 const assetPrecision = 1000;
 
@@ -468,7 +469,7 @@ class UserWallet extends React.Component {
                 value: tt('g.vote'),
                 link: '#',
                 // todo  replace with TRX function
-                // onClick: showTransfer.bind(this, 'SBD', 'Transfer to Account'),
+                onClick: this.props.showVote(),
             });
         }
         // todo: get trx address
@@ -932,8 +933,14 @@ export default connect(
         convertToSteem: e => {
             //post 2018-01-31 if no calls to this function exist may be safe to remove. Investigate use of ConvertToSteem.jsx
             e.preventDefault();
+            console.log('set convertToSteem');
             const name = 'convertToSteem';
             dispatch(globalActions.showDialog({ name }));
         },
+        // showVote: () =>{
+        //     // if (e) e.preventDefault();
+        //     console.log('set vote to be true');
+        //     dispatch(userActions.showVote());
+        // },
     })
 )(UserWallet);
