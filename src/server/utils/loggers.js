@@ -1,3 +1,4 @@
+/* eslint-disable arrow-parens */
 /* eslint-disable no-underscore-dangle */
 import { getRemoteIp } from 'server/utils/misc';
 
