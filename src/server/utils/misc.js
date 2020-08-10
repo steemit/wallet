@@ -1,3 +1,7 @@
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable no-unused-vars */
+/* eslint-disable vars-on-top */
+/* eslint-disable no-var */
 import path from 'path';
 import fs from 'fs';
 import { esc } from 'db/models';
