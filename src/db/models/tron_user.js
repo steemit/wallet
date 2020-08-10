@@ -15,10 +15,14 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: false,
                 type: DataTypes.BIGINT.UNSIGNED,
                 get() {
-                    return `${this.getDataValue('reward_steem') / 1e5}`;
+                    return `${this.getDataValue('pending_claim_tron_reward') /
+                        1e5}`;
                 },
                 set(v) {
-                    this.setDataValue('reward_steem', parseInt(v * 1e5, 10));
+                    this.setDataValue(
+                        'pending_claim_tron_reward',
+                        parseInt(v * 1e5, 10)
+                    );
                 },
             },
             is_new_user: {
