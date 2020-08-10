@@ -134,4 +134,5 @@ function* updateRecordCache(
 module.exports = {
     getRecordCache,
     updateRecordCache,
+    parseResultToArr,
 };
