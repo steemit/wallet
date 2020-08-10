@@ -45,7 +45,7 @@ function* getRecordCache(
             result = yield hgetallAsync(cacheKey);
             if (!result) {
                 // not hit cache
-                log('db_cache', {
+                log('getRecordCache', {
                     msg: 'not_hit_get_all_item_cache',
                     cacheKey,
                 });
@@ -71,7 +71,10 @@ function* getRecordCache(
         result = yield hgetAsync(cacheKey, field);
         if (!result) {
             // not hit cache
-            log('db_cache', { msg: 'not_hit_get_one_item_cache', cacheKey });
+            log('getRecordCache', {
+                msg: 'not_hit_get_one_item_cache',
+                cacheKey,
+            });
             const dbOptions = {
                 where: conditions,
             };
@@ -85,7 +88,7 @@ function* getRecordCache(
         }
         return result;
     } catch (e) {
-        log('db_cache', { msg: e.message, cacheKey });
+        log('getRecordCache', { msg: e.message, cacheKey });
         return null;
     }
 }
@@ -99,6 +102,27 @@ function parseResultToArr(result = {}) {
     return nResult;
 }
 
+function* updateRecordCache(
+    model,
+    conditions = {},
+    data = [],
+    cacheAll = true
+) {
+    const cacheKey = `${keyPrefix}${JSON.stringify(conditions)}${
+        cacheAll ? '_all_fields' : ''
+    }`;
+    try {
+        if (data !== []) {
+            yield hmsetAsync(cacheKey, ...data);
+        }
+        return true;
+    } catch (e) {
+        log('updateRecordCache', { msg: e.message });
+        return false;
+    }
+}
+
 export default {
     getRecordCache,
+    updateRecordCache,
 };
