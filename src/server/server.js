@@ -1,3 +1,4 @@
+/* eslint-disable arrow-parens */
 /* eslint-disable no-plusplus */
 /* eslint-disable space-before-function-paren */
 /* eslint-disable prefer-arrow-callback */
@@ -23,6 +24,7 @@ import favicon from 'koa-favicon';
 import staticCache from 'koa-static-cache';
 import useRedirects from './redirects';
 import useGeneralApi from './api/general';
+import useTronRewardApi from './api/tron_reward';
 import useAccountRecoveryApi from './api/account_recovery';
 import useEnterAndConfirmEmailPages from './sign_up_pages/enter_confirm_email';
 import useEnterAndConfirmMobilePages from './sign_up_pages/enter_confirm_mobile';
@@ -249,6 +251,7 @@ useEnterAndConfirmEmailPages(app);
 useEnterAndConfirmMobilePages(app);
 
 useAccountRecoveryApi(app);
+useTronRewardApi(app);
 useGeneralApi(app);
 
 // helmet wants some things as bools and some as lists, makes config difficult.
