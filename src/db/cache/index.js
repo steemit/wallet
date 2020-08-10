@@ -108,6 +108,7 @@ function* updateRecordCache(
     data = [],
     cacheAll = true
 ) {
+    const keyPrefix = model.getCachePrefix();
     const cacheKey = `${keyPrefix}${JSON.stringify(conditions)}${
         cacheAll ? '_all_fields' : ''
     }`;
@@ -117,7 +118,7 @@ function* updateRecordCache(
         }
         return true;
     } catch (e) {
-        log('updateRecordCache', { msg: e.message });
+        log('updateRecordCache', { msg: e.message, cacheKey });
         return false;
     }
 }
