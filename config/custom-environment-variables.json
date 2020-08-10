@@ -71,5 +71,11 @@
   "address_prefix": "SDC_ADDRESS_PREFIX",
   "conveyor_posting_wif": "CONVEYOR_POSTING_WIF",
   "conveyor_username": "CONVEYOR_USERNAME",
-  "social_url": "SOCIAL_URL"
+  "social_url": "SOCIAL_URL",
+  "tron_reward": {
+      "switch": "TRON_REWARD_SWITCH",
+      "vests_per_trx": "TRON_REWARD_VESTS_PER_TRX",
+      "unbind_tip_limit": "TRON_REWARD_UNBIND_TIP_LIMIT"
+    },
+    "redis_url": "REDIS_URL"
 }
