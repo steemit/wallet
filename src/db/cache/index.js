@@ -7,14 +7,16 @@ import { promisify } from 'util';
 import { log } from 'server/utils/loggers';
 
 const env = process.env.NODE_ENV || 'development';
+const EXPIRED_TIME = 60 * 5; // second
 const redisUrl = config.get('redis_url');
-const client = new createClient(redisUrl);
+const client = new createClient({ url: redisUrl });
 const getAsync = promisify(client.get).bind(client);
 const setAsync = promisify(client.set).bind(client);
 const hgetallAsync = promisify(client.hgetall).bind(client);
 const hmsetAsync = promisify(client.hmset).bind(client);
 const hgetAsync = promisify(client.hget).bind(client);
 const hsetAsync = promisify(client.hset).bind(client);
+const expireAsync = promisify(client.expire).bind(client);
 
 client.on('error', err => {
     console.error('redis_error:', err.code);
@@ -60,6 +62,7 @@ function* getRecordCache(
                 result = result.get();
                 if (Object.keys(result).length === 0) return null;
                 yield hmsetAsync(cacheKey, ...parseResultToArr(result));
+                yield expireAsync([cacheKey, EXPIRED_TIME]);
             }
             return result;
         }
@@ -86,6 +89,7 @@ function* getRecordCache(
             result = result.get();
             if (Object.keys(result).length === 0) return null;
             yield hmsetAsync(cacheKey, ...parseResultToArr(result));
+            yield expireAsync([cacheKey, EXPIRED_TIME]);
         }
         return result;
     } catch (e) {
@@ -118,6 +122,7 @@ function* updateRecordCache(
     try {
         if (data !== []) {
             yield hmsetAsync(cacheKey, ...data);
+            yield expireAsync([cacheKey, EXPIRED_TIME]);
         }
         return true;
     } catch (e) {
