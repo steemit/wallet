@@ -17,6 +17,7 @@ import SignUp from 'app/components/modules/SignUp';
 import Powerdown from 'app/components/modules/Powerdown';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import TermsAgree from 'app/components/modules/TermsAgree';
+import TronVote from 'app/components/modules/TronVote';
 
 class Modals extends React.Component {
     static defaultProps = {
@@ -32,8 +33,10 @@ class Modals extends React.Component {
         show_confirm_modal: false,
         show_login_modal: false,
         show_post_advanced_settings_modal: '',
+        show_vote_modal: false,
     };
     static propTypes = {
+        show_vote_modal: PropTypes.bool,
         show_login_modal: PropTypes.bool,
         show_confirm_modal: PropTypes.bool,
         show_transfer_modal: PropTypes.bool,
@@ -50,6 +53,7 @@ class Modals extends React.Component {
         hideTronTransfer: PropTypes.func.isRequired,
         hidePowerdown: PropTypes.func.isRequired,
         hideBandwidthError: PropTypes.func.isRequired,
+        hideVote: PropTypes.func.isRequired,
         notifications: PropTypes.object,
         show_terms_modal: PropTypes.bool,
         removeNotification: PropTypes.func,
@@ -62,6 +66,7 @@ class Modals extends React.Component {
 
     render() {
         const {
+            show_vote_modal,
             show_login_modal,
             show_confirm_modal,
             show_transfer_modal,
@@ -81,6 +86,7 @@ class Modals extends React.Component {
             removeNotification,
             hideBandwidthError,
             username,
+            hideVote,
         } = this.props;
 
         const notifications_array = notifications
@@ -99,6 +105,12 @@ class Modals extends React.Component {
 
         return (
             <div>
+                {show_vote_modal && (
+                    <Reveal onHide={hideVote} show={show_vote_modal}>
+                        <CloseButton onClick={hideVote} />
+                        <TronVote />
+                    </Reveal>
+                )}
                 {show_login_modal && (
                     <Reveal onHide={hideLogin} show={show_login_modal}>
                         <LoginForm onCancel={hideLogin} />
@@ -199,6 +211,7 @@ export default connect(
             ),
             show_powerdown_modal: state.user.get('show_powerdown_modal'),
             show_signup_modal: state.user.get('show_signup_modal'),
+            show_vote_modal: state.user.get('show_vote_modal'),
             notifications: state.app.get('notifications'),
             show_terms_modal:
                 state.user.get('show_terms_modal') &&
@@ -216,6 +229,10 @@ export default connect(
         };
     },
     dispatch => ({
+        hideVote: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.hideVote());
+        },
         hideLogin: e => {
             if (e) e.preventDefault();
             dispatch(userActions.hideLogin());

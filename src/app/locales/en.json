@@ -922,5 +922,19 @@
         },
         "confirm_remove_proposal_description":
             "Proposal removal is permanent and the fee paid for creating the proposal is not refundable."
+    },
+    "tron_jsx": {
+        "content0":
+            "Using TRx vote for tron node and joining in construction of TRON ECOSYSTEM, where you can receive at most eight percentage benefit rate",
+        "content1": "Freeze TRX before voting in order to gain right to vote.",
+        "content2": "Do Following:",
+        "step1":
+            "Step1: click \"Vote\" button , which redirect to Tron scan vote page",
+        "step2": "Step2: click \"link wallet\",chose \"import\"",
+        "step3":
+            "Step3: Click \"Sign in\" button once finish input TRON private key ",
+        "step4": "Step4: click \"Vote\" button and follow the instruction",
+        "vote_button": "go vote",
+        "step": "step"
     }
 }

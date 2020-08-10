@@ -36,7 +36,8 @@ const HIDE_CONNECTION_ERROR_MODAL = 'user/HIDE_CONNECTION_ERROR_MODAL';
 const SET = 'user/SET';
 const SHOW_SIDE_PANEL = 'user/SHOW_SIDE_PANEL';
 const HIDE_SIDE_PANEL = 'user/HIDE_SIDE_PANEL';
-
+const SHOW_VOTE = 'user/SHOW_VOTE';
+const HIDE_VOTE = 'user/HIDE_VOTE';
 // Saga-related
 export const LOAD_SAVINGS_WITHDRAW = 'user/LOAD_SAVINGS_WITHDRAW';
 export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
@@ -46,7 +47,8 @@ const defaultState = fromJS({
     show_login_modal: false,
     show_transfer_modal: false,
     show_signup_modal: false,
-    show_post_advanced_settings_modal: '', // formId
+    show_post_advanced_settings_modal: '', // formId,
+    show_vote_modal: false,
     pub_keys_used: null,
     locale: DEFAULT_LANGUAGE,
     show_side_panel: false,
@@ -177,6 +179,7 @@ export default function reducer(state = defaultState, action) {
             return state.mergeDeep({
                 current: payload,
                 show_login_modal: false,
+                show_vote_modal: false,
                 loginBroadcastOperation: undefined,
                 loginDefault: undefined,
                 logged_out: undefined,
@@ -196,6 +199,7 @@ export default function reducer(state = defaultState, action) {
             return state.mergeDeep({
                 current: payload,
                 show_login_modal: false,
+                show_vote_modal: false,
                 loginBroadcastOperation: undefined,
                 loginDefault: undefined,
                 logged_out: undefined,
@@ -254,6 +258,10 @@ export default function reducer(state = defaultState, action) {
 
         case HIDE_SIDE_PANEL:
             return state.set('show_side_panel', false);
+        case SHOW_VOTE:
+            return state.set('show_vote_modal', true);
+        case HIDE_VOTE:
+            return state.set('show_vote_modal', false);
 
         default:
             return state;
@@ -268,6 +276,16 @@ export const showLogin = payload => ({
 
 export const hideLogin = payload => ({
     type: HIDE_LOGIN,
+    payload,
+});
+
+export const showVote = payload => ({
+    type: SHOW_VOTE,
+    payload,
+});
+
+export const hideVote = payload => ({
+    type: HIDE_VOTE,
     payload,
 });
 

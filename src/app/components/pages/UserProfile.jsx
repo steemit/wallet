@@ -119,6 +119,7 @@ export default class UserProfile extends React.Component {
                         showTransfer={this.props.showTransfer}
                         showTronTransfer={this.props.showTronTransfer}
                         showPowerdown={this.props.showPowerdown}
+                        showVote={this.props.showVote}
                         currentUser={currentUser}
                         withdrawVesting={this.props.withdrawVesting}
                     />
@@ -357,6 +358,9 @@ module.exports = {
             };
         },
         dispatch => ({
+            showVote: () => {
+                dispatch(userActions.showVote());
+            },
             login: () => {
                 dispatch(userActions.showLogin());
             },
