@@ -35,7 +35,8 @@ function* getRecordCache(
 
     const keyPrefix = model.getCachePrefix();
     const fields = model.getCacheFields();
-    const cacheKey = `${keyPrefix}${JSON.stringify(conditions)}${
+    const conditionsStr = parseResultToArr(conditions).join('_');
+    const cacheKey = `${keyPrefix}${conditionsStr}_${
         cacheAll ? '_all_fields' : ''
     }`;
     let result;
@@ -56,9 +57,9 @@ function* getRecordCache(
                     dbOptions.attributes = fields;
                 }
                 result = yield model.findOne(dbOptions);
-                if (!result) return null;
-                result = parseResultToArr(result.dataValues);
-                yield hmsetAsync(cacheKey, ...result);
+                result = result.get();
+                if (Object.keys(result).length === 0) return null;
+                yield hmsetAsync(cacheKey, ...parseResultToArr(result));
             }
             return result;
         }
@@ -82,9 +83,9 @@ function* getRecordCache(
                 dbOptions.attributes = fields;
             }
             result = yield model.findOne(dbOptions);
-            if (!result) return null;
-            result = parseResultToArr(result.dataValues);
-            yield hmsetAsync(cacheKey, ...result);
+            result = result.get();
+            if (Object.keys(result).length === 0) return null;
+            yield hmsetAsync(cacheKey, ...parseResultToArr(result));
         }
         return result;
     } catch (e) {
@@ -108,8 +109,10 @@ function* updateRecordCache(
     data = [],
     cacheAll = true
 ) {
+    if (conditions.length <= 0) return false;
     const keyPrefix = model.getCachePrefix();
-    const cacheKey = `${keyPrefix}${JSON.stringify(conditions)}${
+    const conditionsStr = parseResultToArr(conditions).join('_');
+    const cacheKey = `${keyPrefix}${conditionsStr}_${
         cacheAll ? '_all_fields' : ''
     }`;
     try {
@@ -123,7 +126,7 @@ function* updateRecordCache(
     }
 }
 
-export default {
+module.exports = {
     getRecordCache,
     updateRecordCache,
 };
