@@ -1,3 +1,13 @@
+/* eslint-disable no-plusplus */
+/* eslint-disable space-before-function-paren */
+/* eslint-disable prefer-arrow-callback */
+/* eslint-disable no-unused-vars */
+/* eslint-disable no-bitwise */
+/* eslint-disable require-yield */
+/* eslint-disable generator-star-spacing */
+/* eslint-disable import/no-dynamic-require */
+/* eslint-disable global-require */
+/* eslint-disable import/first */
 import path from 'path';
 import Koa from 'koa';
 import mount from 'koa-mount';
@@ -279,7 +289,7 @@ if (env !== 'test') {
 
     if (env === 'production') {
         if (cluster.isMaster) {
-            for (var i = 0; i < numProcesses; i++) {
+            for (let i = 0; i < numProcesses; i++) {
                 cluster.fork();
             }
             // if a worker dies replace it so application keeps running
