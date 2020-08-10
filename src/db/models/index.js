@@ -1,3 +1,7 @@
+/* eslint-disable no-mixed-operators */
+/* eslint-disable no-useless-escape */
+/* eslint-disable dot-notation */
+/* eslint-disable space-before-function-paren */
 /* eslint-disable prefer-arrow-callback */
 /* eslint-disable no-var */
 var fs = require('fs');
