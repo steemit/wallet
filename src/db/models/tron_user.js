@@ -1,5 +1,5 @@
 /* eslint-disable lines-around-directive */
-module.exports = function(sequelize, DataTypes) {
+module.exports = (sequelize, DataTypes) => {
     const tronUser = sequelize.define(
         'TronUser',
         {
