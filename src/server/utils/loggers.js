@@ -28,6 +28,21 @@ function logRequest(path, ctx, extra) {
     console.log(`-- /${path} --> ${info}`);
 }
 
+function log(position, extra) {
+    const d = {};
+    if (extra) {
+        Object.keys(extra).forEach(k => {
+            const nk = d[k] ? '_' + k : k;
+            d[nk] = extra[k];
+        });
+    }
+    const info = Object.keys(d)
+        .map(k => `${k}=${_stringval(d[k])}`)
+        .join(' ');
+    console.log(`Position: ${position} --> ${info}`);
+}
+
 module.exports = {
     logRequest,
+    log,
 };
