@@ -1,7 +1,7 @@
-'use strict';
+/* eslint-disable lines-around-directive */
 module.exports = (sequelize, DataTypes) => {
-    var tron_user = sequelize.define(
-        'tron_user',
+    const tronUser = sequelize.define(
+        'TronUser',
         {
             username: {
                 allowNull: false,
@@ -14,10 +14,10 @@ module.exports = (sequelize, DataTypes) => {
             pending_claim_tron_reward: {
                 allowNull: false,
                 type: DataTypes.BIGINT.UNSIGNED,
-                get: function() {
+                get() {
                     return `${this.getDataValue('reward_steem') / 1e5}`;
                 },
-                set: function(v) {
+                set(v) {
                     this.setDataValue('reward_steem', parseInt(v * 1e5, 10));
                 },
             },
@@ -46,5 +46,5 @@ module.exports = (sequelize, DataTypes) => {
             underscored: true,
         }
     );
-    return tron_user;
+    return tronUser;
 };
