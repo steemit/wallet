@@ -1,5 +1,5 @@
 /* eslint-disable lines-around-directive */
-module.exports = (sequelize, DataTypes) => {
+module.exports = function(sequelize, DataTypes) {
     const tronUser = sequelize.define(
         'TronUser',
         {
@@ -46,5 +46,11 @@ module.exports = (sequelize, DataTypes) => {
             underscored: true,
         }
     );
+    tronUser.getCacheFields = () => [
+        'tron_addr',
+        'tip_count',
+        'pending_claim_tron_reward',
+    ];
+    tronUser.getCachePrefix = () => 'tron_user_';
     return tronUser;
 };
