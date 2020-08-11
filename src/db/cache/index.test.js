@@ -7,4 +7,9 @@ describe('DB Cache', () => {
         const result2 = parseResultToArr(result);
         expect(result2.sort()).toEqual(['a', 1, 'b', 2].sort());
     });
+    it('test parseResultToArr, convert null to empty string', () => {
+        const result = { a: null };
+        const result2 = parseResultToArr(result);
+        expect(result2[1]).toEqual('');
+    });
 });
