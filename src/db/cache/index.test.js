@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-import { parseResultToArr } from 'db/cache';
+import { parseResultToArr, parseNullToEmptyString } from 'db/cache';
 
 describe('DB Cache', () => {
     it('test parseResultToArr function', () => {
@@ -11,5 +11,10 @@ describe('DB Cache', () => {
         const result = { a: null };
         const result2 = parseResultToArr(result);
         expect(result2[1]).toEqual('');
+    });
+    it('test parseNullToEmptyString function', () => {
+        const result = { a: null };
+        const result2 = parseNullToEmptyString(result);
+        expect(result2.a).toEqual('');
     });
 });

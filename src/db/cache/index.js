@@ -6,8 +6,9 @@ import { createClient } from 'redis';
 import { promisify } from 'util';
 import { log } from 'server/utils/loggers';
 
-const env = process.env.NODE_ENV || 'development';
-const EXPIRED_TIME = 60 * 5; // second
+const env = 'production';
+// const env = process.env.NODE_ENV || 'development';
+const EXPIRED_TIME = 60 * 60; // second
 const redisUrl = config.get('redis_url');
 const client = new createClient({ url: redisUrl });
 const getAsync = promisify(client.get).bind(client);
@@ -62,7 +63,7 @@ function* getRecordCache(
                     dbOptions.attributes = fields;
                 }
                 result = yield model.findOne(dbOptions);
-                if (!result) return null;
+                if (result === null) return null;
                 result = result.get();
                 if (env === 'production') {
                     yield hmsetAsync(cacheKey, ...parseResultToArr(result));
@@ -71,7 +72,7 @@ function* getRecordCache(
                     log('getRecordCache', { msg: 'non_production' });
                 }
             }
-            return result;
+            return parseNullToEmptyString(result);
         }
         // get one item
         if (cacheAll === false) {
@@ -96,7 +97,7 @@ function* getRecordCache(
                 dbOptions.attributes = fields;
             }
             result = yield model.findOne(dbOptions);
-            if (!result) return null;
+            if (result === null) return null;
             result = result.get();
             if (env === 'production') {
                 yield hmsetAsync(cacheKey, ...parseResultToArr(result));
@@ -105,7 +106,7 @@ function* getRecordCache(
                 log('getRecordCache', { msg: 'non_production' });
             }
         }
-        return result;
+        return parseNullToEmptyString(result);
     } catch (e) {
         log('getRecordCache', { msg: e.message, cacheKey });
         return null;
@@ -116,9 +117,17 @@ function parseResultToArr(result = {}) {
     const nResult = [];
     Object.keys(result).forEach(k => {
         nResult.push(k);
-        nResult.push(result[k]);
+        nResult.push(result[k] === null ? '' : result[k]);
     });
     return nResult;
+}
+
+function parseNullToEmptyString(result = {}) {
+    const r = {};
+    Object.keys(result).forEach(k => {
+        r[k] = result[k] === null ? '' : result[k];
+    });
+    return r;
 }
 
 function* updateRecordCache(
@@ -153,4 +162,5 @@ module.exports = {
     getRecordCache,
     updateRecordCache,
     parseResultToArr,
+    parseNullToEmptyString,
 };
