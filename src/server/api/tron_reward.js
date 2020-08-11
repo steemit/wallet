@@ -1,3 +1,4 @@
+/* eslint-disable arrow-parens */
 /* eslint-disable require-yield */
 /* eslint-disable no-unused-vars */
 import koa_router from 'koa-router';
@@ -7,7 +8,8 @@ import { getRecordCache } from 'db/cache';
 import config from 'config';
 import { logRequest } from 'server/utils/loggers';
 import { getRemoteIp, rateLimitReq } from 'server/utils/misc';
-import { broadcast } from '@steemit/steem-js';
+import { unsignData } from 'server/utils/encrypted';
+import steem from '@steemit/steem-js';
 
 export default function useTronRewardApi(app) {
     const router = koa_router({ prefix: '/api/v1/tron' });
@@ -54,6 +56,7 @@ export default function useTronRewardApi(app) {
             models.TronUser,
             models.escAttrs(conditions)
         );
+        // TODO: if username is online, create user in the db
         if (tronUser === null) {
             this.body = JSON.stringify({ error: 'username_not_exist' });
             return;
@@ -66,4 +69,77 @@ export default function useTronRewardApi(app) {
         };
         this.body = JSON.stringify({ status: 'ok', result });
     });
+
+    router.post('/tron_user', koaBody, function*() {
+        const data = this.request.body;
+        if (typeof data !== 'object') {
+            this.body = JSON.stringify({
+                error: 'valid_input_data',
+            });
+            return;
+        }
+        if (data.username === undefined) {
+            this.body = JSON.stringify({
+                error: 'username_required',
+            });
+            return;
+        }
+
+        // get public key
+        const authType =
+            data.auth_type !== undefined ? data.auth_type : 'posting';
+        const pubKey = yield getUserPublicKey(data.username, authType);
+        if (pubKey === null) {
+            this.body = JSON.stringify({
+                error: 'username_not_exist_on_chain',
+            });
+            return;
+        }
+
+        // auth
+        try {
+            if (!unsignData(data, pubKey)) {
+                this.body = JSON.stringify({
+                    error: 'data_is_invalid',
+                });
+                return;
+            }
+        } catch (e) {
+            this.body = JSON.stringify({
+                error: e.message,
+            });
+            return;
+        }
+
+        // update data
+        const updateData = {};
+        const availableUpdateFields = ['tron_addr', 'tip_count'];
+        Object.keys(data).forEach(k => {
+            if (availableUpdateFields.indexOf(k) !== -1) {
+                updateData[k] = data[k];
+            }
+        });
+        if (Object.keys(updateData).length > 0) {
+            yield models.TronUser.update(updateData, {
+                where: {
+                    username: data.username,
+                },
+            });
+        }
+
+        // because the delay of transfering trx,
+        // need set an temporary var to make pending_amount 0
+        if (data.claim_reward !== undefined) {
+            this.session.pendingClaim = parseInt(Date.now() / 1000, 10);
+        }
+
+        this.body = JSON.stringify({ status: 'ok' });
+    });
+}
+
+async function getUserPublicKey(username, authType = 'posting') {
+    const user = await steem.api.getAccountsAsync([username]);
+    if (user === []) return null;
+    if (user[0][authType] === undefined) return null;
+    return user[0][authType].key_auths[0][0];
 }
