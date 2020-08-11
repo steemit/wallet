@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-import { signData, unsignData } from 'server/utils/misc';
+import { signData, unsignData } from 'server/utils/encrypted';
 
 /**
  * Private Key: 5J5MXVUyJwXWG6VQaBj1uimiMSGM1ky1HWYrZkaGpBrazbFmE2f
