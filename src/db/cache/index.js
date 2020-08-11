@@ -6,8 +6,8 @@ import { createClient } from 'redis';
 import { promisify } from 'util';
 import { log } from 'server/utils/loggers';
 
-const env = 'production';
-// const env = process.env.NODE_ENV || 'development';
+// const env = 'production';
+const env = process.env.NODE_ENV || 'development';
 const EXPIRED_TIME = 60 * 60; // second
 const redisUrl = config.get('redis_url');
 const client = new createClient({ url: redisUrl });
