@@ -45,7 +45,10 @@ function* getRecordCache(
     try {
         // get all items
         if (!field) {
-            result = yield hgetallAsync(cacheKey);
+            result =
+                env === 'production'
+                    ? yield hgetallAsync(cacheKey)
+                    : log('getRecordCache', { msg: 'non_production' });
             if (!result) {
                 // not hit cache
                 log('getRecordCache', {
@@ -61,8 +64,12 @@ function* getRecordCache(
                 result = yield model.findOne(dbOptions);
                 result = result.get();
                 if (Object.keys(result).length === 0) return null;
-                yield hmsetAsync(cacheKey, ...parseResultToArr(result));
-                yield expireAsync([cacheKey, EXPIRED_TIME]);
+                if (env === 'production') {
+                    yield hmsetAsync(cacheKey, ...parseResultToArr(result));
+                    yield expireAsync([cacheKey, EXPIRED_TIME]);
+                } else {
+                    log('getRecordCache', { msg: 'non_production' });
+                }
             }
             return result;
         }
@@ -72,7 +79,10 @@ function* getRecordCache(
                 return null;
             }
         }
-        result = yield hgetAsync(cacheKey, field);
+        result =
+            env === 'production'
+                ? yield hgetAsync(cacheKey, field)
+                : log('getRecordCache', { msg: 'non_production' });
         if (!result) {
             // not hit cache
             log('getRecordCache', {
@@ -88,8 +98,12 @@ function* getRecordCache(
             result = yield model.findOne(dbOptions);
             result = result.get();
             if (Object.keys(result).length === 0) return null;
-            yield hmsetAsync(cacheKey, ...parseResultToArr(result));
-            yield expireAsync([cacheKey, EXPIRED_TIME]);
+            if (env === 'production') {
+                yield hmsetAsync(cacheKey, ...parseResultToArr(result));
+                yield expireAsync([cacheKey, EXPIRED_TIME]);
+            } else {
+                log('getRecordCache', { msg: 'non_production' });
+            }
         }
         return result;
     } catch (e) {
@@ -113,6 +127,10 @@ function* updateRecordCache(
     data = [],
     cacheAll = true
 ) {
+    if (env !== 'production') {
+        log('updateRecordCache', { msg: 'non_production' });
+        return false;
+    }
     if (conditions.length <= 0) return false;
     const keyPrefix = model.getCachePrefix();
     const conditionsStr = parseResultToArr(conditions).join('_');
