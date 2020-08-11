@@ -51,7 +51,7 @@ module.exports = {
             })
             .then(() => {
                 queryInterface.addIndex('tron_user', ['username'], {
-                    indicesType: 'UNIQUE',
+                    unique: true,
                 });
                 queryInterface.addIndex('tron_user', ['tron_addr']);
             });
