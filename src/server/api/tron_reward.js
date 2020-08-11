@@ -4,7 +4,7 @@
 import koa_router from 'koa-router';
 import koa_body from 'koa-body';
 import models from 'db/models';
-import { getRecordCache } from 'db/cache';
+import { getRecordCache, updateRecordCache } from 'db/cache';
 import config from 'config';
 import { logRequest } from 'server/utils/loggers';
 import { getRemoteIp, rateLimitReq } from 'server/utils/misc';
@@ -52,14 +52,37 @@ export default function useTronRewardApi(app) {
         if (username) conditions.username = username;
         if (tronAddr) conditions.tron_addr = tronAddr;
 
-        const tronUser = yield getRecordCache(
+        let tronUser = yield getRecordCache(
             models.TronUser,
             models.escAttrs(conditions)
         );
-        // TODO: if username is online, create user in the db
         if (tronUser === null) {
-            this.body = JSON.stringify({ error: 'username_not_exist' });
-            return;
+            // check if on chain
+            try {
+                const pubKey = yield getUserPublicKey(username);
+                if (pubKey === null) {
+                    // user does not exist on chain
+                    this.body = JSON.stringify({ error: 'username_not_exist' });
+                    return;
+                }
+            } catch (e) {
+                this.body = JSON.stringify({ error: e.message });
+                return;
+            }
+            // insert user data into db
+            const insertData = {
+                username,
+            };
+            try {
+                yield models.TronUser.create(insertData);
+                tronUser = yield getRecordCache(
+                    models.TronUser,
+                    models.escAttrs(conditions)
+                );
+            } catch (e) {
+                this.body = JSON.stringify({ error: e.message });
+                return;
+            }
         }
 
         // during pending of transfering trx
@@ -100,7 +123,15 @@ export default function useTronRewardApi(app) {
         // get public key
         const authType =
             data.auth_type !== undefined ? data.auth_type : 'posting';
-        const pubKey = yield getUserPublicKey(data.username, authType);
+        let pubKey = null;
+        try {
+            pubKey = yield getUserPublicKey(data.username, authType);
+        } catch (e) {
+            this.body = JSON.stringify({
+                error: e.message,
+            });
+            return;
+        }
         if (pubKey === null) {
             this.body = JSON.stringify({
                 error: 'username_not_exist_on_chain',
@@ -123,6 +154,17 @@ export default function useTronRewardApi(app) {
             return;
         }
 
+        // find user in db
+        const conditions = { username: data.username };
+        const tronUser = yield getRecordCache(
+            models.TronUser,
+            models.escAttrs(conditions)
+        );
+        if (tronUser === null) {
+            this.body = JSON.stringify({ error: 'user_not_exist' });
+            return;
+        }
+
         // update data
         const updateData = {};
         const availableUpdateFields = ['tron_addr', 'tip_count'];
@@ -132,11 +174,16 @@ export default function useTronRewardApi(app) {
             }
         });
         if (Object.keys(updateData).length > 0) {
+            // update db
             yield models.TronUser.update(updateData, {
-                where: {
-                    username: data.username,
-                },
+                where: models.escAttrs(conditions),
             });
+            // update redis cache
+            yield updateRecordCache(
+                models.TronUser,
+                models.escAttrs(conditions),
+                updateData
+            );
         }
 
         // because the delay of transfering trx,
@@ -151,7 +198,7 @@ export default function useTronRewardApi(app) {
 
 async function getUserPublicKey(username, authType = 'posting') {
     const user = await steem.api.getAccountsAsync([username]);
-    if (user === []) return null;
+    if (user.length === 0) return null;
     if (user[0][authType] === undefined) return null;
     return user[0][authType].key_auths[0][0];
 }
