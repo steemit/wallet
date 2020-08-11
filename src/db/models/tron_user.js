@@ -13,6 +13,7 @@ module.exports = (sequelize, DataTypes) => {
             },
             pending_claim_tron_reward: {
                 allowNull: false,
+                defaultValue: 0,
                 type: DataTypes.BIGINT.UNSIGNED,
                 get() {
                     return `${this.getDataValue('pending_claim_tron_reward') /
@@ -41,6 +42,7 @@ module.exports = (sequelize, DataTypes) => {
             },
             tip_count: {
                 allowNull: false,
+                defaultValue: 0,
                 type: DataTypes.INTEGER.UNSIGNED,
             },
         },
