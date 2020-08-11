@@ -78,5 +78,11 @@
     "address_prefix": "STM",
     "conveyor_posting_wif": false,
     "conveyor_username": false,
-    "social_url": "https://steemit.com"
+    "social_url": "https://steemit.com",
+    "tron_reward": {
+      "switch": "on",
+      "vests_per_trx": 10000,
+      "unbind_tip_limit": 5
+    },
+    "redis_url": "redis://127.0.0.1:6379"
 }

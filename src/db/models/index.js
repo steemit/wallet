@@ -1,15 +1,22 @@
+/* eslint-disable no-mixed-operators */
+/* eslint-disable no-useless-escape */
+/* eslint-disable dot-notation */
+/* eslint-disable space-before-function-paren */
+/* eslint-disable prefer-arrow-callback */
+/* eslint-disable no-var */
 var fs = require('fs');
 var path = require('path');
 var Sequelize = require('sequelize');
+
 var basename = path.basename(module.filename);
 var env = process.env.NODE_ENV || 'development';
 var config = require('config');
+
 var db = {};
 
 var sequelize = new Sequelize(config.get('database_url'));
 
-fs
-    .readdirSync(__dirname)
+fs.readdirSync(__dirname)
     .filter(function(file) {
         return (
             file.indexOf('.') !== 0 &&
@@ -41,9 +48,10 @@ function esc(value, max_length = 256) {
     if (typeof value === 'number') return value;
     if (typeof value === 'boolean') return value;
     if (typeof value !== 'string') return '(object)';
-    let res = value
+    const res = value
         .substring(0, max_length - max_length * 0.2)
         .replace(/[\0\x08\x09\x1a\n\r"'\\\%]/g, function(char) {
+            // eslint-disable-next-line default-case
             switch (char) {
                 case '\0':
                     return '\\0';

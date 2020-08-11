@@ -1,4 +1,4 @@
-'use strict';
+/* eslint-disable no-unused-vars */
 module.exports = {
     up: (queryInterface, Sequelize) => {
         return queryInterface
@@ -45,16 +45,16 @@ module.exports = {
                     allowNull: false,
                     type: Sequelize.FLOAT,
                 },
-                createdAt: {
+                created_at: {
                     allowNull: false,
                     type: Sequelize.DATE,
                 },
-                updatedAt: {
+                updated_at: {
                     allowNull: false,
                     type: Sequelize.DATE,
                 },
             })
-            .then(function() {
+            .then(() => {
                 queryInterface.addIndex('tron_reward_history', ['username']);
                 queryInterface.addIndex('tron_reward_history', ['tron_addr']);
                 queryInterface.addIndex('tron_reward_history', ['block_num']);

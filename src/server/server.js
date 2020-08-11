@@ -1,3 +1,14 @@
+/* eslint-disable arrow-parens */
+/* eslint-disable no-plusplus */
+/* eslint-disable space-before-function-paren */
+/* eslint-disable prefer-arrow-callback */
+/* eslint-disable no-unused-vars */
+/* eslint-disable no-bitwise */
+/* eslint-disable require-yield */
+/* eslint-disable generator-star-spacing */
+/* eslint-disable import/no-dynamic-require */
+/* eslint-disable global-require */
+/* eslint-disable import/first */
 import path from 'path';
 import Koa from 'koa';
 import mount from 'koa-mount';
@@ -13,6 +24,7 @@ import favicon from 'koa-favicon';
 import staticCache from 'koa-static-cache';
 import useRedirects from './redirects';
 import useGeneralApi from './api/general';
+import useTronRewardApi from './api/tron_reward';
 import useAccountRecoveryApi from './api/account_recovery';
 import useEnterAndConfirmEmailPages from './sign_up_pages/enter_confirm_email';
 import useEnterAndConfirmMobilePages from './sign_up_pages/enter_confirm_mobile';
@@ -239,6 +251,7 @@ useEnterAndConfirmEmailPages(app);
 useEnterAndConfirmMobilePages(app);
 
 useAccountRecoveryApi(app);
+useTronRewardApi(app);
 useGeneralApi(app);
 
 // helmet wants some things as bools and some as lists, makes config difficult.
@@ -279,7 +292,7 @@ if (env !== 'test') {
 
     if (env === 'production') {
         if (cluster.isMaster) {
-            for (var i = 0; i < numProcesses; i++) {
+            for (let i = 0; i < numProcesses; i++) {
                 cluster.fork();
             }
             // if a worker dies replace it so application keeps running
