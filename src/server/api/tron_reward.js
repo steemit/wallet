@@ -61,10 +61,22 @@ export default function useTronRewardApi(app) {
             this.body = JSON.stringify({ error: 'username_not_exist' });
             return;
         }
+
+        // during pending of transfering trx
+        let pendingClaimTronReward = tronUser.pending_claim_tron_reward;
+        if (this.session.pendingClaim !== undefined) {
+            const now = parseInt(Date.now() / 1000, 10);
+            if (now - this.session.pendingClaim > 60 * 15) {
+                this.session.pendingClaim = undefined;
+            } else {
+                pendingClaimTronReward = '0 TRX';
+            }
+        }
+
         const result = {
             username: tronUser.username,
             tron_addr: tronUser.tron_addr,
-            pending_claim_tron_reward: tronUser.pending_claim_tron_reward,
+            pending_claim_tron_reward: pendingClaimTronReward,
             tip_count: tronUser.tip_count,
         };
         this.body = JSON.stringify({ status: 'ok', result });
