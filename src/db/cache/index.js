@@ -62,8 +62,8 @@ function* getRecordCache(
                     dbOptions.attributes = fields;
                 }
                 result = yield model.findOne(dbOptions);
+                if (!result) return null;
                 result = result.get();
-                if (Object.keys(result).length === 0) return null;
                 if (env === 'production') {
                     yield hmsetAsync(cacheKey, ...parseResultToArr(result));
                     yield expireAsync([cacheKey, EXPIRED_TIME]);
@@ -96,8 +96,8 @@ function* getRecordCache(
                 dbOptions.attributes = fields;
             }
             result = yield model.findOne(dbOptions);
+            if (!result) return null;
             result = result.get();
-            if (Object.keys(result).length === 0) return null;
             if (env === 'production') {
                 yield hmsetAsync(cacheKey, ...parseResultToArr(result));
                 yield expireAsync([cacheKey, EXPIRED_TIME]);
