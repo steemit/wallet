@@ -27,14 +27,16 @@ module.exports = (sequelize, DataTypes) => {
             },
             is_new_user: {
                 allowNull: false,
+                defaultValue: 0,
                 type: DataTypes.BOOLEAN,
             },
             is_tron_addr_actived: {
                 allowNull: false,
+                defaultValue: 0,
                 type: DataTypes.BOOLEAN,
             },
             tran_addr_active_time: {
-                allowNull: false,
+                allowNull: true,
                 type: DataTypes.DATE,
             },
             tip_count: {

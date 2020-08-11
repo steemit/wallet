@@ -18,22 +18,26 @@ module.exports = {
                 },
                 pending_claim_tron_reward: {
                     allowNull: false,
+                    defaultValue: 0,
                     type: Sequelize.BIGINT.UNSIGNED,
                 },
                 is_new_user: {
                     allowNull: false,
+                    defaultValue: 0,
                     type: Sequelize.BOOLEAN,
                 },
                 is_tron_addr_actived: {
                     allowNull: false,
+                    defaultValue: 0,
                     type: Sequelize.BOOLEAN,
                 },
                 tran_addr_active_time: {
-                    allowNull: false,
+                    allowNull: true,
                     type: Sequelize.DATE,
                 },
                 tip_count: {
                     allowNull: false,
+                    defaultValue: 0,
                     type: Sequelize.INTEGER.UNSIGNED,
                 },
                 created_at: {
