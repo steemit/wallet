@@ -49,6 +49,8 @@ const env = process.env.NODE_ENV || 'development';
 // cache of a thousand days
 const cacheOpts = { maxAge: 86400000, gzip: true, buffer: true };
 
+const tronRewardSwitch = config.get('tron_reward.switch');
+
 // Serve static assets without fanfare
 app.use(
     favicon(path.join(__dirname, '../app/assets/images/favicons/favicon.ico'))
@@ -251,7 +253,9 @@ useEnterAndConfirmEmailPages(app);
 useEnterAndConfirmMobilePages(app);
 
 useAccountRecoveryApi(app);
-useTronRewardApi(app);
+if (tronRewardSwitch === 'on') {
+    useTronRewardApi(app);
+}
 useGeneralApi(app);
 
 // helmet wants some things as bools and some as lists, makes config difficult.
