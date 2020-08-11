@@ -31,32 +31,6 @@ const mixpanel = config.get('mixpanel')
     ? Mixpanel.init(config.get('mixpanel'))
     : null;
 
-// const _stringval = v => (typeof v === 'string' ? v : JSON.stringify(v));
-// function logRequest(path, ctx, extra) {
-//     const d = { ip: getRemoteIp(ctx.req) };
-//     if (ctx.session) {
-//         if (ctx.session.user) {
-//             d.user = ctx.session.user;
-//         }
-//         if (ctx.session.uid) {
-//             d.uid = ctx.session.uid;
-//         }
-//         if (ctx.session.a) {
-//             d.account = ctx.session.a;
-//         }
-//     }
-//     if (extra) {
-//         Object.keys(extra).forEach(k => {
-//             const nk = d[k] ? '_' + k : k;
-//             d[nk] = extra[k];
-//         });
-//     }
-//     const info = Object.keys(d)
-//         .map(k => `${k}=${_stringval(d[k])}`)
-//         .join(' ');
-//     console.log(`-- /${path} --> ${info}`);
-// }
-
 export default function useGeneralApi(app) {
     const router = koa_router({ prefix: '/api/v1' });
     app.use(router.routes());
