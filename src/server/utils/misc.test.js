@@ -4,6 +4,8 @@ import { signData, unsignData } from 'server/utils/misc';
 /**
  * Private Key: 5J5MXVUyJwXWG6VQaBj1uimiMSGM1ky1HWYrZkaGpBrazbFmE2f
  * Public Key: STM76hoMV1XezMjEMhdA9EyXz4aY1JmbXUfA2mRRGUYmgbEmgDMCG
+ * Private Key: 5KSym4fDweNBkKzwf2CuPun4J97o5mhEABfuAEgBp9wL6AKWG6Y
+ * Public Key: STM74ujL6hgg6d2GcBAftyszFNbyf1rUuEaSmbcHyTuUXpghGzomo
  */
 
 describe('Server utils misc', () => {
@@ -69,5 +71,10 @@ describe('Server utils misc', () => {
             'STM76hoMV1XezMjEMhdA9EyXz4aY1JmbXUfA2mRRGUYmgbEmgDMCG'
         );
         expect(r).toEqual(true);
+        const r1 = unsignData(
+            signedData,
+            'STM74ujL6hgg6d2GcBAftyszFNbyf1rUuEaSmbcHyTuUXpghGzomo'
+        );
+        expect(r1).toEqual(false);
     });
 });
