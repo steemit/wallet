@@ -83,6 +83,21 @@ class UserWallet extends React.Component {
         // todo: create a tron account
         this.onCreateTronAccount = e => {};
 
+        // todo: update a tron account
+        this.onUpdateTronAccount = e => {};
+
+        this.onShowTRXTransaction = (trx_address, e) => {
+            e.preventDefault();
+            // todo: remove test trx_address
+            trx_address = 'TQMqo7mQMdYKrRXwkwXF7yW6TFnRaVEqe7';
+            const new_window = window.open();
+            new_window.opener = null;
+            new_window.location =
+                'https://tronscan.org/#/address/' +
+                trx_address +
+                '/transactions';
+        };
+
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
     }
 
@@ -135,6 +150,9 @@ class UserWallet extends React.Component {
             onShowWithdrawSBD,
             onShowDepositPower,
             onShowTRX,
+            onShowTRXTransaction,
+            onCreateTronAccount,
+            onUpdateTronAccount,
         } = this;
         const {
             convertToSteem,
@@ -621,7 +639,7 @@ class UserWallet extends React.Component {
                             {isMyAccount && (
                                 <button
                                     className="UserWallet__buysp button hollow"
-                                    onClick={this.onCreateTronAccount}
+                                    onClick={this.onShowDepositSteem}
                                 >
                                     {tt(
                                         'userwallet_jsx.buy_steem_or_steem_power'
@@ -825,6 +843,21 @@ class UserWallet extends React.Component {
                                     )}
                             </div>
                         }
+                        {
+                            <div className="columns shrink">
+                                {isMyAccount &&
+                                    isTrxAccount && (
+                                        <button
+                                            className="UserWallet__buysp button buttonSmall hollow"
+                                            onClick={onUpdateTronAccount}
+                                        >
+                                            {tt(
+                                                'userwallet_jsx.update_trx_button'
+                                            )}
+                                        </button>
+                                    )}
+                            </div>
+                        }
                     </div>
                 </div>
 
@@ -878,7 +911,18 @@ class UserWallet extends React.Component {
                 <div className="row">
                     <div className="column small-12">
                         {/** history */}
-                        <h4>{tt('userwallet_jsx.history')}</h4>
+                        <h4>
+                            {tt('userwallet_jsx.history')}
+                            <Link
+                                className="link"
+                                onClick={onShowTRXTransaction.bind(
+                                    this,
+                                    TRX_address
+                                )}
+                            >
+                                {tt('tron_jsx.tron_tx_history')}
+                            </Link>
+                        </h4>
                         <div className="secondary">
                             <span>
                                 {tt(

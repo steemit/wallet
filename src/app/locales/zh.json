@@ -736,7 +736,7 @@
         "create_trx_description":
             "还没创建TRON账户,请点击右侧创建TRON账号按钮创建并领取TRX奖励",
         "create_trx_button": "创建TRON账户",
-        "update_trx_account": "更新TRON账户"
+        "update_trx_button": "更新TRON账户"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
@@ -767,6 +767,7 @@
         "step3": "Step3: 输入TRON账号私钥后 点击\"登陆\"",
         "step4": "Step4: 点击 \"投票\" 按钮 并跟谁引导进行操作",
         "vote_button": "去投票",
-        "step": "步骤"
+        "step": "步骤",
+        "tron_tx_history": "TRON账号交易历史 >"
     }
 }

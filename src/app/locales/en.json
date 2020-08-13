@@ -838,7 +838,7 @@
         "create_trx_description":
             "Not have TRX account? just click right creating TRX account button where a TRX reward can be received.",
         "create_trx_button": "CREATE TRON ACCOUNT",
-        "update_trx_account": "update TRON account"
+        "update_trx_button": "UPDATE TRON ACCOUNT"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
@@ -935,6 +935,7 @@
             "Step3: Click \"Sign in\" button once finish input TRON private key ",
         "step4": "Step4: click \"Vote\" button and follow the instruction",
         "vote_button": "go vote",
-        "step": "step"
+        "step": "step",
+        "tron_tx_history": "TRON transaction history >"
     }
 }
