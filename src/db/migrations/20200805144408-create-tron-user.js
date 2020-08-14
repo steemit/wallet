@@ -33,6 +33,7 @@ module.exports = {
                 },
                 tran_addr_active_time: {
                     allowNull: true,
+                    defaultValue: null,
                     type: Sequelize.DATE,
                 },
                 tip_count: {
