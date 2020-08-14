@@ -38,6 +38,7 @@ module.exports = (sequelize, DataTypes) => {
             },
             tran_addr_active_time: {
                 allowNull: true,
+                defaultValue: null,
                 type: DataTypes.DATE,
             },
             tip_count: {
