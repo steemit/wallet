@@ -28,6 +28,7 @@ import * as transactionActions from 'app/redux/TransactionReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
 import * as userActions from 'app/redux/UserReducer';
+import { updateTronUser } from 'app/utils/ServerApiClient';
 
 const assetPrecision = 1000;
 
@@ -82,9 +83,6 @@ class UserWallet extends React.Component {
 
         // todo: create a tron account
         this.onCreateTronAccount = e => {};
-
-        // todo: update a tron account
-        this.onUpdateTronAccount = e => {};
 
         this.onShowTRXTransaction = (trx_address, e) => {
             e.preventDefault();
@@ -152,7 +150,6 @@ class UserWallet extends React.Component {
             onShowTRX,
             onShowTRXTransaction,
             onCreateTronAccount,
-            onUpdateTronAccount,
         } = this;
         const {
             convertToSteem,
@@ -196,6 +193,13 @@ class UserWallet extends React.Component {
                 asset,
                 transferType,
             });
+        };
+
+        // todo: update a tron account
+        const onUpdateTronAccount = (new_trx_address, e) => {
+            // todo: find api create a new tron address
+            const name = account.get('name');
+            updateTronUser(name, new_trx_address);
         };
 
         const savings_balance = account.get('savings_balance');
@@ -316,7 +320,7 @@ class UserWallet extends React.Component {
                       }
                       return o;
                   }, 0) / assetPrecision;
-
+        const tron_balance = parseFloat(currentUser.get('tron_reward'));
         // set displayed estimated value
         const total_sbd =
             sbd_balance +
@@ -471,9 +475,8 @@ class UserWallet extends React.Component {
                 onClick: onShowWithdrawSBD,
             });
         }
-        // todo: isTRXAccount
-        // todo: need a function to check trx account
-        let isTrxAccount = true;
+
+        const isTrxAccount = currentUser.get('tron_user');
         if (isTrxAccount) {
             // todo: need replace with trx buy/sell/transfer function
             trx_menu.push({
@@ -499,13 +502,11 @@ class UserWallet extends React.Component {
             trx_menu.push({
                 value: tt('g.vote'),
                 link: '#',
-                // todo  replace with TRX function
                 onClick: () => this.props.showVote(),
             });
         }
-        // todo: get trx address
-        const TRX_address = 'trx address ';
 
+        const TRX_address = currentUser.get('tron_address');
         if (divesting) {
             power_menu.push({
                 value: 'Cancel Power Down',
@@ -535,8 +536,8 @@ class UserWallet extends React.Component {
         const savings_sbd_balance_str = numberWithCommas(
             '$' + sbd_balance_savings.toFixed(3)
         );
-        // todo: get the number of trx
-        const trx_balance_str = numberWithCommas('0.000');
+
+        const trx_balance_str = numberWithCommas(tron_balance.toFixed(3));
 
         const savings_menu = [
             {

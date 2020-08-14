@@ -92,3 +92,13 @@ export function acceptTos() {
     });
     return fetch('/api/v1/acceptTos', request);
 }
+
+export function checkTronUser(username) {
+    //todo:  api  /api/v1/tron/tron_user bug, call cannot reach
+    let queryString = '/api/v1/tron/tron_user?username=' + username;
+    return fetch(queryString);
+}
+
+export function updateTronUser(username, tron_address) {
+    // todo: add api call function
+}

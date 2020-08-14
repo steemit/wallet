@@ -38,7 +38,6 @@ export default function useTronRewardApi(app) {
             this.body = JSON.stringify({ error: 'need_params' });
             return;
         }
-
         const username = q.username;
         const tronAddr = q.tron_addr;
         if (!username && !tronAddr) {

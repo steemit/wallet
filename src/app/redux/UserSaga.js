@@ -19,6 +19,7 @@ import {
     serverApiRecordEvent,
     isTosAccepted,
     acceptTos,
+    checkTronUser,
 } from 'app/utils/ServerApiClient';
 import { loadFollows } from 'app/redux/FollowSaga';
 import { translate } from 'app/Translator';
@@ -115,10 +116,30 @@ function* usernamePasswordLogin({
     },
 }) {
     const current = yield select(state => state.user.get('current'));
+    let query_user_name = username;
     if (current) {
         const currentUsername = current.get('username');
         yield fork(loadFollows, currentUsername, 'blog');
         yield fork(loadFollows, currentUsername, 'ignore');
+        query_user_name = currentUsername;
+    }
+
+    // query api get tron information
+    if (query_user_name) {
+        const response = yield checkTronUser(query_user_name);
+        const body = yield response.json();
+        if (body.status && body.status == ok) {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_address: body.result.tron_addr,
+                    tron_user: body.result.tron_addr == '' ? false : true,
+                    tron_reward: body.result.pending_claim_tron_reward,
+                })
+            );
+        } else {
+            // todo: retry just show error windows
+        }
     }
 
     const user = yield select(state => state.user);
@@ -368,7 +389,6 @@ function* usernamePasswordLogin({
                 sign('posting', private_keys.get('posting_private'));
                 // sign('active', private_keys.get('active_private'))
             }
-
             console.log('Logging in as', username);
             const response = yield serverApiLogin(username, signatures);
             const body = yield response.json();
@@ -442,7 +462,7 @@ function* getFeatureFlags(username, posting_private) {
 
 function* saveLogin_localStorage() {
     if (!process.env.BROWSER) {
-        console.error('Non-browser environment, skipping localstorage');
+        console.error('Non-browser environment, skipping local storage');
         return;
     }
     localStorage.removeItem('autopost2');

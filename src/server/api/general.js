@@ -432,6 +432,7 @@ export default function useGeneralApi(app) {
     });
 
     router.post('/logout_account', koaBody, function*() {
+        console.log('test login call');
         // if (rateLimitReq(this, this.req)) return; - logout maybe immediately followed with login_attempt event
         const params = this.request.body;
         const { csrf } =
