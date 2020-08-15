@@ -26679,7 +26679,7 @@ module.exports = {
             transfer_history: [],
             tron_address: '',
             tron_user: false,
-            tron_reward: 0.00,
+            tron_reward: '0.00 TRX',
             market_history: [],
             post_history: [],
             vote_history: [],

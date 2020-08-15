@@ -936,6 +936,15 @@
         "step4": "Step4: click \"Vote\" button and follow the instruction",
         "vote_button": "go vote",
         "step": "step",
-        "tron_tx_history": "TRON transaction history >"
+        "tron_tx_history": "TRON transaction history >",
+        "update_tron_account": "UPDATE TRON ACCOUNT",
+        "update_tron_content":
+            "To update TRON account, please confirm following information so as to avoid potential risk. \n Save TRON private key locally or import this TRON account into other wallet supporting TRON. or transfer tron asset into other tron account. ",
+        "update_button": "UPDATE AND DOWNLOAD",
+        "update_success": "UPDATE SUCCESS",
+        "update_success_content":
+            " You successfully update your TRON account. If fail to download, please with TRON public key pdf file. please take care of this file, if loss, cannot get it back. please do not share with anyone",
+        "update_success_click": "click download",
+        "safe_save_button": "safe save"
     }
 }

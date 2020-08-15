@@ -128,7 +128,9 @@ function* usernamePasswordLogin({
     if (query_user_name) {
         const response = yield checkTronUser(query_user_name);
         const body = yield response.json();
-        if (body.status && body.status == ok) {
+        console.log(body);
+        if (body.status && body.status == 'ok') {
+            console.log('test');
             yield put(
                 userActions.setUser({
                     username,

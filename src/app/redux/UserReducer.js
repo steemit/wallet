@@ -38,6 +38,11 @@ const SHOW_SIDE_PANEL = 'user/SHOW_SIDE_PANEL';
 const HIDE_SIDE_PANEL = 'user/HIDE_SIDE_PANEL';
 const SHOW_VOTE = 'user/SHOW_VOTE';
 const HIDE_VOTE = 'user/HIDE_VOTE';
+const SHOW_UPDATE = 'user/SHOW_UPDATE';
+const HIDE_UPDATE = 'user/HIDE_UPDATE';
+const SHOW_UPDATE_SUCCESS = 'user/SHOW_UPDATE_SUCCESS';
+const HIDE_UPDATE_SUCCESS = 'user/HIDE_UPDATE_SUCCESS';
+
 // Saga-related
 export const LOAD_SAVINGS_WITHDRAW = 'user/LOAD_SAVINGS_WITHDRAW';
 export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
@@ -49,6 +54,8 @@ const defaultState = fromJS({
     show_signup_modal: false,
     show_post_advanced_settings_modal: '', // formId,
     show_vote_modal: false,
+    show_update_modal: false,
+    show_update_success_modal: false,
     pub_keys_used: null,
     locale: DEFAULT_LANGUAGE,
     show_side_panel: false,
@@ -183,6 +190,8 @@ export default function reducer(state = defaultState, action) {
                 loginBroadcastOperation: undefined,
                 loginDefault: undefined,
                 logged_out: undefined,
+                show_update_modal: false,
+                show_update_success_modal: false,
             });
 
         case SET_USER:
@@ -203,6 +212,8 @@ export default function reducer(state = defaultState, action) {
                 loginBroadcastOperation: undefined,
                 loginDefault: undefined,
                 logged_out: undefined,
+                show_update_modal: false,
+                show_update_success_modal: false,
             });
 
         case CLOSE_LOGIN:
@@ -262,6 +273,14 @@ export default function reducer(state = defaultState, action) {
             return state.set('show_vote_modal', true);
         case HIDE_VOTE:
             return state.set('show_vote_modal', false);
+        case SHOW_UPDATE:
+            return state.set('show_update_modal', true);
+        case HIDE_UPDATE:
+            return state.set('show_update_modal', false);
+        case SHOW_UPDATE_SUCCESS:
+            return state.set('show_update_success_modal', true);
+        case HIDE_UPDATE_SUCCESS:
+            return state.set('show_update_success_modal', false);
 
         default:
             return state;
@@ -286,6 +305,25 @@ export const showVote = payload => ({
 
 export const hideVote = payload => ({
     type: HIDE_VOTE,
+    payload,
+});
+
+export const showUpdate = payload => ({
+    type: SHOW_UPDATE,
+    payload,
+});
+
+export const hideUpdate = payload => ({
+    type: HIDE_UPDATE,
+    payload,
+});
+
+export const showUpdateSuccess = payload => ({
+    type: SHOW_UPDATE_SUCCESS,
+    payload,
+});
+export const hideUpdateSuccess = payload => ({
+    type: HIDE_UPDATE_SUCCESS,
     payload,
 });
 

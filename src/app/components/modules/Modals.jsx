@@ -18,6 +18,8 @@ import Powerdown from 'app/components/modules/Powerdown';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import TermsAgree from 'app/components/modules/TermsAgree';
 import TronVote from 'app/components/modules/TronVote';
+import UpdateTronAccountOne from 'app/components/modules/UpdateTronAccountOne';
+import UpdateTronAccountTwo from 'app/components/modules/UpdateTronAccountTwo';
 
 class Modals extends React.Component {
     static defaultProps = {
@@ -34,8 +36,12 @@ class Modals extends React.Component {
         show_login_modal: false,
         show_post_advanced_settings_modal: '',
         show_vote_modal: false,
+        show_update_modal: false,
+        show_update_success: false,
     };
     static propTypes = {
+        show_update_modal: PropTypes.bool,
+        show_update_success_modal: PropTypes.bool,
         show_vote_modal: PropTypes.bool,
         show_login_modal: PropTypes.bool,
         show_confirm_modal: PropTypes.bool,
@@ -54,6 +60,8 @@ class Modals extends React.Component {
         hidePowerdown: PropTypes.func.isRequired,
         hideBandwidthError: PropTypes.func.isRequired,
         hideVote: PropTypes.func.isRequired,
+        hideUpdate: PropTypes.func.isRequired,
+        hideUpdateSuccess: PropTypes.func.isRequired,
         notifications: PropTypes.object,
         show_terms_modal: PropTypes.bool,
         removeNotification: PropTypes.func,
@@ -66,6 +74,8 @@ class Modals extends React.Component {
 
     render() {
         const {
+            show_update_modal,
+            show_update_success_modal,
             show_vote_modal,
             show_login_modal,
             show_confirm_modal,
@@ -87,6 +97,8 @@ class Modals extends React.Component {
             hideBandwidthError,
             username,
             hideVote,
+            hideUpdate,
+            hideUpdateSuccess,
         } = this.props;
 
         const notifications_array = notifications
@@ -105,6 +117,21 @@ class Modals extends React.Component {
 
         return (
             <div>
+                {show_update_modal && (
+                    <Reveal onHide={hideUpdate} show={show_update_modal}>
+                        <CloseButton onClick={hideUpdate} />
+                        <UpdateTronAccountTwo />
+                    </Reveal>
+                )}
+                {show_update_success_modal && (
+                    <Reveal
+                        onHide={hideUpdateSuccess}
+                        show={show_update_success_modal}
+                    >
+                        <CloseButton onClick={hideUpdateSuccess} />
+                        <UpdateTronAccountTwo />
+                    </Reveal>
+                )}
                 {show_vote_modal && (
                     <Reveal onHide={hideVote} show={show_vote_modal}>
                         <CloseButton onClick={hideVote} />
@@ -212,6 +239,10 @@ export default connect(
             show_powerdown_modal: state.user.get('show_powerdown_modal'),
             show_signup_modal: state.user.get('show_signup_modal'),
             show_vote_modal: state.user.get('show_vote_modal'),
+            show_update_modal: state.user.get('show_update_modal'),
+            show_vote_success_modal: state.user.get(
+                'show_update_success_modal'
+            ),
             notifications: state.app.get('notifications'),
             show_terms_modal:
                 state.user.get('show_terms_modal') &&
@@ -229,6 +260,14 @@ export default connect(
         };
     },
     dispatch => ({
+        hideUpdate: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.hideUpdate());
+        },
+        hideUpdateSuccess: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.hideUpdateSuccess());
+        },
         hideVote: e => {
             if (e) e.preventDefault();
             dispatch(userActions.hideVote());

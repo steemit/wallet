@@ -29,7 +29,7 @@ import * as globalActions from 'app/redux/GlobalReducer';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
 import * as userActions from 'app/redux/UserReducer';
 import { updateTronUser } from 'app/utils/ServerApiClient';
-
+import { createAccount } from 'app/utils/TronAccount';
 const assetPrecision = 1000;
 
 class UserWallet extends React.Component {
@@ -37,6 +37,8 @@ class UserWallet extends React.Component {
         super();
         this.state = {
             claimInProgress: false,
+            tron_private_key: '',
+            tron_address: '',
         };
         this.onShowDepositSteem = e => {
             if (e && e.preventDefault) e.preventDefault();
@@ -80,10 +82,6 @@ class UserWallet extends React.Component {
             new_window.opener = null;
             new_window.location = 'https://poloniex.com/exchange#usdt_trx';
         };
-
-        // todo: create a tron account
-        this.onCreateTronAccount = e => {};
-
         this.onShowTRXTransaction = (trx_address, e) => {
             e.preventDefault();
             // todo: remove test trx_address
@@ -94,6 +92,27 @@ class UserWallet extends React.Component {
                 'https://tronscan.org/#/address/' +
                 trx_address +
                 '/transactions';
+        };
+        // todo: create a tron account
+        this.onCreateTronAccount = async (username, e) => {
+            const obj = await createAccount();
+            // this.setState({tron_address:obj.address,tron_private_key:obj.privateKey});
+            // todo: encrypt
+            sessionStorage.setItem('tron_address', obj.address);
+            sessionStorage.setItem('username', username);
+            sessionStorage.setItem('tron_private_key', obj.privateKey);
+            sessionStorage.setItem('tron_public_key', obj.publicKey);
+            this.props.showUpdate();
+            console.log(obj);
+            // updateTronUser(username,obj.address)
+        };
+
+        // todo: update a tron account
+        this.onUpdateTronAccount = async e => {
+            // const obj = await createAccount();
+            // this.setState({tron_address:obj.address,tron_private_key:obj.privateKey});
+            // updateTronUser(name, new_trx_address);
+            //
         };
 
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
@@ -149,6 +168,7 @@ class UserWallet extends React.Component {
             onShowDepositPower,
             onShowTRX,
             onShowTRXTransaction,
+            onUpdateTronAccount,
             onCreateTronAccount,
         } = this;
         const {
@@ -195,12 +215,11 @@ class UserWallet extends React.Component {
             });
         };
 
-        // todo: update a tron account
-        const onUpdateTronAccount = (new_trx_address, e) => {
-            // todo: find api create a new tron address
-            const name = account.get('name');
-            updateTronUser(name, new_trx_address);
-        };
+        // // todo: create a tron account
+        // const onCreateTronAccount = (e) => {
+        //     const obj = yield createAccount();
+        //     console.log(obj)
+        // };
 
         const savings_balance = account.get('savings_balance');
         const savings_sbd_balance = account.get('savings_sbd_balance');
@@ -320,7 +339,10 @@ class UserWallet extends React.Component {
                       }
                       return o;
                   }, 0) / assetPrecision;
-        const tron_balance = parseFloat(currentUser.get('tron_reward'));
+        // let tron_reward =  (currentUser && currentUser.has('tron_reward'))
+        //                     ?currentUser.get('tron_reward'):'0.000';
+        let tron_reward = this.props.tron_reward.replace(/[^0-9.]/, '');
+        const tron_balance = parseFloat(tron_reward);
         // set displayed estimated value
         const total_sbd =
             sbd_balance +
@@ -476,7 +498,7 @@ class UserWallet extends React.Component {
             });
         }
 
-        const isTrxAccount = currentUser.get('tron_user');
+        const isTrxAccount = this.props.tron_user;
         if (isTrxAccount) {
             // todo: need replace with trx buy/sell/transfer function
             trx_menu.push({
@@ -506,7 +528,8 @@ class UserWallet extends React.Component {
             });
         }
 
-        const TRX_address = currentUser.get('tron_address');
+        const TRX_address = this.props.tron_address;
+
         if (divesting) {
             power_menu.push({
                 value: 'Cancel Power Down',
@@ -835,7 +858,10 @@ class UserWallet extends React.Component {
                                     !isTrxAccount && (
                                         <button
                                             className="UserWallet__buysp button buttonSmall hollow"
-                                            onClick={onCreateTronAccount}
+                                            onClick={onCreateTronAccount.bind(
+                                                this,
+                                                currentUser.get('username')
+                                            )}
                                         >
                                             {tt(
                                                 'userwallet_jsx.create_trx_button'
@@ -954,6 +980,19 @@ export default connect(
         const savings_withdraws = state.user.get('savings_withdraws');
         const gprops = state.global.get('props');
         const sbd_interest = gprops.get('sbd_interest_rate');
+        const currentUser = state.user.get('current');
+        const tron_reward =
+            currentUser && currentUser.has('tron_reward')
+                ? currentUser.get('tron_reward')
+                : '0.000';
+        const tron_user =
+            currentUser && currentUser.has('tron_user')
+                ? currentUser.get('tron_user')
+                : false;
+        const tron_address =
+            currentUser && currentUser.has('tron_address')
+                ? currentUser.get('tron_address')
+                : '';
         return {
             ...ownProps,
             open_orders: state.market.get('open_orders'),
@@ -961,6 +1000,9 @@ export default connect(
             savings_withdraws,
             sbd_interest,
             gprops,
+            tron_reward,
+            tron_user,
+            tron_address,
         };
     },
     // mapDispatchToProps
@@ -995,10 +1037,11 @@ export default connect(
             const name = 'convertToSteem';
             dispatch(globalActions.showDialog({ name }));
         },
-        // showVote: () =>{
-        //     // if (e) e.preventDefault();
-        //     console.log('set vote to be true');
-        //     dispatch(userActions.showVote());
-        // },
+        showUpdate: () => {
+            // if (e) e.preventDefault();
+            console.log('set vote to be true');
+            dispatch(userActions.showUpdate());
+            // dispatch(userActions.showUpdateSuccess());
+        },
     })
 )(UserWallet);

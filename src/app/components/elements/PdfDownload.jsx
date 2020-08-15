@@ -1,7 +1,6 @@
 import React, { Component } from 'react';
 import { PrivateKey } from '@steemit/steem-js/lib/auth/ecc';
 import QRious from 'qrious';
-
 function image2canvas(image, bgcolor) {
     const canvas = document.createElement('canvas');
     canvas.width = image.width * 32;
@@ -423,7 +422,7 @@ export default class PdfDownload extends Component {
         offset += 0.2;
         offset = sectionStart + sectionHeight;
 
-        if (this.props.newUser) return ctx;
+        if (!this.props.newUser) return ctx;
         // Steemit Account
         offset += 0.4;
         offset += this.renderText(ctx, 'Your Steemit Private Keys', {
