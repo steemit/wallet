@@ -68,6 +68,11 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: false,
                 type: DataTypes.FLOAT,
             },
+            reward_type: {
+                type: DataTypes.INTEGER,
+                defaultValue: 0,
+                allowNull: false,
+            },
         },
         {
             tableName: 'tron_reward_history',
