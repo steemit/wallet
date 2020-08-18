@@ -1,3 +1,6 @@
+/* eslint-disable react/jsx-no-bind */
+/* eslint-disable no-plusplus */
+/* eslint-disable no-undef */
 /* eslint react/prop-types: 0 */
 import React from 'react';
 import { connect } from 'react-redux';
@@ -30,6 +33,7 @@ import DropdownMenu from 'app/components/elements/DropdownMenu';
 import * as userActions from 'app/redux/UserReducer';
 import { updateTronUser } from 'app/utils/ServerApiClient';
 import { createAccount, encryptedTronKey } from 'server/tronAccount';
+
 const assetPrecision = 1000;
 
 class UserWallet extends React.Component {
@@ -315,9 +319,9 @@ class UserWallet extends React.Component {
                       }
                       return o;
                   }, 0) / assetPrecision;
-        // let tron_reward =  (currentUser && currentUser.has('tron_reward'))
+        // const tron_reward =  (currentUser && currentUser.has('tron_reward'))
         //                     ?currentUser.get('tron_reward'):'0.000';
-        let tron_reward = this.props.tron_reward.replace(/[^0-9.]/, '');
+        const tron_reward = this.props.tron_reward.replace(/[^0-9.]/, '');
         const tron_balance = parseFloat(tron_reward);
         // set displayed estimated value
         const total_sbd =
@@ -591,6 +595,7 @@ class UserWallet extends React.Component {
             case 1:
                 rewards_str = `${rewards[0]}`;
                 break;
+            default:
         }
 
         let claimbox;
@@ -621,7 +626,9 @@ class UserWallet extends React.Component {
         try {
             // TODO: occasionally fails. grops not loaded yet?
             spApr = this.getCurrentApr(gprops);
-        } catch (e) {}
+        } catch (e) {
+            console.error(e);
+        }
 
         return (
             <div className="UserWallet">

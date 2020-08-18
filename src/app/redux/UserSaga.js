@@ -2,7 +2,6 @@
 /* eslint-disable no-empty-pattern */
 /* eslint-disable prefer-rest-params */
 /* eslint-disable no-shadow */
-/* eslint-disable dot-notation */
 /* eslint-disable arrow-parens */
 /* eslint-disable no-restricted-syntax */
 /* eslint-disable prefer-const */
