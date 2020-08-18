@@ -1,8 +1,8 @@
+/* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint react/prop-types: 0 */
 import React from 'react';
-import { Link } from 'react-router';
+import { Link, browserHistory } from 'react-router';
 import { connect } from 'react-redux';
-import { browserHistory } from 'react-router';
 import classnames from 'classnames';
 import * as globalActions from 'app/redux/GlobalReducer';
 import * as transactionActions from 'app/redux/TransactionReducer';
