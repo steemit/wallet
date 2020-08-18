@@ -4,12 +4,13 @@
 import koa_router from 'koa-router';
 import koa_body from 'koa-body';
 import models from 'db/models';
+import steem from '@steemit/steem-js';
 import { getRecordCache, updateRecordCache } from 'db/cache';
 import config from 'config';
 import { logRequest } from 'server/utils/loggers';
 import { getRemoteIp, rateLimitReq } from 'server/utils/misc';
 import { unsignData } from 'server/utils/encrypted';
-import steem from '@steemit/steem-js';
+import { clearPendingClaimTronReward } from 'db/utils/user_utils';
 
 export default function useTronRewardApi(app) {
     const router = koa_router({ prefix: '/api/v1/tron' });
@@ -184,6 +185,11 @@ export default function useTronRewardApi(app) {
                 models.escAttrs(conditions),
                 updateData
             );
+        }
+
+        // when update tron_addr, check if pending_claim_tron_reward empty
+        if (data.tron_addr) {
+            clearPendingClaimTronReward(tronUser.username);
         }
 
         // because the delay of transfering trx,
