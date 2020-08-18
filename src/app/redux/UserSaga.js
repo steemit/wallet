@@ -1,3 +1,13 @@
+/* eslint-disable require-yield */
+/* eslint-disable no-empty-pattern */
+/* eslint-disable prefer-rest-params */
+/* eslint-disable no-shadow */
+/* eslint-disable dot-notation */
+/* eslint-disable arrow-parens */
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable prefer-const */
+/* eslint-disable import/prefer-default-export */
+/* eslint-disable no-unused-vars */
 import { fromJS, Set, List } from 'immutable';
 import { call, put, select, fork, takeLatest } from 'redux-saga/effects';
 import { api } from '@steemit/steem-js';
@@ -170,7 +180,7 @@ function* usernamePasswordLogin({
     if (query_user_name) {
         const response = yield checkTronUser(query_user_name);
         const body = yield response.json();
-        console.log(body);
+        console.log('usernamePasswordLogin:', body);
         if (body.status && body.status == 'ok') {
             console.log('test');
             yield put(
@@ -396,6 +406,8 @@ function* usernamePasswordLogin({
                         username,
                         buf,
                         'Posting',
+                        // eslint-disable-next-line arrow-parens
+                        // eslint-disable-next-line no-shadow
                         response => {
                             resolve(response);
                         }
