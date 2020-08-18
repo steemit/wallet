@@ -83,7 +83,7 @@ class UserWallet extends React.Component {
         this.onShowTRXTransaction = (trx_address, e) => {
             e.preventDefault();
             // todo: remove test trx_address
-            trx_address = 'TQMqo7mQMdYKrRXwkwXF7yW6TFnRaVEqe7';
+            // trx_address = 'TQMqo7mQMdYKrRXwkwXF7yW6TFnRaVEqe7';
             const new_window = window.open();
             new_window.opener = null;
             new_window.location =

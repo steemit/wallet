@@ -1,7 +1,7 @@
 const webpack = require('webpack');
 const git = require('git-rev-sync');
 const baseConfig = require('./base.config');
-
+const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
 module.exports = {
     ...baseConfig,
     plugins: [
@@ -12,8 +12,8 @@ module.exports = {
                 VERSION: JSON.stringify(git.long())
             }
         }),
-        new webpack.optimize.UglifyJsPlugin({
-            compress: {
+        new UglifyJSPlugin({
+            uglifyOptions: {
                 warnings: false,
                 screw_ie8: true,
                 sequences: true,
@@ -28,9 +28,7 @@ module.exports = {
                 hoist_funs: true,
                 if_return: true,
                 join_vars: true,
-                cascade: true
-            },
-            output: {
+                cascade: true,
                 comments: false
             }
         }),
