@@ -120,7 +120,7 @@ class Modals extends React.Component {
                 {show_update_modal && (
                     <Reveal onHide={hideUpdate} show={show_update_modal}>
                         <CloseButton onClick={hideUpdate} />
-                        <UpdateTronAccountTwo />
+                        <UpdateTronAccountOne />
                     </Reveal>
                 )}
                 {show_update_success_modal && (
@@ -240,7 +240,7 @@ export default connect(
             show_signup_modal: state.user.get('show_signup_modal'),
             show_vote_modal: state.user.get('show_vote_modal'),
             show_update_modal: state.user.get('show_update_modal'),
-            show_vote_success_modal: state.user.get(
+            show_update_success_modal: state.user.get(
                 'show_update_success_modal'
             ),
             notifications: state.app.get('notifications'),

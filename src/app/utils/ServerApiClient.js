@@ -1,5 +1,5 @@
 import { api } from '@steemit/steem-js';
-
+import { signTron } from 'server/tronAccount';
 const request_base = {
     method: 'post',
     mode: 'no-cors',
@@ -95,10 +95,23 @@ export function acceptTos() {
 
 export function checkTronUser(username) {
     //todo:  api  /api/v1/tron/tron_user bug, call cannot reach
-    let queryString = '/api/v1/tron/tron_user?username=' + username;
+    const queryString = '/api/v1/tron/tron_user?username=' + username;
     return fetch(queryString);
 }
 
 export function updateTronUser(username, tron_address) {
     // todo: add api call function
+    const r = signTron(username, tron_address);
+    const body = {
+        username: username,
+        tron_addr: tron_address,
+        nonce: r.nonce,
+        timestamp: r.timestamp,
+        sign: r.signature,
+    };
+    const request = Object.assign({}, request_base, {
+        body: body,
+    });
+    console.log(body);
+    return fetch('/api/v1/tron/tron_user', request);
 }

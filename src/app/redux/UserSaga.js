@@ -20,9 +20,11 @@ import {
     isTosAccepted,
     acceptTos,
     checkTronUser,
+    updateTronUser,
 } from 'app/utils/ServerApiClient';
 import { loadFollows } from 'app/redux/FollowSaga';
 import { translate } from 'app/Translator';
+import { createAccount, encryptedTronKey } from 'server/tronAccount';
 
 export const userWatches = [
     takeLatest('@@router/LOCATION_CHANGE', removeHighSecurityKeys), // keep first to remove keys early when a page change happens
@@ -35,6 +37,7 @@ export const userWatches = [
     takeLatest(userActions.LOGOUT, logout),
     takeLatest(userActions.LOGIN_ERROR, loginError),
     takeLatest(userActions.LOAD_SAVINGS_WITHDRAW, loadSavingsWithdraw),
+    takeLatest(userActions.UPDATE_USER, updateTronAccount),
     takeLatest(userActions.ACCEPT_TERMS, function*() {
         try {
             yield call(acceptTos);
@@ -60,6 +63,45 @@ const highSecurityPages = [
     /\/~witnesses/,
     /\/proposals/,
 ];
+
+function* updateTronAccount() {
+    const username = yield select(state =>
+        state.user.getIn(['current', 'username'])
+    );
+    // create a tron account
+    const obj = yield createAccount();
+    // encrypt key
+    let privateKey = encryptedTronKey(obj.privateKey);
+    let publicKey = encryptedTronKey(obj.publicKey);
+    // store locally, will remove once use finish process
+    sessionStorage.setItem('tron_address', obj.address.base58);
+    sessionStorage.setItem('username', username);
+    sessionStorage.setItem('tron_private_key', privateKey);
+    sessionStorage.setItem('tron_public_key', publicKey);
+
+    console.log(obj); // debug
+    const response1 = yield updateTronUser(username, obj.address.base58);
+    const body1 = yield response1.json();
+    console.log(body1);
+
+    // query tron user information
+    const response = yield checkTronUser(username);
+    const body = yield response.json();
+    console.log(body);
+    if (body.status && body.status == 'ok') {
+        console.log('test');
+        yield put(
+            userActions.setUser({
+                username,
+                tron_address: body.result.tron_addr,
+                tron_user: body.result.tron_addr == '' ? false : true,
+                tron_reward: body.result.pending_claim_tron_reward,
+            })
+        );
+    } else {
+        // todo: retry just show error windows
+    }
+}
 
 function* loadSavingsWithdraw() {
     const username = yield select(state =>

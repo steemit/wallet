@@ -1,6 +1,8 @@
 import React, { Component } from 'react';
 import { PrivateKey } from '@steemit/steem-js/lib/auth/ecc';
 import QRious from 'qrious';
+import { Link } from 'react-router';
+
 function image2canvas(image, bgcolor) {
     const canvas = document.createElement('canvas');
     canvas.width = image.width * 32;
@@ -10,7 +12,6 @@ function image2canvas(image, bgcolor) {
     ctx.fillStyle = bgcolor;
     ctx.fillRect(0.0, 0.0, canvas.width, canvas.height);
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-
     return canvas;
 }
 
@@ -88,17 +89,28 @@ export default class PdfDownload extends Component {
                     style={{ display: 'none' }}
                     className="pdf-logo"
                 />
-                {this.state.loaded && (
-                    <button
-                        style={{ display: 'block' }}
-                        onClick={e => {
-                            this.downloadPdf();
-                            e.preventDefault();
-                        }}
-                    >
-                        {this.props.label}
-                    </button>
-                )}
+                {this.state.loaded &&
+                    (!this.props.link ? (
+                        <button
+                            style={{ display: 'block' }}
+                            onClick={e => {
+                                this.downloadPdf();
+                                e.preventDefault();
+                            }}
+                        >
+                            {this.props.label}
+                        </button>
+                    ) : (
+                        <Link
+                            style={{ display: 'block' }}
+                            onClick={e => {
+                                this.downloadPdf();
+                                e.preventDefault();
+                            }}
+                        >
+                            {this.props.label}
+                        </Link>
+                    ))}
             </div>
         );
     }
@@ -131,7 +143,7 @@ export default class PdfDownload extends Component {
 
     drawImageFromCanvas(ctx, selector, x, y, w, h, bgcolor) {
         const canvas = image2canvas(document.querySelector(selector), bgcolor); // svg -> jpg
-        ctx.addImage(canvas, 'JPEG', x, y, w, h);
+        ctx.addImage(canvas.toDataURL('image/jpeg'), 'JPEG', x, y, w, h);
     }
 
     drawQr(ctx, data, x, y, size, bgcolor) {
@@ -175,7 +187,6 @@ export default class PdfDownload extends Component {
         this.drawFilledRect(ctx, 0.0, 0.0, widthInches, sectionHeight, {
             color: '#1f0fd1',
         });
-
         this.drawImageFromCanvas(
             ctx,
             '.pdf-logo',
@@ -185,7 +196,6 @@ export default class PdfDownload extends Component {
             0.3 * 1.8,
             '#1F0FD1'
         );
-
         offset += 0.265;
         offset += this.renderText(ctx, `Steem keys for @${this.props.name}`, {
             scale,
@@ -197,7 +207,7 @@ export default class PdfDownload extends Component {
             fontSize: 0.36,
             font: 'Roboto-Bold',
         });
-
+        console.log('rendtext 202 to render pdf');
         /*
         offset += 0.1;
         offset += this.renderText(
@@ -302,11 +312,13 @@ export default class PdfDownload extends Component {
             color: 'f4f4f4',
         });
 
+        const tron_public_key = this.props.tron_public_key;
+
         offset += 0.15;
         this.drawQr(
             ctx,
             'steem://import/wif/' +
-                keys.postingPrivate +
+                tron_public_key +
                 '/account/' +
                 this.props.name,
             margin,
@@ -314,7 +326,6 @@ export default class PdfDownload extends Component {
             qrSize,
             '#f4f4f4'
         );
-
         offset += 0.1;
         offset += this.renderText(
             ctx,
@@ -347,10 +358,10 @@ export default class PdfDownload extends Component {
         );
 
         offset += 0.075; // todo: replace tron address
-        offset += this.renderText(ctx, this.props.tron_address, {
+        offset += this.renderText(ctx, tron_public_key, {
             scale,
             x: margin + qrSize + 0.1,
-            y: sectionStart + sectionHeight - 0.4,
+            y: sectionStart + sectionHeight - 0.6,
             lineHeight: lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
@@ -361,17 +372,18 @@ export default class PdfDownload extends Component {
         offset = sectionStart + sectionHeight;
 
         // tron account private key
-        // sectionStart = offset;
-        // sectionHeight = qrSize + 0.15 * 2;
+        sectionStart = offset;
+        sectionHeight = qrSize + 0.15 * 2;
         // this.drawFilledRect(ctx, 0.0, offset, widthInches, sectionHeight, {
         //     color: 'f4f4f4',
         // });
+        const tron_private_key = this.props.tron_private_key;
 
         offset += 0.15;
         this.drawQr(
             ctx,
             'steem://import/wif/' +
-                keys.postingPrivate +
+                tron_private_key +
                 '/account/' +
                 this.props.name,
             margin,
@@ -409,10 +421,10 @@ export default class PdfDownload extends Component {
         );
 
         offset += 0.075; // todo: replace tron private key
-        offset += this.renderText(ctx, this.props.tron_key, {
+        offset += this.renderText(ctx, tron_private_key, {
             scale,
             x: margin + qrSize + 0.1,
-            y: sectionStart + sectionHeight - 0.6,
+            y: sectionStart + sectionHeight - 0.4,
             lineHeight: lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
@@ -420,9 +432,10 @@ export default class PdfDownload extends Component {
             font: 'RobotoMono-Regular',
         });
         offset += 0.2;
-        offset = sectionStart + sectionHeight;
 
+        // todo: pass newUser
         if (!this.props.newUser) return ctx;
+
         // Steemit Account
         offset += 0.4;
         offset += this.renderText(ctx, 'Your Steemit Private Keys', {

@@ -23,6 +23,7 @@ const CLEAR_POWERDOWN_DEFAULTS = 'user/CLEAR_POWERDOWN_DEFAULTS';
 export const USERNAME_PASSWORD_LOGIN = 'user/USERNAME_PASSWORD_LOGIN';
 export const SET_USERNAME = 'user/SET_USERNAME';
 export const SET_USER = 'user/SET_USER';
+export const UPDATE_USER = 'user/UPDATE_USER';
 const CLOSE_LOGIN = 'user/CLOSE_LOGIN';
 export const LOGIN_ERROR = 'user/LOGIN_ERROR';
 export const LOGOUT = 'user/LOGOUT';
@@ -181,6 +182,8 @@ export default function reducer(state = defaultState, action) {
         case LOAD_SAVINGS_WITHDRAW:
             return state; // saga
 
+        case UPDATE_USER:
+            return state; // saga
         case SET_USERNAME:
             // TODO: Clean this up
             return state.mergeDeep({
@@ -190,8 +193,6 @@ export default function reducer(state = defaultState, action) {
                 loginBroadcastOperation: undefined,
                 loginDefault: undefined,
                 logged_out: undefined,
-                show_update_modal: false,
-                show_update_success_modal: false,
             });
 
         case SET_USER:
@@ -212,8 +213,6 @@ export default function reducer(state = defaultState, action) {
                 loginBroadcastOperation: undefined,
                 loginDefault: undefined,
                 logged_out: undefined,
-                show_update_modal: false,
-                show_update_success_modal: false,
             });
 
         case CLOSE_LOGIN:
@@ -475,6 +474,11 @@ export const set = payload => ({
 
 export const loadSavingsWithdraw = payload => ({
     type: LOAD_SAVINGS_WITHDRAW,
+    payload,
+});
+
+export const updateUser = payload => ({
+    type: UPDATE_USER,
     payload,
 });
 

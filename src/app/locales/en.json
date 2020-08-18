@@ -943,8 +943,10 @@
         "update_button": "UPDATE AND DOWNLOAD",
         "update_success": "UPDATE SUCCESS",
         "update_success_content":
-            " You successfully update your TRON account. If fail to download, please with TRON public key pdf file. please take care of this file, if loss, cannot get it back. please do not share with anyone",
+            " You successfully update your TRON account. If fail to download, please",
         "update_success_click": "click download",
+        "update_success_content2":
+            " with TRON public key pdf file. please take care of this file, if loss, cannot get it back. please do not share with anyone",
         "safe_save_button": "safe save"
     }
 }

@@ -106,6 +106,7 @@ export default function useTronRewardApi(app) {
 
     router.post('/tron_user', koaBody, function*() {
         const data = this.request.body;
+        logRequest('tron_user', this, JSON.stringify(data));
         if (typeof data !== 'object') {
             this.body = JSON.stringify({
                 error: 'valid_input_data',
@@ -118,7 +119,6 @@ export default function useTronRewardApi(app) {
             });
             return;
         }
-
         // get public key
         const authType =
             data.auth_type !== undefined ? data.auth_type : 'posting';

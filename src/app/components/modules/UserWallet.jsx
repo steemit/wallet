@@ -29,7 +29,7 @@ import * as globalActions from 'app/redux/GlobalReducer';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
 import * as userActions from 'app/redux/UserReducer';
 import { updateTronUser } from 'app/utils/ServerApiClient';
-import { createAccount } from 'app/utils/TronAccount';
+import { createAccount, encryptedTronKey } from 'server/tronAccount';
 const assetPrecision = 1000;
 
 class UserWallet extends React.Component {
@@ -37,8 +37,6 @@ class UserWallet extends React.Component {
         super();
         this.state = {
             claimInProgress: false,
-            tron_private_key: '',
-            tron_address: '',
         };
         this.onShowDepositSteem = e => {
             if (e && e.preventDefault) e.preventDefault();
@@ -92,27 +90,6 @@ class UserWallet extends React.Component {
                 'https://tronscan.org/#/address/' +
                 trx_address +
                 '/transactions';
-        };
-        // todo: create a tron account
-        this.onCreateTronAccount = async (username, e) => {
-            const obj = await createAccount();
-            // this.setState({tron_address:obj.address,tron_private_key:obj.privateKey});
-            // todo: encrypt
-            sessionStorage.setItem('tron_address', obj.address);
-            sessionStorage.setItem('username', username);
-            sessionStorage.setItem('tron_private_key', obj.privateKey);
-            sessionStorage.setItem('tron_public_key', obj.publicKey);
-            this.props.showUpdate();
-            console.log(obj);
-            // updateTronUser(username,obj.address)
-        };
-
-        // todo: update a tron account
-        this.onUpdateTronAccount = async e => {
-            // const obj = await createAccount();
-            // this.setState({tron_address:obj.address,tron_private_key:obj.privateKey});
-            // updateTronUser(name, new_trx_address);
-            //
         };
 
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
@@ -168,8 +145,6 @@ class UserWallet extends React.Component {
             onShowDepositPower,
             onShowTRX,
             onShowTRXTransaction,
-            onUpdateTronAccount,
-            onCreateTronAccount,
         } = this;
         const {
             convertToSteem,
@@ -215,11 +190,12 @@ class UserWallet extends React.Component {
             });
         };
 
-        // // todo: create a tron account
-        // const onCreateTronAccount = (e) => {
-        //     const obj = yield createAccount();
-        //     console.log(obj)
-        // };
+        const onCreateTronAccount = e => {
+            this.props.updateUser();
+        };
+        const onUpdateTronAccount = e => {
+            this.props.showUpdate();
+        };
 
         const savings_balance = account.get('savings_balance');
         const savings_sbd_balance = account.get('savings_sbd_balance');
@@ -859,8 +835,7 @@ class UserWallet extends React.Component {
                                         <button
                                             className="UserWallet__buysp button buttonSmall hollow"
                                             onClick={onCreateTronAccount.bind(
-                                                this,
-                                                currentUser.get('username')
+                                                this
                                             )}
                                         >
                                             {tt(
@@ -876,7 +851,9 @@ class UserWallet extends React.Component {
                                     isTrxAccount && (
                                         <button
                                             className="UserWallet__buysp button buttonSmall hollow"
-                                            onClick={onUpdateTronAccount}
+                                            onClick={onUpdateTronAccount.bind(
+                                                this
+                                            )}
                                         >
                                             {tt(
                                                 'userwallet_jsx.update_trx_button'
@@ -1037,11 +1014,12 @@ export default connect(
             const name = 'convertToSteem';
             dispatch(globalActions.showDialog({ name }));
         },
-        showUpdate: () => {
+        showUpdate: e => {
             // if (e) e.preventDefault();
-            console.log('set vote to be true');
             dispatch(userActions.showUpdate());
-            // dispatch(userActions.showUpdateSuccess());
+        },
+        updateUser: () => {
+            dispatch(userActions.updateUser());
         },
     })
 )(UserWallet);

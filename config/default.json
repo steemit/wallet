@@ -86,5 +86,6 @@
     },
     "redis_url": "redis://127.0.0.1:6379",
     "tron_create_key": "ade06c9d42d42c7e24bf93dcbb0a481193a6869400ddee21855d4cf585eaad8a",
-    "tron_create_node": "https://api.trongrid.io"
+    "tron_create_node": "https://api.trongrid.io",
+    "tron_create_address":"xxxxx"
 }
