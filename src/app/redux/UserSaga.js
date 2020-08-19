@@ -206,9 +206,7 @@ function* usernamePasswordLogin({
                 body.result.tron_addr.length > 0
             ) {
                 exit_tron_user = true;
-                const res = yield getTronAccount(
-                    'TTSFjEG3Lu9WkHdp4JrWYhbGP6K1REqnGQ'
-                );
+                const res = yield getTronAccount(body.result.tron_addr);
                 console.log(res);
                 yield put(
                     userActions.setUser({
@@ -216,7 +214,8 @@ function* usernamePasswordLogin({
                         tron_address: body.result.tron_addr,
                         tron_user: body.result.tron_addr == '' ? false : true,
                         tron_reward: body.result.pending_claim_tron_reward,
-                        tron_balance: res.balance,
+                        tron_balance:
+                            res.balance == undefined ? 0.0 : res.balance,
                     })
                 );
             } else {

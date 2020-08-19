@@ -591,7 +591,7 @@ class UserWallet extends React.Component {
         const reward_tron =
             parseFloat(this.props.tron_reward.split(' ')[0]) > 0
                 ? this.props.tron_reward
-                : '1.00 TRX';
+                : null;
         const rewards = [];
         if (reward_steem) rewards.push(reward_steem);
         if (reward_sbd) rewards.push(reward_sbd);

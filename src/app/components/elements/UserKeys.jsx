@@ -118,11 +118,10 @@ class UserKeys extends Component {
                     <div className="UserKeys__intro-col">
                         <h1>Keys & Permissions </h1>
                         <p className="UserKeys__p">
-                            {tt('g.blog')}
-                            {tt('userkeys_jsx.userkeys_desc_1')}
+                            {tt('userkeys_jsx.userkeys_info_1')}
                         </p>
                         <p className="UserKeys__p">
-                            {tt('userkeys_jsx.userkeys_desc_2')}
+                            {tt('userkeys_jsx.userkeys_info_2')}
                         </p>
                         <h5>{tt('userkeys_jsx.leare_more')}</h5>
                         <a
