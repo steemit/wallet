@@ -103,7 +103,8 @@ function* updateTronAccount() {
             userActions.setUser({
                 username,
                 tron_address: body.result.tron_addr,
-                tron_user: body.result.tron_addr == '' ? false : true,
+                // tron_user: body.result.tron_addr == '' ? false : true,
+                tron_user: true,
                 tron_reward: body.result.pending_claim_tron_reward,
             })
         );
@@ -174,7 +175,7 @@ function* usernamePasswordLogin({
         yield fork(loadFollows, currentUsername, 'ignore');
         query_user_name = currentUsername;
     }
-
+    var exit_tron_user = false;
     // query api get tron information
     if (query_user_name) {
         const response = yield checkTronUser(query_user_name);
@@ -190,6 +191,11 @@ function* usernamePasswordLogin({
                     tron_reward: body.result.pending_claim_tron_reward,
                 })
             );
+            if (
+                body.result.tron_addr == '' ||
+                body.result.tron_addr.length == 0
+            )
+                exit_tron_user = true;
         } else {
             // todo: retry just show error windows
         }
@@ -447,6 +453,7 @@ function* usernamePasswordLogin({
             console.log('Logging in as', username);
             const response = yield serverApiLogin(username, signatures);
             const body = yield response.json();
+            if (exit_tron_user) yield put(userActions.showTronCreate());
         }
     } catch (error) {
         // Does not need to be fatal

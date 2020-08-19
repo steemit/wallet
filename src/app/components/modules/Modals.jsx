@@ -20,6 +20,8 @@ import TermsAgree from 'app/components/modules/TermsAgree';
 import TronVote from 'app/components/modules/TronVote';
 import UpdateTronAccountOne from 'app/components/modules/UpdateTronAccountOne';
 import UpdateTronAccountTwo from 'app/components/modules/UpdateTronAccountTwo';
+import TronCreateOne from 'app/components/modules/TronCreateOne';
+import TronCreateTwo from 'app/components/modules/TronCreateTwo';
 
 class Modals extends React.Component {
     static defaultProps = {
@@ -37,9 +39,13 @@ class Modals extends React.Component {
         show_post_advanced_settings_modal: '',
         show_vote_modal: false,
         show_update_modal: false,
-        show_update_success: false,
+        show_update_success_modal: false,
+        show_tron_create_modal: false,
+        show_tron_create_success_modal: false,
     };
     static propTypes = {
+        show_tron_create_modal: PropTypes.bool,
+        show_tron_create_success_modal: PropTypes.bool,
         show_update_modal: PropTypes.bool,
         show_update_success_modal: PropTypes.bool,
         show_vote_modal: PropTypes.bool,
@@ -62,6 +68,8 @@ class Modals extends React.Component {
         hideVote: PropTypes.func.isRequired,
         hideUpdate: PropTypes.func.isRequired,
         hideUpdateSuccess: PropTypes.func.isRequired,
+        hideTronCreate: PropTypes.func.isRequired,
+        hideTronCreateSuccess: PropTypes.func.isRequired,
         notifications: PropTypes.object,
         show_terms_modal: PropTypes.bool,
         removeNotification: PropTypes.func,
@@ -74,6 +82,8 @@ class Modals extends React.Component {
 
     render() {
         const {
+            show_tron_create_modal,
+            show_tron_create_success_modal,
             show_update_modal,
             show_update_success_modal,
             show_vote_modal,
@@ -99,6 +109,8 @@ class Modals extends React.Component {
             hideVote,
             hideUpdate,
             hideUpdateSuccess,
+            hideTronCreate,
+            hideTronCreateSuccess,
         } = this.props;
 
         const notifications_array = notifications
@@ -117,6 +129,25 @@ class Modals extends React.Component {
 
         return (
             <div>
+                {show_tron_create_modal && (
+                    <Reveal
+                        onHide={hideTronCreate}
+                        show={show_tron_create_modal}
+                    >
+                        <CloseButton onClick={hideTronCreate} />
+                        <TronCreateOne />
+                    </Reveal>
+                )}
+                {show_tron_create_success_modal && (
+                    <Reveal
+                        onHide={hideTronCreateSuccess}
+                        show={show_tron_create_success_modal}
+                    >
+                        <CloseButton onClick={hideTronCreateSuccess} />
+                        <TronCreateTwo />
+                    </Reveal>
+                )}
+
                 {show_update_modal && (
                     <Reveal onHide={hideUpdate} show={show_update_modal}>
                         <CloseButton onClick={hideUpdate} />
@@ -243,6 +274,10 @@ export default connect(
             show_update_success_modal: state.user.get(
                 'show_update_success_modal'
             ),
+            show_tron_create_modal: state.user.get('show_tron_create_modal'),
+            show_tron_create_success_modal: state.user.get(
+                'show_tron_create_success_modal'
+            ),
             notifications: state.app.get('notifications'),
             show_terms_modal:
                 state.user.get('show_terms_modal') &&
@@ -260,6 +295,14 @@ export default connect(
         };
     },
     dispatch => ({
+        hideTronCreate: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.hideTronUpdate());
+        },
+        hideTronCreateSuccess: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.hideTronCreateSuccess());
+        },
         hideUpdate: e => {
             if (e) e.preventDefault();
             dispatch(userActions.hideUpdate());

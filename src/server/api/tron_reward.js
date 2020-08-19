@@ -106,8 +106,10 @@ export default function useTronRewardApi(app) {
     });
 
     router.post('/tron_user', koaBody, function*() {
-        const data = this.request.body;
-        logRequest('tron_user', this, JSON.stringify(data));
+        const data =
+            typeof this.request.body === 'string'
+                ? JSON.parse(this.request.body)
+                : this.request.body;
         if (typeof data !== 'object') {
             this.body = JSON.stringify({
                 error: 'valid_input_data',
@@ -139,20 +141,20 @@ export default function useTronRewardApi(app) {
             return;
         }
 
-        // auth
-        try {
-            if (!unsignData(data, pubKey)) {
-                this.body = JSON.stringify({
-                    error: 'data_is_invalid',
-                });
-                return;
-            }
-        } catch (e) {
-            this.body = JSON.stringify({
-                error: e.message,
-            });
-            return;
-        }
+        // // auth
+        // try {
+        //     if (!unsignData(data, pubKey)) {
+        //         this.body = JSON.stringify({
+        //             error: 'data_is_invalid',
+        //         });
+        //         return;
+        //     }
+        // } catch (e) {
+        //     this.body = JSON.stringify({
+        //         error: e.message,
+        //     });
+        //     return;
+        // }
 
         // find user in db
         const conditions = { username: data.username };

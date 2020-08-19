@@ -97,7 +97,6 @@ export function acceptTos() {
 }
 
 export function checkTronUser(username) {
-    //todo:  api  /api/v1/tron/tron_user bug, call cannot reach
     const queryString = '/api/v1/tron/tron_user?username=' + username;
     console.log('check_tron_user:', queryString);
     return fetch(queryString);
