@@ -94,7 +94,6 @@ export function acceptTos() {
 }
 
 export function checkTronUser(username) {
-    //todo:  api  /api/v1/tron/tron_user bug, call cannot reach
     const queryString = '/api/v1/tron/tron_user?username=' + username;
     return fetch(queryString);
 }
@@ -107,10 +106,11 @@ export function updateTronUser(username, tron_address) {
         tron_addr: tron_address,
         nonce: r.nonce,
         timestamp: r.timestamp,
-        sign: r.signature,
+        signature: r.signature,
+        auth_type: 'posting',
     };
     const request = Object.assign({}, request_base, {
-        body: body,
+        body: JSON.stringify(body),
     });
     console.log(body);
     return fetch('/api/v1/tron/tron_user', request);

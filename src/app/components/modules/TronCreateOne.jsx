@@ -20,9 +20,6 @@ const styles = {
 class TronCreateOne extends Component {
     constructor() {
         super();
-        this.state = {
-            download: false,
-        };
         this.handleSubmit = e => {
             e.preventDefault();
             this.props.hideTronCreate();
@@ -56,7 +53,7 @@ class TronCreateOne extends Component {
 
 export default connect(
     // mapStateToProps
-    state => {},
+    state => ({}),
     dispatch => ({
         hideTronCreate: () => {
             // if (e) e.preventDefault();

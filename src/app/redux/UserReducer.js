@@ -23,7 +23,6 @@ const CLEAR_POWERDOWN_DEFAULTS = 'user/CLEAR_POWERDOWN_DEFAULTS';
 export const USERNAME_PASSWORD_LOGIN = 'user/USERNAME_PASSWORD_LOGIN';
 export const SET_USERNAME = 'user/SET_USERNAME';
 export const SET_USER = 'user/SET_USER';
-export const UPDATE_USER = 'user/UPDATE_USER';
 const CLOSE_LOGIN = 'user/CLOSE_LOGIN';
 export const LOGIN_ERROR = 'user/LOGIN_ERROR';
 export const LOGOUT = 'user/LOGOUT';
@@ -50,7 +49,7 @@ const HIDE_TRON_CREATE_SUCCESS = 'user/HIDE_TRON_CREATE_SUCCESS';
 // Saga-related
 export const LOAD_SAVINGS_WITHDRAW = 'user/LOAD_SAVINGS_WITHDRAW';
 export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
-
+export const UPDATE_USER = 'user/UPDATE_USER';
 const defaultState = fromJS({
     current: null,
     show_login_modal: false,
