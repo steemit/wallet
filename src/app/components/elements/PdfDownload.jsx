@@ -81,6 +81,17 @@ export default class PdfDownload extends Component {
         this.setState({ loaded: true });
     }
 
+    // shouldComponentUpdate(nextProps, nextState){
+    //     if(nextProps.download!=undefined) return false;   // just download, not need to render
+    //     return true;
+    // }
+    componentDidUpdate(prevProps) {
+        // start to download pdf key file
+        if (this.props.download !== prevProps.download || this.props.download) {
+            this.downloadPdf();
+        }
+    }
+
     render() {
         return (
             <div className="pdf-download">

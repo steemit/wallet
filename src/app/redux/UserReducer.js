@@ -43,7 +43,10 @@ const SHOW_UPDATE = 'user/SHOW_UPDATE';
 const HIDE_UPDATE = 'user/HIDE_UPDATE';
 const SHOW_UPDATE_SUCCESS = 'user/SHOW_UPDATE_SUCCESS';
 const HIDE_UPDATE_SUCCESS = 'user/HIDE_UPDATE_SUCCESS';
-
+const SHOW_TRON_CREATE = 'user/SHOW_TRON_CREATE';
+const HIDE_TRON_CREATE = 'user/HIDE_TRON_CREATE';
+const SHOW_TRON_CREATE_SUCCESS = 'user/SHOW_TRON_CREATE_SUCCESS';
+const HIDE_TRON_CREATE_SUCCESS = 'user/HIDE_TRON_CREATE_SUCCESS';
 // Saga-related
 export const LOAD_SAVINGS_WITHDRAW = 'user/LOAD_SAVINGS_WITHDRAW';
 export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
@@ -57,6 +60,8 @@ const defaultState = fromJS({
     show_vote_modal: false,
     show_update_modal: false,
     show_update_success_modal: false,
+    show_tron_create_modal: false,
+    show_tron_create_success_modal: false,
     pub_keys_used: null,
     locale: DEFAULT_LANGUAGE,
     show_side_panel: false,
@@ -280,6 +285,14 @@ export default function reducer(state = defaultState, action) {
             return state.set('show_update_success_modal', true);
         case HIDE_UPDATE_SUCCESS:
             return state.set('show_update_success_modal', false);
+        case SHOW_TRON_CREATE:
+            return state.set('show_tron_create_modal', true);
+        case HIDE_TRON_CREATE:
+            return state.set('show_tron_create_modal', false);
+        case SHOW_TRON_CREATE_SUCCESS:
+            return state.set('show_tron_create_success_modal', true);
+        case HIDE_TRON_CREATE_SUCCESS:
+            return state.set('show_tron_create_success_modal', false);
 
         default:
             return state;
@@ -323,6 +336,24 @@ export const showUpdateSuccess = payload => ({
 });
 export const hideUpdateSuccess = payload => ({
     type: HIDE_UPDATE_SUCCESS,
+    payload,
+});
+
+export const showTronCreate = payload => ({
+    type: SHOW_TRON_CREATE,
+    payload,
+});
+export const hideTronCreate = payload => ({
+    type: HIDE_TRON_CREATE,
+    payload,
+});
+
+export const showTronCreateSuccess = payload => ({
+    type: SHOW_TRON_CREATE_SUCCESS,
+    payload,
+});
+export const hideTronCreateSuccess = payload => ({
+    type: HIDE_TRON_CREATE_SUCCESS,
     payload,
 });
 

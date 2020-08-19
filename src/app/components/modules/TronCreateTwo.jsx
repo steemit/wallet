@@ -16,12 +16,13 @@ const styles = {
         marginTop: '40px',
     },
 };
-class UpdateTronAccountTwo extends Component {
+
+class TronCreateTwo extends Component {
     constructor() {
         super();
         this.handleSubmit = e => {
             e.preventDefault();
-            this.props.hideUpdateSuccess();
+            this.props.hideTronCreateSuccess();
             sessionStorage.removeItem('tron_public_key');
             sessionStorage.removeItem('tron_private_key');
         };
@@ -39,10 +40,10 @@ class UpdateTronAccountTwo extends Component {
         return (
             <div>
                 <div>
-                    <h3>{tt('tron_jsx.update_success')}</h3>
+                    <h3>{tt('tron_jsx.create_tron_success')}</h3>
                 </div>
                 <div style={styles.container}>
-                    <div>{tt('tron_jsx.update_success_content')}</div>
+                    <div>{tt('tron_jsx.create_tron_success_content')}</div>
                     <div>
                         <PdfDownload
                             name={username}
@@ -53,6 +54,7 @@ class UpdateTronAccountTwo extends Component {
                             heightInches={11.0}
                             label="click download"
                             link={true}
+                            download={this.props.tron_user}
                         />
                     </div>
                     <div>{tt('tron_jsx.update_success_content2')}</div>
@@ -72,11 +74,22 @@ class UpdateTronAccountTwo extends Component {
 }
 
 export default connect(
-    state => ({}),
+    // mapStateToProps
+    (state, ownProps) => {
+        const currentUser = state.user.get('current');
+        const tron_user =
+            currentUser && currentUser.has('tron_user')
+                ? currentUser.get('tron_user')
+                : false;
+        return {
+            ...ownProps,
+            tron_user,
+        };
+    },
     dispatch => ({
-        hideUpdateSuccess: () => {
+        hideTronCreateSuccess: () => {
             // if (e) e.preventDefault();
-            dispatch(userActions.hideUpdateSuccess());
+            dispatch(userActions.hideTronCreateSuccess());
         },
     })
-)(UpdateTronAccountTwo);
+)(TronCreateTwo);
