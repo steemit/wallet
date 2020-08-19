@@ -59,7 +59,12 @@ export default connect(
             dispatch(userActions.hideUpdate());
         },
         updateUser: () => {
-            dispatch(userActions.updateUser());
+            dispatch(
+                userActions.updateUser({
+                    claim_reward: false,
+                    tron_address: '',
+                })
+            );
         },
     })
 )(UpdateTronAccountOne);

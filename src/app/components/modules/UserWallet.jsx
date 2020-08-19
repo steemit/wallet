@@ -91,13 +91,20 @@ class UserWallet extends React.Component {
                 trx_address +
                 '/transactions';
         };
+        this.onShowJUST = e => {
+            e.preventDefault();
+            const new_window = window.open();
+            new_window.opener = null;
+            new_window.location =
+                'https://just.tronscan.org/?lang=en-US#/login';
+        };
 
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
     }
 
-    handleClaimRewards = account => {
+    handleClaimRewards = (account, tron_address) => {
         this.setState({ claimInProgress: true }); // disable the claim button
-        this.props.claimRewards(account);
+        this.props.claimRewards(account, tron_address);
     };
 
     getCurrentApr = gprops => {
@@ -145,6 +152,7 @@ class UserWallet extends React.Component {
             onShowDepositPower,
             onShowTRX,
             onShowTRXTransaction,
+            onShowJUST,
         } = this;
         const {
             convertToSteem,
@@ -317,8 +325,9 @@ class UserWallet extends React.Component {
                   }, 0) / assetPrecision;
         // let tron_reward =  (currentUser && currentUser.has('tron_reward'))
         //                     ?currentUser.get('tron_reward'):'0.000';
-        let tron_reward = this.props.tron_reward.replace(/[^0-9.]/, '');
-        const tron_balance = parseFloat(tron_reward);
+        // let tron_reward = this.props.tron_reward.replace(/[^0-9.]/, '');
+        const tron_balance = parseFloat(this.props.tron_balance);
+
         // set displayed estimated value
         const total_sbd =
             sbd_balance +
@@ -431,6 +440,11 @@ class UserWallet extends React.Component {
                 value: tt('userwallet_jsx.market'),
                 link: '#',
                 onClick: onShowTRX,
+            },
+            {
+                value: tt('userwallet_jsx.just_mortgage'),
+                link: '#',
+                onClick: onShowJUST,
             },
         ];
         if (isMyAccount) {
@@ -574,14 +588,22 @@ class UserWallet extends React.Component {
             parseFloat(account.get('reward_vesting_steem').split(' ')[0]) > 0
                 ? account.get('reward_vesting_steem').replace('STEEM', 'SP')
                 : null;
-
+        const reward_tron =
+            parseFloat(this.props.tron_reward.split(' ')[0]) > 0
+                ? this.props.tron_reward
+                : '1.00 TRX';
         const rewards = [];
         if (reward_steem) rewards.push(reward_steem);
         if (reward_sbd) rewards.push(reward_sbd);
         if (reward_sp) rewards.push(reward_sp);
-
+        if (reward_tron) rewards.push(reward_tron);
         let rewards_str;
         switch (rewards.length) {
+            case 4:
+                rewards_str = `${rewards[0]}, ${rewards[1]} , ${
+                    rewards[2]
+                } and ${rewards[3]}`;
+                break;
             case 3:
                 rewards_str = `${rewards[0]}, ${rewards[1]} and ${rewards[2]}`;
                 break;
@@ -606,7 +628,10 @@ class UserWallet extends React.Component {
                                 disabled={this.state.claimInProgress}
                                 className="button"
                                 onClick={e => {
-                                    this.handleClaimRewards(account);
+                                    this.handleClaimRewards(
+                                        account,
+                                        TRX_address
+                                    );
                                 }}
                             >
                                 {tt('userwallet_jsx.redeem_rewards')}
@@ -961,7 +986,7 @@ export default connect(
         const tron_reward =
             currentUser && currentUser.has('tron_reward')
                 ? currentUser.get('tron_reward')
-                : '0.000';
+                : '0.000 TRX';
         const tron_user =
             currentUser && currentUser.has('tron_user')
                 ? currentUser.get('tron_user')
@@ -970,6 +995,10 @@ export default connect(
             currentUser && currentUser.has('tron_address')
                 ? currentUser.get('tron_address')
                 : '';
+        const tron_balance =
+            currentUser && currentUser.has('tron_balance')
+                ? currentUser.get('tron_balance')
+                : 0.0;
         return {
             ...ownProps,
             open_orders: state.market.get('open_orders'),
@@ -980,11 +1009,12 @@ export default connect(
             tron_reward,
             tron_user,
             tron_address,
+            tron_balance,
         };
     },
     // mapDispatchToProps
     dispatch => ({
-        claimRewards: account => {
+        claimRewards: (account, tron_address) => {
             const username = account.get('name');
             const successCallback = () => {
                 dispatch(
@@ -1006,6 +1036,12 @@ export default connect(
                     successCallback,
                 })
             );
+            dispatch(
+                userActions.updateUser({
+                    claim_reward: true,
+                    tron_address: tron_address,
+                })
+            );
         },
         convertToSteem: e => {
             //post 2018-01-31 if no calls to this function exist may be safe to remove. Investigate use of ConvertToSteem.jsx
@@ -1019,8 +1055,12 @@ export default connect(
             // dispatch(userActions.showTronCreate());
         },
         updateUser: () => {
-            // dispatch(userActions.updateUser());
-            dispatch(userActions.showTronCreate());
+            dispatch(
+                userActions.updateUser({
+                    claim_reward: false,
+                    tron_address: '',
+                })
+            );
         },
     })
 )(UserWallet);

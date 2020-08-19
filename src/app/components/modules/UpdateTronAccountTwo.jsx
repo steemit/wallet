@@ -19,6 +19,11 @@ const styles = {
 class UpdateTronAccountTwo extends Component {
     constructor() {
         super();
+        this.state = {
+            tron_public: '',
+            tron_private: '',
+            tron_create: false,
+        };
         this.handleSubmit = e => {
             e.preventDefault();
             this.props.hideUpdateSuccess();
@@ -26,16 +31,24 @@ class UpdateTronAccountTwo extends Component {
             sessionStorage.removeItem('tron_private_key');
         };
     }
+    componentDidUpdate(prevProps) {
+        // start to download pdf key file
+        if (this.props.tron_address !== prevProps.tron_address) {
+            const tron_public = decryptedTronToken(
+                sessionStorage.getItem('tron_public_key')
+            );
+            const tron_private = decryptedTronToken(
+                sessionStorage.getItem('tron_private_key')
+            );
+            this.setState({
+                tron_public: tron_public,
+                tron_private: tron_private,
+                tron_create: true,
+            });
+        }
+    }
 
     render() {
-        const tron_public = decryptedTronToken(
-            sessionStorage.getItem('tron_public_key')
-        );
-        const tron_private = decryptedTronToken(
-            sessionStorage.getItem('tron_private_key')
-        );
-        const username = sessionStorage.getItem('username');
-        // console.log('private key ='+tron_private+"  public key="+tron_public);
         return (
             <div>
                 <div>
@@ -45,14 +58,15 @@ class UpdateTronAccountTwo extends Component {
                     <div>{tt('tron_jsx.update_success_content')}</div>
                     <div>
                         <PdfDownload
-                            name={username}
-                            tron_public_key={tron_public}
-                            tron_private_key={tron_private}
+                            name={this.props.username}
+                            tron_public_key={this.state.tron_public}
+                            tron_private_key={this.state.tron_private}
                             newUser={false}
                             widthInches={8.5}
                             heightInches={11.0}
                             label="click download"
                             link={true}
+                            download={this.state.tron_create}
                         />
                     </div>
                     <div>{tt('tron_jsx.update_success_content2')}</div>
@@ -72,7 +86,23 @@ class UpdateTronAccountTwo extends Component {
 }
 
 export default connect(
-    state => ({}),
+    (state, ownProps) => {
+        const currentUser = state.user.get('current');
+
+        const tron_address =
+            currentUser && currentUser.has('tron_address')
+                ? currentUser.get('tron_address')
+                : '';
+        const username =
+            currentUser && currentUser.has('username')
+                ? currentUser.get('tron_user')
+                : '';
+        return {
+            ...ownProps,
+            tron_address,
+            username,
+        };
+    },
     dispatch => ({
         hideUpdateSuccess: () => {
             // if (e) e.preventDefault();

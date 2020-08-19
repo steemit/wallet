@@ -24,7 +24,11 @@ import {
 } from 'app/utils/ServerApiClient';
 import { loadFollows } from 'app/redux/FollowSaga';
 import { translate } from 'app/Translator';
-import { createAccount, encryptedTronKey } from 'server/tronAccount';
+import {
+    createAccount,
+    encryptedTronKey,
+    getTronAccount,
+} from 'server/tronAccount';
 
 export const userWatches = [
     takeLatest('@@router/LOCATION_CHANGE', removeHighSecurityKeys), // keep first to remove keys early when a page change happens
@@ -64,43 +68,66 @@ const highSecurityPages = [
     /\/proposals/,
 ];
 
-function* updateTronAccount() {
+function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
     const username = yield select(state =>
         state.user.getIn(['current', 'username'])
     );
-    // create a tron account
-    const obj = yield createAccount();
-    // encrypt key
-    let privateKey = encryptedTronKey(obj.privateKey);
-    let publicKey = encryptedTronKey(obj.publicKey);
-    // store locally, will remove once use finish process
-    sessionStorage.setItem('tron_address', obj.address.base58);
-    sessionStorage.setItem('username', username);
-    sessionStorage.setItem('tron_private_key', privateKey);
-    sessionStorage.setItem('tron_public_key', publicKey);
-
-    console.log(obj); // debug
-    const response1 = yield updateTronUser(username, obj.address.base58);
-    const body1 = yield response1.json();
-    console.log(body1);
-
-    // query tron user information
-    const response = yield checkTronUser(username);
-    const body = yield response.json();
-    console.log(body);
-    if (body.status && body.status == 'ok') {
-        console.log('test');
-        yield put(
-            userActions.setUser({
-                username,
-                tron_address: body.result.tron_addr,
-                // tron_user: body.result.tron_addr == '' ? false : true,
-                tron_user: true,
-                tron_reward: body.result.pending_claim_tron_reward,
-            })
-        );
+    console.log('payload:' + claim_reward + ' tron_address' + tron_address);
+    if (claim_reward) {
+        console.log('start claim reward...');
+        const response = yield updateTronUser(username, tron_address, true);
+        const body = yield response.json();
+        console.log('claim reward...' + JSON.stringify(body));
     } else {
-        // todo: retry just show error windows
+        // create a tron account
+        const obj = yield createAccount();
+        // encrypt key
+        let privateKey = encryptedTronKey(obj.privateKey);
+        let publicKey = encryptedTronKey(obj.publicKey);
+        // store locally, will remove once use finish process
+        sessionStorage.setItem('tron_address', obj.address.base58);
+        sessionStorage.setItem('username', username);
+        sessionStorage.setItem('tron_private_key', privateKey);
+        sessionStorage.setItem('tron_public_key', publicKey);
+
+        console.log(obj); // debug
+        const response1 = yield updateTronUser(
+            username,
+            obj.address.base58,
+            false
+        );
+        const body1 = yield response1.json();
+        console.log(body1);
+
+        // query tron user information
+        const response = yield checkTronUser(username);
+        const body = yield response.json();
+        console.log(body);
+        if (body.status && body.status == 'ok') {
+            console.log('test');
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_address: body.result.tron_addr,
+                    // tron_user: body.result.tron_addr == '' ? false : true,
+                    tron_user: true,
+                    tron_reward: body.result.pending_claim_tron_reward,
+                    tron_balance: 0.0,
+                })
+            );
+        } else {
+            // todo: retry just show error windows
+            // todo: retry just show error windows
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_address: 'error,please refresh page',
+                    tron_user: true,
+                    tron_reward: 0.0,
+                    tron_balance: 0.0,
+                })
+            );
+        }
     }
 }
 
@@ -174,21 +201,46 @@ function* usernamePasswordLogin({
         console.log(body);
         if (body.status && body.status == 'ok') {
             console.log('test');
+            if (
+                body.result.tron_addr != '' ||
+                body.result.tron_addr.length > 0
+            ) {
+                exit_tron_user = true;
+                const res = yield getTronAccount(
+                    'TTSFjEG3Lu9WkHdp4JrWYhbGP6K1REqnGQ'
+                );
+                console.log(res);
+                yield put(
+                    userActions.setUser({
+                        username,
+                        tron_address: body.result.tron_addr,
+                        tron_user: body.result.tron_addr == '' ? false : true,
+                        tron_reward: body.result.pending_claim_tron_reward,
+                        tron_balance: res.balance,
+                    })
+                );
+            } else {
+                yield put(
+                    userActions.setUser({
+                        username,
+                        tron_address: body.result.tron_addr,
+                        tron_user: body.result.tron_addr == '' ? false : true,
+                        tron_reward: body.result.pending_claim_tron_reward,
+                        tron_balance: 0.0,
+                    })
+                );
+            }
+        } else {
+            // todo: retry just show error windows
             yield put(
                 userActions.setUser({
                     username,
-                    tron_address: body.result.tron_addr,
-                    tron_user: body.result.tron_addr == '' ? false : true,
-                    tron_reward: body.result.pending_claim_tron_reward,
+                    tron_address: 'error,please refresh page',
+                    tron_user: true,
+                    tron_reward: 0.0,
+                    tron_balance: 0.0,
                 })
             );
-            if (
-                body.result.tron_addr == '' ||
-                body.result.tron_addr.length == 0
-            )
-                exit_tron_user = true;
-        } else {
-            // todo: retry just show error windows
         }
     }
 
@@ -442,7 +494,7 @@ function* usernamePasswordLogin({
             console.log('Logging in as', username);
             const response = yield serverApiLogin(username, signatures);
             const body = yield response.json();
-            if (exit_tron_user) yield put(userActions.showTronCreate());
+            if (!exit_tron_user) yield put(userActions.showTronCreate());
         }
     } catch (error) {
         // Does not need to be fatal

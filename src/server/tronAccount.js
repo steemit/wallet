@@ -13,10 +13,20 @@ const tronWeb = new TronWeb({
     privateKey:
         'ade06c9d42d42c7e24bf93dcbb0a481193a6869400ddee21855d4cf585eaad8a',
 });
+// const userKey = config.get('tron_user_key');
 const userKey = '5JPJJNot5TyFPDdBeKo2CWjkpLtGUAojMeewVaSxzfmbYJauutH';
 export async function createAccount() {
     try {
         const obj = await tronWeb.createAccount();
+        return obj;
+    } catch (err) {
+        console.log('error ');
+        return err;
+    }
+}
+export async function getTronAccount(trx_address) {
+    try {
+        const obj = await tronWeb.trx.getAccount(trx_address);
         return obj;
     } catch (err) {
         console.log('error ');
@@ -29,9 +39,6 @@ export function signTron(username, tron_address) {
         username: username,
         tron_addr: tron_address,
     };
-
-    // const userKey = config.get('tron_user_key');
-    // const userKey = '5JPJJNot5TyFPDdBeKo2CWjkpLtGUAojMeewVaSxzfmbYJauutH';
     const r = signData(data, userKey);
     return r;
 }
@@ -41,13 +48,13 @@ export function encryptedTronKey(key) {
     return ciphertext;
 }
 export function validToken(token, key) {
-    // Decrypt
     let bytes = CryptoJS.AES.decrypt(ciphertext, userKey);
     let originalText = bytes.toString(CryptoJS.enc.Utf8);
     return originalText == key;
 }
 
 export function decryptedTronToken(token) {
+    // Decrypt
     let bytes = CryptoJS.AES.decrypt(token, userKey);
     let originalText = bytes.toString(CryptoJS.enc.Utf8);
     return originalText;

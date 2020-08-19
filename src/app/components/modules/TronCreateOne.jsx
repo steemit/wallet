@@ -63,7 +63,12 @@ export default connect(
             dispatch(userActions.showTronCreateSuccess());
         },
         updateUser: () => {
-            dispatch(userActions.updateUser());
+            dispatch(
+                userActions.updateUser({
+                    claim_reward: false,
+                    tron_address: '',
+                })
+            );
         },
     })
 )(TronCreateOne);

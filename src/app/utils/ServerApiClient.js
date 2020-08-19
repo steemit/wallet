@@ -98,9 +98,10 @@ export function checkTronUser(username) {
     return fetch(queryString);
 }
 
-export function updateTronUser(username, tron_address) {
+export function updateTronUser(username, tron_address, claim_reward) {
     // todo: add api call function
     const r = signTron(username, tron_address);
+
     const body = {
         username: username,
         tron_addr: tron_address,
@@ -108,6 +109,7 @@ export function updateTronUser(username, tron_address) {
         timestamp: r.timestamp,
         signature: r.signature,
         auth_type: 'posting',
+        claim_reward: claim_reward,
     };
     const request = Object.assign({}, request_base, {
         body: JSON.stringify(body),

@@ -838,7 +838,8 @@
         "create_trx_description":
             "Not have TRX account? just click right creating TRX account button where a TRX reward can be received.",
         "create_trx_button": "CREATE TRON ACCOUNT",
-        "update_trx_button": "UPDATE TRON ACCOUNT"
+        "update_trx_button": "UPDATE TRON ACCOUNT",
+        "just_mortgage": "go JUST mortgage"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
