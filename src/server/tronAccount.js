@@ -1,7 +1,8 @@
-const TronWeb = require('tronweb');
 // import config from 'config';
 import { signData } from 'server/utils/encrypted';
-var CryptoJS = require('crypto-js');
+
+const TronWeb = require('tronweb');
+const CryptoJS = require('crypto-js');
 // todo: fix import config cause compile fail bug every time
 
 // const tronWeb = new TronWeb({
@@ -36,7 +37,7 @@ export async function getTronAccount(trx_address) {
 
 export function signTron(username, tron_address) {
     const data = {
-        username: username,
+        username,
         tron_addr: tron_address,
     };
     const r = signData(data, userKey);
@@ -44,7 +45,7 @@ export function signTron(username, tron_address) {
 }
 
 export function encryptedTronKey(key) {
-    let ciphertext = CryptoJS.AES.encrypt(key, userKey).toString();
+    const ciphertext = CryptoJS.AES.encrypt(key, userKey).toString();
     return ciphertext;
 }
 export function validToken(token, key) {

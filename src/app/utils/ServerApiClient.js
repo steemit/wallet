@@ -1,5 +1,8 @@
+/* eslint-disable no-undef */
 import { api } from '@steemit/steem-js';
-import { signTron } from 'server/tronAccount';
+// import { signTron } from 'server/tronAccount';
+import { signData } from 'server/utils/encrypted';
+
 const request_base = {
     method: 'post',
     mode: 'no-cors',
@@ -43,22 +46,22 @@ export function serverApiRecordEvent(type, val, rate_limit_ms = 5000) {
 
 let last_page, last_views, last_page_promise;
 export function recordPageView(page, referer, account) {
-    return; // TODO: disabled until overseer update
-    if (last_page_promise && page === last_page) return last_page_promise;
+    return null; // TODO: disabled until overseer update
+    // if (last_page_promise && page === last_page) return last_page_promise;
 
-    if (!process.env.BROWSER) return Promise.resolve(0);
-    if (window.ga) {
-        // virtual pageview
-        window.ga('set', 'page', page);
-        window.ga('send', 'pageview');
-    }
-    last_page_promise = api.callAsync('overseer.pageview', {
-        page,
-        referer,
-        account,
-    });
-    last_page = page;
-    return last_page_promise;
+    // if (!process.env.BROWSER) return Promise.resolve(0);
+    // if (window.ga) {
+    //     // virtual pageview
+    //     window.ga('set', 'page', page);
+    //     window.ga('send', 'pageview');
+    // }
+    // last_page_promise = api.callAsync('overseer.pageview', {
+    //     page,
+    //     referer,
+    //     account,
+    // });
+    // last_page = page;
+    // return last_page_promise;
 }
 
 export function saveCords(x, y) {
@@ -80,10 +83,10 @@ export function setUserPreferences(payload) {
 export function isTosAccepted() {
     // TODO: endpoint down. re-enable
     return true;
-    const request = Object.assign({}, request_base, {
-        body: JSON.stringify({ csrf: window.$STM_csrf }),
-    });
-    return fetch('/api/v1/isTosAccepted', request).then(res => res.json());
+    // const request = Object.assign({}, request_base, {
+    //     body: JSON.stringify({ csrf: window.$STM_csrf }),
+    // });
+    // return fetch('/api/v1/isTosAccepted', request).then(res => res.json());
 }
 
 export function acceptTos() {
@@ -95,25 +98,37 @@ export function acceptTos() {
 
 export function checkTronUser(username) {
     const queryString = '/api/v1/tron/tron_user?username=' + username;
+    console.log('check_tron_user:', queryString);
     return fetch(queryString);
 }
 
 export function updateTronUser(username, tron_address, claim_reward) {
     // todo: add api call function
-    const r = signTron(username, tron_address);
-
-    const body = {
-        username: username,
-        tron_addr: tron_address,
-        nonce: r.nonce,
-        timestamp: r.timestamp,
-        signature: r.signature,
-        auth_type: 'posting',
-        claim_reward: claim_reward,
+    // const r = signTron(username, tron_address);
+    // todo: add api call function
+    // todo: bug on backend api
+    const auth_type = 'posting';
+    const data = {
+        username,
+        tron_address,
+        auth_type,
+        claim_reward,
     };
+    const privKey = '5JPJJNot5TyFPDdBeKo2CWjkpLtGUAojMeewVaSxzfmbYJauutH';
+    const r = signData(data, privKey);
+
+    // const body = {
+    //     username: username,
+    //     tron_addr: tron_address,
+    //     nonce: r.nonce,
+    //     timestamp: r.timestamp,
+    //     signature: r.signature,
+    //     auth_type: 'posting',
+    //     claim_reward: claim_reward,
+    // }
+
     const request = Object.assign({}, request_base, {
-        body: JSON.stringify(body),
+        body: JSON.stringify(r),
     });
-    console.log(body);
     return fetch('/api/v1/tron/tron_user', request);
 }
