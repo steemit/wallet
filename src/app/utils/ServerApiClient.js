@@ -82,11 +82,11 @@ export function setUserPreferences(payload) {
 
 export function isTosAccepted() {
     // TODO: endpoint down. re-enable
-    return true;
-    // const request = Object.assign({}, request_base, {
-    //     body: JSON.stringify({ csrf: window.$STM_csrf }),
-    // });
-    // return fetch('/api/v1/isTosAccepted', request).then(res => res.json());
+    // return true;
+    const request = Object.assign({}, request_base, {
+        body: JSON.stringify({ csrf: window.$STM_csrf }),
+    });
+    return fetch('/api/v1/isTosAccepted', request).then(res => res.json());
 }
 
 export function acceptTos() {
@@ -117,18 +117,18 @@ export function updateTronUser(username, tron_address, claim_reward) {
     const privKey = '5JPJJNot5TyFPDdBeKo2CWjkpLtGUAojMeewVaSxzfmbYJauutH';
     const r = signData(data, privKey);
 
-    // const body = {
-    //     username: username,
-    //     tron_addr: tron_address,
-    //     nonce: r.nonce,
-    //     timestamp: r.timestamp,
-    //     signature: r.signature,
-    //     auth_type: 'posting',
-    //     claim_reward: claim_reward,
-    // }
+    const body = {
+        username: username,
+        tron_addr: tron_address,
+        nonce: r.nonce,
+        timestamp: r.timestamp,
+        signature: r.signature,
+        auth_type: 'posting',
+        claim_reward: claim_reward,
+    };
 
     const request = Object.assign({}, request_base, {
-        body: JSON.stringify(r),
+        body: JSON.stringify(body),
     });
     return fetch('/api/v1/tron/tron_user', request);
 }

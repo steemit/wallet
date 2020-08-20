@@ -56,6 +56,7 @@ export default function useTronRewardApi(app) {
             models.TronUser,
             models.escAttrs(conditions)
         );
+        // let tronUser = null
         if (tronUser === null) {
             // check if on chain
             try {

@@ -46,10 +46,11 @@ function* getRecordCache(
     try {
         // get all items
         if (!field) {
-            result =
-                env === 'production'
-                    ? yield hgetallAsync(cacheKey)
-                    : log('getRecordCache', { msg: 'non_production' });
+            result = null;
+            // result =
+            //     env === 'production'
+            //         ? yield hgetallAsync(cacheKey)
+            //         : log('getRecordCache', { msg: 'non_production' });
             if (!result) {
                 // not hit cache
                 log('getRecordCache', {
@@ -80,10 +81,12 @@ function* getRecordCache(
                 return null;
             }
         }
-        result =
-            env === 'production'
-                ? yield hgetAsync(cacheKey, field)
-                : log('getRecordCache', { msg: 'non_production' });
+
+        result = null;
+        // result =
+        //     env === 'production'
+        //         ? yield hgetAsync(cacheKey, field)
+        //         : log('getRecordCache', { msg: 'non_production' });
         if (!result) {
             // not hit cache
             log('getRecordCache', {
