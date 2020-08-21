@@ -30,14 +30,11 @@ import {
     acceptTos,
     checkTronUser,
     updateTronUser,
+    getTronAccount,
+    createTronAccount,
 } from 'app/utils/ServerApiClient';
 import { loadFollows } from 'app/redux/FollowSaga';
 import { translate } from 'app/Translator';
-import {
-    createAccount,
-    encryptedTronKey,
-    getTronAccount,
-} from 'server/tronAccount';
 
 export const userWatches = [
     takeLatest('@@router/LOCATION_CHANGE', removeHighSecurityKeys), // keep first to remove keys early when a page change happens
@@ -89,17 +86,9 @@ function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
         console.log('claim reward...' + JSON.stringify(body));
     } else {
         // create a tron account
-        const obj = yield createAccount();
-        // encrypt key
-        let privateKey = encryptedTronKey(obj.privateKey);
-        let publicKey = encryptedTronKey(obj.publicKey);
-        // store locally, will remove once use finish process
+        const res = yield createTronAccount();
+        const obj = yield res.json();
         sessionStorage.setItem('tron_address', obj.address.base58);
-        sessionStorage.setItem('username', username);
-        sessionStorage.setItem('tron_private_key', privateKey);
-        sessionStorage.setItem('tron_public_key', publicKey);
-
-        console.log(obj); // debug
         const response1 = yield updateTronUser(
             username,
             obj.address.base58,
@@ -111,17 +100,17 @@ function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
         // query tron user information
         const response = yield checkTronUser(username);
         const body = yield response.json();
-        console.log(body);
         if (body.status && body.status == 'ok') {
-            console.log('test');
             yield put(
                 userActions.setUser({
                     username,
                     tron_address: body.result.tron_addr,
-                    // tron_user: body.result.tron_addr == '' ? false : true,
-                    tron_user: true,
+                    tron_user: body.result.tron_addr == '' ? false : true,
+                    // tron_user: true,
                     tron_reward: body.result.pending_claim_tron_reward,
                     tron_balance: 0.0,
+                    tron_private_key: obj.privateKey,
+                    tron_public_key: obj.publicKey,
                 })
             );
         } else {
@@ -215,8 +204,8 @@ function* usernamePasswordLogin({
                 body.result.tron_addr.length > 0
             ) {
                 exit_tron_user = true;
-                const res = yield getTronAccount(body.result.tron_addr);
-                console.log(res);
+                const response2 = yield getTronAccount(body.result.tron_addr);
+                const res = yield response2.json();
                 yield put(
                     userActions.setUser({
                         username,

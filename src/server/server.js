@@ -26,6 +26,7 @@ import useRedirects from './redirects';
 import useGeneralApi from './api/general';
 import useTronRewardApi from './api/tron_reward';
 import useAccountRecoveryApi from './api/account_recovery';
+import tronAccount from './api/tronAccount';
 import useEnterAndConfirmEmailPages from './sign_up_pages/enter_confirm_email';
 import useEnterAndConfirmMobilePages from './sign_up_pages/enter_confirm_mobile';
 import isBot from 'koa-isbot';
@@ -257,6 +258,7 @@ if (tronRewardSwitch === 'on') {
     useTronRewardApi(app);
 }
 useGeneralApi(app);
+tronAccount(app);
 
 // helmet wants some things as bools and some as lists, makes config difficult.
 // our config uses strings, this splits them to lists on whitespace.

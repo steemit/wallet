@@ -534,23 +534,88 @@
         "userkeys_info_2":
             "Please take note of your Steem and TRON Keys listed below. Ideally, use a Password Manager (like 1Password or LastPass) or store an offline copy safely (on a piece of paper or on a file on a USB drive).",
         "leare_more": "Learn more",
+        "Reveal": "Display",
         "tron_account": {
-            "title": "tron account"
+            "title": "tron account",
+            "desc1":
+                "TRON account address is used for receiving TRX rewards. TRX rewards are given in Proportion ot he number of of SP you can redeem.",
+            "desc2":
+                "TRON account address is also the TRON account public key,which is used for transfers. The public key is the address you send the tokens to",
+            "desc3":
+                "The private key has the highest authority on your TRON account,which also being used for signing transactions of TRON, such as transactions tokens,freezing and voting",
+            "address": "TRON ACCOUNT ADDRESS",
+            "tron_key": "TRON ACCOUNT Private key",
+            "tron_key_tip":
+                "please check your pdf key file, which was created once you update your tron account",
+            "tron_account_permissions": "TRON Private Key Permission",
+            "tron_account_permissions1": "Use your TRON Private key to:",
+            "tron_account_permissions2": "Transfer tokens",
+            "tron_account_permissions3": "Freeze and unfreeze TRX",
+            "tron_account_permissions4": "Vote for TRON SRs",
+            "tron_account_permissions5": "Explore TRON ecology"
         },
         "posting_key": {
-            "title": "post key"
+            "title": "post key",
+            "desc1":
+                "This key should be used for social networking actions, like posting, commenting and voting. This key has a limited set of permissions and it is not able to be used for monetary actions. So you can't lose money if someone else gets access to this key.",
+            "desc2":
+                "Use this key to log in to other Steem-powered social networks like Steemit, Busy and eSteem. Store this key safely.",
+            "address": "Your Private Posting Key",
+            "posting_key_title": "TRON ACCOUNT Private key",
+            "Posting_Key_permissions": "Posting Key permissions",
+            "Posting_Key_permissions1": "Use your Posting Key to:",
+            "Posting_Key_permissions2": "Publish a post or comment",
+            "Posting_Key_permissions3": "Edit a post or comment",
+            "Posting_Key_permissions4": "Upvote or downvote",
+            "Posting_Key_permissions5": "Resteem content",
+            "Posting_Key_permissions6": "Follow people",
+            "Posting_Key_permissions7": "Mute accounts"
         },
         "active_key": {
-            "title": "active key"
+            "title": "active key",
+            "desc1":
+                "This key has additional permissions for more sensitive monetary-related actions, like transferring and exchanging tokens.",
+            "desc2":
+                "When performing a wallet related action, you may be prompted to authenticate with your Active key. You should only enter your Active Key into apps which you trust because anyone with access to this key can take your tokens. Do yourself a favor and store this key safely to avoid losing tokens in the future.",
+            "active_key_title": "Your Private Active Key",
+            "active_Key_permissions": "Active Key permissions",
+            "active_Key_permissions1": "Use your Active Key to:",
+            "active_Key_permissions2": "Transfer tokens",
+            "active_Key_permissions3": "Power STEEM up or down",
+            "active_Key_permissions4": "SBD conversion",
+            "active_Key_permissions5": "Vote for witnesses",
+            "active_Key_permissions6": "Place an order on an exchange",
+            "active_Key_permissions7": "Certain profile changes",
+            "active_Key_permissions8": "Publish a Witness price feed",
+            "active_Key_permissions9": "Create a new user"
         },
         "owner_key": {
-            "title": "owner key"
+            "title": "owner key",
+            "desc":
+                "The owner key is required to change the other keys. This key has additional permissions to recover your account or change your other keys. It's the most important key and should be securely stored offline.",
+            "owner_key_title": "Your Private Owner Key",
+            "owner_Key_permissions": "Owner Key permissions",
+            "owner_Key_permissions1": "Use your Owner Key to:",
+            "owner_Key_permissions2": "Reset Owner, Active, and Posting keys",
+            "owner_Key_permissions3": "Recover your account",
+            "owner_Key_permissions4": "Decline voting rights"
         },
         "memo_key": {
-            "title": "memo key"
+            "title": "memo key",
+            "desc":
+                "The Memo key because it is a bit of an outlier. The only thing the Memo Key can do is encrypt and decrypt private messages that are sent through the blockchain. While this could one day be a powerful feature, today it is not commonly used. If you have received a private message that you would like to decrypt, as always you should use the key with the minimum necessary authorities, which in this case would be the Memo Key.",
+            "memo_key_title": "Your Private Memo Key",
+            "memo_Key_permissions": "Memo Key permissions",
+            "memo_Key_permissions1": "Use your Memo Key to:",
+            "memo_Key_permissions2": "Send an encrypted message",
+            "memo_Key_permissions3": "View an encrypted message"
         },
         "public_key": {
-            "title": "public key"
+            "title": "public key",
+            "desc1":
+                "Each Steem Key has a public and private key to encrypt and decrypt data. Public keys are associated with usernames and can be used to look up associated transactions on the blockchain. Your public keys are not required for login on Steemit.com and you don't need to store these safely.",
+            "desc2":
+                "View public key information for this account (in the 'Authorities' module):"
         }
     },
     "suggestpassword_jsx": {

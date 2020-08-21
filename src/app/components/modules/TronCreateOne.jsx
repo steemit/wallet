@@ -2,8 +2,6 @@ import React, { Component } from 'react';
 import tt from 'counterpart';
 import { connect } from 'react-redux';
 import * as userActions from 'app/redux/UserReducer';
-import { decryptedTronToken } from 'server/tronAccount';
-import PdfDownload from 'app/components/elements/PdfDownload';
 
 const styles = {
     container: {

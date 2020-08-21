@@ -23,7 +23,6 @@ class UserKeys extends Component {
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserKeys');
         this.state = {
             activeTab: 1,
-            tron_address: 'asdfdfs',
         };
         this.onKey = {};
         keyTypes.forEach(key => {
@@ -51,8 +50,8 @@ class UserKeys extends Component {
     }
     render() {
         const {
-            props: { account, isMyAccount },
-            state: { activeTab, tron_address },
+            props: { account, isMyAccount, tron_address },
+            state: { activeTab },
         } = this;
         const { onKey } = this;
         let idx = 0;
@@ -206,7 +205,7 @@ class UserKeys extends Component {
                                         {tt('userkeys_jsx.tron_account.desc2')}
                                     </p>
                                     <p className="key__description">
-                                        {tt('userkeys_jsx.tron_account.desc2')}
+                                        {tt('userkeys_jsx.tron_account.desc3')}
                                     </p>
                                     <div className="ShowKey">
                                         <div className="row key__private">
@@ -590,8 +589,13 @@ export default connect(
             account.get('name');
         console.log('isMyAccount', isMyAccount);
         const wifShown = state.global.get('UserKeys_wifShown');
+        const currentUser = state.user.get('current');
+        const tron_address =
+            currentUser && currentUser.has('tron_address')
+                ? currentUser.get('tron_address')
+                : '';
 
-        return { ...ownProps, isMyAccount, wifShown };
+        return { ...ownProps, isMyAccount, wifShown, tron_address };
     },
     dispatch => ({
         setWifShown: shown => {

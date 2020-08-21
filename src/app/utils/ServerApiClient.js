@@ -1,6 +1,5 @@
 /* eslint-disable no-undef */
 import { api } from '@steemit/steem-js';
-// import { signTron } from 'server/tronAccount';
 import { signData } from 'server/utils/encrypted';
 
 const request_base = {
@@ -82,11 +81,11 @@ export function setUserPreferences(payload) {
 
 export function isTosAccepted() {
     // TODO: endpoint down. re-enable
-    // return true;
-    const request = Object.assign({}, request_base, {
-        body: JSON.stringify({ csrf: window.$STM_csrf }),
-    });
-    return fetch('/api/v1/isTosAccepted', request).then(res => res.json());
+    return true;
+    // const request = Object.assign({}, request_base, {
+    //     body: JSON.stringify({ csrf: window.$STM_csrf }),
+    // });
+    // return fetch('/api/v1/isTosAccepted', request).then(res => res.json());
 }
 
 export function acceptTos() {
@@ -131,4 +130,13 @@ export function updateTronUser(username, tron_address, claim_reward) {
         body: JSON.stringify(body),
     });
     return fetch('/api/v1/tron/tron_user', request);
+}
+
+export function createTronAccount() {
+    const queryString = '/api/v1/tron/create_account';
+    return fetch(queryString);
+}
+export function getTronAccount(tron_address) {
+    const queryString = '/api/v1/tron/get_account?tron_address=' + tron_address;
+    return fetch(queryString);
 }

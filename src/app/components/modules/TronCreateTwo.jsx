@@ -3,7 +3,6 @@ import tt from 'counterpart';
 import { connect } from 'react-redux';
 import * as userActions from 'app/redux/UserReducer';
 import PdfDownload from 'app/components/elements/PdfDownload';
-import { decryptedTronToken } from 'server/tronAccount';
 
 const styles = {
     container: {
@@ -28,22 +27,22 @@ class TronCreateTwo extends Component {
         this.handleSubmit = e => {
             e.preventDefault();
             this.props.hideTronCreateSuccess();
-            sessionStorage.removeItem('tron_public_key');
-            sessionStorage.removeItem('tron_private_key');
+            // sessionStorage.removeItem('tron_public_key');
+            // sessionStorage.removeItem('tron_private_key');
         };
     }
     componentDidUpdate(prevProps) {
         // start to download pdf key file
         if (this.props.tron_address !== prevProps.tron_address) {
-            const tron_public = decryptedTronToken(
-                sessionStorage.getItem('tron_public_key')
-            );
-            const tron_private = decryptedTronToken(
-                sessionStorage.getItem('tron_private_key')
-            );
+            // const tron_public = decryptedTronToken(
+            //     sessionStorage.getItem('tron_public_key')
+            // );
+            // const tron_private = decryptedTronToken(
+            //     sessionStorage.getItem('tron_private_key')
+            // );
             this.setState({
-                tron_public: tron_public,
-                tron_private: tron_private,
+                tron_public: this.props.tron_public_key,
+                tron_private: this.props.tron_private_key,
                 tron_create: true,
             });
         }
@@ -102,11 +101,21 @@ export default connect(
             currentUser && currentUser.has('username')
                 ? currentUser.get('tron_user')
                 : '';
+        const tron_public_key =
+            currentUser && currentUser.has('tron_public_key')
+                ? currentUser.get('tron_public_key')
+                : '';
+        const tron_private_key =
+            currentUser && currentUser.has('tron_private_key')
+                ? currentUser.get('tron_private_key')
+                : '';
         return {
             ...ownProps,
             tron_user,
             tron_address,
             username,
+            tron_public_key,
+            tron_private_key,
         };
     },
     dispatch => ({

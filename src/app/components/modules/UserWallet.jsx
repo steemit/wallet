@@ -31,8 +31,6 @@ import * as transactionActions from 'app/redux/TransactionReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
 import * as userActions from 'app/redux/UserReducer';
-import { updateTronUser } from 'app/utils/ServerApiClient';
-import { createAccount, encryptedTronKey } from 'server/tronAccount';
 
 const assetPrecision = 1000;
 

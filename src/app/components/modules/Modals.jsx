@@ -297,7 +297,7 @@ export default connect(
     dispatch => ({
         hideTronCreate: e => {
             if (e) e.preventDefault();
-            dispatch(userActions.hideTronUpdate());
+            dispatch(userActions.hideTronCreate());
         },
         hideTronCreateSuccess: e => {
             if (e) e.preventDefault();
