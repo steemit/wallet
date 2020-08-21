@@ -5,11 +5,11 @@ import koa_router from 'koa-router';
 import koa_body from 'koa-body';
 import models from 'db/models';
 import steem from '@steemit/steem-js';
-import { getRecordCache, updateRecordCache } from 'db/cache';
+import { getRecordCache2, updateRecordCache2 } from 'db/cache';
 import config from 'config';
 import { logRequest } from 'server/utils/loggers';
 import { getRemoteIp, rateLimitReq } from 'server/utils/misc';
-import { unsignData } from 'server/utils/encrypted';
+import { authData } from 'server/utils/encrypted';
 import { clearPendingClaimTronReward } from 'db/utils/user_utils';
 
 export default function useTronRewardApi(app) {
@@ -52,7 +52,7 @@ export default function useTronRewardApi(app) {
         if (username) conditions.username = username;
         if (tronAddr) conditions.tron_addr = tronAddr;
 
-        let tronUser = yield getRecordCache(
+        let tronUser = yield getRecordCache2(
             models.TronUser,
             models.escAttrs(conditions)
         );
@@ -76,7 +76,7 @@ export default function useTronRewardApi(app) {
             };
             try {
                 yield models.TronUser.create(insertData);
-                tronUser = yield getRecordCache(
+                tronUser = yield getRecordCache2(
                     models.TronUser,
                     models.escAttrs(conditions)
                 );
@@ -86,23 +86,13 @@ export default function useTronRewardApi(app) {
             }
         }
 
-        // during pending of transfering trx
-        let pendingClaimTronReward = tronUser.pending_claim_tron_reward;
-        if (this.session.pendingClaim !== undefined) {
-            const now = parseInt(Date.now() / 1000, 10);
-            if (now - this.session.pendingClaim > 60 * 15) {
-                this.session.pendingClaim = undefined;
-            } else {
-                pendingClaimTronReward = '0 TRX';
-            }
-        }
-
         const result = {
             username: tronUser.username,
             tron_addr: tronUser.tron_addr,
-            pending_claim_tron_reward: pendingClaimTronReward,
+            pending_claim_tron_reward: tronUser.pending_claim_tron_reward,
             tip_count: tronUser.tip_count,
         };
+
         this.body = JSON.stringify({ status: 'ok', result });
     });
 
@@ -142,24 +132,24 @@ export default function useTronRewardApi(app) {
             return;
         }
 
-        // // auth
-        // try {
-        //     if (!unsignData(data, pubKey)) {
-        //         this.body = JSON.stringify({
-        //             error: 'data_is_invalid',
-        //         });
-        //         return;
-        //     }
-        // } catch (e) {
-        //     this.body = JSON.stringify({
-        //         error: e.message,
-        //     });
-        //     return;
-        // }
+        // auth
+        try {
+            if (!authData(data, pubKey)) {
+                this.body = JSON.stringify({
+                    error: 'data_is_invalid',
+                });
+                return;
+            }
+        } catch (e) {
+            this.body = JSON.stringify({
+                error: e.message,
+            });
+            return;
+        }
 
         // find user in db
         const conditions = { username: data.username };
-        const tronUser = yield getRecordCache(
+        const tronUser = yield getRecordCache2(
             models.TronUser,
             models.escAttrs(conditions)
         );
@@ -182,22 +172,15 @@ export default function useTronRewardApi(app) {
                 where: models.escAttrs(conditions),
             });
             // update redis cache
-            yield updateRecordCache(
+            yield updateRecordCache2(
                 models.TronUser,
-                models.escAttrs(conditions),
-                updateData
+                models.escAttrs(conditions)
             );
         }
 
         // when update tron_addr, check if pending_claim_tron_reward empty
         if (data.tron_addr) {
             clearPendingClaimTronReward(tronUser.username);
-        }
-
-        // because the delay of transfering trx,
-        // need set an temporary var to make pending_amount 0
-        if (data.claim_reward !== undefined) {
-            this.session.pendingClaim = parseInt(Date.now() / 1000, 10);
         }
 
         this.body = JSON.stringify({ status: 'ok' });
