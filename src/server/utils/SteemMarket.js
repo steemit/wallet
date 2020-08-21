@@ -1,3 +1,4 @@
+/* eslint-disable space-before-function-paren */
 /* eslint-disable no-undef */
 /* eslint-disable require-yield */
 /* eslint-disable import/prefer-default-export */
