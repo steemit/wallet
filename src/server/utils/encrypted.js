@@ -1,6 +1,7 @@
 import { auth } from '@steemit/steem-js';
 import { Signature, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
 import { randomBytes } from 'crypto';
+
 const DATA_TIMEOUT = 60 * 2; // second
 function signData(data, privKey) {
     let d = '';
@@ -23,7 +24,7 @@ function signData(data, privKey) {
     };
 }
 
-function unsignData(data, pubKey) {
+function authData(data, pubKey) {
     const { nonce, timestamp, signature } = data;
     const currentTimestamp = getUtcTimestamp();
     if (nonce === undefined) {
@@ -65,5 +66,5 @@ function getUtcTimestamp() {
 
 module.exports = {
     signData,
-    unsignData,
+    authData,
 };
