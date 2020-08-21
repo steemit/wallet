@@ -6,8 +6,8 @@ import { createClient } from 'redis';
 import { promisify } from 'util';
 import { log } from 'server/utils/loggers';
 
-const env = 'production';
-// const env = process.env.NODE_ENV || 'development';
+// const env = 'production';
+const env = process.env.NODE_ENV || 'development';
 const EXPIRED_TIME = 60 * 60; // second
 const redisUrl = config.get('redis_url');
 const client = new createClient({ url: redisUrl });
@@ -219,7 +219,7 @@ function* updateRecordCache2(model, conditions = {}) {
         const dbOptions = {
             where: conditions,
         };
-        result = yield model.findOne(dbOptions);
+        let result = yield model.findOne(dbOptions);
         if (result === null) {
             yield delAsync(cacheKey);
             return true;
