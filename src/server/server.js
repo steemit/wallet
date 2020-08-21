@@ -16,6 +16,7 @@ import helmet from 'koa-helmet';
 import koa_logger from 'koa-logger';
 import requestTime from './requesttimings';
 import StatsLoggerClient from './utils/StatsLoggerClient';
+import { SteemMarket } from './utils/SteemMarket';
 import hardwareStats from './hardwarestats';
 import cluster from 'cluster';
 import os from 'os';
@@ -141,6 +142,13 @@ function convertEntriesToArrays(obj) {
         return result;
     }, {});
 }
+
+// Fetch cached currency data for homepage
+const steemMarket = new SteemMarket();
+app.use(function*(next) {
+    this.steemMarketData = yield steemMarket.get();
+    yield next;
+});
 
 // some redirects and health status
 app.use(function*(next) {
