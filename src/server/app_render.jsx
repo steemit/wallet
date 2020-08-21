@@ -76,6 +76,7 @@ async function appRender(ctx, locales = false, resolvedAssets = false) {
                 viewMode: determineViewMode(ctx.request.search),
                 env: process.env.NODE_ENV,
                 socialUrl: config.social_url,
+                steemMarket: ctx.steemMarketData,
                 trackingId: ctx.session.uid,
             },
         };
