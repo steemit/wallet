@@ -493,7 +493,15 @@ function* usernamePasswordLogin({
             console.log('Logging in as', username);
             const response = yield serverApiLogin(username, signatures);
             const body = yield response.json();
-            if (!exit_tron_user) yield put(userActions.showTronCreate());
+            if (body.status != undefined && body.status == 'ok') {
+                yield put(
+                    userActions.setUser({
+                        username,
+                        pass_auth: true,
+                    })
+                );
+                if (!exit_tron_user) yield put(userActions.showTronCreate());
+            }
         }
     } catch (error) {
         // Does not need to be fatal

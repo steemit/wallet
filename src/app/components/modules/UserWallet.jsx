@@ -860,8 +860,8 @@ class UserWallet extends React.Component {
 
                         {
                             <div className="columns shrink">
-                                {isMyAccount &&
-                                    !isTrxAccount && (
+                                {this.props.pass_auth &&
+                                    isMyAccount && (
                                         <button
                                             className="UserWallet__buysp button buttonSmall hollow"
                                             onClick={onCreateTronAccount.bind(
@@ -877,7 +877,8 @@ class UserWallet extends React.Component {
                         }
                         {
                             <div className="columns shrink">
-                                {isMyAccount &&
+                                {this.props.pass_auth &&
+                                    isMyAccount &&
                                     isTrxAccount && (
                                         <button
                                             className="UserWallet__buysp button buttonSmall hollow"
@@ -1004,6 +1005,10 @@ export default connect(
             currentUser && currentUser.has('tron_balance')
                 ? currentUser.get('tron_balance')
                 : 0.0;
+        const pass_auth =
+            currentUser && currentUser.has('pass_auth')
+                ? currentUser.get('pass_auth')
+                : false;
         return {
             ...ownProps,
             open_orders: state.market.get('open_orders'),
@@ -1015,6 +1020,7 @@ export default connect(
             tron_user,
             tron_address,
             tron_balance,
+            pass_auth,
         };
     },
     // mapDispatchToProps
