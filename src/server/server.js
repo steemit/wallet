@@ -256,9 +256,9 @@ useEnterAndConfirmMobilePages(app);
 useAccountRecoveryApi(app);
 if (tronRewardSwitch === 'on') {
     useTronRewardApi(app);
+    tronAccount(app);
 }
 useGeneralApi(app);
-tronAccount(app);
 
 // helmet wants some things as bools and some as lists, makes config difficult.
 // our config uses strings, this splits them to lists on whitespace.

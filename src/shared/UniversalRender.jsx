@@ -1,3 +1,6 @@
+/* eslint-disable no-else-return */
+/* eslint-disable import/no-dynamic-require */
+/* eslint-disable global-require */
 /* eslint react/display-name: 0 */
 /* eslint space-before-function-paren:0 */
 // https://github.com/eslint/eslint/issues/4442
@@ -36,7 +39,7 @@ let get_state_perf,
     get_content_perf = false;
 if (process.env.OFFLINE_SSR_TEST) {
     const testDataDir = process.env.OFFLINE_SSR_TEST_DATA_DIR || 'api_mockdata';
-    let uri = `${__dirname}/../../`;
+    const uri = `${__dirname}/../../`;
     get_state_perf = require(uri + testDataDir + '/get_state');
     get_content_perf = require(uri + testDataDir + '/get_content');
 }

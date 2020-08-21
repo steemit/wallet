@@ -31,6 +31,7 @@ import * as transactionActions from 'app/redux/TransactionReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
 import * as userActions from 'app/redux/UserReducer';
+import { recordAdsView } from 'app/utils/ServerApiClient';
 
 const assetPrecision = 1000;
 
@@ -86,6 +87,10 @@ class UserWallet extends React.Component {
             e.preventDefault();
             // todo: remove test trx_address
             // trx_address = 'TQMqo7mQMdYKrRXwkwXF7yW6TFnRaVEqe7';
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'TronHistory',
+            });
             const new_window = window.open();
             new_window.opener = null;
             new_window.location =
@@ -93,8 +98,22 @@ class UserWallet extends React.Component {
                 trx_address +
                 '/transactions';
         };
+        this.onShowTRXVote = (trx_address, e) => {
+            e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'TronVote',
+            });
+            const new_window = window.open();
+            new_window.opener = null;
+            new_window.location = '';
+        };
         this.onShowJUST = e => {
             e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'StakingByJust',
+            });
             const new_window = window.open();
             new_window.opener = null;
             new_window.location =
@@ -1021,6 +1040,7 @@ export default connect(
             tron_address,
             tron_balance,
             pass_auth,
+            trackingId: state.app.getIn(['trackingId'], null),
         };
     },
     // mapDispatchToProps
@@ -1050,7 +1070,7 @@ export default connect(
             dispatch(
                 userActions.updateUser({
                     claim_reward: true,
-                    tron_address: tron_address,
+                    tron_address,
                 })
             );
         },

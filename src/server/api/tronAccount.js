@@ -1,6 +1,7 @@
 import koa_router from 'koa-router';
 import koa_body from 'koa-body';
 import config from 'config';
+
 const TronWeb = require('tronweb');
 
 const tronWeb = new TronWeb({
@@ -19,7 +20,7 @@ export default function tronAccount(app) {
             this.body = JSON.stringify(obj);
         } catch (err) {
             console.log('error ');
-            this.body = JSON.stringify({ error: e.message });
+            this.body = JSON.stringify({ error: err.message });
         }
     });
     router.get('/get_account', function*() {
@@ -34,7 +35,7 @@ export default function tronAccount(app) {
             this.body = JSON.stringify(obj);
         } catch (err) {
             console.log('error ');
-            this.body = JSON.stringify({ error: e.message });
+            this.body = JSON.stringify({ error: err.message });
         }
     });
 }
