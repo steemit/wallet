@@ -28,12 +28,12 @@ RUN mkdir tmp && \
     yarn test && yarn build
 
 ENV PORT 8080
-ENV NODE_ENV production
+# ENV NODE_ENV production
 
 EXPOSE 8080
 
-CMD [ "yarn", "run", "production" ]
+# CMD [ "yarn", "run", "production" ]
 
 # uncomment the lines below to run it in development mode
-# ENV NODE_ENV development
-# CMD [ "yarn", "run", "start" ]
+ENV NODE_ENV development
+CMD [ "yarn", "run", "start" ]
