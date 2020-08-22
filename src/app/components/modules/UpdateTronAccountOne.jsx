@@ -22,8 +22,6 @@ class UpdateTronAccountOne extends Component {
         };
         this.handleSubmit = e => {
             e.preventDefault();
-            // this.props.hideUpdate();
-            // this.props.showUpdateSuccess();
             this.props.updateUser();
         };
     }
@@ -33,7 +31,6 @@ class UpdateTronAccountOne extends Component {
         if (this.props.tron_create !== prevProps.tron_create) {
             this.props.hideUpdate();
             this.props.showUpdateSuccess();
-            this.props.updateUser();
         }
         if (this.props.tron_create_msg !== prevProps.tron_create_msg) {
             this.setState({
