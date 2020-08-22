@@ -27,19 +27,27 @@ class TronCreateTwo extends Component {
         this.handleSubmit = e => {
             e.preventDefault();
             this.props.hideTronCreateSuccess();
-            // sessionStorage.removeItem('tron_public_key');
-            // sessionStorage.removeItem('tron_private_key');
         };
     }
+    async componentWillMount() {
+        if (this.props.tron_create == true) {
+            setTimeout(() => {
+                // wait for one second for loading pdf js library
+                this.setState({
+                    tron_public: this.props.tron_public_key,
+                    tron_private: this.props.tron_private_key,
+                    tron_create: true,
+                });
+            }, 1000);
+        }
+    }
+
     componentDidUpdate(prevProps) {
         // start to download pdf key file
-        if (this.props.tron_address !== prevProps.tron_address) {
-            // const tron_public = decryptedTronToken(
-            //     sessionStorage.getItem('tron_public_key')
-            // );
-            // const tron_private = decryptedTronToken(
-            //     sessionStorage.getItem('tron_private_key')
-            // );
+        if (
+            this.props.tron_address !== prevProps.tron_address &&
+            this.props.create == true
+        ) {
             this.setState({
                 tron_public: this.props.tron_public_key,
                 tron_private: this.props.tron_private_key,
@@ -99,7 +107,7 @@ export default connect(
                 : '';
         const username =
             currentUser && currentUser.has('username')
-                ? currentUser.get('tron_user')
+                ? currentUser.get('username')
                 : '';
         const tron_public_key =
             currentUser && currentUser.has('tron_public_key')
@@ -109,6 +117,10 @@ export default connect(
             currentUser && currentUser.has('tron_private_key')
                 ? currentUser.get('tron_private_key')
                 : '';
+        const tron_create =
+            currentUser && currentUser.has('tron_create')
+                ? currentUser.get('tron_create')
+                : false;
         return {
             ...ownProps,
             tron_user,
@@ -116,6 +128,7 @@ export default connect(
             username,
             tron_public_key,
             tron_private_key,
+            tron_create,
         };
     },
     dispatch => ({

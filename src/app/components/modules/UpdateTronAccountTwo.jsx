@@ -30,15 +30,26 @@ class UpdateTronAccountTwo extends Component {
             // sessionStorage.removeItem('tron_private_key');
         };
     }
+
+    async componentWillMount() {
+        if (this.props.tron_create == true) {
+            setTimeout(() => {
+                // wait for one second for loading pdf js library
+                this.setState({
+                    tron_public: this.props.tron_public_key,
+                    tron_private: this.props.tron_private_key,
+                    tron_create: true,
+                });
+            }, 1000);
+        }
+    }
+
     componentDidUpdate(prevProps) {
         // start to download pdf key file
-        if (this.props.tron_address !== prevProps.tron_address) {
-            // const tron_public = decryptedTronToken(
-            //     sessionStorage.getItem('tron_public_key')
-            // );
-            // const tron_private = decryptedTronToken(
-            //     sessionStorage.getItem('tron_private_key')
-            // );
+        if (
+            this.props.tron_address !== prevProps.tron_address &&
+            this.props.tron_create
+        ) {
             this.setState({
                 tron_public: this.props.tron_public_key,
                 tron_private: this.props.tron_private_key,
@@ -104,12 +115,17 @@ export default connect(
             currentUser && currentUser.has('tron_private_key')
                 ? currentUser.get('tron_private_key')
                 : '';
+        const tron_create =
+            currentUser && currentUser.has('tron_create')
+                ? currentUser.get('tron_create')
+                : false;
         return {
             ...ownProps,
             tron_address,
             username,
             tron_public_key,
             tron_private_key,
+            tron_create,
         };
     },
     dispatch => ({

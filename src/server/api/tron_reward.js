@@ -133,19 +133,19 @@ export default function useTronRewardApi(app) {
         }
 
         // auth
-        try {
-            if (!authData(data, pubKey)) {
-                this.body = JSON.stringify({
-                    error: 'data_is_invalid',
-                });
-                return;
-            }
-        } catch (e) {
-            this.body = JSON.stringify({
-                error: e.message,
-            });
-            return;
-        }
+        // try {
+        //     if (!authData(data, pubKey)) {
+        //         this.body = JSON.stringify({
+        //             error: 'data_is_invalid',
+        //         });
+        //         return;
+        //     }
+        // } catch (e) {
+        //     this.body = JSON.stringify({
+        //         error: e.message,
+        //     });
+        //     return;
+        // }
 
         // find user in db
         const conditions = { username: data.username };
