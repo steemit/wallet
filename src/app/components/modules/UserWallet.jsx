@@ -880,7 +880,8 @@ class UserWallet extends React.Component {
                         {
                             <div className="columns shrink">
                                 {this.props.pass_auth &&
-                                    isMyAccount && (
+                                    isMyAccount &&
+                                    !isTrxAccount && (
                                         <button
                                             className="UserWallet__buysp button buttonSmall hollow"
                                             onClick={onCreateTronAccount.bind(

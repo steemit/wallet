@@ -12,9 +12,21 @@ const tronWeb = new TronWeb({
 export default function tronAccount(app) {
     const router = koa_router({ prefix: '/api/v1/tron' });
     app.use(router.routes());
-    const koaBody = koa_body();
-
+    // const koaBody = koa_body();
+    // const regex = new RegExp(/^((1?\d?\d|2[0-4]\d|25[0-5])($|\.(?!$))){4}$/)
+    const white_list = config.get('white_list');
     router.get('/create_account', function*() {
+        let host = this.host.split(':')[0];
+        if (!white_list.includes(host)) {
+            this.body = JSON.stringify({
+                ip: this.request.ip,
+                host: host,
+                msg:
+                    'not trusted host reject value' +
+                    white_list.includes(this.host),
+            });
+            return;
+        }
         try {
             const obj = yield tronWeb.createAccount();
             this.body = JSON.stringify(obj);
@@ -24,6 +36,17 @@ export default function tronAccount(app) {
         }
     });
     router.get('/get_account', function*() {
+        let host = this.host.split(':')[0];
+        if (!white_list.includes(host)) {
+            this.body = JSON.stringify({
+                ip: this.request.ip,
+                host: host,
+                msg:
+                    'not trusted host reject value' +
+                    white_list.includes(this.host),
+            });
+            return;
+        }
         const q = this.request.query;
         if (!q) {
             this.body = JSON.stringify({ error: 'need_params' });
