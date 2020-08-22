@@ -76,7 +76,7 @@ SteemMarket.prototype.refresh = async function() {
             });
         })
         .catch(err => {
-            console.error('Could not fetch Steem Market data', err);
+            console.error('Could not fetch Steem Market data:', err.message);
             return this.storeEmpty();
         });
 };
