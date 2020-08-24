@@ -22,8 +22,7 @@ export default function tronAccount(app) {
                 ip: this.request.ip,
                 host: host,
                 msg:
-                    'not trusted host reject value' +
-                    white_list.includes(this.host),
+                    'not trusted host reject value' + white_list.includes(host),
             });
             return;
         }
@@ -43,7 +42,9 @@ export default function tronAccount(app) {
                 host: host,
                 msg:
                     'not trusted host reject value' +
-                    white_list.includes(this.host),
+                    white_list.includes(host) +
+                    '  ' +
+                    white_list,
             });
             return;
         }
