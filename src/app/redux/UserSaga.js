@@ -87,7 +87,7 @@ function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
         // create a tron account
         const res = yield createTronAccount();
         const obj = yield res.json();
-        if (obj.address.base58 == undefined) {
+        if (obj.address == undefined || obj.address.base58 == undefined) {
             yield put(
                 userActions.setUser({
                     username,
