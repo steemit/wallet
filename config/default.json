@@ -7,14 +7,14 @@
         "directives": {
             "childSrc": "'self'",
             "connectSrc":
-                "'self' steemit.com https://api.steemit.com https://testnet.steemitdev.com api.trongrid.io",
+                "'self' steemit.com https://api.steemit.com https://testnet.steemitdev.com api.trongrid.io localhost:8080",
             "defaultSrc": "'self'",
             "fontSrc": "data: fonts.gstatic.com",
             "frameAncestors": "'none'",
             "imgSrc": "* data:",
             "objectSrc": "'none'",
             "pluginTypes": "application/pdf",
-            "scriptSrc": "'self' www.google-analytics.com staticfiles.steemit.com",
+            "scriptSrc": "'self' www.google-analytics.com staticfiles.steemit.com localhost:8080",
             "styleSrc": "'self' 'unsafe-inline' fonts.googleapis.com",
             "reportUri": "/api/v1/csp_violation"
         },

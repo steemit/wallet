@@ -78,7 +78,7 @@
     "unbind_tip_limit": "TRON_REWARD_UNBIND_TIP_LIMIT"
   },
   "redis_url": "REDIS_URL",
-  "whilte_list": "WHITE_LIST",
+  "white_list": "WHITE_LIST",
   "tron_create_key": "TRON_CREATE_KEY",
   "tron_create_node": "TRON_CREATE_NODE",
   "steem_market_endpoint": "STEEM_MARKET_ENDPOINT",

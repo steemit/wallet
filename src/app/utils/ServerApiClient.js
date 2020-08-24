@@ -107,7 +107,12 @@ export function checkTronUser(username) {
     return fetch(queryString);
 }
 
-export function updateTronUser(username, tron_address, claim_reward) {
+export function updateTronUser(
+    username,
+    tron_address,
+    claim_reward,
+    tip_count
+) {
     // todo: add api call function
     // const r = signTron(username, tron_address);
     // todo: add api call function
@@ -130,6 +135,7 @@ export function updateTronUser(username, tron_address, claim_reward) {
         signature: r.signature,
         auth_type: 'posting',
         claim_reward,
+        tip_count,
     };
 
     const request = Object.assign({}, request_base, {
@@ -144,5 +150,9 @@ export function createTronAccount() {
 }
 export function getTronAccount(tron_address) {
     const queryString = '/api/v1/tron/get_account?tron_address=' + tron_address;
+    return fetch(queryString);
+}
+export function getTronConfig() {
+    const queryString = '/api/v1/tron/get_config';
     return fetch(queryString);
 }
