@@ -7,9 +7,9 @@ import PdfDownload from 'app/components/elements/PdfDownload';
 const styles = {
     container: {
         display: 'flex',
-        flexDirection: 'row',
-        flexFlow: 'row wrap',
+        flexDirection: 'column',
         marginTop: '40px',
+        width: '100%',
     },
     flowBelow: {
         marginTop: '40px',
@@ -72,7 +72,7 @@ class TronCreateTwo extends Component {
                             newUser={false}
                             widthInches={8.5}
                             heightInches={11.0}
-                            label="click download"
+                            label={tt('tron_jsx.update_success_click')}
                             link={true}
                             download={this.state.tron_create}
                         />

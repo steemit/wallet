@@ -74,7 +74,7 @@ class UpdateTronAccountTwo extends Component {
                             newUser={false}
                             widthInches={8.5}
                             heightInches={11.0}
-                            label="click download"
+                            label={tt('tron_jsx.update_success_click')}
                             link={true}
                             download={this.state.tron_create}
                         />

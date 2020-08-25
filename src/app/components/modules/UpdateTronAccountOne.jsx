@@ -49,7 +49,12 @@ class UpdateTronAccountOne extends Component {
                 <div style={styles.container}>
                     {this.state.error == false ? (
                         <div style={styles.container}>
-                            {tt('tron_jsx.update_tron_content')}
+                            <p> {tt('tron_jsx.update_tron_content')} </p>
+                            <p> {tt('tron_jsx.update_tron_content1')} </p>
+                            <p> {tt('tron_jsx.update_tron_content2')} </p>
+                            <p> {tt('tron_jsx.update_tron_content3')} </p>
+                            <p> {tt('tron_jsx.update_tron_content4')} </p>
+                            <p> {tt('tron_jsx.update_tron_content5')} </p>
                         </div>
                     ) : (
                         <div>
