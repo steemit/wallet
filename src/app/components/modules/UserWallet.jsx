@@ -32,6 +32,7 @@ import * as globalActions from 'app/redux/GlobalReducer';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
 import * as userActions from 'app/redux/UserReducer';
 import { recordAdsView } from 'app/utils/ServerApiClient';
+import QRCode from 'react-qr';
 
 const assetPrecision = 1000;
 
@@ -40,6 +41,8 @@ class UserWallet extends React.Component {
         super();
         this.state = {
             claimInProgress: false,
+            showQRButton: true,
+            showQR: false,
         };
         this.onShowDepositSteem = e => {
             if (e && e.preventDefault) e.preventDefault();
@@ -119,7 +122,9 @@ class UserWallet extends React.Component {
             new_window.location =
                 'https://just.tronscan.org/?lang=en-US#/login';
         };
-
+        this.showQR = e => {
+            this.setState({ showQR: true, showQRButton: false });
+        };
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
     }
 
@@ -860,6 +865,32 @@ class UserWallet extends React.Component {
                             {!isTrxAccount
                                 ? tt('userwallet_jsx.create_trx_description')
                                 : TRX_address}
+                            {this.state.showQRButton && (
+                                <button
+                                    className="buttonQR"
+                                    onClick={() =>
+                                        this.setState({
+                                            showQR: true,
+                                            showQRButton: false,
+                                        })
+                                    }
+                                >
+                                    {tt('tron_jsx.copy_qr_code')}{' '}
+                                </button>
+                            )}
+                            {this.state.showQR && (
+                                <Link
+                                    className="link"
+                                    onClick={() =>
+                                        this.setState({
+                                            showQR: false,
+                                            showQRButton: true,
+                                        })
+                                    }
+                                >
+                                    <QRCode text={TRX_address} />{' '}
+                                </Link>
+                            )}
                             <br />
                             {tt('userwallet_jsx.trx_description')}
                         </div>
