@@ -1,3 +1,4 @@
+/* eslint-disable no-prototype-builtins */
 /* eslint-disable require-yield */
 /* eslint-disable no-empty-pattern */
 /* eslint-disable prefer-rest-params */
@@ -126,7 +127,6 @@ function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
         const response = yield checkTronUser(username);
         const body = yield response.json();
         if (body.hasOwnProperty('status') && body.status == 'ok') {
-            console.log(obj);
             yield put(
                 userActions.setUser({
                     username,
@@ -154,7 +154,6 @@ function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
                     tron_create: false,
                 })
             );
-            return;
         }
     }
 }
@@ -221,7 +220,7 @@ function* usernamePasswordLogin({
         yield fork(loadFollows, currentUsername, 'ignore');
         query_user_name = currentUsername;
     }
-    var exit_tron_user = false;
+    let exit_tron_user = false;
     const user = yield select(state => state.user);
     const loginType = user.get('login_type');
     const justLoggedIn = loginType === 'basic';
@@ -294,8 +293,8 @@ function* usernamePasswordLogin({
         res_config.unbind_tip_limit == undefined
             ? max_pop_window_count
             : res_config.unbind_tip_limit;
-    var current_window_count = 0;
-    var tron_address = '';
+    let current_window_count = 0;
+    let tron_address = '';
     if (query_user_name) {
         const response = yield checkTronUser(query_user_name);
         const body = yield response.json();
