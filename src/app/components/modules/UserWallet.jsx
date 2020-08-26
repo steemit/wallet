@@ -159,6 +159,12 @@ class UserWallet extends React.Component {
 
         // Now lets calculate the "APR"
         const vestingRewardPercent = gprops.vesting_reward_percent / 10000;
+        if (
+            gprops.virtual_supply === undefined ||
+            gprops.total_vesting_fund_steem === undefined
+        ) {
+            return 0;
+        }
         const virtualSupply = gprops.virtual_supply.split(' ').shift();
         const totalVestingFunds = gprops.total_vesting_fund_steem
             .split(' ')
@@ -671,7 +677,6 @@ class UserWallet extends React.Component {
 
         let spApr = 0;
         try {
-            // TODO: occasionally fails. grops not loaded yet?
             spApr = this.getCurrentApr(gprops);
         } catch (e) {
             console.error(e);
