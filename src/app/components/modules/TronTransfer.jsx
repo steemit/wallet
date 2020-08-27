@@ -17,7 +17,12 @@ import {
     validate_memo_field,
 } from 'app/utils/ChainValidation';
 import { countDecimals } from 'app/utils/ParsersAndFormatters';
-import { APP_NAME, LIQUID_TOKEN, VESTING_TOKEN } from 'app/client_config';
+import {
+    APP_NAME,
+    LIQUID_TOKEN,
+    VESTING_TOKEN,
+    TRON_TOKEN,
+} from 'app/client_config';
 
 /** Warning .. This is used for Power UP too. */
 class TransferForm extends Component {
@@ -40,6 +45,8 @@ class TransferForm extends Component {
             advanced: !transferToSelf,
             transferTo: false,
             autocompleteUsers: [],
+            switchTron: false,
+            switchSteem: true,
         };
         this.initForm(props);
     }
@@ -284,6 +291,7 @@ class TransferForm extends Component {
                                 {tt('tips_js.non_transferable', {
                                     LIQUID_TOKEN,
                                     VESTING_TOKEN,
+                                    TRON_TOKEN,
                                 })}
                             </p>
                         </div>
@@ -334,7 +342,9 @@ class TransferForm extends Component {
                                 className="input-group"
                                 style={{ marginBottom: '1.25rem' }}
                             >
-                                <span className="input-group-label">@</span>
+                                {this.state.switchSteem && (
+                                    <span className="input-group-label">@</span>
+                                )}
                                 <Autocomplete
                                     wrapperStyle={{
                                         display: 'inline-block',
@@ -390,6 +400,33 @@ class TransferForm extends Component {
                                     }
                                 />
                             </div>
+                            {this.state.switchSteem && (
+                                <button
+                                    className="switch"
+                                    onClick={e =>
+                                        this.setState({
+                                            switchTron: true,
+                                            switchSteem: false,
+                                        })
+                                    }
+                                >
+                                    switch to tron
+                                </button>
+                            )}
+                            {this.state.switchTron && (
+                                <button
+                                    className="switch"
+                                    onClick={e =>
+                                        this.setState({
+                                            switchTron: false,
+                                            switchSteem: true,
+                                        })
+                                    }
+                                >
+                                    switch to steem
+                                </button>
+                            )}
+
                             {to.touched && to.error ? (
                                 <div className="error">{to.error}&nbsp;</div>
                             ) : (
@@ -437,6 +474,7 @@ class TransferForm extends Component {
                                     >
                                         <option value="STEEM">STEEM</option>
                                         <option value="SBD">SBD</option>
+                                        <option value="TRX">TRX</option>
                                     </select>
                                 </span>
                             )}

@@ -43,7 +43,7 @@ export function spToVestsf(state, steem_power) {
         global.getIn(['props', 'total_vesting_fund_steem']),
         LIQUID_TICKER
     );
-    return steem_power / total_vest_steem * total_vests;
+    return (steem_power / total_vest_steem) * total_vests;
 }
 
 export function spToVests(state, vesting_shares) {
@@ -224,4 +224,14 @@ export function pricePerSteem(state) {
         return formatter.pricePerSteem(feed_price.toJS());
     }
     return undefined;
+}
+
+export function pricePerTRX(state) {
+    const trx_price = state.app
+        .get('steemMarket')
+        .get('tron')
+        .get('timepoints')
+        .get(0)
+        .get('price_usd');
+    return trx_price ? parseFloat(trx_price) : 0.0;
 }

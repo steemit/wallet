@@ -143,7 +143,6 @@ function convertEntriesToArrays(obj) {
     }, {});
 }
 
-// Fetch cached currency data for homepage
 const steemMarket = new SteemMarket();
 app.use(function*(next) {
     this.steemMarketData = yield steemMarket.get();

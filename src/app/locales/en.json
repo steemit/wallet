@@ -1052,6 +1052,7 @@
         "create_tron_success": "Your account has been created",
         "create_tron_success_content":
             "You successfully create a TRON account.If fail to download, please ",
-        "copy_qr_code": "copy QR code"
+        "qr_code": "QR code",
+        "copy": "copy"
     }
 }
