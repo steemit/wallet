@@ -1,7 +1,13 @@
+/* eslint-disable no-undef */
+/* eslint-disable class-methods-use-this */
 import React, { Component } from 'react';
 import { PrivateKey } from '@steemit/steem-js/lib/auth/ecc';
 import QRious from 'qrious';
 import { Link } from 'react-router';
+import jsPDF from 'jspdf';
+import RobotoRegular from 'app/assets/fonts/Roboto-Regular.ttf';
+import RobotoBold from 'app/assets/fonts/Roboto-Bold.ttf';
+import RobotoMonoRegular from 'app/assets/fonts/RobotoMono-Regular.ttf';
 
 function image2canvas(image, bgcolor) {
     const canvas = document.createElement('canvas');
@@ -19,7 +25,18 @@ export default class PdfDownload extends Component {
     constructor(props) {
         super(props);
         this.downloadPdf = this.downloadPdf.bind(this);
-        this.state = { loaded: false };
+        this.state = { loaded: true };
+    }
+
+    // shouldComponentUpdate(nextProps, nextState){
+    //     if(nextProps.download!=undefined) return false;   // just download, not need to render
+    //     return true;
+    // }
+    componentDidUpdate(prevProps) {
+        // start to download pdf key file
+        if (this.props.download !== prevProps.download || this.props.download) {
+            this.downloadPdf();
+        }
     }
 
     // Generate a list of public and private keys from a master password
@@ -41,61 +58,11 @@ export default class PdfDownload extends Component {
         this.renderPdf(keys, filename).save(filename);
     }
 
-    // Generate the canvas, which will be generated into a PDF
-    async componentDidMount() {
-        // Load jsPDF. It does not work with webpack, so it must be loaded here.
-        // On the plus side, it is only loaded when the warning page is shown.
-        this.setState({ loaded: false });
-        await new Promise((res, rej) => {
-            const s = document.createElement('script');
-            s.type = 'text/javascript';
-            s.src = 'https://staticfiles.steemit.com/jspdf.min.js';
-            document.body.appendChild(s);
-            s.addEventListener('load', res);
-        });
-
-        await new Promise((res, rej) => {
-            const s = document.createElement('script');
-            s.type = 'text/javascript';
-            s.src = 'https://staticfiles.steemit.com/Roboto-Regular-normal.js';
-            document.body.appendChild(s);
-            s.addEventListener('load', res);
-        });
-
-        await new Promise((res, rej) => {
-            const s = document.createElement('script');
-            s.type = 'text/javascript';
-            s.src = 'https://staticfiles.steemit.com/Roboto-Bold-normal.js';
-            document.body.appendChild(s);
-            s.addEventListener('load', res);
-        });
-
-        await new Promise((res, rej) => {
-            const s = document.createElement('script');
-            s.type = 'text/javascript';
-            s.src =
-                'https://staticfiles.steemit.com/RobotoMono-Regular-normal.js';
-            document.body.appendChild(s);
-            s.addEventListener('load', res);
-        });
-        this.setState({ loaded: true });
-    }
-
-    // shouldComponentUpdate(nextProps, nextState){
-    //     if(nextProps.download!=undefined) return false;   // just download, not need to render
-    //     return true;
-    // }
-    componentDidUpdate(prevProps) {
-        // start to download pdf key file
-        if (this.props.download !== prevProps.download || this.props.download) {
-            this.downloadPdf();
-        }
-    }
-
     render() {
         return (
             <div className="pdf-download">
                 <img
+                    alt=""
                     src="/images/pdf-logo.svg"
                     style={{ display: 'none' }}
                     className="pdf-logo"
@@ -131,7 +98,7 @@ export default class PdfDownload extends Component {
         text,
         { scale, x, y, lineHeight, maxWidth, color, fontSize, font }
     ) {
-        var textLines = ctx
+        const textLines = ctx
             .setFont(font)
             .setFontSize(fontSize * scale)
             .setTextColor(color)
@@ -159,7 +126,7 @@ export default class PdfDownload extends Component {
 
     drawQr(ctx, data, x, y, size, bgcolor) {
         const canvas = document.createElement('canvas');
-        var qr = new QRious({
+        const qr = new QRious({
             element: canvas,
             size: 250,
             value: data,
@@ -184,9 +151,13 @@ export default class PdfDownload extends Component {
         const ctx = new jsPDF({
             orientation: 'portrait',
             unit: 'in',
-            lineHeight: lineHeight,
+            lineHeight,
             format: 'letter',
         }).setProperties({ title: filename });
+
+        ctx.addFont(RobotoRegular, 'Roboto-Regular', 'normal');
+        ctx.addFont(RobotoBold, 'Roboto-Bold', 'normal');
+        ctx.addFont(RobotoMonoRegular, 'RobotoMono-Regular', 'normal');
 
         let offset = 0.0,
             sectionStart = 0,
@@ -294,7 +265,7 @@ export default class PdfDownload extends Component {
                 scale,
                 x: margin,
                 y: offset,
-                lineHeight: lineHeight,
+                lineHeight,
                 maxWidth: maxLineWidth,
                 color: 'black',
                 fontSize: 0.14,
@@ -309,7 +280,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.18,
@@ -345,7 +316,7 @@ export default class PdfDownload extends Component {
                 scale,
                 x: margin + qrSize + 0.1,
                 y: offset,
-                lineHeight: lineHeight,
+                lineHeight,
                 maxWidth: maxLineWidth,
                 color: 'black',
                 fontSize: 0.2,
@@ -360,7 +331,7 @@ export default class PdfDownload extends Component {
                 scale,
                 x: margin + qrSize + 0.1,
                 y: offset,
-                lineHeight: lineHeight,
+                lineHeight,
                 maxWidth: maxLineWidth - (qrSize + 0.1),
                 color: 'black',
                 fontSize: 0.14,
@@ -373,7 +344,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin + qrSize + 0.1,
             y: sectionStart + sectionHeight - 0.6,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -408,7 +379,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin + qrSize + 0.1,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.2,
@@ -423,7 +394,7 @@ export default class PdfDownload extends Component {
                 scale,
                 x: margin + qrSize + 0.1,
                 y: offset,
-                lineHeight: lineHeight,
+                lineHeight,
                 maxWidth: maxLineWidth - (qrSize + 0.1),
                 color: 'black',
                 fontSize: 0.14,
@@ -436,7 +407,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin + qrSize + 0.1,
             y: sectionStart + sectionHeight - 0.4,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -453,7 +424,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.18,
@@ -486,7 +457,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin + qrSize + 0.1,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -501,7 +472,7 @@ export default class PdfDownload extends Component {
                 scale,
                 x: margin + qrSize + 0.1,
                 y: offset,
-                lineHeight: lineHeight,
+                lineHeight,
                 maxWidth: maxLineWidth - (qrSize + 0.1),
                 color: 'black',
                 fontSize: 0.14,
@@ -514,7 +485,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin + qrSize + 0.1,
             y: sectionStart + sectionHeight - 0.6,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -548,7 +519,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin + qrSize + 0.1,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -562,7 +533,7 @@ export default class PdfDownload extends Component {
                 scale,
                 x: margin + qrSize + 0.1,
                 y: offset,
-                lineHeight: lineHeight,
+                lineHeight,
                 maxWidth: maxLineWidth - (qrSize + 0.1),
                 color: 'black',
                 fontSize: 0.14,
@@ -575,7 +546,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin + qrSize + 0.1,
             y: sectionStart + sectionHeight - 0.6,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -612,7 +583,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin + qrSize + 0.1,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -627,7 +598,7 @@ export default class PdfDownload extends Component {
                 scale,
                 x: margin + qrSize + 0.1,
                 y: offset,
-                lineHeight: lineHeight,
+                lineHeight,
                 maxWidth: maxLineWidth - (qrSize + 0.1),
                 color: 'black',
                 fontSize: 0.14,
@@ -640,7 +611,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin + qrSize + 0.1,
             y: sectionStart + sectionHeight - 0.6,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -677,7 +648,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin + qrSize + 0.1,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth - qrSize - 0.1,
             color: 'black',
             fontSize: 0.14,
@@ -694,7 +665,7 @@ export default class PdfDownload extends Component {
                 scale,
                 x: margin + qrSize + 0.1,
                 y: offset,
-                lineHeight: lineHeight,
+                lineHeight,
                 maxWidth: maxLineWidth - (qrSize + 0.1),
                 color: 'black',
                 fontSize: 0.14,
@@ -707,7 +678,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin + qrSize + 0.1,
             y: sectionStart + sectionHeight - 0.6,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth - qrSize - 0.1,
             color: 'black',
             fontSize: 0.14,
@@ -729,7 +700,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -744,7 +715,7 @@ export default class PdfDownload extends Component {
                 scale,
                 x: margin,
                 y: offset,
-                lineHeight: lineHeight,
+                lineHeight,
                 maxWidth: maxLineWidth,
                 color: 'black',
                 fontSize: 0.14,
@@ -757,7 +728,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -777,7 +748,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.18,
@@ -795,7 +766,7 @@ export default class PdfDownload extends Component {
                 scale,
                 x: margin,
                 y: offset,
-                lineHeight: lineHeight,
+                lineHeight,
                 maxWidth: maxLineWidth,
                 color: 'black',
                 fontSize: 0.15,
@@ -811,7 +782,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -822,7 +793,7 @@ export default class PdfDownload extends Component {
             scale,
             x: 1.25,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -833,7 +804,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -844,7 +815,7 @@ export default class PdfDownload extends Component {
             scale,
             x: 1.25,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -855,7 +826,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -866,7 +837,7 @@ export default class PdfDownload extends Component {
             scale,
             x: 1.25,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -877,7 +848,7 @@ export default class PdfDownload extends Component {
             scale,
             x: margin,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -888,7 +859,7 @@ export default class PdfDownload extends Component {
             scale,
             x: 1.25,
             y: offset,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: 'black',
             fontSize: 0.14,
@@ -899,7 +870,7 @@ export default class PdfDownload extends Component {
             scale,
             x: maxLineWidth - 0.2,
             y: offset - 0.2,
-            lineHeight: lineHeight,
+            lineHeight,
             maxWidth: maxLineWidth,
             color: '#bbbbbb',
             fontSize: 0.14,
