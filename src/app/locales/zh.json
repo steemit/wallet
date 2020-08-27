@@ -797,6 +797,7 @@
         "create_tron_agree": "同意",
         "create_tron_success": "创建成功",
         "create_tron_success_content": "已经成功创建TRON账户，若下载失败，请",
-        "copy_qr_code": "复制二维码"
+        "qr_code": "复制二维码",
+        "copy": "复制"
     }
 }

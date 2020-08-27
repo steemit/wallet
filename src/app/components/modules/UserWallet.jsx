@@ -6,6 +6,7 @@ import React from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import tt from 'counterpart';
+import { CopyToClipboard } from 'react-copy-to-clipboard';
 import { List } from 'immutable';
 import SavingsWithdrawHistory from 'app/components/elements/SavingsWithdrawHistory';
 import TransferHistoryRow from 'app/components/cards/TransferHistoryRow';
@@ -16,6 +17,7 @@ import {
     delegatedSteem,
     powerdownSteem,
     pricePerSteem,
+    pricePerTRX,
 } from 'app/utils/StateFunctions';
 import WalletSubMenu from 'app/components/elements/WalletSubMenu';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
@@ -43,6 +45,7 @@ class UserWallet extends React.Component {
             claimInProgress: false,
             showQRButton: true,
             showQR: false,
+            copied: false,
         };
         this.onShowDepositSteem = e => {
             if (e && e.preventDefault) e.preventDefault();
@@ -189,6 +192,7 @@ class UserWallet extends React.Component {
         const {
             convertToSteem,
             price_per_steem,
+            price_per_trx,
             savings_withdraws,
             account,
             currentUser,
@@ -357,7 +361,7 @@ class UserWallet extends React.Component {
                   }, 0) / assetPrecision;
         // const tron_reward =  (currentUser && currentUser.has('tron_reward'))
         //                     ?currentUser.get('tron_reward'):'0.000';
-        // let tron_reward = this.props.tron_reward.replace(/[^0-9.]/, '');
+        const tron_reward = this.props.tron_reward.replace(/[^0-9.]/, '');
         const tron_balance = parseFloat(this.props.tron_balance);
 
         // set displayed estimated value
@@ -373,12 +377,17 @@ class UserWallet extends React.Component {
             saving_balance_steem +
             savings_pending +
             steemOrders;
+        const total_trx = parseFloat(tron_balance + tron_reward);
         const total_value =
             '$' +
             numberWithCommas(
-                (total_steem * price_per_steem + total_sbd).toFixed(2)
+                (
+                    total_steem * price_per_steem +
+                    total_sbd +
+                    total_trx * price_per_trx
+                ).toFixed(2)
             );
-
+        console.log(total_trx * price_per_trx);
         // format spacing on estimated value based on account state
         let estimate_output = <p>{total_value}</p>;
         if (isMyAccount) {
@@ -870,6 +879,19 @@ class UserWallet extends React.Component {
                             {!isTrxAccount
                                 ? tt('userwallet_jsx.create_trx_description')
                                 : TRX_address}
+                            <CopyToClipboard
+                                text={TRX_address}
+                                onCopy={() => this.setState({ copied: true })}
+                            >
+                                <button className="buttonQR">
+                                    {tt('tron_jsx.copy')}
+                                </button>
+                            </CopyToClipboard>
+                            {this.state.copied ? (
+                                <span style={{ color: 'red' }}>
+                                    Copy successfully
+                                </span>
+                            ) : null}
                             {this.state.showQRButton && (
                                 <button
                                     className="buttonQR"
@@ -877,10 +899,11 @@ class UserWallet extends React.Component {
                                         this.setState({
                                             showQR: true,
                                             showQRButton: false,
+                                            copied: false,
                                         })
                                     }
                                 >
-                                    {tt('tron_jsx.copy_qr_code')}{' '}
+                                    {tt('tron_jsx.qr_code')}{' '}
                                 </button>
                             )}
                             {this.state.showQR && (
@@ -890,6 +913,7 @@ class UserWallet extends React.Component {
                                         this.setState({
                                             showQR: false,
                                             showQRButton: true,
+                                            copied: false,
                                         })
                                     }
                                 >
@@ -1041,6 +1065,7 @@ export default connect(
     // mapStateToProps
     (state, ownProps) => {
         const price_per_steem = pricePerSteem(state);
+        const price_per_trx = pricePerTRX(state);
         const savings_withdraws = state.user.get('savings_withdraws');
         const gprops = state.global.get('props');
         const sbd_interest = gprops.get('sbd_interest_rate');
@@ -1069,6 +1094,7 @@ export default connect(
             ...ownProps,
             open_orders: state.market.get('open_orders'),
             price_per_steem,
+            price_per_trx,
             savings_withdraws,
             sbd_interest,
             gprops,

@@ -46,6 +46,7 @@ function* getRecordCache(
     let result;
     try {
         // get all items
+
         if (!field) {
             result =
                 env === 'production'
