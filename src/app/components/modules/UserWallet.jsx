@@ -478,14 +478,14 @@ class UserWallet extends React.Component {
         ];
         const trx_menu = [
             {
-                value: tt('userwallet_jsx.market'),
+                value: tt('g.transfer'),
                 link: '#',
-                onClick: onShowTRX,
-            },
-            {
-                value: tt('userwallet_jsx.just_mortgage'),
-                link: '#',
-                onClick: onShowJUST,
+                // todo  replace with TRX function
+                onClick: showTronTransfer.bind(
+                    this,
+                    'TRX',
+                    'Transfer to Account'
+                ),
             },
         ];
         if (isMyAccount) {
@@ -533,6 +533,16 @@ class UserWallet extends React.Component {
         if (isTrxAccount) {
             // todo: need replace with trx buy/sell/transfer function
             trx_menu.push({
+                value: tt('g.vote'),
+                link: '#',
+                onClick: () => this.props.showVote(),
+            });
+            trx_menu.push({
+                value: tt('userwallet_jsx.just_mortgage'),
+                link: '#',
+                onClick: onShowJUST,
+            });
+            trx_menu.push({
                 value: tt('g.sell'),
                 link: '#',
                 onClick: onShowTRX,
@@ -541,21 +551,6 @@ class UserWallet extends React.Component {
                 value: tt('g.buy'),
                 link: '#',
                 onClick: onShowTRX,
-            });
-            trx_menu.push({
-                value: tt('g.transfer'),
-                link: '#',
-                // todo  replace with TRX function
-                onClick: showTronTransfer.bind(
-                    this,
-                    'TRX',
-                    'Transfer to Account'
-                ),
-            });
-            trx_menu.push({
-                value: tt('g.vote'),
-                link: '#',
-                onClick: () => this.props.showVote(),
             });
         }
 
