@@ -189,7 +189,7 @@ export default class PdfDownload extends Component {
             fontSize: 0.36,
             font: 'Roboto-Bold',
         });
-        console.log('rendtext 202 to render pdf');
+
         /*
         offset += 0.1;
         offset += this.renderText(

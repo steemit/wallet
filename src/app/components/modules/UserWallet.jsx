@@ -387,7 +387,7 @@ class UserWallet extends React.Component {
                     total_trx * price_per_trx
                 ).toFixed(2)
             );
-        console.log(total_trx * price_per_trx);
+        // console.log(total_trx * price_per_trx);
         // format spacing on estimated value based on account state
         let estimate_output = <p>{total_value}</p>;
         if (isMyAccount) {
