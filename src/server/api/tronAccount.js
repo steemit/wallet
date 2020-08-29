@@ -30,8 +30,9 @@ export default function tronAccount(app) {
             const obj = yield tronWeb.createAccount();
             this.body = JSON.stringify(obj);
         } catch (err) {
-            console.log('error ');
-            this.body = JSON.stringify({ error: err.message });
+            console.log('error ' + JSON.stringify(err));
+            this.body = JSON.stringify({ error: JSON.stringify(err) });
+            return;
         }
     });
     router.get('/get_account', function*() {
@@ -58,8 +59,9 @@ export default function tronAccount(app) {
             const obj = yield tronWeb.trx.getAccount(q.tron_address);
             this.body = JSON.stringify(obj);
         } catch (err) {
-            console.log('error ');
-            this.body = JSON.stringify({ error: err.message });
+            console.log('error ' + JSON.stringify(err));
+            this.body = JSON.stringify({ error: JSON.stringify(err) });
+            return;
         }
     });
 }

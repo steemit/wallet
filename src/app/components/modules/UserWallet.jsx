@@ -227,11 +227,16 @@ class UserWallet extends React.Component {
 
         const showTronTransfer = (asset, transferType, e) => {
             e.preventDefault();
-            this.props.showTronTransfer({
+            this.props.showTransfer({
                 to: isMyAccount ? null : account.get('name'),
                 asset,
                 transferType,
             });
+            // this.props.showTronTransfer({
+            //     to: isMyAccount ? null : account.get('name'),
+            //     asset,
+            //     transferType,
+            // });
         };
 
         const onCreateTronAccount = e => {
@@ -478,16 +483,34 @@ class UserWallet extends React.Component {
         ];
         const trx_menu = [
             {
+                value: tt('g.sell'),
+                link: '#',
+                onClick: onShowTRX,
+            },
+            {
+                value: tt('g.buy'),
+                link: '#',
+                onClick: onShowTRX,
+            },
+            {
+                value: tt('g.vote'),
+                link: '#',
+                onClick: () => this.props.showVote(),
+            },
+            {
+                value: tt('userwallet_jsx.just_mortgage'),
+                link: '#',
+                onClick: onShowJUST,
+            },
+        ];
+        if (this.props.pass_auth && this.props.tron_address != '') {
+            trx_menu.push({
                 value: tt('g.transfer'),
                 link: '#',
                 // todo  replace with TRX function
-                onClick: showTronTransfer.bind(
-                    this,
-                    'TRX',
-                    'Transfer to Account'
-                ),
-            },
-        ];
+                onClick: showTronTransfer.bind(this, 'TRX', 'tron_transfer'),
+            });
+        }
         if (isMyAccount) {
             steem_menu.push({
                 value: tt('g.buy'),
@@ -530,30 +553,6 @@ class UserWallet extends React.Component {
         }
 
         const isTrxAccount = this.props.tron_user;
-        if (isTrxAccount) {
-            // todo: need replace with trx buy/sell/transfer function
-            trx_menu.push({
-                value: tt('g.vote'),
-                link: '#',
-                onClick: () => this.props.showVote(),
-            });
-            trx_menu.push({
-                value: tt('userwallet_jsx.just_mortgage'),
-                link: '#',
-                onClick: onShowJUST,
-            });
-            trx_menu.push({
-                value: tt('g.sell'),
-                link: '#',
-                onClick: onShowTRX,
-            });
-            trx_menu.push({
-                value: tt('g.buy'),
-                link: '#',
-                onClick: onShowTRX,
-            });
-        }
-
         const TRX_address = this.props.tron_address;
 
         if (divesting) {

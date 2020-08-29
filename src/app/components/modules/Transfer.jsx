@@ -40,6 +40,10 @@ class TransferForm extends Component {
             advanced: !transferToSelf,
             transferTo: false,
             autocompleteUsers: [],
+            switchTron: false,
+            switchSteem: true,
+            tron_transfer: false,
+            tron_transfer_msg: '',
         };
         this.initForm(props);
     }
@@ -53,6 +57,9 @@ class TransferForm extends Component {
 
         runTests();
 
+        if (this.props.initialValues.transferType == 'tron_transfer') {
+            this.setState({ tron_transfer: true });
+        }
         this.buildTransferAutocomplete();
     }
 
@@ -136,13 +143,15 @@ class TransferForm extends Component {
             const balanceValue =
                 !asset || asset === 'STEEM'
                     ? isWithdraw
-                      ? currentAccount.get('savings_balance')
-                      : currentAccount.get('balance')
+                        ? currentAccount.get('savings_balance')
+                        : currentAccount.get('balance')
                     : asset === 'SBD'
-                      ? isWithdraw
-                        ? currentAccount.get('savings_sbd_balance')
-                        : currentAccount.get('sbd_balance')
-                      : null;
+                        ? isWithdraw
+                            ? currentAccount.get('savings_sbd_balance')
+                            : currentAccount.get('sbd_balance')
+                        : asset === 'TRX'
+                            ? this.props.tron_balance + ' TRX'
+                            : null;
             if (!balanceValue) return false;
             const balance = balanceValue.split(' ')[0];
             return parseFloat(amount) > parseFloat(balance);
@@ -152,7 +161,8 @@ class TransferForm extends Component {
         if (
             !toVesting &&
             transferType !== 'Transfer to Savings' &&
-            transferType !== 'Savings Withdraw'
+            transferType !== 'Savings Withdraw' &&
+            transferType !== 'tron_transfer'
         )
             fields.push('memo');
         reactForm({
@@ -167,15 +177,19 @@ class TransferForm extends Component {
                 amount: !values.amount
                     ? 'Required'
                     : !/^\d+(\.\d+)?$/.test(values.amount)
-                      ? tt('transfer_jsx.amount_is_in_form')
-                      : insufficientFunds(values.asset, values.amount)
-                        ? tt('transfer_jsx.insufficient_funds')
-                        : countDecimals(values.amount) > 3
-                          ? tt('transfer_jsx.use_only_3_digits_of_precison')
-                          : null,
+                        ? tt('transfer_jsx.amount_is_in_form')
+                        : insufficientFunds(values.asset, values.amount)
+                            ? tt('transfer_jsx.insufficient_funds')
+                            : countDecimals(values.amount) > 3
+                                ? tt(
+                                      'transfer_jsx.use_only_3_digits_of_precison'
+                                  )
+                                : null,
                 asset: props.toVesting
                     ? null
-                    : !values.asset ? tt('g.required') : null,
+                    : !values.asset
+                        ? tt('g.required')
+                        : null,
                 memo: values.memo
                     ? validate_memo_field(
                           values.memo,
@@ -184,8 +198,8 @@ class TransferForm extends Component {
                       )
                     : values.memo &&
                       (!browserTests.memo_encryption && /^#/.test(values.memo))
-                      ? 'Encrypted memos are temporarily unavailable (issue #98)'
-                      : null,
+                        ? 'Encrypted memos are temporarily unavailable (issue #98)'
+                        : null,
             }),
         });
     }
@@ -205,13 +219,15 @@ class TransferForm extends Component {
         const isWithdraw = transferType && transferType === 'Savings Withdraw';
         return !asset || asset.value === 'STEEM'
             ? isWithdraw
-              ? currentAccount.get('savings_balance')
-              : currentAccount.get('balance')
+                ? currentAccount.get('savings_balance')
+                : currentAccount.get('balance')
             : asset.value === 'SBD'
-              ? isWithdraw
-                ? currentAccount.get('savings_sbd_balance')
-                : currentAccount.get('sbd_balance')
-              : null;
+                ? isWithdraw
+                    ? currentAccount.get('savings_sbd_balance')
+                    : currentAccount.get('sbd_balance')
+                : asset.value === 'TRX'
+                    ? this.props.tron_balance + ' TRX'
+                    : null;
     }
 
     assetBalanceClick = e => {
@@ -330,7 +346,9 @@ class TransferForm extends Component {
                                 className="input-group"
                                 style={{ marginBottom: '1.25rem' }}
                             >
-                                <span className="input-group-label">@</span>
+                                {this.state.switchSteem && (
+                                    <span className="input-group-label">@</span>
+                                )}
                                 <Autocomplete
                                     wrapperStyle={{
                                         display: 'inline-block',
@@ -385,11 +403,42 @@ class TransferForm extends Component {
                                         })
                                     }
                                 />
+                                {this.state.switchSteem && (
+                                    <button
+                                        className="switch"
+                                        onClick={e =>
+                                            this.setState({
+                                                switchTron: true,
+                                                switchSteem: false,
+                                            })
+                                        }
+                                    >
+                                        switch to tron
+                                    </button>
+                                )}
+                                {this.state.switchTron && (
+                                    <button
+                                        className="switch"
+                                        onClick={e =>
+                                            this.setState({
+                                                switchTron: false,
+                                                switchSteem: true,
+                                            })
+                                        }
+                                    >
+                                        switch to steem
+                                    </button>
+                                )}
                             </div>
                             {to.touched && to.error ? (
                                 <div className="error">{to.error}&nbsp;</div>
                             ) : (
                                 <p>{toVesting && powerTip3}</p>
+                            )}
+                            {this.state.tron_transfer_msg != '' && (
+                                <div className="error">
+                                    {this.state.tron_transfer_msg}
+                                </div>
                             )}
                         </div>
                     </div>
@@ -430,9 +479,17 @@ class TransferForm extends Component {
                                             backgroundColor: 'transparent',
                                             border: 'none',
                                         }}
+                                        disabled={this.state.tron_transfer}
                                     >
-                                        <option value="STEEM">STEEM</option>
-                                        <option value="SBD">SBD</option>
+                                        {!this.state.tron_transfer && (
+                                            <option value="STEEM">STEEM</option>
+                                        )}
+                                        {!this.state.tron_transfer && (
+                                            <option value="SBD">SBD</option>
+                                        )}
+                                        {this.state.tron_transfer && (
+                                            <option value="TRX">TRX</option>
+                                        )}
                                     </select>
                                 </span>
                             )}
@@ -580,7 +637,18 @@ export default connect(
 
         if (initialValues.to !== currentUser.get('username'))
             transferToSelf = false; // don't hide the to field
-
+        const tron_address =
+            currentUser && currentUser.has('tron_address')
+                ? currentUser.get('tron_address')
+                : '';
+        const tron_balance =
+            currentUser && currentUser.has('tron_balance')
+                ? currentUser.get('tron_balance')
+                : '';
+        const tron_transfer_msg =
+            currentUser && currentUser.has('tron_transfer_msg')
+                ? currentUser.get('tron_transfer_msg')
+                : '';
         return {
             ...ownProps,
             currentUser,
@@ -594,6 +662,9 @@ export default connect(
                 currentUser.get('username'),
                 'blog_result',
             ]),
+            tron_address,
+            tron_balance,
+            tron_transfer_msg,
         };
     },
 
@@ -616,9 +687,7 @@ export default connect(
                 )
             )
                 throw new Error(
-                    `Invalid transfer params: toVesting ${
-                        toVesting
-                    }, transferType ${transferType}`
+                    `Invalid transfer params: toVesting ${toVesting}, transferType ${transferType}`
                 );
 
             const username = currentUser.get('username');
@@ -649,16 +718,26 @@ export default connect(
                     type: toVesting
                         ? 'transfer_to_vesting'
                         : transferType === 'Transfer to Account'
-                          ? 'transfer'
-                          : transferType === 'Transfer to Savings'
-                            ? 'transfer_to_savings'
-                            : transferType === 'Savings Withdraw'
-                              ? 'transfer_from_savings'
-                              : null,
+                            ? 'transfer'
+                            : transferType === 'Transfer to Savings'
+                                ? 'transfer_to_savings'
+                                : transferType === 'Savings Withdraw'
+                                    ? 'transfer_from_savings'
+                                    : transferType === 'tron_transfer'
+                                        ? 'tron_transfer'
+                                        : null,
                     operation,
                     successCallback,
                     errorCallback,
                     confirm,
+                })
+            );
+        },
+        checkTron: (to_username, to_tron_address) => {
+            dispatch(
+                userActions.checkTron({
+                    to_username,
+                    to_tron_address,
                 })
             );
         },

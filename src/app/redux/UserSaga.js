@@ -51,6 +51,7 @@ export const userWatches = [
     takeLatest(userActions.LOGIN_ERROR, loginError),
     takeLatest(userActions.LOAD_SAVINGS_WITHDRAW, loadSavingsWithdraw),
     takeLatest(userActions.UPDATE_USER, updateTronAccount),
+    takeLatest(userActions.CHECK_TRON, checkTron),
     takeLatest(userActions.ACCEPT_TERMS, function*() {
         try {
             yield call(acceptTos);
@@ -77,6 +78,68 @@ const highSecurityPages = [
     /\/proposals/,
 ];
 
+function* checkTron({ payload: { to_username, to_tron_address } }) {
+    if (!to_username && to_tron_address != null) {
+        const response2 = yield getTronAccount(to_tron_address);
+        const res = yield response2.json();
+        if (res.error != undefined) {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_transfer_msg: res.error.replace('"', ''),
+                })
+            );
+        } else {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_transfer_msg: '',
+                })
+            );
+        }
+        return;
+    }
+    const account = yield call(getAccount, to_username);
+    if (!account) {
+        console.log('No account');
+        yield put(
+            userActions.setUser({
+                username,
+                tron_transfer_msg: 'invalid account name,no account on chain',
+            })
+        );
+        return;
+    }
+
+    const response = yield checkTronUser(to_username);
+    const body = yield response.json();
+    if (body.status && body.status == 'ok') {
+        if (body.result.tron_addr != '' || body.result.tron_addr.length > 0) {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_transfer_msg: '',
+                })
+            );
+        } else {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_transfer_msg: tt(
+                        'chainvalidation_js.user_no_tron_account'
+                    ),
+                })
+            );
+        }
+    } else {
+        yield put(
+            userActions.setUser({
+                username,
+                tron_transfer_msg: tt('chainvalidation_js.unknow_recipient'),
+            })
+        );
+    }
+}
 function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
     const username = yield select(state =>
         state.user.getIn(['current', 'username'])

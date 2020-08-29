@@ -50,6 +50,7 @@ const HIDE_TRON_CREATE_SUCCESS = 'user/HIDE_TRON_CREATE_SUCCESS';
 export const LOAD_SAVINGS_WITHDRAW = 'user/LOAD_SAVINGS_WITHDRAW';
 export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
 export const UPDATE_USER = 'user/UPDATE_USER';
+export const CHECK_TRON = 'user/CHECK_TRON';
 const defaultState = fromJS({
     current: null,
     show_login_modal: false,
@@ -187,6 +188,8 @@ export default function reducer(state = defaultState, action) {
             return state; // saga
 
         case UPDATE_USER:
+            return state; // saga
+        case CHECK_TRON:
             return state; // saga
         case SET_USERNAME:
             // TODO: Clean this up
@@ -509,6 +512,11 @@ export const loadSavingsWithdraw = payload => ({
 
 export const updateUser = payload => ({
     type: UPDATE_USER,
+    payload,
+});
+
+export const checkTron = payload => ({
+    type: CHECK_TRON,
     payload,
 });
 

@@ -666,7 +666,9 @@
         "have_only_letters_digits_or_dashes": "只有字母、数字或破折号",
         "have_only_one_dash_in_a_row": "一行只有一个破折号",
         "end_with_a_letter_or_digit": "字母或数字结尾",
-        "verified_exchange_no_memo": "如果你要转账到交易所，你必须填写备注。"
+        "verified_exchange_no_memo": "如果你要转账到交易所，你必须填写备注。",
+        "user_no_tron_account": "此用户没有绑定tron账号",
+        "unknow_recipient": "未知收款人"
     },
     "settings_jsx": {
         "invalid_url": "无效的URL",

@@ -147,6 +147,11 @@ export function* broadcastOperation({
         return;
     }
     try {
+        if (type == 'tron_transfer') {
+            // todo add tron transfer function
+            yield call(broadcastTronPayload, { payload });
+            return;
+        }
         if (!isLoggedInWithKeychain()) {
             if (!keys || keys.length === 0) {
                 payload.keys = [];
@@ -176,6 +181,7 @@ export function* broadcastOperation({
                 }
             }
         }
+
         yield call(broadcastPayload, { payload });
         let eventType = type
             .replace(/^([a-z])/, g => g.toUpperCase())
@@ -211,6 +217,9 @@ function hasPrivateKeys(payload) {
     return false;
 }
 
+function* broadcastTronPayload({
+    payload: { operations, keys, username, successCallback, errorCallback },
+}) {}
 function* broadcastPayload({
     payload: { operations, keys, username, successCallback, errorCallback },
 }) {

@@ -836,7 +836,8 @@
         "memo_has_privatekey":
             "Please do not include what appears to be a private key or password.",
         "memo_is_privatekey": "Do not use private keys in memos.",
-        "memo_is_password": "Do not use passwords in memos."
+        "memo_is_password": "Do not use passwords in memos.",
+        "user_no_tron_account": "This user does not have a TRON account"
     },
     "settings_jsx": {
         "invalid_url": "Invalid URL",
