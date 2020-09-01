@@ -13,6 +13,7 @@ const styles = {
         marginTop: '40px',
     },
 };
+// todo: refactor with tronCreateOne
 class UpdateTronAccountOne extends Component {
     constructor() {
         super();

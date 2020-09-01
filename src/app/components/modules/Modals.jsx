@@ -12,7 +12,7 @@ import * as transactionActions from 'app/redux/TransactionReducer';
 import LoginForm from 'app/components/modules/LoginForm';
 import ConfirmTransactionForm from 'app/components/modules/ConfirmTransactionForm';
 import Transfer from 'app/components/modules/Transfer';
-import TronTransfer from 'app/components/modules/TronTransfer';
+// import TronTransfer from 'app/components/modules/TronTransfer';
 import SignUp from 'app/components/modules/SignUp';
 import Powerdown from 'app/components/modules/Powerdown';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
@@ -192,7 +192,7 @@ class Modals extends React.Component {
                         show={show_tron_transfer_modal}
                     >
                         <CloseButton onClick={hideTronTransfer} />
-                        <TronTransfer />
+                        <Transfer />
                     </Reveal>
                 )}
                 {show_powerdown_modal && (
