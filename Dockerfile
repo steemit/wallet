@@ -32,8 +32,8 @@ ENV PORT 8080
 
 EXPOSE 8080
 
-# CMD [ "yarn", "run", "production" ]
+CMD [ "yarn", "run", "production" ]
 
 # uncomment the lines below to run it in development mode
 # ENV NODE_ENV development
-CMD [ "yarn", "run", "start" ]
+# CMD [ "yarn", "run", "start" ]
