@@ -29,3 +29,14 @@
     background-color: themed('textColorAccentHover');
   }
 }
+.tron_address{
+  background-clip: padding-box;
+  background-color: grey;
+  border: 1px solid rgba(0,0,0,0.15);
+  bottom: auto;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.175);
+  display: block;
+  font-size: 8px;
+  text-align: center;
+  padding-top: 12px;
+}

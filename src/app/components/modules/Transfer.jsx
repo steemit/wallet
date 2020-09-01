@@ -15,6 +15,7 @@ import runTests, { browserTests } from 'app/utils/BrowserTests';
 import {
     validate_account_name_with_memo,
     validate_memo_field,
+    validate_account_name,
 } from 'app/utils/ChainValidation';
 import { countDecimals } from 'app/utils/ParsersAndFormatters';
 import { APP_NAME, LIQUID_TOKEN, VESTING_TOKEN } from 'app/client_config';
@@ -44,10 +45,23 @@ class TransferForm extends Component {
             switchSteem: true,
             tron_transfer: false,
             tron_transfer_msg: '',
+            hide_tron_address: '',
+            error: false,
+            to_tron_address: '',
         };
         this.initForm(props);
     }
 
+    // covert tron address into the one only showing first and last 6 digit
+    covertTronAddress(tron_address) {
+        let fix_address = tron_address;
+        let middle_string = '';
+        fix_address =
+            fix_address.substring(0, 6) +
+            middle_string.padStart(fix_address.length - 12, '*') +
+            fix_address.slice(-6);
+        return fix_address;
+    }
     componentDidMount() {
         setTimeout(() => {
             const { advanced } = this.state;
@@ -59,6 +73,16 @@ class TransferForm extends Component {
 
         if (this.props.initialValues.transferType == 'tron_transfer') {
             this.setState({ tron_transfer: true });
+            if (
+                this.props.tron_address != '' &&
+                this.props.tron_address.length > 12
+            ) {
+                this.setState({
+                    tron_address: this.covertTronAddress(
+                        this.props.tron_address
+                    ),
+                });
+            }
         }
         this.buildTransferAutocomplete();
     }
@@ -155,14 +179,36 @@ class TransferForm extends Component {
             if (!balanceValue) return false;
             const balance = balanceValue.split(' ')[0];
             return parseFloat(amount) > parseFloat(balance);
+            // return parseFloat(balance) == 0.00 ? true: parseFloat(amount) > parseFloat(balance);
+        };
+        const tron_validation = address => {
+            if (this.state.tron_transfer) {
+                if (this.state.switchSteem) {
+                    const text = validate_account_name(address);
+                    if (text != null) return text;
+                    this.props.checkTron({
+                        username: address,
+                        tron_address: null,
+                    });
+                    return null;
+                }
+                if (this.state.switchTron) {
+                    if (address.length != 34)
+                        return tt('transfer_jsx.invalid_tron_address');
+                    this.props.checkTron({
+                        username: null,
+                        tron_address: address,
+                    });
+                    return null;
+                }
+            }
         };
         const { toVesting } = props;
         const fields = toVesting ? ['to', 'amount'] : ['to', 'amount', 'asset'];
         if (
             !toVesting &&
             transferType !== 'Transfer to Savings' &&
-            transferType !== 'Savings Withdraw' &&
-            transferType !== 'tron_transfer'
+            transferType !== 'Savings Withdraw'
         )
             fields.push('memo');
         reactForm({
@@ -173,7 +219,12 @@ class TransferForm extends Component {
             validation: values => ({
                 to: !values.to
                     ? tt('g.required')
-                    : validate_account_name_with_memo(values.to, values.memo),
+                    : this.state.tron_transfer
+                        ? tron_validation(values.to)
+                        : validate_account_name_with_memo(
+                              values.to,
+                              values.memo
+                          ),
                 amount: !values.amount
                     ? 'Required'
                     : !/^\d+(\.\d+)?$/.test(values.amount)
@@ -206,6 +257,7 @@ class TransferForm extends Component {
 
     clearError = () => {
         this.setState({ trxError: undefined });
+        this.props.resetError();
     };
 
     errorCallback = estr => {
@@ -242,6 +294,23 @@ class TransferForm extends Component {
             to: { ...this.state.to, value: value.toLowerCase().trim() },
         });
     };
+
+    componentDidUpdate(prevProps) {
+        if (this.props.tron_transfer_msg !== prevProps.tron_transfer_msg) {
+            this.setState({
+                tron_transfer_msg: this.props.tron_transfer_msg,
+                error: true,
+                to: { ...this.state.to, error: this.props.tron_transfer_msg },
+            });
+        }
+        if (this.props.to_tron_address !== prevProps.to_tron_address) {
+            this.setState({
+                to_tron_address: this.covertTronAddress(
+                    this.props.to_tron_address
+                ),
+            });
+        }
+    }
 
     render() {
         const transferTips = {
@@ -329,6 +398,10 @@ class TransferForm extends Component {
                                 disabled
                                 value={currentUser.get('username')}
                             />
+                            <span className="tron_address">
+                                {' '}
+                                {this.state.tron_address}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -403,7 +476,9 @@ class TransferForm extends Component {
                                         })
                                     }
                                 />
-                                {this.state.switchSteem && (
+                            </div>
+                            {this.state.tron_transfer &&
+                                this.state.switchSteem && (
                                     <button
                                         className="switch"
                                         onClick={e =>
@@ -416,7 +491,8 @@ class TransferForm extends Component {
                                         switch to tron
                                     </button>
                                 )}
-                                {this.state.switchTron && (
+                            {this.state.tron_transfer &&
+                                this.state.switchTron && (
                                     <button
                                         className="switch"
                                         onClick={e =>
@@ -429,17 +505,16 @@ class TransferForm extends Component {
                                         switch to steem
                                     </button>
                                 )}
-                            </div>
                             {to.touched && to.error ? (
                                 <div className="error">{to.error}&nbsp;</div>
                             ) : (
                                 <p>{toVesting && powerTip3}</p>
                             )}
-                            {this.state.tron_transfer_msg != '' && (
+                            {/* {this.state.tron_transfer_msg != '' && (
                                 <div className="error">
                                     {this.state.tron_transfer_msg}
                                 </div>
-                            )}
+                            )} */}
                         </div>
                     </div>
                 )}
@@ -561,7 +636,12 @@ class TransferForm extends Component {
                                 )}
                                 <button
                                     type="submit"
-                                    disabled={submitting || !valid}
+                                    disabled={
+                                        submitting ||
+                                        !valid ||
+                                        (this.state.tron_transfer &&
+                                            this.state.error)
+                                    }
                                     className="button"
                                 >
                                     {toVesting
@@ -649,6 +729,11 @@ export default connect(
             currentUser && currentUser.has('tron_transfer_msg')
                 ? currentUser.get('tron_transfer_msg')
                 : '';
+        const to_tron_address =
+            currentUser && currentUser.has('to_tron_address')
+                ? currentUser.get('to_tron_address')
+                : '';
+
         return {
             ...ownProps,
             currentUser,
@@ -665,6 +750,7 @@ export default connect(
             tron_address,
             tron_balance,
             tron_transfer_msg,
+            to_tron_address,
         };
     },
 
@@ -733,13 +819,16 @@ export default connect(
                 })
             );
         },
-        checkTron: (to_username, to_tron_address) => {
+        checkTron: ({ username, tron_address }) => {
             dispatch(
                 userActions.checkTron({
-                    to_username,
-                    to_tron_address,
+                    to_username: username,
+                    to_tron_address: tron_address,
                 })
             );
+        },
+        resetError: () => {
+            dispatch(userActions.resetError());
         },
     })
 )(TransferForm);

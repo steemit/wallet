@@ -710,7 +710,9 @@
             "需要在3天的等待期后提取资金。",
         "from": "从",
         "to": "到",
-        "asset_currently_collecting": "%(asset)s目前获得%(interest)s%%利息"
+        "asset_currently_collecting": "%(asset)s目前获得%(interest)s%%利息",
+        "invalid_tron_address":
+            "无效tron地址. 有效的base58 tron 地址应该会有34字节"
     },
     "userwallet_jsx": {
         "conversion_complete_tip": "将完成在",

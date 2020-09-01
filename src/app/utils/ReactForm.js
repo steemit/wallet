@@ -128,7 +128,7 @@ export default function reactForm({
         fs.props.onBlur = () => {
             // Some errors are better shown only after blur === true
             const v = { ...(instance.state[fieldName] || {}) };
-            v.blur = true;
+            // v.blur = true;
             instance.setState({ [fieldName]: v });
         };
     }
@@ -197,6 +197,8 @@ function n(field) {
 const hasValue = v =>
     v == null
         ? false
-        : (typeof v === 'string' ? v.trim() : v) === '' ? false : true;
+        : (typeof v === 'string' ? v.trim() : v) === ''
+            ? false
+            : true;
 const toString = v => (hasValue(v) ? v : '');
 const toBoolean = v => (hasValue(v) ? JSON.parse(v) : '');

@@ -837,7 +837,8 @@
             "Please do not include what appears to be a private key or password.",
         "memo_is_privatekey": "Do not use private keys in memos.",
         "memo_is_password": "Do not use passwords in memos.",
-        "user_no_tron_account": "This user does not have a TRON account"
+        "user_no_tron_account": "This user does not have a TRON account",
+        "unknow_recipient": "Unknown recipient"
     },
     "settings_jsx": {
         "invalid_url": "Invalid URL",
@@ -892,7 +893,9 @@
             "Transactions will not show until they are confirmed on the blockchain, which may take a few minutes.",
         "autocomplete_previous_transfers": "previous transfers",
         "autocomplete_user_following": "following",
-        "confirm_transfer": "Transfer %(amount)s from %(from)s to %(to)s?"
+        "confirm_transfer": "Transfer %(amount)s from %(from)s to %(to)s?",
+        "invalid_tron_address":
+            "invalid tron address.  Valid base58 tron address should have the length of 34"
     },
     "userwallet_jsx": {
         "transfer": "Transfer",

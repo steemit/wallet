@@ -37,6 +37,7 @@ import {
 } from 'app/utils/ServerApiClient';
 import { loadFollows } from 'app/redux/FollowSaga';
 import { translate } from 'app/Translator';
+import tt from 'counterpart';
 
 const max_pop_window_count = 5;
 export const userWatches = [
@@ -52,6 +53,7 @@ export const userWatches = [
     takeLatest(userActions.LOAD_SAVINGS_WITHDRAW, loadSavingsWithdraw),
     takeLatest(userActions.UPDATE_USER, updateTronAccount),
     takeLatest(userActions.CHECK_TRON, checkTron),
+    takeLatest(userActions.RESET_ERROR, resetError),
     takeLatest(userActions.ACCEPT_TERMS, function*() {
         try {
             yield call(acceptTos);
@@ -78,7 +80,25 @@ const highSecurityPages = [
     /\/proposals/,
 ];
 
+function* resetError() {
+    const username = yield select(state =>
+        state.user.getIn(['current', 'username'])
+    );
+    yield put(
+        userActions.setUser({
+            username,
+            tron_transfer_msg: '',
+            tron_create_msg: '',
+        })
+    );
+}
 function* checkTron({ payload: { to_username, to_tron_address } }) {
+    console.log(
+        JSON.stringify(to_username) + '   ' + JSON.stringify(to_tron_address)
+    );
+    const username = yield select(state =>
+        state.user.getIn(['current', 'username'])
+    );
     if (!to_username && to_tron_address != null) {
         const response2 = yield getTronAccount(to_tron_address);
         const res = yield response2.json();
@@ -119,6 +139,7 @@ function* checkTron({ payload: { to_username, to_tron_address } }) {
                 userActions.setUser({
                     username,
                     tron_transfer_msg: '',
+                    to_tron_address: body.result.tron_addr,
                 })
             );
         } else {
@@ -378,7 +399,7 @@ function* usernamePasswordLogin({
                         tron_user: body.result.tron_addr == '' ? false : true,
                         tron_reward: body.result.pending_claim_tron_reward,
                         tron_balance:
-                            res.balance == undefined ? 0.0 : res.balance,
+                            res.balance == undefined ? 0.0 : res.balance + 1,
                     })
                 );
             } else {
