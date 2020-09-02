@@ -253,7 +253,8 @@
             "warning":
                 "Legitimate users, including employees of Steemit Inc., will never ask you for a private key or master password.",
             "checkbox": "I understand"
-        }
+        },
+        "input_tron_private_key": " please input tron private key"
     },
     "navigation": {
         "about": "About Steemit, Inc.",
@@ -895,7 +896,9 @@
         "autocomplete_user_following": "following",
         "confirm_transfer": "Transfer %(amount)s from %(from)s to %(to)s?",
         "invalid_tron_address":
-            "invalid tron address.  Valid base58 tron address should have the length of 34"
+            "invalid tron address.  Valid base58 tron address should have the length of 34",
+        "confirm_tron_transfer": "Confirm transfer",
+        "sign_complete_transfer": "Sign to complete transfer"
     },
     "userwallet_jsx": {
         "transfer": "Transfer",

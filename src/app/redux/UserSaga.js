@@ -107,6 +107,7 @@ function* checkTron({ payload: { to_username, to_tron_address } }) {
                 userActions.setUser({
                     username,
                     tron_transfer_msg: res.error.replace('"', ''),
+                    to_tron_address: '',
                 })
             );
         } else {
@@ -114,6 +115,7 @@ function* checkTron({ payload: { to_username, to_tron_address } }) {
                 userActions.setUser({
                     username,
                     tron_transfer_msg: '',
+                    to_tron_address: to_tron_address,
                 })
             );
         }
@@ -126,6 +128,7 @@ function* checkTron({ payload: { to_username, to_tron_address } }) {
             userActions.setUser({
                 username,
                 tron_transfer_msg: 'invalid account name,no account on chain',
+                to_tron_address: '',
             })
         );
         return;
@@ -149,6 +152,7 @@ function* checkTron({ payload: { to_username, to_tron_address } }) {
                     tron_transfer_msg: tt(
                         'chainvalidation_js.user_no_tron_account'
                     ),
+                    to_tron_address: '',
                 })
             );
         }
@@ -399,7 +403,7 @@ function* usernamePasswordLogin({
                         tron_user: body.result.tron_addr == '' ? false : true,
                         tron_reward: body.result.pending_claim_tron_reward,
                         tron_balance:
-                            res.balance == undefined ? 0.0 : res.balance + 1,
+                            res.balance == undefined ? 0.0 : res.balance,
                     })
                 );
             } else {

@@ -18,10 +18,25 @@ import { DEBT_TICKER } from 'app/client_config';
 import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 import { isLoggedInWithKeychain } from 'app/utils/SteemKeychain';
 
+// tron web configuration
+const TronWeb = require('tronweb');
+const HttpProvider = TronWeb.providers.HttpProvider;
+const fullNode = new HttpProvider('https://api.shasta.trongrid.io');
+const solidityNode = new HttpProvider('https://api.shasta.trongrid.io');
+const eventServer = 'https://api.shasta.trongrid.io';
+
+const tronWeb = new TronWeb(
+    fullNode,
+    solidityNode,
+    eventServer
+    // privateKey
+);
+
 export const transactionWatches = [
     takeEvery(transactionActions.BROADCAST_OPERATION, broadcastOperation),
     takeEvery(transactionActions.UPDATE_AUTHORITIES, updateAuthorities),
     takeEvery(transactionActions.RECOVER_ACCOUNT, recoverAccount),
+    takeEvery(transactionActions.TRON_TRANSFER, tronTransfer),
 ];
 
 const hook = {
@@ -33,6 +48,44 @@ const hook = {
     accepted_withdraw_vesting,
 };
 
+export function* tronTransfer({
+    payload: {
+        username,
+        to,
+        amount,
+        privateKey,
+        successCallback,
+        errorCallback,
+    },
+}) {
+    if (parseInt(amount) == NaN) {
+        errorCallback('amount is not integer,only accept int TRX');
+        return;
+    }
+    if (to == undefined || privateKey == undefined) {
+        errorCallback('check to tron address or privatekey');
+        return;
+    }
+    try {
+        tronWeb.setPrivateKey(privateKey);
+        const sumAmount = 1000000 * amount;
+        // console.log("to="+to+"  amount"+amount+"  privatekey "+privateKey);
+        tronWeb.trx.sendTransaction(to, sumAmount, privateKey, function(
+            err,
+            retObj
+        ) {
+            if (err) {
+                console.log('ERROR: ' + err);
+                errorCallback(err);
+            } else if (retObj) {
+                successCallback();
+                console.log('TRX transfer SUCCEED:\t');
+            }
+        });
+    } catch (err) {
+        errorCallback(err.toString());
+    }
+}
 export function* preBroadcast_transfer({ operation }) {
     let memoStr = operation.memo;
     if (memoStr) {
@@ -147,11 +200,6 @@ export function* broadcastOperation({
         return;
     }
     try {
-        if (type == 'tron_transfer') {
-            // todo add tron transfer function
-            yield call(broadcastTronPayload, { payload });
-            return;
-        }
         if (!isLoggedInWithKeychain()) {
             if (!keys || keys.length === 0) {
                 payload.keys = [];
@@ -217,9 +265,6 @@ function hasPrivateKeys(payload) {
     return false;
 }
 
-function* broadcastTronPayload({
-    payload: { operations, keys, username, successCallback, errorCallback },
-}) {}
 function* broadcastPayload({
     payload: { operations, keys, username, successCallback, errorCallback },
 }) {

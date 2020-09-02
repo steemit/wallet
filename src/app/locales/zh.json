@@ -216,7 +216,8 @@
             "zero": "没有回复",
             "one": "%(count)s回复",
             "other": "%(count)s个回复"
-        }
+        },
+        "input_tron_private_key": "请输入TRON私钥"
     },
     "navigation": {
         "about": "关于",
@@ -712,7 +713,9 @@
         "to": "到",
         "asset_currently_collecting": "%(asset)s目前获得%(interest)s%%利息",
         "invalid_tron_address":
-            "无效tron地址. 有效的base58 tron 地址应该会有34字节"
+            "无效tron地址. 有效的base58 tron 地址应该会有34字节",
+        "confirm_tron_transfer": "确认转账",
+        "sign_complete_transfer": "签名完成转账"
     },
     "userwallet_jsx": {
         "conversion_complete_tip": "将完成在",

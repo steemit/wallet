@@ -78,6 +78,7 @@ async function appRender(ctx, locales = false, resolvedAssets = false) {
                 socialUrl: config.social_url,
                 steemMarket: ctx.steemMarketData,
                 trackingId: ctx.session.uid,
+                tron_host: config.get('tron_create_node'),
             },
         };
 

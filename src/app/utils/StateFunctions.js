@@ -227,6 +227,12 @@ export function pricePerSteem(state) {
 }
 
 export function pricePerTRX(state) {
+    if (
+        !state.app.has('steemMarket') ||
+        !state.app.get('steemMarket').has('tron') ||
+        !state.app.get('steemMarket').has('timepoints')
+    )
+        return 0.0;
     const trx_price = state.app
         .get('steemMarket')
         .get('tron')
