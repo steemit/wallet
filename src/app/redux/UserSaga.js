@@ -93,9 +93,6 @@ function* resetError() {
     );
 }
 function* checkTron({ payload: { to_username, to_tron_address } }) {
-    console.log(
-        JSON.stringify(to_username) + '   ' + JSON.stringify(to_tron_address)
-    );
     const username = yield select(state =>
         state.user.getIn(['current', 'username'])
     );
@@ -224,7 +221,7 @@ function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
                     tron_reward: body.result.pending_claim_tron_reward,
                     tron_balance: 0.0,
                     tron_private_key: obj.privateKey,
-                    tron_public_key: obj.publicKey,
+                    tron_public_key: obj.address.base58, // use address, todo: clarity public key on pdf file
                     tron_create: true,
                     tron_create_msg: '',
                 })

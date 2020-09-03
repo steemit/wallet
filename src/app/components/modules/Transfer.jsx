@@ -54,6 +54,7 @@ class TransferForm extends Component {
             tron_transfer_step_two: false,
             tron_private_key: '',
             show_transfer_button: false,
+            tron_loading: false,
         };
         this.initForm(props);
     }
@@ -77,7 +78,7 @@ class TransferForm extends Component {
 
         runTests();
 
-        if (this.props.initialValues.transferType == 'tron_transfer') {
+        if (this.props.initialValues.asset == 'TRX') {
             this.setState({ tron_transfer: true });
             if (
                 this.props.tron_address != '' &&
@@ -265,12 +266,12 @@ class TransferForm extends Component {
     }
 
     clearError = () => {
-        this.setState({ trxError: undefined });
+        this.setState({ trxError: undefined, tron_loading: false });
         this.props.resetError();
     };
 
     errorCallback = estr => {
-        this.setState({ trxError: estr, loading: false });
+        this.setState({ trxError: estr, loading: false, tron_loading: false });
     };
 
     balanceValue() {
@@ -315,6 +316,7 @@ class TransferForm extends Component {
                 tron_transfer_msg: this.props.tron_transfer_msg,
                 error: this.props.tron_transfer_msg != '',
                 trxError: this.props.tron_transfer_msg,
+                tron_loading: false,
                 to: { ...this.state.to, error: this.props.tron_transfer_msg },
             });
         }
@@ -362,6 +364,14 @@ class TransferForm extends Component {
         const to_address = this.state.to_tron_address_transfer;
         const tron_amount = this.state.tron_amount;
         const privateKey = this.state.tron_private_key;
+        console.log('to tron address ' + to_address);
+        const operation = {
+            from: currentUser.get('username'),
+            to: to && to.value ? to.value : '',
+            amount: (amount && amount.value ? amount.value : 0) + '  TRX',
+            memo: memo && memo.value ? memo.value : '',
+        };
+
         const tron_final_form = (
             // sign_complete_transfer
             <div>
@@ -404,7 +414,9 @@ class TransferForm extends Component {
                                 this.setState({
                                     tron_private_key: e.target.value,
                                     show_transfer_button: true,
+                                    tron_loading: false,
                                 });
+                                this.clearError();
                             }}
                         />
                     </div>
@@ -412,10 +424,21 @@ class TransferForm extends Component {
                 <div className="row">
                     <div className="column">
                         <br /> <br />
+                        {this.state.tron_loading && (
+                            <span>
+                                <LoadingIndicator type="circle" />
+                                <br />
+                            </span>
+                        )}
                         {trxError && <div className="error">{trxError}</div>}
                         <button
                             className="button"
                             onClick={() => {
+                                this.setState({
+                                    tron_transfer_step_two: true,
+                                    tron_private_key: '',
+                                    tron_loading: true,
+                                });
                                 tron_transfer_submit({
                                     currentUser,
                                     to: to_address,
@@ -423,15 +446,29 @@ class TransferForm extends Component {
                                     privateKey: privateKey,
                                     errorCallback: this.errorCallback,
                                 });
-                                this.setState({
-                                    tron_transfer_step_two: true,
-                                    tron_private_key: '',
-                                });
                             }}
-                            disabled={!this.state.show_transfer_button}
+                            disabled={
+                                !this.state.show_transfer_button ||
+                                this.state.tron_loading
+                            }
                         >
                             {tt('g.transfer')}
                         </button>
+                        {!this.state.tron_loading && (
+                            <button
+                                type="button hollow"
+                                className="button hollow"
+                                style={{ float: 'right' }}
+                                onClick={() => {
+                                    this.setState({
+                                        tron_transfer_step_two: false,
+                                        tron_transfer_step_one: true,
+                                    });
+                                }}
+                            >
+                                {tt('g.cancel')}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -443,7 +480,6 @@ class TransferForm extends Component {
                         // tron transfer
                         this.setState({
                             tron_transfer_step_one: true,
-                            loading: true,
                             tron_amount: amount.value,
                         });
                     } else {
@@ -793,6 +829,37 @@ class TransferForm extends Component {
             </form>
         );
 
+        const tron_confirm_modal = (
+            <div>
+                <br />
+                <ConfirmTransfer operation={operation} />
+                <br />
+                <button
+                    className="button"
+                    onClick={() =>
+                        this.setState({
+                            tron_transfer_step_two: true,
+                            tron_transfer_step_one: false,
+                        })
+                    }
+                >
+                    {tt('g.ok')}
+                </button>
+                <button
+                    type="button hollow"
+                    className="button hollow"
+                    style={{ float: 'right' }}
+                    onClick={() => {
+                        this.setState({
+                            tron_transfer_step_two: false,
+                            tron_transfer_step_one: false,
+                        });
+                    }}
+                >
+                    {tt('g.cancel')}
+                </button>
+            </div>
+        );
         return (
             <div>
                 <div className="row">
@@ -810,7 +877,11 @@ class TransferForm extends Component {
                         </h3>
                     )}
                 </div>
-                {this.state.tron_transfer_step_two ? tron_final_form : form}
+                {this.state.tron_transfer_step_one
+                    ? tron_confirm_modal
+                    : this.state.tron_transfer_step_two
+                        ? tron_final_form
+                        : form}
             </div>
         );
     }
@@ -976,8 +1047,12 @@ export default connect(
                     globalActions.getState({ url: `@${username}/transfers` })
                 );
                 dispatch(userActions.hideTransfer());
+                setTimeout(() => {
+                    dispatch(userActions.usernamePasswordLogin(username));
+                }, 1000);
                 console.log('success finish transfer');
             };
+
             dispatch(
                 transactionActions.tronTransfer({
                     username,

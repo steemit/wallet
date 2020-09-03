@@ -45,7 +45,7 @@ class TronCreateTwo extends Component {
     componentDidUpdate(prevProps) {
         // start to download pdf key file
         if (
-            this.props.tron_address !== prevProps.tron_address &&
+            this.props.tron_public_key !== prevProps.tron_public_key &&
             this.props.create == true
         ) {
             this.setState({

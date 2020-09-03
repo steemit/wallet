@@ -508,7 +508,11 @@ class UserWallet extends React.Component {
                 value: tt('g.transfer'),
                 link: '#',
                 // todo  replace with TRX function
-                onClick: showTronTransfer.bind(this, 'TRX', 'tron_transfer'),
+                onClick: showTronTransfer.bind(
+                    this,
+                    'TRX',
+                    'Transfer to Account'
+                ),
             });
         }
         if (isMyAccount) {
@@ -875,7 +879,12 @@ class UserWallet extends React.Component {
                                 : TRX_address}
                             <CopyToClipboard
                                 text={TRX_address}
-                                onCopy={() => this.setState({ copied: true })}
+                                onCopy={() => {
+                                    this.setState({ copied: true });
+                                    setTimeout(() => {
+                                        this.setState({ copied: false });
+                                    }, 2000);
+                                }}
                             >
                                 <button className="buttonQR">
                                     {tt('tron_jsx.copy')}

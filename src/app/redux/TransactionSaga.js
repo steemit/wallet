@@ -69,17 +69,37 @@ export function* tronTransfer({
     try {
         tronWeb.setPrivateKey(privateKey);
         const sumAmount = 1000000 * amount;
-        // console.log("to="+to+"  amount"+amount+"  privatekey "+privateKey);
-        tronWeb.trx.sendTransaction(to, sumAmount, privateKey, function(
+        console.log(
+            'to=' + to + '  amount' + amount + '  privatekey ' + privateKey
+        );
+        let trx_hash;
+        tronWeb.trx.sendTransaction(to, sumAmount, privateKey, async function(
             err,
             retObj
         ) {
             if (err) {
                 console.log('ERROR: ' + err);
-                errorCallback(err);
+                errorCallback('TRX transaction error');
             } else if (retObj) {
-                successCallback();
-                console.log('TRX transfer SUCCEED:\t');
+                trx_hash = retObj.txid;
+                // successCallback();
+                let timeout_count = 60 * 10; //  10 minutes
+                while (timeout_count > 0) {
+                    const result = await tronWeb.trx.getTransactionInfo(
+                        trx_hash
+                    );
+                    if (result.id && result.id == retObj.txid) {
+                        successCallback();
+                        console.log('TRX transaction successful confirmed');
+                        break;
+                    }
+                    console.log(result);
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // sleep 1 seccond
+                    timeout_count--;
+                }
+                errorCallback(
+                    'transaction was not confirmed within 10 minutes'
+                );
             }
         });
     } catch (err) {

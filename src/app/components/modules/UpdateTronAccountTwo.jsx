@@ -48,7 +48,7 @@ class UpdateTronAccountTwo extends Component {
     componentDidUpdate(prevProps) {
         // start to download pdf key file
         if (
-            this.props.tron_address !== prevProps.tron_address &&
+            this.props.tron_public_key !== prevProps.tron_public_key &&
             this.props.tron_create
         ) {
             this.setState({
@@ -106,7 +106,7 @@ export default connect(
                 : '';
         const username =
             currentUser && currentUser.has('username')
-                ? currentUser.get('tron_user')
+                ? currentUser.get('username')
                 : '';
         const tron_public_key =
             currentUser && currentUser.has('tron_public_key')

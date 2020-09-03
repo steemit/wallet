@@ -230,14 +230,14 @@ export function pricePerTRX(state) {
     if (
         !state.app.has('steemMarket') ||
         !state.app.get('steemMarket').has('tron') ||
-        !state.app.get('steemMarket').has('timepoints')
+        state.app.get('steemMarket').length == 0
     )
-        return 0.0;
+        return 0.02; // default price
     const trx_price = state.app
         .get('steemMarket')
         .get('tron')
         .get('timepoints')
         .get(0)
-        .get('price_usd');
-    return trx_price ? parseFloat(trx_price) : 0.0;
+        .get('price_usd'); // real-time price
+    return trx_price ? parseFloat(trx_price) : 0.02; // default price
 }
