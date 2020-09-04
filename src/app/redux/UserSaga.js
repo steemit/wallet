@@ -167,7 +167,7 @@ function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
         state.user.getIn(['current', 'username'])
     );
     if (claim_reward) {
-        console.log('start claim reward...');
+        console.log('start claim tron reward...');
         const response = yield updateTronUser(username, tron_address, true, 0);
         const body = yield response.json();
         // console.log('claim reward...' + JSON.stringify(body));
@@ -369,8 +369,20 @@ function* usernamePasswordLogin({
         return;
     }
 
-    // check tron user
+    // current path name
+    const current_route = yield select(state =>
+        state.global.get('current_route')
+    );
+    // query current path user
+    if (current_route && current_route.match(/^\/@([a-z0-9\.-]+)\/transfers/)) {
+        const username = current_route.match(/^\/@([a-z0-9\.-]+)/)[1];
+        query_user_name = username;
+        console.log(
+            'current user' + username + '   path user ' + query_user_name
+        );
+    }
 
+    // check tron user
     // query api get tron information
     const res1 = yield getTronConfig();
     const res_config = yield res1.json();
@@ -427,7 +439,6 @@ function* usernamePasswordLogin({
             );
         }
     }
-
     // return if already logged in using steem keychain
     if (login_with_keychain) {
         console.log('Logged in using steem keychain');
@@ -557,7 +568,6 @@ function* usernamePasswordLogin({
             );
         }
     }
-
     try {
         // const challengeString = yield serverApiLoginChallenge()
         const offchainData = yield select(state => state.offchain);
@@ -624,7 +634,7 @@ function* usernamePasswordLogin({
                         pass_auth: true,
                     })
                 );
-                if (!exit_tron_user) {
+                if (!exit_tron_user && query_user_name == username) {
                     const response_tip_count = yield updateTronUser(
                         username,
                         tron_address,

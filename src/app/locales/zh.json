@@ -19,6 +19,7 @@
         "clear": "清除",
         "close": "关闭",
         "collapse_or_expand": "折叠/展开",
+        "communities": "社区",
         "comments": "评论",
         "confirm": "确认",
         "convert": "转换",
@@ -113,6 +114,7 @@
         "version": "版本",
         "vote": "点赞",
         "votes": "点赞数",
+        "tronVote": "投票",
         "wallet": "钱包",
         "warning": "警告",
         "yes": "是的",
@@ -455,9 +457,9 @@
             "Owner Key的私钥或密码应尽可能保持离线。",
         "the_memo_key_is_used_to_create_and_read_memos":
             "Memo Key用于创建和读取备注。",
-        "userkeys_desc_1":
+        "userkeys_info_1":
             "密码或密钥使用时间越长，安全隐患就越高。 因此 Steem 采用等级制密钥系统来保证您的账户安全。 您将分别获得 Steem 与TRON的密钥，对应不同权限。 例如，“发帖密钥”是一种常用密钥，用于一些安全要求较低的社交操作权限。 而“活跃密钥”用于钱包相关的操作权限，需要您更谨慎保管。",
-        "userkeys_desc_2":
+        "userkeys_info_2":
             "请记录下方您的 Steem 和TRON密钥。 建议使用密码管理软件（如 1Password 和 LastPass），或用离线的安全手段保存密码（如记录在纸上或 U 盘文件中）。",
         "leare_more": "了解更多",
         "tron_account": {
@@ -592,7 +594,33 @@
         "cancel_transfer_from_savings": "取消从储蓄账户转账",
         "stop_power_down": "停止Power Down",
         "start_power_down_of": "开始Power Down",
-        "receive_interest_of": "获得的利息"
+        "receive_interest_of": "获得的利息",
+        "withdraw_vesting": "开始power down %(powerdown_vests)s STEEM",
+        "transfer": {
+            "from_self": {
+                "to_savings": "转到储蓄 %(amount)s 到 ",
+                "from_savings": "从储蓄转 %(amount)s 到",
+                "not_savings": "转 %(amount)s 到 "
+            },
+            "to_self": {
+                "to_savings": "收到储蓄 %(amount)s 从 ",
+                "from_savings": "转储蓄 %(amount)s 从 ",
+                "not_savings": "收到 %(amount)s 从 "
+            },
+            "to_someone_from_someone": {
+                "to_savings": "转到储蓄 %(amount)s 从 %(from)s 到 %(to)s",
+                "from_savings": "从储蓄转 %(amount)s 从 %(from)s 到 %(to)s",
+                "not_savings": "转 %(amount)s 从 %(from)s 到 %(to)s"
+            }
+        },
+        "transfer_to_vesting": {
+            "from_self": {
+                "no_to": "转 %(amount)s to STEEM POWER",
+                "to_someone": "转 %(amount)s STEEM POWER 到 "
+            },
+            "to_self": "收到 %(amount)s STEEM POWER 从 ",
+            "from_user_to_user": "转 %(amount)s STEEM POWER 从 %(from) 到 "
+        }
     },
     "savingswithdrawhistory_jsx": {
         "cancel_this_withdraw_request": "确认取消提款请求吗？",
@@ -715,9 +743,14 @@
         "invalid_tron_address":
             "无效tron地址. 有效的base58 tron 地址应该会有34字节",
         "confirm_tron_transfer": "确认转账",
-        "sign_complete_transfer": "签名完成转账"
+        "sign_complete_transfer": "签名完成转账",
+        "beware_of_spam_and_phishing_links":
+            "请注意一些来做memo里面的钓鱼链接. 不要打开那些来做不信任用户的链接. 不要提供你的私钥给任何第三方网站",
+        "transactions_make_take_a_few_minutes":
+            "交易在区块链上确认以后才进行展示,这个过程大概花费1分钟."
     },
     "userwallet_jsx": {
+        "transfer": "转账",
         "conversion_complete_tip": "将完成在",
         "in_conversion": "%(amount)s在转换",
         "transfer_to_savings": "转移到储蓄",

@@ -51,3 +51,6 @@ export const SITE_DESCRIPTION =
 
 // various
 export const SUPPORT_EMAIL = 'support@' + APP_DOMAIN;
+
+// tron host
+export const TRON_HOST = 'https://api.shasta.trongrid.io';

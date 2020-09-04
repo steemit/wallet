@@ -364,7 +364,6 @@ class TransferForm extends Component {
         const to_address = this.state.to_tron_address_transfer;
         const tron_amount = this.state.tron_amount;
         const privateKey = this.state.tron_private_key;
-        console.log('to tron address ' + to_address);
         const operation = {
             from: currentUser.get('username'),
             to: to && to.value ? to.value : '',
@@ -1050,7 +1049,7 @@ export default connect(
                 setTimeout(() => {
                     dispatch(userActions.usernamePasswordLogin(username));
                 }, 1000);
-                console.log('success finish transfer');
+                console.log('success finish tron transfer');
             };
 
             dispatch(

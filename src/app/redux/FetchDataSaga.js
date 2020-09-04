@@ -10,6 +10,7 @@ import { api } from '@steemit/steem-js';
 import { loadFollows } from 'app/redux/FollowSaga';
 import * as globalActions from './GlobalReducer';
 import * as appActions from './AppReducer';
+import * as userActions from 'app/redux/UserReducer';
 import constants from './constants';
 import { fromJS, Map, Set } from 'immutable';
 import { getStateAsync } from 'app/utils/steemApi';
@@ -85,11 +86,9 @@ export function* fetchState(location_change_action) {
 function* getTransferUsers(pathname) {
     if (pathname.match(/^\/@([a-z0-9\.-]+)\/transfers/)) {
         const username = pathname.match(/^\/@([a-z0-9\.-]+)/)[1];
-
         const transferHistory = yield select(state =>
             state.global.getIn(['accounts', username, 'transfer_history'])
         );
-
         // Find users in the transfer history to consider sending users' reputations.
         const transferUsers = transferHistory.reduce((acc, cur) => {
             if (cur.getIn([1, 'op', 0]) === 'transfer') {
