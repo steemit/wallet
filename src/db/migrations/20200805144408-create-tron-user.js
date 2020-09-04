@@ -31,7 +31,7 @@ module.exports = {
                     defaultValue: 0,
                     type: Sequelize.BOOLEAN,
                 },
-                tran_addr_active_time: {
+                tron_addr_active_time: {
                     allowNull: true,
                     defaultValue: null,
                     type: Sequelize.DATE,

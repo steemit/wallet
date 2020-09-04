@@ -36,7 +36,7 @@ module.exports = (sequelize, DataTypes) => {
                 defaultValue: 0,
                 type: DataTypes.BOOLEAN,
             },
-            tran_addr_active_time: {
+            tron_addr_active_time: {
                 allowNull: true,
                 defaultValue: null,
                 type: DataTypes.DATE,
