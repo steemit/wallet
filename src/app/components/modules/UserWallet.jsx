@@ -493,7 +493,7 @@ class UserWallet extends React.Component {
                 onClick: onShowTRX,
             },
             {
-                value: tt('g.vote'),
+                value: tt('g.tronVote'),
                 link: '#',
                 onClick: () => this.props.showVote(),
             },

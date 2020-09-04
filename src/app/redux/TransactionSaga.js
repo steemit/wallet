@@ -17,20 +17,14 @@ import * as proposalActions from 'app/redux/ProposalReducer';
 import { DEBT_TICKER } from 'app/client_config';
 import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 import { isLoggedInWithKeychain } from 'app/utils/SteemKeychain';
+import { TRON_HOST } from 'app/client_config';
 
 // tron web configuration
 const TronWeb = require('tronweb');
 const HttpProvider = TronWeb.providers.HttpProvider;
-const fullNode = new HttpProvider('https://api.shasta.trongrid.io');
-const solidityNode = new HttpProvider('https://api.shasta.trongrid.io');
-const eventServer = 'https://api.shasta.trongrid.io';
-
-const tronWeb = new TronWeb(
-    fullNode,
-    solidityNode,
-    eventServer
-    // privateKey
-);
+const fullNode = new HttpProvider(TRON_HOST);
+const solidityNode = new HttpProvider(TRON_HOST);
+const tronWeb = new TronWeb(fullNode, solidityNode);
 
 export const transactionWatches = [
     takeEvery(transactionActions.BROADCAST_OPERATION, broadcastOperation),
@@ -58,6 +52,7 @@ export function* tronTransfer({
         errorCallback,
     },
 }) {
+    console.log($STM_Config);
     if (parseInt(amount) == NaN) {
         errorCallback('amount is not integer,only accept int TRX');
         return;
@@ -67,18 +62,18 @@ export function* tronTransfer({
         return;
     }
     try {
+        tronWeb.setFullNode($STM_Config.tron_host);
+        tronWeb.setSolidityNode($STM_Config.tron_host);
+        tronWeb.setEventServer($STM_Config.tron_host);
         tronWeb.setPrivateKey(privateKey);
         const sumAmount = 1000000 * amount;
-        console.log(
-            'to=' + to + '  amount' + amount + '  privatekey ' + privateKey
-        );
         let trx_hash;
         tronWeb.trx.sendTransaction(to, sumAmount, privateKey, async function(
             err,
             retObj
         ) {
             if (err) {
-                console.log('ERROR: ' + err);
+                // console.log('ERROR: ' + err);
                 errorCallback('TRX transaction error');
             } else if (retObj) {
                 trx_hash = retObj.txid;
@@ -93,7 +88,6 @@ export function* tronTransfer({
                         console.log('TRX transaction successful confirmed');
                         break;
                     }
-                    console.log(result);
                     await new Promise(resolve => setTimeout(resolve, 1000)); // sleep 1 seccond
                     timeout_count--;
                 }

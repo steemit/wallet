@@ -134,6 +134,7 @@
         "version": "Version",
         "vote": "Vote",
         "votes": "votes",
+        "tronVote": "vote",
         "wallet": "Wallet",
         "warning": "warning",
         "yes": "Yes",
@@ -1008,6 +1009,7 @@
             "end_date": "End Date",
             "daily_pay": "Daily Pay",
             "total_votes": "Total Votes*",
+            "tronVote": "vote",
             "permlink": "",
             "subject": "Subject"
         },

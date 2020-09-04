@@ -344,7 +344,6 @@ module.exports = {
             const accountname = ownProps.routeParams.accountname.toLowerCase();
             const isMyAccount =
                 currentUser && currentUser.get('username') === accountname;
-
             return {
                 loading: state.app.get('loading'),
                 globalStatus: state.global.get('status'),

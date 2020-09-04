@@ -111,12 +111,10 @@ export function updateTronUser(
     username,
     tron_address,
     claim_reward,
-    tip_count
+    tip_count,
+    privKey
 ) {
     // todo: add api call function
-    // const r = signTron(username, tron_address);
-    // todo: add api call function
-    // todo: bug on backend api
     const auth_type = 'posting';
     const data = {
         username,
@@ -124,7 +122,6 @@ export function updateTronUser(
         auth_type,
         claim_reward,
     };
-    const privKey = '5JPJJNot5TyFPDdBeKo2CWjkpLtGUAojMeewVaSxzfmbYJauutH';
     const r = signData(data, privKey);
 
     const body = {
