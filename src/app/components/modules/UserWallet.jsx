@@ -1139,6 +1139,9 @@ export default connect(
                     tron_address,
                 })
             );
+            setTimeout(() => {
+                dispatch(userActions.usernamePasswordLogin(username));
+            }, 2000); // wait 2 second to refresh tron data
         },
         convertToSteem: e => {
             //post 2018-01-31 if no calls to this function exist may be safe to remove. Investigate use of ConvertToSteem.jsx

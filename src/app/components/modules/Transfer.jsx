@@ -48,8 +48,6 @@ class TransferForm extends Component {
             hide_tron_address: '',
             error: false,
             to_tron_address: '',
-            to_tron_address_transfer: '',
-            tron_amount: 0,
             tron_transfer_step_one: false,
             tron_transfer_step_two: false,
             tron_private_key: '',
@@ -325,7 +323,6 @@ class TransferForm extends Component {
                 to_tron_address: this.covertTronAddress(
                     this.props.to_tron_address
                 ),
-                to_tron_address_transfer: this.props.to_tron_address,
             });
         }
     }
@@ -361,9 +358,6 @@ class TransferForm extends Component {
         const { submitting, valid, handleSubmit } = this.state.transfer;
         // const isMemoPrivate = memo && /^#/.test(memo.value); -- private memos are not supported yet
         const isMemoPrivate = false;
-        const to_address = this.state.to_tron_address_transfer;
-        const tron_amount = this.state.tron_amount;
-        const privateKey = this.state.tron_private_key;
         const operation = {
             from: currentUser.get('username'),
             to: to && to.value ? to.value : '',
@@ -403,7 +397,7 @@ class TransferForm extends Component {
                 <div className="row">
                     <div className="column small-12">
                         <input
-                            type="text"
+                            type="password"
                             placeholder={tt('g.input_tron_private_key')}
                             autoComplete="on"
                             autoCorrect="off"
@@ -438,11 +432,14 @@ class TransferForm extends Component {
                                     tron_private_key: '',
                                     tron_loading: true,
                                 });
+
                                 tron_transfer_submit({
                                     currentUser,
-                                    to: to_address,
-                                    amount: tron_amount,
-                                    privateKey: privateKey,
+                                    from: this.props.tron_address,
+                                    to: this.props.to_tron_address,
+                                    amount: amount.value,
+                                    memo: memo.value,
+                                    privateKey: this.state.tron_private_key,
                                     errorCallback: this.errorCallback,
                                 });
                             }}
@@ -479,7 +476,6 @@ class TransferForm extends Component {
                         // tron transfer
                         this.setState({
                             tron_transfer_step_one: true,
-                            tron_amount: amount.value,
                         });
                     } else {
                         // steem transfer
@@ -1034,8 +1030,10 @@ export default connect(
         },
         tron_transfer_submit: ({
             currentUser,
+            from,
             to,
             amount,
+            memo,
             privateKey,
             errorCallback,
         }) => {
@@ -1049,14 +1047,20 @@ export default connect(
                 setTimeout(() => {
                     dispatch(userActions.usernamePasswordLogin(username));
                 }, 1000);
-                console.log('success finish tron transfer');
+                console.log(
+                    'success finish tron transfer...from  ' +
+                        from +
+                        '  to ' +
+                        to
+                );
             };
-
             dispatch(
                 transactionActions.tronTransfer({
                     username,
+                    from,
                     to,
                     amount,
+                    memo,
                     privateKey,
                     successCallback,
                     errorCallback,

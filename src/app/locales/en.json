@@ -563,7 +563,7 @@
             "desc2":
                 "Use this key to log in to other Steem-powered social networks like Steemit, Busy and eSteem. Store this key safely.",
             "address": "Your Private Posting Key",
-            "posting_key_title": "TRON ACCOUNT Private key",
+            "posting_key_title": "Your Private Posting key",
             "Posting_Key_permissions": "Posting Key permissions",
             "Posting_Key_permissions1": "Use your Posting Key to:",
             "Posting_Key_permissions2": "Publish a post or comment",

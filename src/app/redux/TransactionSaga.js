@@ -45,14 +45,15 @@ const hook = {
 export function* tronTransfer({
     payload: {
         username,
+        from,
         to,
         amount,
+        memo,
         privateKey,
         successCallback,
         errorCallback,
     },
 }) {
-    console.log($STM_Config);
     if (parseInt(amount) == NaN) {
         errorCallback('amount is not integer,only accept int TRX');
         return;
@@ -67,35 +68,39 @@ export function* tronTransfer({
         tronWeb.setEventServer($STM_Config.tron_host);
         tronWeb.setPrivateKey(privateKey);
         const sumAmount = 1000000 * amount;
-        let trx_hash;
-        tronWeb.trx.sendTransaction(to, sumAmount, privateKey, async function(
-            err,
-            retObj
-        ) {
-            if (err) {
-                // console.log('ERROR: ' + err);
-                errorCallback('TRX transaction error');
-            } else if (retObj) {
-                trx_hash = retObj.txid;
-                // successCallback();
-                let timeout_count = 60 * 10; //  10 minutes
-                while (timeout_count > 0) {
-                    const result = await tronWeb.trx.getTransactionInfo(
-                        trx_hash
-                    );
-                    if (result.id && result.id == retObj.txid) {
-                        successCallback();
-                        console.log('TRX transaction successful confirmed');
-                        break;
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // sleep 1 seccond
-                    timeout_count--;
-                }
-                errorCallback(
-                    'transaction was not confirmed within 10 minutes'
-                );
+        const unSignTransaction = yield tronWeb.transactionBuilder.sendTrx(
+            to,
+            sumAmount,
+            from
+        );
+        // write memo
+        const transactionWithMemo = yield tronWeb.transactionBuilder.addUpdateData(
+            unSignTransaction,
+            memo,
+            'utf8'
+        );
+        // sign
+        const signedTransaction = yield tronWeb.trx.sign(
+            transactionWithMemo,
+            privateKey
+        );
+        // broadcast
+        const trx_result = yield tronWeb.trx.sendRawTransaction(
+            signedTransaction
+        );
+        let trx_hash = trx_result.txid;
+        let timeout_count = 60 * 10; //  10 minutes
+        while (timeout_count > 0) {
+            const result = yield tronWeb.trx.getTransactionInfo(trx_hash);
+            if (result.id && result.id == trx_hash) {
+                successCallback();
+                console.log('TRX transaction successful confirmed');
+                return;
             }
-        });
+            yield new Promise(resolve => setTimeout(resolve, 1000)); // sleep 1 seccond
+            timeout_count--;
+        }
+        errorCallback('transaction was not confirmed within 10 minutes');
     } catch (err) {
         errorCallback(err.toString());
     }
