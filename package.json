@@ -90,7 +90,7 @@
         "moment": "^2.24.0",
         "mysql2": "2.0.0",
         "net": "1.0.2",
-        "node-sass": "4.9.0",
+        "node-sass": "4.13.1",
         "number-abbreviate": "^2.0.0",
         "os": "0.1.1",
         "picturefill": "3.0.2",
