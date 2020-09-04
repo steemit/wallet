@@ -443,7 +443,7 @@ function* usernamePasswordLogin({
                     username,
                     tron_address: 'error,please refresh page',
                     tron_user: true,
-                    tron_reward: 0.0,
+                    tron_reward: '0.0 TRX',
                     tron_balance: 0.0,
                 })
             );

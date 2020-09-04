@@ -366,7 +366,10 @@ class UserWallet extends React.Component {
                   }, 0) / assetPrecision;
         // const tron_reward =  (currentUser && currentUser.has('tron_reward'))
         //                     ?currentUser.get('tron_reward'):'0.000';
-        const tron_reward = this.props.tron_reward.replace(/[^0-9.]/, '');
+        const tron_reward =
+            typeof this.props.tron_reward == String
+                ? this.props.tron_reward.replace(/[^0-9.]/, '')
+                : 0.0;
         const tron_balance = parseFloat(this.props.tron_balance);
 
         // set displayed estimated value
@@ -628,8 +631,10 @@ class UserWallet extends React.Component {
                 ? account.get('reward_vesting_steem').replace('STEEM', 'SP')
                 : null;
         const reward_tron =
-            parseFloat(this.props.tron_reward.split(' ')[0]) > 0
-                ? this.props.tron_reward
+            typeof this.props.tron_reward == String
+                ? parseFloat(this.props.tron_reward.split(' ')[0]) > 0
+                    ? this.props.tron_reward
+                    : null
                 : null;
         const rewards = [];
         if (reward_steem) rewards.push(reward_steem);
@@ -1093,6 +1098,7 @@ export default connect(
             currentUser && currentUser.has('pass_auth')
                 ? currentUser.get('pass_auth')
                 : false;
+        console.log(tron_reward);
         return {
             ...ownProps,
             open_orders: state.market.get('open_orders'),
