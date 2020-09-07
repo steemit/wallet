@@ -498,7 +498,10 @@ class UserWallet extends React.Component {
             {
                 value: tt('g.tronVote'),
                 link: '#',
-                onClick: () => this.props.showVote(),
+                onClick: e => {
+                    e.preventDefault();
+                    this.props.showVote();
+                },
             },
             {
                 value: tt('userwallet_jsx.just_mortgage'),
