@@ -91,29 +91,35 @@ class UserWallet extends React.Component {
         };
         this.onShowTRXTransaction = (trx_address, e) => {
             e.preventDefault();
-            // todo: remove test trx_address
-            // trx_address = 'TQMqo7mQMdYKrRXwkwXF7yW6TFnRaVEqe7';
             recordAdsView({
                 trackingId: this.props.trackingId,
                 adTag: 'TronHistory',
             });
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location =
-                'https://tronscan.org/#/address/' +
-                trx_address +
-                '/transactions';
+            if ($STM_Config.tron_host.includes('shasta')) {
+                new_window.location =
+                    'https://shasta.tronscan.org/#/address/' +
+                    trx_address +
+                    '/transactions';
+            } else {
+                new_window.location =
+                    'https://tronscan.org/#/address/' +
+                    trx_address +
+                    '/transactions';
+            }
         };
-        this.onShowTRXVote = (trx_address, e) => {
-            e.preventDefault();
-            recordAdsView({
-                trackingId: this.props.trackingId,
-                adTag: 'TronVote',
-            });
-            const new_window = window.open();
-            new_window.opener = null;
-            new_window.location = '';
-        };
+        // see tron vote component
+        // this.onShowTRXVote = (trx_address, e) => {
+        //     e.preventDefault();
+        //     recordAdsView({
+        //         trackingId: this.props.trackingId,
+        //         adTag: 'TronVote',
+        //     });
+        //     const new_window = window.open();
+        //     new_window.opener = null;
+        //     new_window.location = '';
+        // };
         this.onShowJUST = e => {
             e.preventDefault();
             recordAdsView({
@@ -500,6 +506,10 @@ class UserWallet extends React.Component {
                 link: '#',
                 onClick: e => {
                     e.preventDefault();
+                    recordAdsView({
+                        trackingId: this.props.trackingId,
+                        adTag: 'TronVote',
+                    });
                     this.props.showVote();
                 },
             },
@@ -991,7 +1001,7 @@ class UserWallet extends React.Component {
                     <div className="column small-12 medium-8">
                         {tt('userwallet_jsx.estimated_account_value')}
                         <div className="secondary">
-                            {tt('tips_js.estimated_value', { LIQUID_TOKEN })}
+                            {tt('tips_js.estimated_value')}
                         </div>
                     </div>
                     <div className="column small-12 medium-4">

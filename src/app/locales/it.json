@@ -523,7 +523,7 @@
         "influence_token":
             "Token che ti danno più controllo sui pagamenti dei post e ti consentono di guadagnare sulle ricompense da curatore.",
         "estimated_value":
-            "Il valore stimato si basa sul valore medio di %(LIQUID_TOKEN)s in dollari US. ",
+            "Valutazione totale delle attività dell'account in USD.",
         "non_transferable":
             "%(VESTING_TOKEN)s non è trasferibile e richiede 1 mese, (4 pagamenti) per riconvertirli in  %(LIQUID_TOKEN)s.",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":

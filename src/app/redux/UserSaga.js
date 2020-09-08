@@ -93,10 +93,21 @@ function* resetError() {
     );
 }
 function* checkTron({ payload: { to_username, to_tron_address } }) {
-    const username = yield select(state =>
-        state.user.getIn(['current', 'username'])
-    );
+    const [username, tron_addr] = yield select(state => [
+        state.user.getIn(['current', 'username']),
+        state.user.getIn(['current', 'tron_address']),
+    ]);
     if (!to_username && to_tron_address != null) {
+        if (to_tron_address == tron_addr) {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_transfer_msg: 'cannot transfer trx to yourself',
+                    to_tron_address: '',
+                })
+            );
+            return;
+        }
         const response2 = yield getTronAccount(to_tron_address);
         const res = yield response2.json();
         if (res.error != undefined) {
@@ -116,6 +127,16 @@ function* checkTron({ payload: { to_username, to_tron_address } }) {
                 })
             );
         }
+        return;
+    }
+    if (to_username == username) {
+        yield put(
+            userActions.setUser({
+                username,
+                tron_transfer_msg: 'cannot transfer TRX to yourself',
+                to_tron_address: '',
+            })
+        );
         return;
     }
     const account = yield call(getAccount, to_username);

@@ -17,7 +17,11 @@ class TronVote extends Component {
             e.preventDefault();
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location = 'https://shasta.tronscan.org/#/sr/votes';
+            if ($STM_Config.tron_host.includes('shasta')) {
+                new_window.location = 'https://shasta.tronscan.io/#/sr/votes';
+            } else {
+                new_window.location = 'https://tronscan.io/#/sr/votes';
+            }
             this.props.hideVote();
         };
     }
@@ -26,7 +30,8 @@ class TronVote extends Component {
         return (
             <div>
                 <div>
-                    <h1>{tt('g.vote')}</h1>
+                    <h1>{tt('g.tronVote')}</h1>
+                    <br />
                     <p>{tt('tron_jsx.content0')}</p>
                     <p>{tt('tron_jsx.content1')}</p>
                     <br />
@@ -38,6 +43,7 @@ class TronVote extends Component {
                     <p style={styles.step}> {tt('tron_jsx.step2')}</p>
                     <p style={styles.step}> {tt('tron_jsx.step3')}</p>
                     <p style={styles.step}> {tt('tron_jsx.step4')}</p>
+                    <br />
                 </div>
                 <button
                     type="submit"

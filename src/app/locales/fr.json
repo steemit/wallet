@@ -532,8 +532,7 @@
             "Des jetons négociables peuvent être transférés n'importe où à tout moment. <br/> %(LIQUID_TOKEN)s peuvent être convertis en %(VESTING_TOKEN)s lors d'un processus appelé conversion en influence, ou power up.",
         "influence_token":
             "Jetons d'influence qui vous donnent plus de contrôle sur les gains potentiels des articles et vous permettent d'augmenter vos gains de curation",
-        "estimated_value":
-            "La valeur estimée est basée sur la valeur moyenne de %(LIQUID_TOKEN)s en dollars américains.",
+        "estimated_value": "Valorisation totale des actifs du compte en USD.",
         "non_transferable":
             "%(VESTING_TOKEN)s est non transférable et demande 1 mois (4 paiements) pour être convertis en %(LIQUID_TOKEN)s. ",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":

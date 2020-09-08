@@ -643,8 +643,7 @@
             "Tradeable tokens that may be transferred anywhere at anytime.<br/>%(LIQUID_TOKEN)s can be converted to %(VESTING_TOKEN)s in a process called powering up.",
         "influence_token":
             "Influence tokens which give you more control over post payouts and allow you to earn on curation rewards.",
-        "estimated_value":
-            "The estimated value is based on an average value of %(LIQUID_TOKEN)s in US dollars.",
+        "estimated_value": "Total account asset valuation in USD.",
         "non_transferable":
             "%(VESTING_TOKEN)s is non-transferable and requires 1 month (4 payments) to convert back to %(LIQUID_TOKEN)s.",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
@@ -1018,9 +1017,10 @@
     },
     "tron_jsx": {
         "content0":
-            "Using TRx vote for tron node and joining in construction of TRON ECOSYSTEM, where you can receive at most eight percentage benefit rate",
-        "content1": "Freeze TRX before voting in order to gain right to vote.",
-        "content2": "Do Following:",
+            "Vote with TRX for SR nodes to contribute to the TRON ecosystem and earn up to 8 percentage APR.",
+        "content1":
+            "You need to freeze TRX first to get the voting right before casting your vote.",
+        "content2": "Here are the steps:",
         "step1":
             "Step1: click \"Vote\" button , which redirect to Tron scan vote page",
         "step2": "Step2: click \"link wallet\",chose \"import\"",
@@ -1032,12 +1032,13 @@
         "tron_tx_history": "TRON transaction history >",
         "update_tron_account": "UPDATE TRON ACCOUNT",
         "update_tron_content":
-            "To update TRON account, please confirm following information so as to avoid potential risk:",
-        "update_tron_content1": "Save TRON private key locally ",
+            "Please confirm the information below before updating your TRON account to avoid unnecessary asset loss.:",
+        "update_tron_content1":
+            "The private key for this TRON account has to been saved locally,",
         "update_tron_content2":
-            "or import this TRON account into other wallet supporting TRON",
+            "or this TRON account has been imported to other TRON-supporting wallets",
         "update_tron_content3":
-            "or transfer tron asset into other tron account.",
+            "or assets in this TRON account has been transfered to your other TRON accounts.",
         "update_tron_content4":
             "After updating your TRON account, your TRX rewards will be distributed to your updated TRON account.",
         "update_tron_content5":
@@ -1054,7 +1055,7 @@
         "create_tron_account_content":
             "Steemit will distribute extra TRX to you as rewards. This account is for receiving such rewards",
         "create_tron_account_content1":
-            "The system will automatically create a TRON account for you for free.Do you agree to create a TRON account and download the PDF with your TRON public and private keys?",
+            "The system will automatically create a free TRON account for you.",
         "create_tron_account_content2":
             "Do you agree to create a TRON account and download the PDF with your TRON public and private keys?",
         "create_tron_agree": "Agree",

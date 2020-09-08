@@ -515,8 +515,7 @@
             "Tokens canjeables pueden ser transferidos a cualquier sitio en cualquier momento.1%(LIQUID_TOKEN)s y pueden ser convertidos a %(VESTING_TOKEN)s en un proceso llamado power up.",
         "influence_token":
             "Tokens con influencia te dan más control sobre los pagos de los posts y te permiten ganar recompensas de curación",
-        "estimated_value":
-            "El valor estimado está basado en el valor medio de 1%(LIQUID_TOKEN)s en US dollars.",
+        "estimated_value": "Valoración de activos totales de la cuenta en USD.",
         "non_transferable":
             "%(VESTING_TOKEN)s es intransferible y requiere 1 mes (4 pagos) para convertir de vuelta a %(LIQUID_TOKEN)s.",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":

@@ -358,12 +358,6 @@ class TransferForm extends Component {
         const { submitting, valid, handleSubmit } = this.state.transfer;
         // const isMemoPrivate = memo && /^#/.test(memo.value); -- private memos are not supported yet
         const isMemoPrivate = false;
-        const operation = {
-            from: currentUser.get('username'),
-            to: to && to.value ? to.value : '',
-            amount: (amount && amount.value ? amount.value : 0) + '  TRX',
-            memo: memo && memo.value ? memo.value : '',
-        };
 
         const tron_final_form = (
             // sign_complete_transfer
@@ -824,10 +818,97 @@ class TransferForm extends Component {
             </form>
         );
 
+        const to_address =
+            to && to.value
+                ? this.state.switchTron
+                    ? this.state.to_tron_address
+                    : to.value
+                : '';
+        const ConfirmTronTransfer = (
+            <div className="info">
+                <div key={`transaction-group-${0}`} className="input-group">
+                    <span
+                        key={`transaction-label-${0}`}
+                        className="input-group-label"
+                    >
+                        from
+                    </span>
+                    <input
+                        className="input-group-field"
+                        type="text"
+                        required
+                        value={currentUser.get('username')}
+                        disabled={true}
+                        key={`transaction-input-${0}`}
+                    />
+                    <span className="tron_address">
+                        {' '}
+                        {this.state.tron_address}
+                    </span>
+                </div>
+                <div key={`transaction-group-${1}`} className="input-group">
+                    <span
+                        key={`transaction-label-${1}`}
+                        className="input-group-label"
+                    >
+                        to
+                    </span>
+                    <input
+                        className="input-group-field"
+                        type="text"
+                        required
+                        value={to_address}
+                        disabled={true}
+                        key={`transaction-input-${1}`}
+                    />
+                    {this.state.switchSteem && (
+                        <span className="tron_address">
+                            {this.state.to_tron_address}
+                        </span>
+                    )}
+                </div>
+                <div key={`transaction-group-${2}`} className="input-group">
+                    <span
+                        key={`transaction-label-${2}`}
+                        className="input-group-label"
+                    >
+                        amount
+                    </span>
+                    <input
+                        className="input-group-field"
+                        type="text"
+                        required
+                        value={
+                            (amount && amount.value ? amount.value : 0) +
+                            '  TRX'
+                        }
+                        disabled={true}
+                        key={`transaction-input-${2}`}
+                    />
+                </div>
+                <div key={`transaction-group-${3}`} className="input-group">
+                    <span
+                        key={`transaction-label-${3}`}
+                        className="input-group-label"
+                    >
+                        memo
+                    </span>
+                    <input
+                        className="input-group-field"
+                        type="text"
+                        required
+                        value={memo && memo.value ? memo.value : ''}
+                        disabled={true}
+                        key={`transaction-input-${3}`}
+                    />
+                </div>
+            </div>
+        );
         const tron_confirm_modal = (
             <div>
                 <br />
-                <ConfirmTransfer operation={operation} />
+                {ConfirmTronTransfer}
+                {/* <ConfirmTransfer operation={operation} /> */}
                 <br />
                 <button
                     className="button"

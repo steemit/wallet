@@ -563,7 +563,7 @@
             "可交易代币可以在任何时候发送到任何地方。%(LIQUID_TOKEN)s可以在一个被称为Power Up的过程中被转换成%(VESTING_TOKEN)s。",
         "influence_token":
             "代币的影响力可以使你对文章的赏金有更大的控制权，并可以获得审查奖励。",
-        "estimated_value": "基于美元计算，%(LIQUID_TOKEN)s的估值。",
+        "estimated_value": "基于美元计算，账户所有资产的估值。",
         "non_transferable":
             "%(VESTING_TOKEN)s是不可转让的，需要1个月(4笔付款)才可换回%(LIQUID_TOKEN)s",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
