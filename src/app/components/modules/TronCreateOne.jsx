@@ -29,6 +29,10 @@ class TronCreateOne extends Component {
             this.props.updateUser();
         };
     }
+    componentWillMount() {
+        this.props.resetError();
+    }
+
     componentDidUpdate(prevProps) {
         // start to download pdf key file
         if (this.props.tron_create !== prevProps.tron_create) {
@@ -112,6 +116,9 @@ export default connect(
                     tron_address: '',
                 })
             );
+        },
+        resetError: () => {
+            dispatch(userActions.resetError());
         },
     })
 )(TronCreateOne);

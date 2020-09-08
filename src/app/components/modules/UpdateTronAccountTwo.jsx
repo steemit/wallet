@@ -41,7 +41,7 @@ class UpdateTronAccountTwo extends Component {
                     tron_private: this.props.tron_private_key,
                     tron_create: true,
                 });
-            }, 1000);
+            }, 500);
         }
     }
 

@@ -209,7 +209,7 @@ function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
             yield put(
                 userActions.setUser({
                     username,
-                    tron_address: '',
+                    tron_address: tron_address,
                     tron_user: false,
                     tron_create: false,
                     tron_create_msg: 'fail to create tron account',
@@ -229,13 +229,14 @@ function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
             yield put(
                 userActions.setUser({
                     username,
-                    tron_address: '',
+                    tron_address: tron_address,
                     tron_user: true,
                     tron_create: false,
                     tron_create_msg:
                         'create a tron account,fail to update tron account',
                 })
             );
+            console.log(body1); // debug for wallet.steemitdev.com  production
             return;
         }
 

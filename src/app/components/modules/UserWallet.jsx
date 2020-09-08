@@ -246,7 +246,7 @@ class UserWallet extends React.Component {
         };
 
         const onCreateTronAccount = e => {
-            this.props.updateUser();
+            this.props.showTronCreate();
         };
         const onUpdateTronAccount = e => {
             this.props.showUpdate();
@@ -1169,9 +1169,13 @@ export default connect(
             dispatch(globalActions.showDialog({ name }));
         },
         showUpdate: e => {
-            // if (e) e.preventDefault();
+            if (e) e.preventDefault();
             dispatch(userActions.showUpdate());
             // dispatch(userActions.showTronCreate());
+        },
+        showTronCreate: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.showTronCreate());
         },
         updateUser: () => {
             dispatch(
