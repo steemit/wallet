@@ -2,7 +2,7 @@ import { auth } from '@steemit/steem-js';
 import { Signature, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
 import { randomBytes } from 'crypto';
 
-const DATA_TIMEOUT = 60 * 2; // second
+const DATA_TIMEOUT = 60 * 10 * 60; //10 minute
 function signData(data, privKey) {
     let d = '';
     if (typeof data === 'string') d = data;

@@ -391,7 +391,7 @@ class UserWallet extends React.Component {
             saving_balance_steem +
             savings_pending +
             steemOrders;
-        const total_trx = parseFloat(tron_balance + tron_reward);
+        const total_trx = parseFloat(tron_balance);
         const total_value =
             '$' +
             numberWithCommas(
@@ -1111,7 +1111,6 @@ export default connect(
             currentUser && currentUser.has('pass_auth')
                 ? currentUser.get('pass_auth')
                 : false;
-        console.log(tron_reward);
         return {
             ...ownProps,
             open_orders: state.market.get('open_orders'),
