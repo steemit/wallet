@@ -2,7 +2,7 @@ import { auth } from '@steemit/steem-js';
 import { Signature, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
 import { randomBytes } from 'crypto';
 
-const DATA_TIMEOUT = 60 * 60; // 1 minute
+const DATA_TIMEOUT = 60 * 60 * 5; // 5 minute
 function signData(data, privKey) {
     let d = '';
     if (typeof data === 'string') d = data;
@@ -37,7 +37,14 @@ function authData(data, pubKey) {
         throw new Error('lost_signature');
     }
     if (currentTimestamp - timestamp > DATA_TIMEOUT) {
-        throw new Error('data_timeout');
+        throw new Error(
+            'data_timeout current=' +
+                currentTimestamp +
+                ' pre timestamp=' +
+                timestamp +
+                '  diff' +
+                (currentTimestamp - timestamp)
+        );
     }
     console.log(
         'current =' +
