@@ -37,14 +37,7 @@ function authData(data, pubKey) {
         throw new Error('lost_signature');
     }
     if (currentTimestamp - timestamp > DATA_TIMEOUT) {
-        throw new Error(
-            'data_timeout current=' +
-                currentTimestamp +
-                ' pre timestamp=' +
-                timestamp +
-                '  diff' +
-                (currentTimestamp - timestamp)
-        );
+        throw new Error('data_timeout');
     }
     console.log(
         'current =' +
