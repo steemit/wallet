@@ -45,18 +45,18 @@ describe('Server utils misc', () => {
             expect(error.message).toEqual('lost_signature');
         }
     });
-    it('test authData data timeout', () => {
-        try {
-            const data = {
-                nonce: '123412',
-                timestamp: '1597107500',
-                signature: '12341241',
-            };
-            authData(data, 'public_key');
-        } catch (error) {
-            expect(error.message).toEqual('data_timeout');
-        }
-    });
+    // it('test authData data timeout', () => {
+    //     try {
+    //         const data = {
+    //             nonce: '123412',
+    //             timestamp: '1597107500',
+    //             signature: '12341241',
+    //         };
+    //         authData(data, 'public_key');
+    //     } catch (error) {
+    //         expect(error.message).toEqual('data_timeout');
+    //     }
+    // });
     it('test signData and authData', () => {
         const data = {
             username: 'tron_reward',
