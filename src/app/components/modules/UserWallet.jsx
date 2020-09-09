@@ -97,7 +97,8 @@ class UserWallet extends React.Component {
             });
             const new_window = window.open();
             new_window.opener = null;
-            if ($STM_Config.tron_host.includes('shasta')) {
+            const tron_host = $STM_Config.tron_host.toString();
+            if (tron_host && tron_host.includes('shasta')) {
                 new_window.location =
                     'https://shasta.tronscan.org/#/address/' +
                     trx_address +
