@@ -1,8 +1,9 @@
 import { auth } from '@steemit/steem-js';
 import { Signature, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
 import { randomBytes } from 'crypto';
+import { time } from 'console';
 
-const DATA_TIMEOUT = 60 * 5; // 5 second
+const DATA_TIMEOUT = 60 * 60; // 1 minute
 function signData(data, privKey) {
     let d = '';
     if (typeof data === 'string') d = data;
@@ -39,6 +40,15 @@ function authData(data, pubKey) {
     if (currentTimestamp - timestamp > DATA_TIMEOUT) {
         throw new Error('data_timeout');
     }
+    console.log(
+        'current =' +
+            currentTimestamp +
+            '  called time=' +
+            timestamp +
+            '   diff' +
+            currentTimestamp -
+            timestamp
+    );
     const d = JSON.stringify(data, (k, v) => {
         if (['nonce', 'timestamp', 'signature'].indexOf(k) === -1) {
             return v;
