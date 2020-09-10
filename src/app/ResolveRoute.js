@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import GDPRUserList from './utils/GDPRUserList';
 
 export const routeRegex = {
@@ -6,7 +7,6 @@ export const routeRegex = {
 };
 
 export default function resolveRoute(path) {
-    let match;
     if (path === '/') {
         return { page: 'WalletIndex' };
     }
@@ -61,7 +61,7 @@ export default function resolveRoute(path) {
     if (path === '/proposals') {
         return { page: 'Proposals' };
     }
-    match =
+    const match =
         path.match(routeRegex.UserProfile1) ||
         path.match(routeRegex.UserProfile2);
     if (match) {

@@ -12,10 +12,16 @@ import * as transactionActions from 'app/redux/TransactionReducer';
 import LoginForm from 'app/components/modules/LoginForm';
 import ConfirmTransactionForm from 'app/components/modules/ConfirmTransactionForm';
 import Transfer from 'app/components/modules/Transfer';
+// import TronTransfer from 'app/components/modules/TronTransfer';
 import SignUp from 'app/components/modules/SignUp';
 import Powerdown from 'app/components/modules/Powerdown';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import TermsAgree from 'app/components/modules/TermsAgree';
+import TronVote from 'app/components/modules/TronVote';
+import UpdateTronAccountOne from 'app/components/modules/UpdateTronAccountOne';
+import UpdateTronAccountTwo from 'app/components/modules/UpdateTronAccountTwo';
+import TronCreateOne from 'app/components/modules/TronCreateOne';
+import TronCreateTwo from 'app/components/modules/TronCreateTwo';
 
 class Modals extends React.Component {
     static defaultProps = {
@@ -27,14 +33,26 @@ class Modals extends React.Component {
         show_bandwidth_error_modal: false,
         show_powerdown_modal: false,
         show_transfer_modal: false,
+        show_tron_transfer_modal: false,
         show_confirm_modal: false,
         show_login_modal: false,
         show_post_advanced_settings_modal: '',
+        show_vote_modal: false,
+        show_update_modal: false,
+        show_update_success_modal: false,
+        show_tron_create_modal: false,
+        show_tron_create_success_modal: false,
     };
     static propTypes = {
+        show_tron_create_modal: PropTypes.bool,
+        show_tron_create_success_modal: PropTypes.bool,
+        show_update_modal: PropTypes.bool,
+        show_update_success_modal: PropTypes.bool,
+        show_vote_modal: PropTypes.bool,
         show_login_modal: PropTypes.bool,
         show_confirm_modal: PropTypes.bool,
         show_transfer_modal: PropTypes.bool,
+        show_tron_transfer_modal: PropTypes.bool,
         show_powerdown_modal: PropTypes.bool,
         show_bandwidth_error_modal: PropTypes.bool,
         show_signup_modal: PropTypes.bool,
@@ -44,8 +62,14 @@ class Modals extends React.Component {
         hideConfirm: PropTypes.func.isRequired,
         hideSignUp: PropTypes.func.isRequired,
         hideTransfer: PropTypes.func.isRequired,
+        hideTronTransfer: PropTypes.func.isRequired,
         hidePowerdown: PropTypes.func.isRequired,
         hideBandwidthError: PropTypes.func.isRequired,
+        hideVote: PropTypes.func.isRequired,
+        hideUpdate: PropTypes.func.isRequired,
+        hideUpdateSuccess: PropTypes.func.isRequired,
+        hideTronCreate: PropTypes.func.isRequired,
+        hideTronCreateSuccess: PropTypes.func.isRequired,
         notifications: PropTypes.object,
         show_terms_modal: PropTypes.bool,
         removeNotification: PropTypes.func,
@@ -58,15 +82,22 @@ class Modals extends React.Component {
 
     render() {
         const {
+            show_tron_create_modal,
+            show_tron_create_success_modal,
+            show_update_modal,
+            show_update_success_modal,
+            show_vote_modal,
             show_login_modal,
             show_confirm_modal,
             show_transfer_modal,
+            show_tron_transfer_modal,
             show_powerdown_modal,
             show_signup_modal,
             show_bandwidth_error_modal,
             show_post_advanced_settings_modal,
             hideLogin,
             hideTransfer,
+            hideTronTransfer,
             hidePowerdown,
             hideConfirm,
             hideSignUp,
@@ -75,6 +106,11 @@ class Modals extends React.Component {
             removeNotification,
             hideBandwidthError,
             username,
+            hideVote,
+            hideUpdate,
+            hideUpdateSuccess,
+            hideTronCreate,
+            hideTronCreateSuccess,
         } = this.props;
 
         const notifications_array = notifications
@@ -88,12 +124,51 @@ class Modals extends React.Component {
             if (e && e.preventDefault) e.preventDefault();
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location =
-                'https://poloniex.com/exchange#trx_steem';
+            new_window.location = 'https://poloniex.com/exchange#trx_steem';
         };
 
         return (
             <div>
+                {show_tron_create_modal && (
+                    <Reveal
+                        onHide={hideTronCreate}
+                        show={show_tron_create_modal}
+                    >
+                        <CloseButton onClick={hideTronCreate} />
+                        <TronCreateOne />
+                    </Reveal>
+                )}
+                {show_tron_create_success_modal && (
+                    <Reveal
+                        onHide={hideTronCreateSuccess}
+                        show={show_tron_create_success_modal}
+                    >
+                        <CloseButton onClick={hideTronCreateSuccess} />
+                        <TronCreateTwo />
+                    </Reveal>
+                )}
+
+                {show_update_modal && (
+                    <Reveal onHide={hideUpdate} show={show_update_modal}>
+                        <CloseButton onClick={hideUpdate} />
+                        <UpdateTronAccountOne />
+                    </Reveal>
+                )}
+                {show_update_success_modal && (
+                    <Reveal
+                        onHide={hideUpdateSuccess}
+                        show={show_update_success_modal}
+                    >
+                        <CloseButton onClick={hideUpdateSuccess} />
+                        <UpdateTronAccountTwo />
+                    </Reveal>
+                )}
+                {show_vote_modal && (
+                    <Reveal onHide={hideVote} show={show_vote_modal}>
+                        <CloseButton onClick={hideVote} />
+                        <TronVote />
+                    </Reveal>
+                )}
                 {show_login_modal && (
                     <Reveal onHide={hideLogin} show={show_login_modal}>
                         <LoginForm onCancel={hideLogin} />
@@ -108,6 +183,15 @@ class Modals extends React.Component {
                 {show_transfer_modal && (
                     <Reveal onHide={hideTransfer} show={show_transfer_modal}>
                         <CloseButton onClick={hideTransfer} />
+                        <Transfer />
+                    </Reveal>
+                )}
+                {show_tron_transfer_modal && (
+                    <Reveal
+                        onHide={hideTronTransfer}
+                        show={show_tron_transfer_modal}
+                    >
+                        <CloseButton onClick={hideTronTransfer} />
                         <Transfer />
                     </Reveal>
                 )}
@@ -180,8 +264,20 @@ export default connect(
             show_login_modal: state.user.get('show_login_modal'),
             show_confirm_modal: state.transaction.get('show_confirm_modal'),
             show_transfer_modal: state.user.get('show_transfer_modal'),
+            show_tron_transfer_modal: state.user.get(
+                'show_tron_transfer_modal'
+            ),
             show_powerdown_modal: state.user.get('show_powerdown_modal'),
             show_signup_modal: state.user.get('show_signup_modal'),
+            show_vote_modal: state.user.get('show_vote_modal'),
+            show_update_modal: state.user.get('show_update_modal'),
+            show_update_success_modal: state.user.get(
+                'show_update_success_modal'
+            ),
+            show_tron_create_modal: state.user.get('show_tron_create_modal'),
+            show_tron_create_success_modal: state.user.get(
+                'show_tron_create_success_modal'
+            ),
             notifications: state.app.get('notifications'),
             show_terms_modal:
                 state.user.get('show_terms_modal') &&
@@ -199,6 +295,26 @@ export default connect(
         };
     },
     dispatch => ({
+        hideTronCreate: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.hideTronCreate());
+        },
+        hideTronCreateSuccess: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.hideTronCreateSuccess());
+        },
+        hideUpdate: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.hideUpdate());
+        },
+        hideUpdateSuccess: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.hideUpdateSuccess());
+        },
+        hideVote: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.hideVote());
+        },
         hideLogin: e => {
             if (e) e.preventDefault();
             dispatch(userActions.hideLogin());
@@ -210,6 +326,10 @@ export default connect(
         hideTransfer: e => {
             if (e) e.preventDefault();
             dispatch(userActions.hideTransfer());
+        },
+        hideTronTransfer: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.hideTronTransfer());
         },
         hidePowerdown: e => {
             if (e) e.preventDefault();

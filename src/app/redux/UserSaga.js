@@ -1,3 +1,13 @@
+/* eslint-disable no-prototype-builtins */
+/* eslint-disable require-yield */
+/* eslint-disable no-empty-pattern */
+/* eslint-disable prefer-rest-params */
+/* eslint-disable no-shadow */
+/* eslint-disable arrow-parens */
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable prefer-const */
+/* eslint-disable import/prefer-default-export */
+/* eslint-disable no-unused-vars */
 import { fromJS, Set, List } from 'immutable';
 import { call, put, select, fork, takeLatest } from 'redux-saga/effects';
 import { api } from '@steemit/steem-js';
@@ -19,10 +29,17 @@ import {
     serverApiRecordEvent,
     isTosAccepted,
     acceptTos,
+    checkTronUser,
+    updateTronUser,
+    getTronAccount,
+    createTronAccount,
+    getTronConfig,
 } from 'app/utils/ServerApiClient';
 import { loadFollows } from 'app/redux/FollowSaga';
 import { translate } from 'app/Translator';
+import tt from 'counterpart';
 
+const max_pop_window_count = 5;
 export const userWatches = [
     takeLatest('@@router/LOCATION_CHANGE', removeHighSecurityKeys), // keep first to remove keys early when a page change happens
     takeLatest(
@@ -34,6 +51,9 @@ export const userWatches = [
     takeLatest(userActions.LOGOUT, logout),
     takeLatest(userActions.LOGIN_ERROR, loginError),
     takeLatest(userActions.LOAD_SAVINGS_WITHDRAW, loadSavingsWithdraw),
+    takeLatest(userActions.UPDATE_USER, updateTronAccount),
+    takeLatest(userActions.CHECK_TRON, checkTron),
+    takeLatest(userActions.RESET_ERROR, resetError),
     takeLatest(userActions.ACCEPT_TERMS, function*() {
         try {
             yield call(acceptTos);
@@ -59,6 +79,201 @@ const highSecurityPages = [
     /\/~witnesses/,
     /\/proposals/,
 ];
+
+function* resetError() {
+    const username = yield select(state =>
+        state.user.getIn(['current', 'username'])
+    );
+    yield put(
+        userActions.setUser({
+            username,
+            tron_transfer_msg: '',
+            tron_create_msg: '',
+        })
+    );
+}
+function* checkTron({ payload: { to_username, to_tron_address } }) {
+    const [username, tron_addr] = yield select(state => [
+        state.user.getIn(['current', 'username']),
+        state.user.getIn(['current', 'tron_address']),
+    ]);
+    if (!to_username && to_tron_address != null) {
+        if (to_tron_address == tron_addr) {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_transfer_msg: 'cannot transfer trx to yourself',
+                    to_tron_address: '',
+                })
+            );
+            return;
+        }
+        const response2 = yield getTronAccount(to_tron_address);
+        const res = yield response2.json();
+        if (res.error != undefined) {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_transfer_msg: res.error.replace('"', ''),
+                    to_tron_address: '',
+                })
+            );
+        } else {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_transfer_msg: '',
+                    to_tron_address: to_tron_address,
+                })
+            );
+        }
+        return;
+    }
+    if (to_username == username) {
+        yield put(
+            userActions.setUser({
+                username,
+                tron_transfer_msg: 'cannot transfer TRX to yourself',
+                to_tron_address: '',
+            })
+        );
+        return;
+    }
+    const account = yield call(getAccount, to_username);
+    if (!account) {
+        console.log('No account');
+        yield put(
+            userActions.setUser({
+                username,
+                tron_transfer_msg: 'invalid account name,no account on chain',
+                to_tron_address: '',
+            })
+        );
+        return;
+    }
+
+    const response = yield checkTronUser(to_username);
+    const body = yield response.json();
+    if (body.status && body.status == 'ok') {
+        if (body.result.tron_addr != '' || body.result.tron_addr.length > 0) {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_transfer_msg: '',
+                    to_tron_address: body.result.tron_addr,
+                })
+            );
+        } else {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_transfer_msg: tt(
+                        'chainvalidation_js.user_no_tron_account'
+                    ),
+                    to_tron_address: '',
+                })
+            );
+        }
+    } else {
+        yield put(
+            userActions.setUser({
+                username,
+                tron_transfer_msg: tt('chainvalidation_js.unknow_recipient'),
+            })
+        );
+    }
+}
+function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
+    const [username, private_key] = yield select(state => [
+        state.user.getIn(['current', 'username']),
+        state.user.getIn(['current', 'private_keys']),
+    ]);
+
+    if (claim_reward) {
+        console.log('start claim tron reward...');
+        const response = yield updateTronUser(
+            username,
+            tron_address,
+            true,
+            0,
+            private_key.get('posting_private').toWif()
+        );
+        const body = yield response.json();
+        // console.log('claim reward...' + JSON.stringify(body));
+    } else {
+        // create a tron account
+        console.log('update tron user ...' + username);
+        const res = yield createTronAccount();
+        const obj = yield res.json();
+        if (obj.address == undefined || obj.address.base58 == undefined) {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_address: tron_address,
+                    tron_user: false,
+                    tron_create: false,
+                    tron_create_msg: 'fail to create tron account',
+                })
+            );
+            return;
+        }
+        const response1 = yield updateTronUser(
+            username,
+            obj.address.base58,
+            false,
+            0,
+            private_key.get('posting_private').toWif()
+        );
+        const body1 = yield response1.json();
+        if (!body1.hasOwnProperty('status') || body1.status != 'ok') {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_address: tron_address,
+                    tron_user: true,
+                    tron_create: false,
+                    tron_create_msg:
+                        'create a tron account,fail to update tron account',
+                })
+            );
+            console.log(body1); // debug for wallet.steemitdev.com  production
+            return;
+        }
+
+        // query tron user information
+        const response = yield checkTronUser(username);
+        const body = yield response.json();
+        if (body.hasOwnProperty('status') && body.status == 'ok') {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_address: body.result.tron_addr,
+                    tron_user: body.result.tron_addr == '' ? false : true,
+                    // tron_user: true,
+                    tron_reward: body.result.pending_claim_tron_reward,
+                    tron_balance: 0.0,
+                    tron_private_key: obj.privateKey,
+                    tron_public_key: obj.address.base58, // use address, todo: clarity public key on pdf file
+                    tron_create: true,
+                    tron_create_msg: '',
+                })
+            );
+        } else {
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_address: '',
+                    tron_user: true,
+                    tron_reward: 0.0,
+                    tron_balance: 0.0,
+                    tron_create_msg:
+                        'successful update tron account,but fail to query tron account information',
+                    tron_create: false,
+                })
+            );
+        }
+    }
+}
 
 function* loadSavingsWithdraw() {
     const username = yield select(state =>
@@ -115,12 +330,14 @@ function* usernamePasswordLogin({
     },
 }) {
     const current = yield select(state => state.user.get('current'));
+    let query_user_name = username;
     if (current) {
         const currentUsername = current.get('username');
         yield fork(loadFollows, currentUsername, 'blog');
         yield fork(loadFollows, currentUsername, 'ignore');
+        query_user_name = currentUsername;
     }
-
+    let exit_tron_user = false;
     const user = yield select(state => state.user);
     const loginType = user.get('login_type');
     const justLoggedIn = loginType === 'basic';
@@ -184,6 +401,76 @@ function* usernamePasswordLogin({
         return;
     }
 
+    // current path name
+    const current_route = yield select(state =>
+        state.global.get('current_route')
+    );
+    // query current path user
+    if (current_route && current_route.match(/^\/@([a-z0-9\.-]+)\/transfers/)) {
+        const username = current_route.match(/^\/@([a-z0-9\.-]+)/)[1];
+        query_user_name = username;
+        console.log(
+            'current user' + username + '   path user ' + query_user_name
+        );
+    }
+
+    // check tron user
+    // query api get tron information
+    const res1 = yield getTronConfig();
+    const res_config = yield res1.json();
+    const windows_count_threshold =
+        res_config.unbind_tip_limit == undefined
+            ? max_pop_window_count
+            : res_config.unbind_tip_limit;
+    let current_window_count = 0;
+    let tron_address = '';
+    if (query_user_name) {
+        const response = yield checkTronUser(query_user_name);
+        const body = yield response.json();
+        if (body.status && body.status == 'ok') {
+            current_window_count = body.result.tip_count;
+            if (
+                body.result.tron_addr != '' ||
+                body.result.tron_addr.length > 0
+            ) {
+                exit_tron_user = true;
+                const response2 = yield getTronAccount(body.result.tron_addr);
+                const res = yield response2.json();
+                tron_address = body.result.tron_addr;
+                yield put(
+                    userActions.setUser({
+                        username,
+                        tron_address: body.result.tron_addr,
+                        tron_user: body.result.tron_addr == '' ? false : true,
+                        tron_reward: body.result.pending_claim_tron_reward,
+                        tron_balance:
+                            res.balance == undefined ? 0.0 : res.balance,
+                    })
+                );
+            } else {
+                yield put(
+                    userActions.setUser({
+                        username,
+                        tron_address: body.result.tron_addr,
+                        tron_user: body.result.tron_addr == '' ? false : true,
+                        tron_reward: body.result.pending_claim_tron_reward,
+                        tron_balance: 0.0,
+                    })
+                );
+            }
+        } else {
+            // todo: retry just show error windows
+            yield put(
+                userActions.setUser({
+                    username,
+                    tron_address: 'error,please refresh page',
+                    tron_user: true,
+                    tron_reward: '0.0 TRX',
+                    tron_balance: 0.0,
+                })
+            );
+        }
+    }
     // return if already logged in using steem keychain
     if (login_with_keychain) {
         console.log('Logged in using steem keychain');
@@ -313,7 +600,6 @@ function* usernamePasswordLogin({
             );
         }
     }
-
     try {
         // const challengeString = yield serverApiLoginChallenge()
         const offchainData = yield select(state => state.offchain);
@@ -331,6 +617,8 @@ function* usernamePasswordLogin({
                         username,
                         buf,
                         'Posting',
+                        // eslint-disable-next-line arrow-parens
+                        // eslint-disable-next-line no-shadow
                         response => {
                             resolve(response);
                         }
@@ -368,10 +656,28 @@ function* usernamePasswordLogin({
                 sign('posting', private_keys.get('posting_private'));
                 // sign('active', private_keys.get('active_private'))
             }
-
             console.log('Logging in as', username);
             const response = yield serverApiLogin(username, signatures);
             const body = yield response.json();
+            if (body.status != undefined && body.status == 'ok') {
+                yield put(
+                    userActions.setUser({
+                        username,
+                        pass_auth: true,
+                    })
+                );
+                if (!exit_tron_user && query_user_name == username) {
+                    const response_tip_count = yield updateTronUser(
+                        username,
+                        tron_address,
+                        false,
+                        current_window_count + 1,
+                        private_keys.get('posting_private').toWif()
+                    );
+                    if (current_window_count < windows_count_threshold)
+                        yield put(userActions.showTronCreate());
+                }
+            }
         }
     } catch (error) {
         // Does not need to be fatal
@@ -442,7 +748,7 @@ function* getFeatureFlags(username, posting_private) {
 
 function* saveLogin_localStorage() {
     if (!process.env.BROWSER) {
-        console.error('Non-browser environment, skipping localstorage');
+        console.error('Non-browser environment, skipping local storage');
         return;
     }
     localStorage.removeItem('autopost2');

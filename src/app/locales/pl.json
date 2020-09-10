@@ -504,8 +504,7 @@
             "Zbywalne tokeny które mogą być przesłane gdziekolwiek w dowolnym momencie.<br/> %(LIQUID_TOKEN)s mogą zostać również przekonwertowane na %(VESTING_TOKEN)s w procesie nazywanym zwiększenie mocy.",
         "influence_token":
             "Tokeny wpływu, które zwiększają Twój wpływ na podział wypłat za publikowanie treści, oraz pozwalają Ci zarabiać na głosowaniu na treści.",
-        "estimated_value":
-            "Szacowana wartość bazuje na średniej cenie tokenu %(LIQUID_TOKEN)s w dolarach amerykańskich.",
+        "estimated_value": "Całkowita wycena aktywów konta w USD.",
         "non_transferable":
             "Jednostki %(VESTING_TOKEN)s są niezbywalne i wymagają 1 miesiąc (w 4 ratach) do konwersji z powrotem na tokeny %(LIQUID_TOKEN)s.",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
@@ -686,7 +685,13 @@
         "transfers_are_temporary_disabled": "Transfery tymczasowo wyłączone.",
         "history": "HISTORIA",
         "redeem_rewards": "Odbierz nagrody (transfer do salda)",
-        "buy_steem_or_steem_power": "Kup STEEM"
+        "buy_steem_or_steem_power": "Kup STEEM",
+        "trx_description":
+            "TRX łączy cały system TRON ECO, który można wysłać w dowolne miejsce w dowolnym czasie. Możesz otrzymać przyzwoitą nagrodę głosując i zamrażając trx na system TRON ECO. Liczba TRX nagrody jest oparta na procentach x SP nagrody.",
+        "create_trx_description":
+            "Nie masz konta TRX? po prostu kliknij prawym przyciskiem myszy przycisk tworzenia konta TRX, gdzie można otrzymać nagrodę TRX.",
+        "create_trx_button": "UTWÓRZ KONTO TRON",
+        "update_trx_account": "zaktualizuj konto TRON"
     },
     "powerdown_jsx": {
         "power_down": "Zmniejsz moc",

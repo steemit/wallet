@@ -1,8 +1,8 @@
+/* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint react/prop-types: 0 */
 import React from 'react';
-import { Link } from 'react-router';
+import { Link, browserHistory } from 'react-router';
 import { connect } from 'react-redux';
-import { browserHistory } from 'react-router';
 import classnames from 'classnames';
 import * as globalActions from 'app/redux/GlobalReducer';
 import * as transactionActions from 'app/redux/TransactionReducer';
@@ -117,7 +117,9 @@ export default class UserProfile extends React.Component {
                     <UserWallet
                         account={accountImm}
                         showTransfer={this.props.showTransfer}
+                        showTronTransfer={this.props.showTronTransfer}
                         showPowerdown={this.props.showPowerdown}
+                        showVote={this.props.showVote}
                         currentUser={currentUser}
                         withdrawVesting={this.props.withdrawVesting}
                     />
@@ -342,7 +344,6 @@ module.exports = {
             const accountname = ownProps.routeParams.accountname.toLowerCase();
             const isMyAccount =
                 currentUser && currentUser.get('username') === accountname;
-
             return {
                 loading: state.app.get('loading'),
                 globalStatus: state.global.get('status'),
@@ -356,6 +357,9 @@ module.exports = {
             };
         },
         dispatch => ({
+            showVote: () => {
+                dispatch(userActions.showVote());
+            },
             login: () => {
                 dispatch(userActions.showLogin());
             },
@@ -365,6 +369,9 @@ module.exports = {
             showTransfer: transferDefaults => {
                 dispatch(userActions.setTransferDefaults(transferDefaults));
                 dispatch(userActions.showTransfer());
+            },
+            showTronTransfer: () => {
+                dispatch(userActions.showTronTransfer());
             },
             clearPowerdownDefaults: () => {
                 dispatch(userActions.clearPowerdownDefaults());

@@ -17,11 +17,20 @@ import * as proposalActions from 'app/redux/ProposalReducer';
 import { DEBT_TICKER } from 'app/client_config';
 import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 import { isLoggedInWithKeychain } from 'app/utils/SteemKeychain';
+import { TRON_HOST } from 'app/client_config';
+
+// tron web configuration
+const TronWeb = require('tronweb');
+const HttpProvider = TronWeb.providers.HttpProvider;
+const fullNode = new HttpProvider(TRON_HOST);
+const solidityNode = new HttpProvider(TRON_HOST);
+const tronWeb = new TronWeb(fullNode, solidityNode);
 
 export const transactionWatches = [
     takeEvery(transactionActions.BROADCAST_OPERATION, broadcastOperation),
     takeEvery(transactionActions.UPDATE_AUTHORITIES, updateAuthorities),
     takeEvery(transactionActions.RECOVER_ACCOUNT, recoverAccount),
+    takeEvery(transactionActions.TRON_TRANSFER, tronTransfer),
 ];
 
 const hook = {
@@ -33,6 +42,69 @@ const hook = {
     accepted_withdraw_vesting,
 };
 
+export function* tronTransfer({
+    payload: {
+        username,
+        from,
+        to,
+        amount,
+        memo,
+        privateKey,
+        successCallback,
+        errorCallback,
+    },
+}) {
+    if (parseInt(amount) == NaN) {
+        errorCallback('amount is not integer,only accept int TRX');
+        return;
+    }
+    if (to == undefined || privateKey == undefined) {
+        errorCallback('check to tron address or privatekey');
+        return;
+    }
+    try {
+        tronWeb.setFullNode($STM_Config.tron_host);
+        tronWeb.setSolidityNode($STM_Config.tron_host);
+        tronWeb.setEventServer($STM_Config.tron_host);
+        tronWeb.setPrivateKey(privateKey);
+        const sumAmount = 1000000 * amount;
+        const unSignTransaction = yield tronWeb.transactionBuilder.sendTrx(
+            to,
+            sumAmount,
+            from
+        );
+        // write memo
+        const transactionWithMemo = yield tronWeb.transactionBuilder.addUpdateData(
+            unSignTransaction,
+            memo,
+            'utf8'
+        );
+        // sign
+        const signedTransaction = yield tronWeb.trx.sign(
+            transactionWithMemo,
+            privateKey
+        );
+        // broadcast
+        const trx_result = yield tronWeb.trx.sendRawTransaction(
+            signedTransaction
+        );
+        let trx_hash = trx_result.txid;
+        let timeout_count = 60 * 10; //  10 minutes
+        while (timeout_count > 0) {
+            const result = yield tronWeb.trx.getTransactionInfo(trx_hash);
+            if (result.id && result.id == trx_hash) {
+                successCallback();
+                console.log('TRX transaction successful confirmed');
+                return;
+            }
+            yield new Promise(resolve => setTimeout(resolve, 1000)); // sleep 1 seccond
+            timeout_count--;
+        }
+        errorCallback('transaction was not confirmed within 10 minutes');
+    } catch (err) {
+        errorCallback(err.toString());
+    }
+}
 export function* preBroadcast_transfer({ operation }) {
     let memoStr = operation.memo;
     if (memoStr) {
@@ -176,6 +248,7 @@ export function* broadcastOperation({
                 }
             }
         }
+
         yield call(broadcastPayload, { payload });
         let eventType = type
             .replace(/^([a-z])/, g => g.toUpperCase())

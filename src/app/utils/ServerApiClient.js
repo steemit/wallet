@@ -1,4 +1,6 @@
+/* eslint-disable no-undef */
 import { api } from '@steemit/steem-js';
+import { signData } from 'server/utils/encrypted';
 
 const request_base = {
     method: 'post',
@@ -41,24 +43,30 @@ export function serverApiRecordEvent(type, val, rate_limit_ms = 5000) {
     );
 }
 
+export function recordAdsView({ trackingId, adTag }) {
+    api.call('overseer.collect', ['ad', { trackingId, adTag }], error => {
+        if (error) console.warn('overseer error', error);
+    });
+}
+
 let last_page, last_views, last_page_promise;
 export function recordPageView(page, referer, account) {
-    return; // TODO: disabled until overseer update
-    if (last_page_promise && page === last_page) return last_page_promise;
+    return null; // TODO: disabled until overseer update
+    // if (last_page_promise && page === last_page) return last_page_promise;
 
-    if (!process.env.BROWSER) return Promise.resolve(0);
-    if (window.ga) {
-        // virtual pageview
-        window.ga('set', 'page', page);
-        window.ga('send', 'pageview');
-    }
-    last_page_promise = api.callAsync('overseer.pageview', {
-        page,
-        referer,
-        account,
-    });
-    last_page = page;
-    return last_page_promise;
+    // if (!process.env.BROWSER) return Promise.resolve(0);
+    // if (window.ga) {
+    //     // virtual pageview
+    //     window.ga('set', 'page', page);
+    //     window.ga('send', 'pageview');
+    // }
+    // last_page_promise = api.callAsync('overseer.pageview', {
+    //     page,
+    //     referer,
+    //     account,
+    // });
+    // last_page = page;
+    // return last_page_promise;
 }
 
 export function saveCords(x, y) {
@@ -80,10 +88,10 @@ export function setUserPreferences(payload) {
 export function isTosAccepted() {
     // TODO: endpoint down. re-enable
     return true;
-    const request = Object.assign({}, request_base, {
-        body: JSON.stringify({ csrf: window.$STM_csrf }),
-    });
-    return fetch('/api/v1/isTosAccepted', request).then(res => res.json());
+    // const request = Object.assign({}, request_base, {
+    //     body: JSON.stringify({ csrf: window.$STM_csrf }),
+    // });
+    // return fetch('/api/v1/isTosAccepted', request).then(res => res.json());
 }
 
 export function acceptTos() {
@@ -91,4 +99,54 @@ export function acceptTos() {
         body: JSON.stringify({ csrf: window.$STM_csrf }),
     });
     return fetch('/api/v1/acceptTos', request);
+}
+
+export function checkTronUser(username) {
+    const queryString = '/api/v1/tron/tron_user?username=' + username;
+    return fetch(queryString);
+}
+
+export function updateTronUser(
+    username,
+    tron_address,
+    claim_reward,
+    tip_count,
+    privKey
+) {
+    const auth_type = 'posting';
+    const data = {
+        username: username,
+        tron_addr: tron_address,
+        auth_type: auth_type,
+        claim_reward: claim_reward,
+        tip_count: tip_count,
+    };
+    const r = signData(data, privKey);
+    // const body = {
+    //     username,
+    //     tron_addr: tron_address,
+    //     nonce: r.nonce,
+    //     timestamp: r.timestamp,
+    //     signature: r.signature,
+    //     auth_type: 'posting',
+    //     claim_reward,
+    //     tip_count,
+    // };
+    const request = Object.assign({}, request_base, {
+        body: JSON.stringify(r),
+    });
+    return fetch('/api/v1/tron/tron_user', request);
+}
+
+export function createTronAccount() {
+    const queryString = '/api/v1/tron/create_account';
+    return fetch(queryString);
+}
+export function getTronAccount(tron_address) {
+    const queryString = '/api/v1/tron/get_account?tron_address=' + tron_address;
+    return fetch(queryString);
+}
+export function getTronConfig() {
+    const queryString = '/api/v1/tron/get_config';
+    return fetch(queryString);
 }

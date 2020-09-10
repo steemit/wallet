@@ -1,3 +1,14 @@
+/* eslint-disable arrow-parens */
+/* eslint-disable no-plusplus */
+/* eslint-disable space-before-function-paren */
+/* eslint-disable prefer-arrow-callback */
+/* eslint-disable no-unused-vars */
+/* eslint-disable no-bitwise */
+/* eslint-disable require-yield */
+/* eslint-disable generator-star-spacing */
+/* eslint-disable import/no-dynamic-require */
+/* eslint-disable global-require */
+/* eslint-disable import/first */
 import path from 'path';
 import Koa from 'koa';
 import mount from 'koa-mount';
@@ -5,6 +16,7 @@ import helmet from 'koa-helmet';
 import koa_logger from 'koa-logger';
 import requestTime from './requesttimings';
 import StatsLoggerClient from './utils/StatsLoggerClient';
+import { SteemMarket } from './utils/SteemMarket';
 import hardwareStats from './hardwarestats';
 import cluster from 'cluster';
 import os from 'os';
@@ -13,7 +25,9 @@ import favicon from 'koa-favicon';
 import staticCache from 'koa-static-cache';
 import useRedirects from './redirects';
 import useGeneralApi from './api/general';
+import useTronRewardApi from './api/tron_reward';
 import useAccountRecoveryApi from './api/account_recovery';
+import tronAccount from './api/tronAccount';
 import useEnterAndConfirmEmailPages from './sign_up_pages/enter_confirm_email';
 import useEnterAndConfirmMobilePages from './sign_up_pages/enter_confirm_mobile';
 import isBot from 'koa-isbot';
@@ -36,6 +50,8 @@ app.name = 'Steemit app';
 const env = process.env.NODE_ENV || 'development';
 // cache of a thousand days
 const cacheOpts = { maxAge: 86400000, gzip: true, buffer: true };
+
+const tronRewardSwitch = config.get('tron_reward.switch');
 
 // Serve static assets without fanfare
 app.use(
@@ -126,6 +142,12 @@ function convertEntriesToArrays(obj) {
         return result;
     }, {});
 }
+
+const steemMarket = new SteemMarket();
+app.use(function*(next) {
+    this.steemMarketData = yield steemMarket.get();
+    yield next;
+});
 
 // some redirects and health status
 app.use(function*(next) {
@@ -239,6 +261,10 @@ useEnterAndConfirmEmailPages(app);
 useEnterAndConfirmMobilePages(app);
 
 useAccountRecoveryApi(app);
+if (tronRewardSwitch === 'on') {
+    useTronRewardApi(app);
+    tronAccount(app);
+}
 useGeneralApi(app);
 
 // helmet wants some things as bools and some as lists, makes config difficult.
@@ -279,7 +305,7 @@ if (env !== 'test') {
 
     if (env === 'production') {
         if (cluster.isMaster) {
-            for (var i = 0; i < numProcesses; i++) {
+            for (let i = 0; i < numProcesses; i++) {
                 cluster.fork();
             }
             // if a worker dies replace it so application keeps running

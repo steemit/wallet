@@ -1,3 +1,9 @@
+/* eslint-disable import/no-dynamic-require */
+/* eslint-disable global-require */
+/* eslint-disable no-undef */
+/* eslint-disable import/newline-after-import */
+/* eslint-disable import/first */
+/* eslint-disable no-shadow */
 import React from 'react';
 import config from 'config';
 import { renderToString } from 'react-dom/server';
@@ -70,6 +76,9 @@ async function appRender(ctx, locales = false, resolvedAssets = false) {
                 viewMode: determineViewMode(ctx.request.search),
                 env: process.env.NODE_ENV,
                 socialUrl: config.social_url,
+                steemMarket: ctx.steemMarketData,
+                trackingId: ctx.session.uid,
+                tron_host: config.get('tron_create_node'),
             },
         };
 

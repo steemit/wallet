@@ -2,7 +2,7 @@ import tt from 'counterpart';
 import BadActorList from 'app/utils/BadActorList';
 import VerifiedExchangeList from 'app/utils/VerifiedExchangeList';
 import { PrivateKey, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
-
+import { checkTronUser } from 'app/utils/ServerApiClient';
 export function validate_account_name(value) {
     let i, label, len, length, ref;
 
@@ -51,6 +51,27 @@ export function validate_account_name(value) {
     return null;
 }
 
+// tron transfer
+// export async function validate_account_name_with_memo_tron(name, memo) {
+//     if (VerifiedExchangeList.includes(name) && !memo) {
+//         return tt('chainvalidation_js.verified_exchange_no_memo');
+//     }
+
+//     if (validate_account_name(name) == null) {
+//         const response = await checkTronUser(name);
+//         const body = await response.json();
+//         if (body.status && body.status == 'ok') {
+//             if (
+//                 body.result.tron_addr != '' ||
+//                 body.result.tron_addr.length > 0
+//             ) {
+//                 return null;
+//             } else return tt('chainvalidation_js.user_no_tron_account');
+//         } else {
+//             return tt('chainvalidation_js.unknow_recipient');
+//         }
+//     } else return validate_account_name(name);
+// }
 /**
  * Do some additional validation for situations where an account name is used along with a memo.
  * Currently only used in the Transfers compoonent.

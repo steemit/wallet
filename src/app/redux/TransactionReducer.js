@@ -12,6 +12,7 @@ const SET = 'transaction/SET';
 const REMOVE = 'transaction/REMOVE';
 // Saga-related
 export const RECOVER_ACCOUNT = 'transaction/RECOVER_ACCOUNT';
+export const TRON_TRANSFER = 'transaction/TRON_TRANSFER';
 const defaultState = fromJS({
     operations: [],
     status: { key: '', error: false, busy: false },
@@ -47,6 +48,8 @@ export default function reducer(state = defaultState, action) {
         case BROADCAST_OPERATION:
             // See TransactionSaga.js
             return state;
+        case TRON_TRANSFER:
+            return state; // transactionSage
 
         case UPDATE_AUTHORITIES:
             return state;
@@ -230,5 +233,10 @@ export const remove = payload => ({
 
 export const recoverAccount = payload => ({
     type: RECOVER_ACCOUNT,
+    payload,
+});
+
+export const tronTransfer = payload => ({
+    type: TRON_TRANSFER,
     payload,
 });

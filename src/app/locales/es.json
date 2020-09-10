@@ -515,8 +515,7 @@
             "Tokens canjeables pueden ser transferidos a cualquier sitio en cualquier momento.1%(LIQUID_TOKEN)s y pueden ser convertidos a %(VESTING_TOKEN)s en un proceso llamado power up.",
         "influence_token":
             "Tokens con influencia te dan más control sobre los pagos de los posts y te permiten ganar recompensas de curación",
-        "estimated_value":
-            "El valor estimado está basado en el valor medio de 1%(LIQUID_TOKEN)s en US dollars.",
+        "estimated_value": "Valoración de activos totales de la cuenta en USD.",
         "non_transferable":
             "%(VESTING_TOKEN)s es intransferible y requiere 1 mes (4 pagos) para convertir de vuelta a %(LIQUID_TOKEN)s.",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
@@ -699,7 +698,13 @@
             "Las transferencias están temporalmente inhabilitadas.",
         "history": "HISTORIA",
         "redeem_rewards": "Liquidar recompensas (Transferir al saldo)",
-        "buy_steem_or_steem_power": "Compra STEEM"
+        "buy_steem_or_steem_power": "Compra STEEM",
+        "trx_description":
+            "TRX conecta todo el sistema TRON ECO, que puede enviarse a cualquier lugar en cualquier momento. Puede recibir una recompensa decente votando y congelando trx para el sistema TRON ECO. El número de recompensa TRX se basa en el porcentaje x de la recompensa SP.",
+        "create_trx_description":
+            "¿No tienes cuenta TRX? simplemente haga clic derecho creando el botón de la cuenta TRX donde se puede recibir una recompensa TRX.",
+        "create_trx_button": "CREAR CUENTA TRON",
+        "update_trx_account": "actualizar la cuenta TRON"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",

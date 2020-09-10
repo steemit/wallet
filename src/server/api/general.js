@@ -1,3 +1,10 @@
+/* eslint-disable dot-notation */
+/* eslint-disable require-yield */
+/* eslint-disable generator-star-spacing */
+/* eslint-disable arrow-parens */
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable no-unused-vars */
+/* eslint-disable import/no-duplicates */
 /*global $STM_Config */
 import koa_router from 'koa-router';
 import koa_body from 'koa-body';
@@ -12,6 +19,7 @@ import {
     rateLimitReq,
     checkCSRF,
 } from 'server/utils/misc';
+import { logRequest } from 'server/utils/loggers';
 import coBody from 'co-body';
 import Mixpanel from 'mixpanel';
 import { PublicKey, Signature, hash } from '@steemit/steem-js/lib/auth/ecc';
@@ -22,32 +30,6 @@ const ACCEPTED_TOS_TAG = 'accepted_tos_20180614';
 const mixpanel = config.get('mixpanel')
     ? Mixpanel.init(config.get('mixpanel'))
     : null;
-
-const _stringval = v => (typeof v === 'string' ? v : JSON.stringify(v));
-function logRequest(path, ctx, extra) {
-    let d = { ip: getRemoteIp(ctx.req) };
-    if (ctx.session) {
-        if (ctx.session.user) {
-            d.user = ctx.session.user;
-        }
-        if (ctx.session.uid) {
-            d.uid = ctx.session.uid;
-        }
-        if (ctx.session.a) {
-            d.account = ctx.session.a;
-        }
-    }
-    if (extra) {
-        Object.keys(extra).forEach(k => {
-            const nk = d[k] ? '_' + k : k;
-            d[nk] = extra[k];
-        });
-    }
-    const info = Object.keys(d)
-        .map(k => `${k}=${_stringval(d[k])}`)
-        .join(' ');
-    console.log(`-- /${path} --> ${info}`);
-}
 
 export default function useGeneralApi(app) {
     const router = koa_router({ prefix: '/api/v1' });
@@ -285,7 +267,7 @@ export default function useGeneralApi(app) {
         try {
             if (!emailRegex.test(email.toLowerCase()))
                 throw new Error('not valid email: ' + email);
-            let user = yield models.User.create({
+            const user = yield models.User.create({
                 name: esc(name),
                 email: esc(email),
             });
@@ -450,6 +432,7 @@ export default function useGeneralApi(app) {
     });
 
     router.post('/logout_account', koaBody, function*() {
+        console.log('test login call');
         // if (rateLimitReq(this, this.req)) return; - logout maybe immediately followed with login_attempt event
         const params = this.request.body;
         const { csrf } =
@@ -510,7 +493,7 @@ export default function useGeneralApi(app) {
             where: { id: this.session.user },
         });
         if (user) {
-            let data = user.sign_up_meta ? JSON.parse(user.sign_up_meta) : {};
+            const data = user.sign_up_meta ? JSON.parse(user.sign_up_meta) : {};
             data['button_screen_x'] = x;
             data['button_screen_y'] = y;
             data['last_step'] = 3;

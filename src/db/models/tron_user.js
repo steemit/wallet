@@ -1,7 +1,7 @@
-'use strict';
+/* eslint-disable lines-around-directive */
 module.exports = (sequelize, DataTypes) => {
-    var tron_user = sequelize.define(
-        'tron_user',
+    const tronUser = sequelize.define(
+        'TronUser',
         {
             username: {
                 allowNull: false,
@@ -13,28 +13,37 @@ module.exports = (sequelize, DataTypes) => {
             },
             pending_claim_tron_reward: {
                 allowNull: false,
+                defaultValue: 0,
                 type: DataTypes.BIGINT.UNSIGNED,
-                get: function() {
-                    return `${this.getDataValue('reward_steem') / 1e5}`;
+                get() {
+                    return `${this.getDataValue('pending_claim_tron_reward') /
+                        1e5} TRX`;
                 },
-                set: function(v) {
-                    this.setDataValue('reward_steem', parseInt(v * 1e5, 10));
+                set(v) {
+                    this.setDataValue(
+                        'pending_claim_tron_reward',
+                        parseInt(v * 1e5, 10)
+                    );
                 },
             },
             is_new_user: {
                 allowNull: false,
+                defaultValue: 0,
                 type: DataTypes.BOOLEAN,
             },
             is_tron_addr_actived: {
                 allowNull: false,
+                defaultValue: 0,
                 type: DataTypes.BOOLEAN,
             },
-            tran_addr_active_time: {
-                allowNull: false,
+            tron_addr_active_time: {
+                allowNull: true,
+                defaultValue: null,
                 type: DataTypes.DATE,
             },
             tip_count: {
                 allowNull: false,
+                defaultValue: 0,
                 type: DataTypes.INTEGER.UNSIGNED,
             },
         },
@@ -46,5 +55,11 @@ module.exports = (sequelize, DataTypes) => {
             underscored: true,
         }
     );
-    return tron_user;
+    tronUser.getCacheFields = () => [
+        'tron_addr',
+        'tip_count',
+        'pending_claim_tron_reward',
+    ];
+    tronUser.getCachePrefix = () => 'tron_user_';
+    return tronUser;
 };
