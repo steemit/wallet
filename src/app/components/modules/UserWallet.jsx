@@ -497,12 +497,24 @@ class UserWallet extends React.Component {
             {
                 value: tt('g.sell'),
                 link: '#',
-                onClick: onShowTRX,
+                onClick: e => {
+                    recordAdsView({
+                        trackingId: this.props.trackingId,
+                        adTag: 'TronSell',
+                    });
+                    onShowTRX(e);
+                },
             },
             {
                 value: tt('g.buy'),
                 link: '#',
-                onClick: onShowTRX,
+                onClick: e => {
+                    onShowTRX(e);
+                    recordAdsView({
+                        trackingId: this.props.trackingId,
+                        adTag: 'TronBuy',
+                    });
+                },
             },
             {
                 value: tt('g.tronVote'),
