@@ -7,7 +7,7 @@
         "directives": {
             "childSrc": "'self'",
             "connectSrc":
-                "'self' steemit.com https://api.steemit.com https://testnet.steemitdev.com api.trongrid.io localhost:8080",
+                "'self' steemit.com https://api.steemit.com https://testnet.steemitdev.com www.googletagmanager.com www.google-analytics.com pagead2.googlesyndication.com googleads.g.doubleclick.net api.trongrid.io",
             "defaultSrc": "'self'",
             "fontSrc": "data: fonts.gstatic.com",
             "frameAncestors": "'none'",
