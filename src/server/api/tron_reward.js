@@ -9,7 +9,7 @@ import { getRecordCache2, updateRecordCache2 } from 'db/cache';
 import config from 'config';
 import { logRequest } from 'server/utils/loggers';
 import { getRemoteIp, rateLimitReq } from 'server/utils/misc';
-import { authData } from 'server/utils/encrypted';
+import { authData } from '@steemfans/auth-data';
 import { clearPendingClaimTronReward } from 'db/utils/user_utils';
 
 export default function useTronRewardApi(app) {
