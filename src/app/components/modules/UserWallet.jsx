@@ -376,7 +376,7 @@ class UserWallet extends React.Component {
         // const tron_reward =  (currentUser && currentUser.has('tron_reward'))
         //                     ?currentUser.get('tron_reward'):'0.000';
         const tron_reward =
-            typeof this.props.tron_reward == String
+            typeof this.props.tron_reward === 'string'
                 ? this.props.tron_reward.replace(/[^0-9.]/, '')
                 : 0.0;
         const tron_balance = parseFloat(this.props.tron_balance);
@@ -659,7 +659,7 @@ class UserWallet extends React.Component {
                 ? account.get('reward_vesting_steem').replace('STEEM', 'SP')
                 : null;
         const reward_tron =
-            typeof this.props.tron_reward == String
+            typeof this.props.tron_reward === 'string'
                 ? parseFloat(this.props.tron_reward.split(' ')[0]) > 0
                     ? this.props.tron_reward
                     : null

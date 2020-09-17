@@ -578,7 +578,7 @@ class TransferForm extends Component {
                                     }}
                                     renderMenu={items => (
                                         <div className="react-autocomplete-input">
-                                            {item}
+                                            {items}
                                         </div>
                                     )}
                                     ref={el => (this.to = el)}
