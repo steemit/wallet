@@ -1,3 +1,6 @@
+/* eslint-disable react/forbid-prop-types */
+/* eslint-disable no-undef */
+/* eslint-disable react/sort-comp */
 import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
@@ -12,7 +15,6 @@ import * as transactionActions from 'app/redux/TransactionReducer';
 import LoginForm from 'app/components/modules/LoginForm';
 import ConfirmTransactionForm from 'app/components/modules/ConfirmTransactionForm';
 import Transfer from 'app/components/modules/Transfer';
-// import TronTransfer from 'app/components/modules/TronTransfer';
 import SignUp from 'app/components/modules/SignUp';
 import Powerdown from 'app/components/modules/Powerdown';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
@@ -248,7 +250,7 @@ class Modals extends React.Component {
                     </Reveal>
                 )}
                 <NotificationStack
-                    style={false}
+                    style={{}}
                     notifications={notifications_array}
                     onDismiss={n => removeNotification(n.key)}
                 />
