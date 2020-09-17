@@ -1,3 +1,13 @@
+/* eslint-disable react/no-did-update-set-state */
+/* eslint-disable jsx-a11y/no-static-element-interactions */
+/* eslint-disable react/jsx-boolean-value */
+/* eslint-disable prefer-const */
+/* eslint-disable class-methods-use-this */
+/* eslint-disable react/no-did-mount-set-state */
+/* eslint-disable react/no-string-refs */
+/* eslint-disable react/no-find-dom-node */
+/* eslint-disable react/forbid-prop-types */
+/* eslint-disable no-undef */
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import ReactDOM from 'react-dom';
@@ -19,6 +29,7 @@ import {
 } from 'app/utils/ChainValidation';
 import { countDecimals } from 'app/utils/ParsersAndFormatters';
 import { APP_NAME, LIQUID_TOKEN, VESTING_TOKEN } from 'app/client_config';
+import { connect } from 'react-redux';
 
 /** Warning .. This is used for Power UP too. */
 class TransferForm extends Component {
@@ -57,16 +68,6 @@ class TransferForm extends Component {
         this.initForm(props);
     }
 
-    // covert tron address into the one only showing first and last 6 digit
-    covertTronAddress(tron_address) {
-        let fix_address = tron_address;
-        let middle_string = '';
-        fix_address =
-            fix_address.substring(0, 6) +
-            middle_string.padStart(fix_address.length - 12, '*') +
-            fix_address.slice(-6);
-        return fix_address;
-    }
     componentDidMount() {
         setTimeout(() => {
             const { advanced } = this.state;
@@ -91,6 +92,36 @@ class TransferForm extends Component {
             this.props.resetError();
         }
         this.buildTransferAutocomplete();
+    }
+
+    componentDidUpdate(prevProps) {
+        if (this.props.tron_transfer_msg !== prevProps.tron_transfer_msg) {
+            this.setState({
+                tron_transfer_msg: this.props.tron_transfer_msg,
+                error: this.props.tron_transfer_msg != '',
+                trxError: this.props.tron_transfer_msg,
+                tron_loading: false,
+                to: { ...this.state.to, error: this.props.tron_transfer_msg },
+            });
+        }
+        if (this.props.to_tron_address !== prevProps.to_tron_address) {
+            this.setState({
+                to_tron_address: this.covertTronAddress(
+                    this.props.to_tron_address
+                ),
+            });
+        }
+    }
+
+    // covert tron address into the one only showing first and last 6 digit
+    covertTronAddress(tron_address) {
+        let fix_address = tron_address;
+        let middle_string = '';
+        fix_address =
+            fix_address.substring(0, 6) +
+            middle_string.padStart(fix_address.length - 12, '*') +
+            fix_address.slice(-6);
+        return fix_address;
     }
 
     buildTransferAutocomplete() {
@@ -304,28 +335,9 @@ class TransferForm extends Component {
         //     to: { ...this.state.to, value: value.toLowerCase().trim(),touched: true,error:error},
         // });
         this.setState({
-            to: { ...this.state.to, value: value, touched: true, error: error },
+            to: { ...this.state.to, value, touched: true, error },
         });
     };
-
-    componentDidUpdate(prevProps) {
-        if (this.props.tron_transfer_msg !== prevProps.tron_transfer_msg) {
-            this.setState({
-                tron_transfer_msg: this.props.tron_transfer_msg,
-                error: this.props.tron_transfer_msg != '',
-                trxError: this.props.tron_transfer_msg,
-                tron_loading: false,
-                to: { ...this.state.to, error: this.props.tron_transfer_msg },
-            });
-        }
-        if (this.props.to_tron_address !== prevProps.to_tron_address) {
-            this.setState({
-                to_tron_address: this.covertTronAddress(
-                    this.props.to_tron_address
-                ),
-            });
-        }
-    }
 
     render() {
         const transferTips = {
@@ -565,10 +577,9 @@ class TransferForm extends Component {
                                         disabled: loading,
                                     }}
                                     renderMenu={items => (
-                                        <div
-                                            className="react-autocomplete-input"
-                                            children={items}
-                                        />
+                                        <div className="react-autocomplete-input">
+                                            {item}
+                                        </div>
                                     )}
                                     ref={el => (this.to = el)}
                                     getItemValue={item => item.username}
@@ -971,8 +982,6 @@ const AssetBalance = ({ onClick, balanceValue }) => (
         {tt('g.balance', { balanceValue })}
     </a>
 );
-
-import { connect } from 'react-redux';
 
 export default connect(
     // mapStateToProps
