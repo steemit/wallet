@@ -68,6 +68,7 @@ find node_modules/eslint-config-airbnb -name '*.js'|xargs sed -i "s/': 2/': 1/"
     "dot-notation": "off",
     "consistent-return": "off",
     "no-mixed-operators": "off",
+    "react/jsx-boolean-value": "off",
 
     "generator-star-spacing": 0
   }

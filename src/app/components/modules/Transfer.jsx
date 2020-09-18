@@ -119,7 +119,7 @@ class TransferForm extends Component {
         let middle_string = '';
         fix_address =
             fix_address.substring(0, 6) +
-            middle_string.padStart(fix_address.length - 12, '*') +
+            middle_string.padStart(6, '.') +
             fix_address.slice(-6);
         return fix_address;
     }
@@ -538,10 +538,12 @@ class TransferForm extends Component {
                                 disabled
                                 value={currentUser.get('username')}
                             />
-                            <span className="tron_address">
-                                {' '}
-                                {this.state.tron_address}
-                            </span>
+                            {this.state.tron_transfer && (
+                                <span className="tron_address">
+                                    {' '}
+                                    {this.state.tron_address}
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -577,18 +579,28 @@ class TransferForm extends Component {
                                         disabled: loading,
                                     }}
                                     renderMenu={items => (
-                                        <div className="react-autocomplete-input">
+                                        <div
+                                            className={`react-autocomplete-input ${items.length ===
+                                                0 &&
+                                                'react-autocomplete-input-no-data'}`}
+                                        >
                                             {items}
                                         </div>
                                     )}
                                     ref={el => (this.to = el)}
                                     getItemValue={item => item.username}
-                                    items={this.state.autocompleteUsers}
+                                    items={
+                                        this.state.tron_transfer &&
+                                        this.state.switchSteem
+                                            ? this.state.autocompleteUsers
+                                            : []
+                                    }
                                     shouldItemRender={
                                         this.matchAutocompleteUser
                                     }
                                     renderItem={(item, isHighlighted) => (
                                         <div
+                                            key={item.username}
                                             className={
                                                 isHighlighted ? 'active' : ''
                                             }
@@ -618,11 +630,12 @@ class TransferForm extends Component {
                                         this.onChangeTo(val);
                                     }}
                                 />
-                                {this.state.switchSteem && (
-                                    <span className="tron_address">
-                                        {this.state.to_tron_address}
-                                    </span>
-                                )}
+                                {this.state.tron_transfer &&
+                                    this.state.switchSteem && (
+                                        <div className="tron_address">
+                                            {this.state.to_tron_address}
+                                        </div>
+                                    )}
                             </div>
                             {this.state.tron_transfer &&
                                 this.state.switchSteem && (
