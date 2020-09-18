@@ -23,7 +23,7 @@
     margin-top: 20px;
 }
 .buttonQR{
-    font-size: 10px; 
+    font-size: 10px;
     margin-left: 10px;
     background-color: #e7e7e7;
     color: black;
@@ -63,7 +63,7 @@
     }
 }
 .link {
-    font-size: 15px; 
+    font-size: 15px;
     margin-left: 20px;
 }
 .WalletSubMenu {
@@ -106,4 +106,28 @@
     .Wallet_dropdown {
         left: 10px !important;
     }
+}
+
+.buttonQR {
+  font-size: 10px;
+  background-color: transparent;
+  border: 1px solid #06D6A9;
+  color: #1FBF8F;
+  padding: 0.85em 1em;
+}
+
+.UserWallet__balance.tron {
+  .tron-addr {
+    display: flex;
+    align-items: center;
+    .show-qrcode {
+      width: 40%;
+    }
+  }
+  .qrcode {
+    position: absolute;
+    left: 90px;
+    top: -110%;
+    z-index: 1;
+  }
 }

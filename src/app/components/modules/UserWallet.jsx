@@ -43,7 +43,6 @@ class UserWallet extends React.Component {
         super();
         this.state = {
             claimInProgress: false,
-            showQRButton: true,
             showQR: false,
             copied: false,
         };
@@ -135,7 +134,7 @@ class UserWallet extends React.Component {
                 'https://just.tronscan.org/?lang=en-US#/login';
         };
         this.showQR = e => {
-            this.setState({ showQR: true, showQRButton: false });
+            this.setState({ showQR: true });
         };
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
     }
@@ -207,6 +206,7 @@ class UserWallet extends React.Component {
             currentUser,
             open_orders,
         } = this.props;
+        const { showQR } = this.state;
         const gprops = this.props.gprops.toJS();
 
         // do not render if account is not loaded or available
@@ -903,60 +903,75 @@ class UserWallet extends React.Component {
                         )}
                     </div>
                 </div>
-                <div className="UserWallet__balance row">
+                <div className="UserWallet__balance row tron">
                     <div className="column small-12 medium-8">
                         TRX
+                        {isTrxAccount && (
+                            <div className="secondary tron-addr">
+                                <div
+                                    className="tron-addr-item"
+                                    style={{ paddingRight: '1em' }}
+                                >
+                                    {!isTrxAccount
+                                        ? tt(
+                                              'userwallet_jsx.create_trx_description'
+                                          )
+                                        : TRX_address}
+                                </div>
+                                <div className="tron-addr-item">
+                                    <CopyToClipboard
+                                        text={TRX_address}
+                                        onCopy={() => {
+                                            this.setState({ copied: true });
+                                            setTimeout(() => {
+                                                this.setState({
+                                                    copied: false,
+                                                });
+                                            }, 2000);
+                                        }}
+                                    >
+                                        <button className="buttonQR">
+                                            {tt('tron_jsx.copy')}
+                                        </button>
+                                    </CopyToClipboard>
+                                    {this.state.copied ? (
+                                        <span style={{ color: 'red' }}>
+                                            Copy successfully
+                                        </span>
+                                    ) : null}
+                                </div>
+                                <div
+                                    className={`tron-addr-item ${showQR &&
+                                        'show-qrcode'}`}
+                                    style={{ position: 'relative' }}
+                                >
+                                    <button
+                                        className="buttonQR"
+                                        onClick={() =>
+                                            this.setState({
+                                                showQR: !showQR,
+                                            })
+                                        }
+                                    >
+                                        {tt('tron_jsx.qr_code')}{' '}
+                                    </button>
+                                    {showQR && (
+                                        <div className="qrcode">
+                                            <QRCode
+                                                text={TRX_address}
+                                                onClick={() =>
+                                                    this.setState({
+                                                        showQR: !this.state
+                                                            .showQR,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                         <div className="secondary">
-                            {!isTrxAccount
-                                ? tt('userwallet_jsx.create_trx_description')
-                                : TRX_address}
-                            <CopyToClipboard
-                                text={TRX_address}
-                                onCopy={() => {
-                                    this.setState({ copied: true });
-                                    setTimeout(() => {
-                                        this.setState({ copied: false });
-                                    }, 2000);
-                                }}
-                            >
-                                <button className="buttonQR">
-                                    {tt('tron_jsx.copy')}
-                                </button>
-                            </CopyToClipboard>
-                            {this.state.copied ? (
-                                <span style={{ color: 'red' }}>
-                                    Copy successfully
-                                </span>
-                            ) : null}
-                            {this.state.showQRButton && (
-                                <button
-                                    className="buttonQR"
-                                    onClick={() =>
-                                        this.setState({
-                                            showQR: true,
-                                            showQRButton: false,
-                                            copied: false,
-                                        })
-                                    }
-                                >
-                                    {tt('tron_jsx.qr_code')}{' '}
-                                </button>
-                            )}
-                            {this.state.showQR && (
-                                <Link
-                                    className="link"
-                                    onClick={() =>
-                                        this.setState({
-                                            showQR: false,
-                                            showQRButton: true,
-                                            copied: false,
-                                        })
-                                    }
-                                >
-                                    <QRCode text={TRX_address} />{' '}
-                                </Link>
-                            )}
-                            <br />
                             {tt('userwallet_jsx.trx_description')}
                         </div>
                     </div>
