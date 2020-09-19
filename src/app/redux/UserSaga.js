@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 /* eslint-disable no-prototype-builtins */
 /* eslint-disable require-yield */
 /* eslint-disable no-empty-pattern */
@@ -123,7 +124,7 @@ function* checkTron({ payload: { to_username, to_tron_address } }) {
                 userActions.setUser({
                     username,
                     tron_transfer_msg: '',
-                    to_tron_address: to_tron_address,
+                    to_tron_address,
                 })
             );
         }
@@ -209,7 +210,7 @@ function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
             yield put(
                 userActions.setUser({
                     username,
-                    tron_address: tron_address,
+                    tron_address,
                     tron_user: false,
                     tron_create: false,
                     tron_create_msg: 'fail to create tron account',
@@ -229,7 +230,7 @@ function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
             yield put(
                 userActions.setUser({
                     username,
-                    tron_address: tron_address,
+                    tron_address,
                     tron_user: true,
                     tron_create: false,
                     tron_create_msg:
