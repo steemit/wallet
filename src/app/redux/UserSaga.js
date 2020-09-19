@@ -664,7 +664,6 @@ function* usernamePasswordLogin({
                 yield put(
                     userActions.setUser({
                         username,
-                        pass_auth: true,
                     })
                 );
                 if (!exit_tron_user && query_user_name == username) {

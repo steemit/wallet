@@ -495,26 +495,14 @@ class UserWallet extends React.Component {
         ];
         const trx_menu = [
             {
-                value: tt('g.sell'),
+                value: tt('g.transfer'),
                 link: '#',
-                onClick: e => {
-                    recordAdsView({
-                        trackingId: this.props.trackingId,
-                        adTag: 'TronSell',
-                    });
-                    onShowTRX(e);
-                },
-            },
-            {
-                value: tt('g.buy'),
-                link: '#',
-                onClick: e => {
-                    onShowTRX(e);
-                    recordAdsView({
-                        trackingId: this.props.trackingId,
-                        adTag: 'TronBuy',
-                    });
-                },
+                // todo  replace with TRX function
+                onClick: showTronTransfer.bind(
+                    this,
+                    'TRX',
+                    'Transfer to Account'
+                ),
             },
             {
                 value: tt('g.tronVote'),
@@ -529,23 +517,13 @@ class UserWallet extends React.Component {
                 },
             },
             {
-                value: tt('userwallet_jsx.just_mortgage'),
+                value: ' ',
                 link: '#',
-                onClick: onShowJUST,
+                onClick: e => {
+                    e.preventDefault();
+                },
             },
         ];
-        if (this.props.pass_auth && this.props.tron_address != '') {
-            trx_menu.push({
-                value: tt('g.transfer'),
-                link: '#',
-                // todo  replace with TRX function
-                onClick: showTronTransfer.bind(
-                    this,
-                    'TRX',
-                    'Transfer to Account'
-                ),
-            });
-        }
         if (isMyAccount) {
             steem_menu.push({
                 value: tt('g.buy'),
@@ -584,6 +562,33 @@ class UserWallet extends React.Component {
                 value: tt('g.sell'),
                 link: '#',
                 onClick: onShowWithdrawSBD,
+            });
+            trx_menu.push({
+                value: tt('g.buy'),
+                link: '#',
+                onClick: e => {
+                    onShowTRX(e);
+                    recordAdsView({
+                        trackingId: this.props.trackingId,
+                        adTag: 'TronBuy',
+                    });
+                },
+            });
+            trx_menu.push({
+                value: tt('g.sell'),
+                link: '#',
+                onClick: e => {
+                    recordAdsView({
+                        trackingId: this.props.trackingId,
+                        adTag: 'TronSell',
+                    });
+                    onShowTRX(e);
+                },
+            });
+            trx_menu.push({
+                value: tt('userwallet_jsx.just_mortgage'),
+                link: '#',
+                onClick: onShowJUST,
             });
         }
 
@@ -990,8 +995,7 @@ class UserWallet extends React.Component {
 
                         {
                             <div className="columns shrink">
-                                {this.props.pass_auth &&
-                                    isMyAccount &&
+                                {isMyAccount &&
                                     !isTrxAccount && (
                                         <button
                                             className="UserWallet__buysp button buttonSmall hollow"
@@ -1008,8 +1012,7 @@ class UserWallet extends React.Component {
                         }
                         {
                             <div className="columns shrink">
-                                {this.props.pass_auth &&
-                                    isMyAccount &&
+                                {isMyAccount &&
                                     isTrxAccount && (
                                         <button
                                             className="UserWallet__buysp button buttonSmall hollow"
@@ -1027,7 +1030,7 @@ class UserWallet extends React.Component {
                     </div>
                 </div>
 
-                <div className="UserWallet__balance row">
+                <div className="UserWallet__balance row zebra">
                     <div className="column small-12 medium-8">
                         {tt('userwallet_jsx.estimated_account_value')}
                         <div className="secondary">
@@ -1137,10 +1140,6 @@ export default connect(
             currentUser && currentUser.has('tron_balance')
                 ? currentUser.get('tron_balance')
                 : 0.0;
-        const pass_auth =
-            currentUser && currentUser.has('pass_auth')
-                ? currentUser.get('pass_auth')
-                : false;
         return {
             ...ownProps,
             open_orders: state.market.get('open_orders'),
@@ -1153,7 +1152,6 @@ export default connect(
             tron_user,
             tron_address,
             tron_balance,
-            pass_auth,
             trackingId: state.app.getIn(['trackingId'], null),
         };
     },
