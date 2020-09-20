@@ -1,3 +1,4 @@
+/* eslint-disable global-require */
 import App from 'app/components/App';
 import Benchmark from 'app/components/pages/Benchmark';
 import WalletIndex from 'app/components/pages/WalletIndex';
