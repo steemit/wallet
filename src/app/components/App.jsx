@@ -1,3 +1,8 @@
+/* eslint-disable react/require-default-props */
+/* eslint-disable no-constant-condition */
+/* eslint-disable no-undef */
+/* eslint-disable react/no-string-refs */
+/* eslint-disable no-underscore-dangle */
 import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
@@ -65,6 +70,17 @@ class App extends React.Component {
         }
     }
 
+    shouldComponentUpdate(nextProps, nextState) {
+        const { pathname, new_visitor, nightmodeEnabled } = this.props;
+        const n = nextProps;
+        return (
+            pathname !== n.pathname ||
+            new_visitor !== n.new_visitor ||
+            this.state.showCallout !== nextState.showCallout ||
+            nightmodeEnabled !== n.nightmodeEnabled
+        );
+    }
+
     _addEntropyCollector() {
         if (!this.listenerActive && this.refs.App_root) {
             this.refs.App_root.addEventListener(
@@ -84,17 +100,6 @@ class App extends React.Component {
             );
             this.listenerActive = null;
         }
-    }
-
-    shouldComponentUpdate(nextProps, nextState) {
-        const { pathname, new_visitor, nightmodeEnabled } = this.props;
-        const n = nextProps;
-        return (
-            pathname !== n.pathname ||
-            new_visitor !== n.new_visitor ||
-            this.state.showCallout !== nextState.showCallout ||
-            nightmodeEnabled !== n.nightmodeEnabled
-        );
     }
 
     onEntropyEvent = e => {
@@ -168,9 +173,9 @@ class App extends React.Component {
                             />
                             <ul>
                                 <li>
-                                    /*<a href="https://steemit.com/steemit/@steemitblog/steemit-com-is-now-open-source">
+                                    {/*<a href="https://steemit.com/steemit/@steemitblog/steemit-com-is-now-open-source">
                                         ...STORY TEXT...
-                                    </a>*/
+                                    </a>*/}
                                 </li>
                             </ul>
                         </div>
