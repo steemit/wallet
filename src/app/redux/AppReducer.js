@@ -1,3 +1,4 @@
+/* eslint-disable no-case-declarations */
 import { Map, OrderedMap } from 'immutable';
 import tt from 'counterpart';
 
