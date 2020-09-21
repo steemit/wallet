@@ -71,7 +71,6 @@ export default class UserProfile extends React.Component {
             },
             onPrint,
         } = this;
-        const username = currentUser ? currentUser.get('username') : null;
 
         // Redirect user homepage to transfers page
         const { section } = this.props.routeParams;
