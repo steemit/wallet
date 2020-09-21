@@ -1,3 +1,6 @@
+/* eslint-disable no-plusplus */
+/* eslint-disable no-lonely-if */
+/* eslint-disable no-restricted-syntax */
 import { call, put, select, takeEvery } from 'redux-saga/effects';
 import { Set, Map, fromJS, List } from 'immutable';
 import { api } from '@steemit/steem-js';
