@@ -115,11 +115,11 @@ export function updateTronUser(
 ) {
     const auth_type = 'posting';
     const data = {
-        username: username,
+        username,
         tron_addr: tron_address,
-        auth_type: auth_type,
-        claim_reward: claim_reward,
-        tip_count: tip_count,
+        auth_type,
+        claim_reward,
+        tip_count,
     };
     const r = signData(data, privKey);
     // const body = {
