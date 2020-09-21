@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import {
     call,
     put,
@@ -8,12 +9,13 @@ import {
 } from 'redux-saga/effects';
 import { api } from '@steemit/steem-js';
 import { loadFollows } from 'app/redux/FollowSaga';
-import * as globalActions from './GlobalReducer';
-import * as appActions from './AppReducer';
 import * as userActions from 'app/redux/UserReducer';
-import constants from './constants';
+import { checkTronUser } from 'app/utils/ServerApiClient';
 import { fromJS, Map, Set } from 'immutable';
 import { getStateAsync } from 'app/utils/steemApi';
+import * as globalActions from './GlobalReducer';
+import * as appActions from './AppReducer';
+import constants from './constants';
 
 const REQUEST_DATA = 'fetchDataSaga/REQUEST_DATA';
 const GET_CONTENT = 'fetchDataSaga/GET_CONTENT';
@@ -29,8 +31,9 @@ let is_initial_state = true;
 export function* fetchState(location_change_action) {
     const { pathname } = location_change_action.payload;
     const m = pathname.match(/^\/@([a-z0-9\.-]+)/);
+    let username;
     if (m && m.length === 2) {
-        const username = m[1];
+        username = m[1];
         yield fork(loadFollows, username, 'blog');
     }
 
@@ -67,6 +70,12 @@ export function* fetchState(location_change_action) {
     yield put(appActions.fetchDataBegin());
     try {
         const state = yield call(getStateAsync, url);
+        // get tron information by steem username
+        // and merge into account
+        const tronAccount = yield call(checkTronUser, username);
+        Object.keys(tronAccount).forEach(k => {
+            state.accounts[username][k] = tronAccount[k];
+        });
         yield put(globalActions.receiveState(state));
         // If a user's transfer page is being loaded, fetch related account data.
         yield call(getTransferUsers, pathname);
