@@ -103,7 +103,14 @@ export function acceptTos() {
 
 export function checkTronUser(username) {
     const queryString = '/api/v1/tron/tron_user?username=' + username;
-    return fetch(queryString);
+    return fetch(queryString)
+        .then(res => {
+            return res.json();
+        })
+        .then(res => {
+            if (res.error) throw new Error(res.error);
+            return res.result;
+        });
 }
 
 export function updateTronUser(
