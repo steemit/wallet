@@ -43,7 +43,7 @@ export function* getAccount(username, force = false) {
             // get tron information by steem username
             // and merge into account
             const tronAccount = fromJS(yield call(checkTronUser, username));
-            // update account
+            // merge and update account
             account = fromJS(account).mergeDeep(tronAccount);
             yield put(globalActions.receiveAccount({ account }));
         }
