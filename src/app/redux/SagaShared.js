@@ -3,7 +3,7 @@ import { fromJS } from 'immutable';
 import { call, put, select, takeEvery, takeLatest } from 'redux-saga/effects';
 import tt from 'counterpart';
 import { api } from '@steemit/steem-js';
-import { setUserPreferences } from 'app/utils/ServerApiClient';
+import { setUserPreferences, checkTronUser } from 'app/utils/ServerApiClient';
 import { getStateAsync } from 'app/utils/steemApi';
 import * as globalActions from './GlobalReducer';
 import * as appActions from './AppReducer';
@@ -40,7 +40,11 @@ export function* getAccount(username, force = false) {
 
         [account] = yield call([api, api.getAccountsAsync], [username]);
         if (account) {
-            account = fromJS(account);
+            // get tron information by steem username
+            // and merge into account
+            const tronAccount = fromJS(yield call(checkTronUser, username));
+            // update account
+            account = fromJS(account).mergeDeep(tronAccount);
             yield put(globalActions.receiveAccount({ account }));
         }
     }
