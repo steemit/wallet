@@ -194,17 +194,6 @@ export default function reducer(state = defaultState, action) {
             return state; // saga
         case RESET_ERROR:
             return state; //sage
-        case SET_USERNAME:
-            // TODO: Clean this up
-            return state.mergeDeep({
-                current: payload,
-                show_login_modal: false,
-                show_vote_modal: false,
-                loginBroadcastOperation: undefined,
-                loginDefault: undefined,
-                logged_out: undefined,
-            });
-
         case SET_USER:
             if (payload.vesting_shares)
                 payload.vesting_shares = parseFloat(payload.vesting_shares);
@@ -440,11 +429,6 @@ export const clearPowerdownDefaults = payload => ({
 
 export const usernamePasswordLogin = payload => ({
     type: USERNAME_PASSWORD_LOGIN,
-    payload,
-});
-
-export const setUsername = payload => ({
-    type: SET_USERNAME,
     payload,
 });
 
