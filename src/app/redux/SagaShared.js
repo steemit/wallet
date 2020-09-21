@@ -1,12 +1,13 @@
+/* eslint-disable no-restricted-syntax */
 import { fromJS } from 'immutable';
 import { call, put, select, takeEvery, takeLatest } from 'redux-saga/effects';
 import tt from 'counterpart';
 import { api } from '@steemit/steem-js';
+import { setUserPreferences } from 'app/utils/ServerApiClient';
+import { getStateAsync } from 'app/utils/steemApi';
 import * as globalActions from './GlobalReducer';
 import * as appActions from './AppReducer';
 import * as transactionActions from './TransactionReducer';
-import { setUserPreferences } from 'app/utils/ServerApiClient';
-import { getStateAsync } from 'app/utils/steemApi';
 
 const wait = ms =>
     new Promise(resolve => {
@@ -25,7 +26,7 @@ export function* getAccount(username, force = false) {
     );
 
     // hive never serves `owner` prop (among others)
-    let isLite = !!account && !account.get('owner');
+    const isLite = !!account && !account.get('owner');
 
     if (!account || force || isLite) {
         console.log(
