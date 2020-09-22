@@ -17,7 +17,8 @@ import { PrivateKey, Signature, hash } from '@steemit/steem-js/lib/auth/ecc';
 import { accountAuthLookup } from 'app/redux/AuthSaga';
 import { getAccount } from 'app/redux/SagaShared';
 import * as userActions from 'app/redux/UserReducer';
-import { receiveFeatureFlags } from 'app/redux/AppReducer';
+import * as appActions from 'app/redux/AppReducer';
+import * as globalActions from 'app/redux/GlobalReducer';
 import {
     hasCompatibleKeychain,
     isLoggedInWithKeychain,
@@ -53,9 +54,8 @@ export const userWatches = [
     takeLatest(userActions.LOGOUT, logout),
     takeLatest(userActions.LOGIN_ERROR, loginError),
     takeLatest(userActions.LOAD_SAVINGS_WITHDRAW, loadSavingsWithdraw),
-    takeLatest(userActions.UPDATE_USER, updateTronAccount),
     takeLatest(userActions.CHECK_TRON, checkTron),
-    takeLatest(userActions.RESET_ERROR, resetError),
+    takeLatest(userActions.UPDATE_TRON_ADDR, updateTronAddr),
     takeLatest(userActions.ACCEPT_TERMS, function*() {
         try {
             yield call(acceptTos);
@@ -83,18 +83,6 @@ const highSecurityPages = [
     /\/proposals/,
 ];
 
-function* resetError() {
-    const username = yield select(state =>
-        state.user.getIn(['current', 'username'])
-    );
-    yield put(
-        userActions.setUser({
-            username,
-            tron_transfer_msg: '',
-            tron_create_msg: '',
-        })
-    );
-}
 function* checkTron({ payload: { to_username, to_tron_address } }) {
     const [username, tron_addr] = yield select(state => [
         state.user.getIn(['current', 'username']),
@@ -184,97 +172,6 @@ function* checkTron({ payload: { to_username, to_tron_address } }) {
                 tron_transfer_msg: tt('chainvalidation_js.unknow_recipient'),
             })
         );
-    }
-}
-function* updateTronAccount({ payload: { claim_reward, tron_address } }) {
-    const [username, private_key] = yield select(state => [
-        state.user.getIn(['current', 'username']),
-        state.user.getIn(['current', 'private_keys']),
-    ]);
-
-    if (claim_reward) {
-        console.log('start claim tron reward...');
-        const response = yield updateTronUser(
-            username,
-            tron_address,
-            true,
-            0,
-            private_key.get('posting_private').toWif()
-        );
-        const body = yield response.json();
-        // console.log('claim reward...' + JSON.stringify(body));
-    } else {
-        // create a tron account
-        console.log('update tron user ...' + username);
-        const res = yield createTronAccount();
-        const obj = yield res.json();
-        if (obj.address == undefined || obj.address.base58 == undefined) {
-            yield put(
-                userActions.setUser({
-                    username,
-                    tron_address,
-                    tron_user: false,
-                    tron_create: false,
-                    tron_create_msg: 'fail to create tron account',
-                })
-            );
-            return;
-        }
-        const response1 = yield updateTronUser(
-            username,
-            obj.address.base58,
-            false,
-            0,
-            private_key.get('posting_private').toWif()
-        );
-        const body1 = yield response1.json();
-        if (!body1.hasOwnProperty('status') || body1.status != 'ok') {
-            yield put(
-                userActions.setUser({
-                    username,
-                    tron_address,
-                    tron_user: true,
-                    tron_create: false,
-                    tron_create_msg:
-                        'create a tron account,fail to update tron account',
-                })
-            );
-            console.log(body1); // debug for wallet.steemitdev.com  production
-            return;
-        }
-
-        // query tron user information
-        const response = yield checkTronUser(username);
-        const body = yield response.json();
-        if (body.hasOwnProperty('status') && body.status == 'ok') {
-            yield put(
-                userActions.setUser({
-                    username,
-                    tron_address: body.result.tron_addr,
-                    tron_user: body.result.tron_addr == '' ? false : true,
-                    // tron_user: true,
-                    tron_reward: body.result.pending_claim_tron_reward,
-                    tron_balance: 0.0,
-                    tron_private_key: obj.privateKey,
-                    tron_public_key: obj.address.base58, // use address, todo: clarity public key on pdf file
-                    tron_create: true,
-                    tron_create_msg: '',
-                })
-            );
-        } else {
-            yield put(
-                userActions.setUser({
-                    username,
-                    tron_address: '',
-                    tron_user: true,
-                    tron_reward: 0.0,
-                    tron_balance: 0.0,
-                    tron_create_msg:
-                        'successful update tron account,but fail to query tron account information',
-                    tron_create: false,
-                })
-            );
-        }
     }
 }
 
@@ -671,7 +568,7 @@ function* getFeatureFlags(username, posting_private) {
                 posting_private
             );
         }
-        yield put(receiveFeatureFlags(flags));
+        yield put(appActions.receiveFeatureFlags(flags));
     } catch (error) {
         // Do nothing; feature flags are not ready yet. Or posting_private is not available.
     }
@@ -832,6 +729,7 @@ function* updateTronPopupTipCount() {
         state.user.getIn(['current', 'private_keys']),
     ]);
 
+    // charge that which level private key we own.
     let privateKeyType = null;
     if (private_keys.has('active_private')) privateKeyType = 'active_private';
     if (private_keys.has('posting_private')) privateKeyType = 'posting_private';
@@ -856,4 +754,86 @@ function* updateTronPopupTipCount() {
     setTimeout(() =>
         updateTronUser(data, private_keys.get(privateKeyType).toWif())
     );
+}
+
+function* updateTronAddr() {
+    const [username, private_keys] = yield select(state => [
+        state.user.getIn(['current', 'username']),
+        state.user.getIn(['current', 'private_keys']),
+    ]);
+
+    // charge that which level private key we own.
+    let privateKeyType = null;
+    if (private_keys.has('active_private')) privateKeyType = 'active_private';
+    if (private_keys.has('posting_private')) privateKeyType = 'posting_private';
+    if (privateKeyType === null) {
+        console.log('there is no private key in browser cache.');
+        yield put(
+            appActions.addNotification({
+                key: 'chpwd_' + Date.now(),
+                message: tt('loginform_jsx.login_to_create_tron_addr'),
+                dismissAfter: 3000,
+            })
+        );
+        return;
+    }
+
+    // create tron account
+    const tronAccount = yield createTronAccount();
+    if (
+        tronAccount.address === undefined ||
+        tronAccount.address.base58 === undefined
+    ) {
+        yield put(
+            appActions.addNotification({
+                key: 'chpwd_' + Date.now(),
+                message: tt('userwallet_jsx.create_trx_failed'),
+                dismissAfter: 3000,
+            })
+        );
+        return;
+    }
+
+    const tronPrivKey = tronAccount.privateKey;
+    const tronPubKey = tronAccount.address.base58;
+
+    // update steem user's tron_addr
+    const data = {
+        username,
+        auth_type: privateKeyType === 'active_private' ? 'active' : 'posting',
+        tron_addr: tronPubKey,
+    };
+    const result = yield updateTronUser(
+        data,
+        private_keys.get(privateKeyType).toWif()
+    );
+    if (result.error !== undefined) {
+        yield put(
+            appActions.addNotification({
+                key: 'chpwd_' + Date.now(),
+                message: result.error,
+                dismissAfter: 3000,
+            })
+        );
+        return;
+    }
+
+    // update current login user's state
+    yield put(
+        userActions.setUser({
+            tron_addr: tronPubKey,
+            tron_private_key: tronPrivKey,
+        })
+    );
+
+    // update current route user's state
+    const state = {
+        accounts: {},
+    };
+    state.accounts[username] = {};
+    const tronInfo = yield call(checkTronUser, username);
+    Object.keys(tronInfo).forEach(k => {
+        state.accounts[username][k] = tronInfo[k];
+    });
+    yield put(globalActions.receiveState(state));
 }

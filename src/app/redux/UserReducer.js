@@ -49,8 +49,8 @@ const HIDE_TRON_CREATE_SUCCESS = 'user/HIDE_TRON_CREATE_SUCCESS';
 // Saga-related
 export const LOAD_SAVINGS_WITHDRAW = 'user/LOAD_SAVINGS_WITHDRAW';
 export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
-export const UPDATE_USER = 'user/UPDATE_USER';
 export const CHECK_TRON = 'user/CHECK_TRON';
+export const UPDATE_TRON_ADDR = 'user/UPDATE_TRON_ADDR';
 export const RESET_ERROR = 'user/RESET_ERROR';
 const defaultState = fromJS({
     current: null,
@@ -187,13 +187,10 @@ export default function reducer(state = defaultState, action) {
 
         case LOAD_SAVINGS_WITHDRAW:
             return state; // saga
-
-        case UPDATE_USER:
-            return state; // saga
         case CHECK_TRON:
             return state; // saga
-        case RESET_ERROR:
-            return state; //sage
+        case UPDATE_TRON_ADDR:
+            return state; // saga
         case SET_USER:
             if (payload.vesting_shares)
                 payload.vesting_shares = parseFloat(payload.vesting_shares);
@@ -276,7 +273,7 @@ export default function reducer(state = defaultState, action) {
         case HIDE_TRON_UPDATE:
             return state.set('show_tron_update_modal', false);
         case SHOW_TRON_UPDATE_SUCCESS:
-            return state.set('show_torn_update_success_modal', true);
+            return state.set('show_tron_update_success_modal', true);
         case HIDE_TRON_UPDATE_SUCCESS:
             return state.set('show_tron_update_success_modal', false);
         case SHOW_TRON_CREATE:
@@ -497,20 +494,16 @@ export const loadSavingsWithdraw = payload => ({
     payload,
 });
 
-export const updateUser = payload => ({
-    type: UPDATE_USER,
-    payload,
-});
-
 export const checkTron = payload => ({
     type: CHECK_TRON,
     payload,
 });
 
-export const resetError = payload => ({
-    type: RESET_ERROR,
+export const updateTronAddr = payload => ({
+    type: UPDATE_TRON_ADDR,
     payload,
 });
+
 export const showSidePanel = () => ({
     type: SHOW_SIDE_PANEL,
 });

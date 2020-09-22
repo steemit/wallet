@@ -143,14 +143,14 @@ class UserWallet extends React.Component {
 
     componentWillMount = () => {};
 
-    componentWillUpdate = () => {
+    componentWillUpdate = nextProps => {
         const {
             currentUserTronAddr,
             currentUserTipCount,
             unbindTipLimit,
             tronCreatePopupStatus,
             currentUserTipCountLock,
-        } = this.props;
+        } = nextProps;
         if (
             currentUserTronAddr === '' &&
             currentUserTipCount !== 999 &&
@@ -279,9 +279,11 @@ class UserWallet extends React.Component {
         };
 
         const onCreateTronAccount = e => {
+            e.target.blur();
             this.props.showTronCreate();
         };
         const onUpdateTronAccount = e => {
+            e.target.blur();
             this.props.showTronUpdate();
         };
 

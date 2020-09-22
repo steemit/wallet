@@ -127,17 +127,23 @@ export function updateTronUser(data, privKey) {
     const request = Object.assign({}, request_base, {
         body: JSON.stringify(r),
     });
-    return fetch('/api/v1/tron/tron_user', request);
+    return fetch('/api/v1/tron/tron_user', request).then(res => {
+        return res.json();
+    });
 }
 
 export function createTronAccount() {
     const queryString = '/api/v1/tron/create_account';
-    return fetch(queryString);
+    return fetch(queryString).then(res => {
+        return res.json();
+    });
 }
+
 export function getTronAccount(tron_address) {
     const queryString = '/api/v1/tron/get_account?tron_address=' + tron_address;
     return fetch(queryString);
 }
+
 export function getTronConfig() {
     const queryString = '/api/v1/tron/get_config';
     return fetch(queryString);

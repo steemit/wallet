@@ -26,40 +26,12 @@ class UpdateTronAccountTwo extends Component {
         };
         this.handleSubmit = e => {
             e.preventDefault();
-            this.props.hideUpdateSuccess();
-            // sessionStorage.removeItem('tron_public_key');
-            // sessionStorage.removeItem('tron_private_key');
+            this.props.hideTronUpdateSuccess();
         };
     }
 
-    async componentWillMount() {
-        if (this.props.tron_create == true) {
-            setTimeout(() => {
-                // wait for one second for loading pdf js library
-                this.setState({
-                    tron_public: this.props.tron_public_key,
-                    tron_private: this.props.tron_private_key,
-                    tron_create: true,
-                });
-            }, 500);
-        }
-    }
-
-    componentDidUpdate(prevProps) {
-        // start to download pdf key file
-        if (
-            this.props.tron_public_key !== prevProps.tron_public_key &&
-            this.props.tron_create
-        ) {
-            this.setState({
-                tron_public: this.props.tron_public_key,
-                tron_private: this.props.tron_private_key,
-                tron_create: true,
-            });
-        }
-    }
-
     render() {
+        const { username, tronAddr, tronPrivateKey } = this.props;
         return (
             <div>
                 <div>
@@ -69,15 +41,15 @@ class UpdateTronAccountTwo extends Component {
                     <div>{tt('tron_jsx.update_success_content')}</div>
                     <div>
                         <PdfDownload
-                            name={this.props.username}
-                            tron_public_key={this.state.tron_public}
-                            tron_private_key={this.state.tron_private}
+                            name={username}
+                            tron_public_key={tronAddr}
+                            tron_private_key={tronPrivateKey}
                             newUser={false}
                             widthInches={8.5}
                             heightInches={11.0}
                             label={tt('tron_jsx.update_success_click')}
                             link={true}
-                            download={this.state.tron_create}
+                            download={!!tronPrivateKey}
                         />
                     </div>
                     <div>{tt('tron_jsx.update_success_content2')}</div>
@@ -99,40 +71,28 @@ class UpdateTronAccountTwo extends Component {
 export default connect(
     (state, ownProps) => {
         const currentUser = state.user.get('current');
-
-        const tron_address =
-            currentUser && currentUser.has('tron_address')
-                ? currentUser.get('tron_address')
+        const tronAddr =
+            currentUser && currentUser.has('tron_addr')
+                ? currentUser.get('tron_addr')
                 : '';
         const username =
             currentUser && currentUser.has('username')
                 ? currentUser.get('username')
                 : '';
-        const tron_public_key =
-            currentUser && currentUser.has('tron_public_key')
-                ? currentUser.get('tron_public_key')
-                : '';
-        const tron_private_key =
+        const tronPrivateKey =
             currentUser && currentUser.has('tron_private_key')
                 ? currentUser.get('tron_private_key')
                 : '';
-        const tron_create =
-            currentUser && currentUser.has('tron_create')
-                ? currentUser.get('tron_create')
-                : false;
         return {
             ...ownProps,
-            tron_address,
+            tronAddr,
             username,
-            tron_public_key,
-            tron_private_key,
-            tron_create,
+            tronPrivateKey,
         };
     },
     dispatch => ({
-        hideUpdateSuccess: () => {
-            // if (e) e.preventDefault();
-            dispatch(userActions.hideUpdateSuccess());
+        hideTronUpdateSuccess: () => {
+            dispatch(userActions.hideTronUpdateSuccess());
         },
     })
 )(UpdateTronAccountTwo);
