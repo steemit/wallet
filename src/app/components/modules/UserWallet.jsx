@@ -34,6 +34,7 @@ import * as transactionActions from 'app/redux/TransactionReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
 import * as userActions from 'app/redux/UserReducer';
+import * as appActions from 'app/redux/AppReducer';
 import { recordAdsView } from 'app/utils/ServerApiClient';
 import QRCode from 'react-qr';
 // import LoadingIndicator from 'app/components/elements/LoadingIndicator';
@@ -46,7 +47,6 @@ class UserWallet extends React.Component {
         this.state = {
             claimInProgress: false,
             showQR: false,
-            copied: false,
         };
         this.onShowDepositSteem = e => {
             if (e && e.preventDefault) e.preventDefault();
@@ -141,6 +141,8 @@ class UserWallet extends React.Component {
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
     }
 
+    componentWillMount = () => {};
+
     componentWillUpdate = () => {
         const {
             currentUserTronAddr,
@@ -234,6 +236,7 @@ class UserWallet extends React.Component {
             currentUser,
             open_orders,
             vestsPerTrx,
+            notify,
         } = this.props;
         const { showQR } = this.state;
         const gprops = this.props.gprops.toJS();
@@ -400,12 +403,6 @@ class UserWallet extends React.Component {
                       }
                       return o;
                   }, 0) / assetPrecision;
-        // const tron_reward =  (currentUser && currentUser.has('tron_reward'))
-        //                     ?currentUser.get('tron_reward'):'0.000';
-        const tron_reward =
-            typeof this.props.tron_reward === 'string'
-                ? this.props.tron_reward.replace(/[^0-9.]/, '')
-                : 0.0;
         const tron_balance = parseFloat(this.props.tron_balance);
 
         // set displayed estimated value
@@ -954,24 +951,17 @@ class UserWallet extends React.Component {
                                 <div className="tron-addr-item">
                                     <CopyToClipboard
                                         text={tronAddr}
-                                        onCopy={() => {
-                                            this.setState({ copied: true });
-                                            setTimeout(() => {
-                                                this.setState({
-                                                    copied: false,
-                                                });
-                                            }, 2000);
-                                        }}
+                                        onCopy={() =>
+                                            notify(tt('explorepost_jsx.copied'))
+                                        }
                                     >
-                                        <button className="buttonQR">
+                                        <button
+                                            className="UserWallet__tron button buttonSmall hollow"
+                                            onClick={e => e.target.blur()}
+                                        >
                                             {tt('tron_jsx.copy')}
                                         </button>
                                     </CopyToClipboard>
-                                    {this.state.copied ? (
-                                        <span style={{ color: 'red' }}>
-                                            Copy successfully
-                                        </span>
-                                    ) : null}
                                 </div>
                             )}
                             {tronAddr && (
@@ -981,12 +971,13 @@ class UserWallet extends React.Component {
                                     style={{ position: 'relative' }}
                                 >
                                     <button
-                                        className="buttonQR"
-                                        onClick={() =>
+                                        className="UserWallet__tron button buttonSmall hollow"
+                                        onClick={e => {
+                                            e.target.blur();
                                             this.setState({
                                                 showQR: !showQR,
-                                            })
-                                        }
+                                            });
+                                        }}
                                     >
                                         {tt('tron_jsx.qr_code')}{' '}
                                     </button>
@@ -1027,7 +1018,7 @@ class UserWallet extends React.Component {
                                 {isMyAccount &&
                                     !tronAddr && (
                                         <button
-                                            className="UserWallet__buysp button buttonSmall hollow"
+                                            className="UserWallet__tron button buttonSmall hollow"
                                             onClick={onCreateTronAccount.bind(
                                                 this
                                             )}
@@ -1044,7 +1035,7 @@ class UserWallet extends React.Component {
                                 {isMyAccount &&
                                     tronAddr && (
                                         <button
-                                            className="UserWallet__buysp button buttonSmall hollow"
+                                            className="UserWallet__tron button buttonSmall hollow"
                                             onClick={onUpdateTronAccount.bind(
                                                 this
                                             )}
@@ -1224,6 +1215,15 @@ export default connect(
         showTronCreate: e => {
             if (e) e.preventDefault();
             dispatch(userActions.showTronCreate());
+        },
+        notify: message => {
+            dispatch(
+                appActions.addNotification({
+                    key: 'chpwd_' + Date.now(),
+                    message,
+                    dismissAfter: 3000,
+                })
+            );
         },
     })
 )(UserWallet);

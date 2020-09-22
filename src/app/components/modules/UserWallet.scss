@@ -2,6 +2,10 @@
     @extend .e-btn-hollow;
 }
 
+.UserWallet__tron {
+    @extend .e-btn-hollow;
+}
+
 .UserWallet__balance {
     padding-bottom: 1rem;
     padding-top: 1rem;
@@ -18,15 +22,12 @@
     margin-right: 0 !important;
     margin-top: 1rem;
 }
+.UserWallet__tron {
+    margin-right: 0 !important;
+}
 .buttonSmall{
     font-size: 10px;
     margin-top: 20px;
-}
-.buttonQR{
-    font-size: 10px;
-    margin-left: 10px;
-    background-color: #e7e7e7;
-    color: black;
 }
 .UserWallet__claimbox {
     margin: 1.5rem 0 0.5rem;
@@ -108,14 +109,6 @@
     }
 }
 
-.buttonQR {
-  font-size: 10px;
-  background-color: transparent;
-  border: 1px solid #06D6A9;
-  color: #1FBF8F;
-  padding: 0.85em 1em;
-}
-
 .UserWallet__balance.tron {
   .tron-addr {
     display: flex;
@@ -130,7 +123,7 @@
   .qrcode {
     position: absolute;
     left: 90px;
-    top: -110%;
+    top: -36%;
     z-index: 1;
   }
 }
