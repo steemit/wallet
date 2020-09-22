@@ -1,4 +1,3 @@
-/* eslint-disable react/no-did-update-set-state */
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable react/jsx-boolean-value */
 /* eslint-disable prefer-const */

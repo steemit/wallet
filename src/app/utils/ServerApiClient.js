@@ -113,32 +113,17 @@ export function checkTronUser(username) {
         });
 }
 
-export function updateTronUser(
-    username,
-    tron_address,
-    claim_reward,
-    tip_count,
-    privKey
-) {
-    const auth_type = 'posting';
-    const data = {
-        username,
-        tron_addr: tron_address,
-        auth_type,
-        claim_reward,
-        tip_count,
-    };
+/**
+ * data required {
+ *      username (required)
+ *      auth_type
+ *      tron_addr
+ *      tip_count
+ * }
+ * privKey required
+ */
+export function updateTronUser(data, privKey) {
     const r = signData(data, privKey);
-    // const body = {
-    //     username,
-    //     tron_addr: tron_address,
-    //     nonce: r.nonce,
-    //     timestamp: r.timestamp,
-    //     signature: r.signature,
-    //     auth_type: 'posting',
-    //     claim_reward,
-    //     tip_count,
-    // };
     const request = Object.assign({}, request_base, {
         body: JSON.stringify(r),
     });

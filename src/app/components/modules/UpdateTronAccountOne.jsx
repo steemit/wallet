@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import tt from 'counterpart';
 import { connect } from 'react-redux';
 import * as userActions from 'app/redux/UserReducer';
+
 const styles = {
     container: {
         display: 'flex',

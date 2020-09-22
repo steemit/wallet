@@ -40,16 +40,16 @@ class Modals extends React.Component {
         show_login_modal: false,
         show_post_advanced_settings_modal: '',
         show_vote_modal: false,
-        show_update_modal: false,
-        show_update_success_modal: false,
+        show_tron_update_modal: false,
+        show_tron_update_success_modal: false,
         show_tron_create_modal: false,
         show_tron_create_success_modal: false,
     };
     static propTypes = {
         show_tron_create_modal: PropTypes.bool,
         show_tron_create_success_modal: PropTypes.bool,
-        show_update_modal: PropTypes.bool,
-        show_update_success_modal: PropTypes.bool,
+        show_tron_update_modal: PropTypes.bool,
+        show_tron_update_success_modal: PropTypes.bool,
         show_vote_modal: PropTypes.bool,
         show_login_modal: PropTypes.bool,
         show_confirm_modal: PropTypes.bool,
@@ -86,8 +86,8 @@ class Modals extends React.Component {
         const {
             show_tron_create_modal,
             show_tron_create_success_modal,
-            show_update_modal,
-            show_update_success_modal,
+            show_tron_update_modal,
+            show_tron_update_success_modal,
             show_vote_modal,
             show_login_modal,
             show_confirm_modal,
@@ -150,16 +150,16 @@ class Modals extends React.Component {
                     </Reveal>
                 )}
 
-                {show_update_modal && (
-                    <Reveal onHide={hideUpdate} show={show_update_modal}>
+                {show_tron_update_modal && (
+                    <Reveal onHide={hideUpdate} show={show_tron_update_modal}>
                         <CloseButton onClick={hideUpdate} />
                         <UpdateTronAccountOne />
                     </Reveal>
                 )}
-                {show_update_success_modal && (
+                {show_tron_update_success_modal && (
                     <Reveal
                         onHide={hideUpdateSuccess}
-                        show={show_update_success_modal}
+                        show={show_tron_update_success_modal}
                     >
                         <CloseButton onClick={hideUpdateSuccess} />
                         <UpdateTronAccountTwo />
@@ -272,9 +272,9 @@ export default connect(
             show_powerdown_modal: state.user.get('show_powerdown_modal'),
             show_signup_modal: state.user.get('show_signup_modal'),
             show_vote_modal: state.user.get('show_vote_modal'),
-            show_update_modal: state.user.get('show_update_modal'),
-            show_update_success_modal: state.user.get(
-                'show_update_success_modal'
+            show_tron_update_modal: state.user.get('show_tron_update_modal'),
+            show_tron_update_success_modal: state.user.get(
+                'show_tron_update_success_modal'
             ),
             show_tron_create_modal: state.user.get('show_tron_create_modal'),
             show_tron_create_success_modal: state.user.get(

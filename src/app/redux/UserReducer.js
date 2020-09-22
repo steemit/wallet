@@ -38,12 +38,12 @@ const SHOW_SIDE_PANEL = 'user/SHOW_SIDE_PANEL';
 const HIDE_SIDE_PANEL = 'user/HIDE_SIDE_PANEL';
 const SHOW_VOTE = 'user/SHOW_VOTE';
 const HIDE_VOTE = 'user/HIDE_VOTE';
-const SHOW_UPDATE = 'user/SHOW_UPDATE';
-const HIDE_UPDATE = 'user/HIDE_UPDATE';
-const SHOW_UPDATE_SUCCESS = 'user/SHOW_UPDATE_SUCCESS';
-const HIDE_UPDATE_SUCCESS = 'user/HIDE_UPDATE_SUCCESS';
+const SHOW_TRON_UPDATE = 'user/SHOW_TRON_UPDATE';
+const HIDE_TRON_UPDATE = 'user/HIDE_TRON_UPDATE';
+const SHOW_TRON_UPDATE_SUCCESS = 'user/SHOW_TRON_UPDATE_SUCCESS';
+const HIDE_TRON_UPDATE_SUCCESS = 'user/HIDE_TRON_UPDATE_SUCCESS';
 const SHOW_TRON_CREATE = 'user/SHOW_TRON_CREATE';
-const HIDE_TRON_CREATE = 'user/HIDE_TRON_CREATE';
+export const HIDE_TRON_CREATE = 'user/HIDE_TRON_CREATE';
 const SHOW_TRON_CREATE_SUCCESS = 'user/SHOW_TRON_CREATE_SUCCESS';
 const HIDE_TRON_CREATE_SUCCESS = 'user/HIDE_TRON_CREATE_SUCCESS';
 // Saga-related
@@ -59,8 +59,8 @@ const defaultState = fromJS({
     show_signup_modal: false,
     show_post_advanced_settings_modal: '', // formId,
     show_vote_modal: false,
-    show_update_modal: false,
-    show_update_success_modal: false,
+    show_tron_update_modal: false,
+    show_tron_update_success_modal: false,
     show_tron_create_modal: false,
     show_tron_create_success_modal: false,
     pub_keys_used: null,
@@ -271,14 +271,14 @@ export default function reducer(state = defaultState, action) {
             return state.set('show_vote_modal', true);
         case HIDE_VOTE:
             return state.set('show_vote_modal', false);
-        case SHOW_UPDATE:
-            return state.set('show_update_modal', true);
-        case HIDE_UPDATE:
-            return state.set('show_update_modal', false);
-        case SHOW_UPDATE_SUCCESS:
-            return state.set('show_update_success_modal', true);
-        case HIDE_UPDATE_SUCCESS:
-            return state.set('show_update_success_modal', false);
+        case SHOW_TRON_UPDATE:
+            return state.set('show_tron_update_modal', true);
+        case HIDE_TRON_UPDATE:
+            return state.set('show_tron_update_modal', false);
+        case SHOW_TRON_UPDATE_SUCCESS:
+            return state.set('show_torn_update_success_modal', true);
+        case HIDE_TRON_UPDATE_SUCCESS:
+            return state.set('show_tron_update_success_modal', false);
         case SHOW_TRON_CREATE:
             return state.set('show_tron_create_modal', true);
         case HIDE_TRON_CREATE:
@@ -314,22 +314,22 @@ export const hideVote = payload => ({
     payload,
 });
 
-export const showUpdate = payload => ({
-    type: SHOW_UPDATE,
+export const showTronUpdate = payload => ({
+    type: SHOW_TRON_UPDATE,
     payload,
 });
 
-export const hideUpdate = payload => ({
-    type: HIDE_UPDATE,
+export const hideTronUpdate = payload => ({
+    type: HIDE_TRON_UPDATE,
     payload,
 });
 
-export const showUpdateSuccess = payload => ({
-    type: SHOW_UPDATE_SUCCESS,
+export const showTronUpdateSuccess = payload => ({
+    type: SHOW_TRON_UPDATE_SUCCESS,
     payload,
 });
-export const hideUpdateSuccess = payload => ({
-    type: HIDE_UPDATE_SUCCESS,
+export const hideTronUpdateSuccess = payload => ({
+    type: HIDE_TRON_UPDATE_SUCCESS,
     payload,
 });
 

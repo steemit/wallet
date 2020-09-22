@@ -35,6 +35,7 @@ import DropdownMenu from 'app/components/elements/DropdownMenu';
 import * as userActions from 'app/redux/UserReducer';
 import { recordAdsView } from 'app/utils/ServerApiClient';
 import QRCode from 'react-qr';
+// import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 
 const assetPrecision = 1000;
 
@@ -139,9 +140,29 @@ class UserWallet extends React.Component {
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
     }
 
-    handleClaimRewards = (account, tron_address) => {
+    componentWillUpdate = () => {
+        const {
+            currentUserTronAddr,
+            currentUserTipCount,
+            unbindTipLimit,
+            tronCreatePopupStatus,
+            currentUserTipCountLock,
+        } = this.props;
+        if (
+            currentUserTronAddr === '' &&
+            currentUserTipCount !== 999 &&
+            tronCreatePopupStatus === false &&
+            currentUserTipCountLock === false &&
+            currentUserTipCount <= unbindTipLimit
+        ) {
+            // popup create tron address
+            this.props.showTronCreate();
+        }
+    };
+
+    handleClaimRewards = account => {
         this.setState({ claimInProgress: true }); // disable the claim button
-        this.props.claimRewards(account, tron_address);
+        this.props.claimRewards(account);
     };
 
     getCurrentApr = gprops => {
@@ -241,18 +262,13 @@ class UserWallet extends React.Component {
                 asset,
                 transferType,
             });
-            // this.props.showTronTransfer({
-            //     to: isMyAccount ? null : account.get('name'),
-            //     asset,
-            //     transferType,
-            // });
         };
 
         const onCreateTronAccount = e => {
             this.props.showTronCreate();
         };
         const onUpdateTronAccount = e => {
-            this.props.showUpdate();
+            this.props.showTronUpdate();
         };
 
         const savings_balance = account.get('savings_balance');
@@ -706,10 +722,7 @@ class UserWallet extends React.Component {
                                 disabled={this.state.claimInProgress}
                                 className="button"
                                 onClick={e => {
-                                    this.handleClaimRewards(
-                                        account,
-                                        TRX_address
-                                    );
+                                    this.handleClaimRewards(account);
                                 }}
                             >
                                 {tt('userwallet_jsx.redeem_rewards')}
@@ -731,6 +744,9 @@ class UserWallet extends React.Component {
             <div className="UserWallet">
                 {claimbox}
                 <div className="row">
+                    {/*<div>
+                        <LoadingIndicator type="circle" />
+                    </div>*/}
                     <div className="columns small-10 medium-12 medium-expand">
                         <WalletSubMenu
                             accountname={account.get('name')}
@@ -1123,23 +1139,29 @@ export default connect(
         const savings_withdraws = state.user.get('savings_withdraws');
         const gprops = state.global.get('props');
         const sbd_interest = gprops.get('sbd_interest_rate');
-        const currentUser = state.user.get('current');
-        const tron_reward =
-            currentUser && currentUser.has('tron_reward')
-                ? currentUser.get('tron_reward')
-                : '0.000 TRX';
-        const tron_user =
-            currentUser && currentUser.has('tron_user')
-                ? currentUser.get('tron_user')
-                : false;
-        const tron_address =
-            currentUser && currentUser.has('tron_address')
-                ? currentUser.get('tron_address')
+        // This is current logined user.
+        const currentUser = ownProps.currentUser;
+        // Current visiting user
+        const account = ownProps.account;
+        const currentUserPendingClaimTronReward =
+            currentUser && currentUser.has('pending_claim_tron_reward')
+                ? Number(
+                      currentUser.get('pending_claim_tron_reward').split(' ')[0]
+                  )
+                : 0;
+        const currentUserTronAddr =
+            currentUser && currentUser.has('tron_addr')
+                ? currentUser.get('tron_addr')
                 : '';
-        const tron_balance =
-            currentUser && currentUser.has('tron_balance')
-                ? currentUser.get('tron_balance')
-                : 0.0;
+        const unbindTipLimit = state.app.get('unbind_tip_limit');
+        const currentUserTipCount =
+            currentUser && currentUser.has('tip_count')
+                ? currentUser.get('tip_count')
+                : 999;
+        const currentUserTipCountLock =
+            currentUser && currentUser.has('tip_count_lock')
+                ? currentUser.get('tip_count_lock')
+                : false;
         return {
             ...ownProps,
             open_orders: state.market.get('open_orders'),
@@ -1148,16 +1170,19 @@ export default connect(
             savings_withdraws,
             sbd_interest,
             gprops,
-            tron_reward,
-            tron_user,
-            tron_address,
-            tron_balance,
             trackingId: state.app.getIn(['trackingId'], null),
+            currentUser,
+            currentUserPendingClaimTronReward,
+            currentUserTronAddr,
+            unbindTipLimit,
+            currentUserTipCount,
+            currentUserTipCountLock,
+            tronCreatePopupStatus: state.user.get('show_tron_create_modal'),
         };
     },
     // mapDispatchToProps
     dispatch => ({
-        claimRewards: (account, tron_address) => {
+        claimRewards: account => {
             const username = account.get('name');
             const successCallback = () => {
                 dispatch(
@@ -1179,15 +1204,6 @@ export default connect(
                     successCallback,
                 })
             );
-            dispatch(
-                userActions.updateUser({
-                    claim_reward: true,
-                    tron_address,
-                })
-            );
-            setTimeout(() => {
-                dispatch(userActions.usernamePasswordLogin(username));
-            }, 2000); // wait 2 second to refresh tron data
         },
         convertToSteem: e => {
             //post 2018-01-31 if no calls to this function exist may be safe to remove. Investigate use of ConvertToSteem.jsx
@@ -1195,22 +1211,13 @@ export default connect(
             const name = 'convertToSteem';
             dispatch(globalActions.showDialog({ name }));
         },
-        showUpdate: e => {
+        showTronUpdate: e => {
             if (e) e.preventDefault();
-            dispatch(userActions.showUpdate());
-            // dispatch(userActions.showTronCreate());
+            dispatch(userActions.showTronUpdate());
         },
         showTronCreate: e => {
             if (e) e.preventDefault();
             dispatch(userActions.showTronCreate());
-        },
-        updateUser: () => {
-            dispatch(
-                userActions.updateUser({
-                    claim_reward: false,
-                    tron_address: '',
-                })
-            );
         },
     })
 )(UserWallet);

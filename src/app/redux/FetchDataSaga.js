@@ -77,6 +77,12 @@ export function* fetchState(location_change_action) {
             state.accounts[username][k] = tronAccount[k];
         });
         yield put(globalActions.receiveState(state));
+        // unlock tron account create tip
+        yield put(
+            userActions.setUser({
+                tip_count_lock: false,
+            })
+        );
         // If a user's transfer page is being loaded, fetch related account data.
         yield call(getTransferUsers, pathname);
     } catch (error) {
