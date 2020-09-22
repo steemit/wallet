@@ -244,6 +244,9 @@ class UserWallet extends React.Component {
         // do not render if state appears to contain only lite account info
         if (!account.has('vesting_shares')) return null;
 
+        // if (!account.has('tip_count')) return null;
+        const tronAddr = account.get('tron_addr');
+
         const vesting_steem = vestingSteem(account.toJS(), gprops);
         const delegated_steem = delegatedSteem(account.toJS(), gprops);
         const powerdown_steem = powerdownSteem(account.toJS(), gprops);
@@ -616,9 +619,6 @@ class UserWallet extends React.Component {
             });
         }
 
-        const isTrxAccount = this.props.tron_user;
-        const TRX_address = this.props.tron_address;
-
         if (divesting) {
             power_menu.push({
                 value: 'Cancel Power Down',
@@ -939,21 +939,21 @@ class UserWallet extends React.Component {
                 <div className="UserWallet__balance row tron">
                     <div className="column small-12 medium-8">
                         TRX
-                        {isTrxAccount && (
-                            <div className="secondary tron-addr">
-                                <div
-                                    className="tron-addr-item"
-                                    style={{ paddingRight: '1em' }}
-                                >
-                                    {!isTrxAccount
-                                        ? tt(
-                                              'userwallet_jsx.create_trx_description'
-                                          )
-                                        : TRX_address}
-                                </div>
+                        <div className="secondary tron-addr">
+                            <div
+                                className="tron-addr-item"
+                                style={{ paddingRight: '1em' }}
+                            >
+                                {!tronAddr
+                                    ? tt(
+                                          'userwallet_jsx.create_trx_description'
+                                      )
+                                    : tronAddr}
+                            </div>
+                            {tronAddr && (
                                 <div className="tron-addr-item">
                                     <CopyToClipboard
-                                        text={TRX_address}
+                                        text={tronAddr}
                                         onCopy={() => {
                                             this.setState({ copied: true });
                                             setTimeout(() => {
@@ -973,6 +973,8 @@ class UserWallet extends React.Component {
                                         </span>
                                     ) : null}
                                 </div>
+                            )}
+                            {tronAddr && (
                                 <div
                                     className={`tron-addr-item ${showQR &&
                                         'show-qrcode'}`}
@@ -991,7 +993,7 @@ class UserWallet extends React.Component {
                                     {showQR && (
                                         <div className="qrcode">
                                             <QRCode
-                                                text={TRX_address}
+                                                text={tronAddr}
                                                 onClick={() =>
                                                     this.setState({
                                                         showQR: !this.state
@@ -1002,15 +1004,14 @@ class UserWallet extends React.Component {
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                         <div className="secondary">
                             {tt('userwallet_jsx.trx_description')}
                         </div>
                     </div>
-                    {/* <div className="column small-12 medium-2"> ..</div> */}
                     <div className="column small-12 medium-4">
-                        {isMyAccount && isTrxAccount ? (
+                        {isMyAccount ? (
                             <DropdownMenu
                                 className="Wallet_dropdown"
                                 items={trx_menu}
@@ -1024,7 +1025,7 @@ class UserWallet extends React.Component {
                         {
                             <div className="columns shrink">
                                 {isMyAccount &&
-                                    !isTrxAccount && (
+                                    !tronAddr && (
                                         <button
                                             className="UserWallet__buysp button buttonSmall hollow"
                                             onClick={onCreateTronAccount.bind(
@@ -1041,7 +1042,7 @@ class UserWallet extends React.Component {
                         {
                             <div className="columns shrink">
                                 {isMyAccount &&
-                                    isTrxAccount && (
+                                    tronAddr && (
                                         <button
                                             className="UserWallet__buysp button buttonSmall hollow"
                                             onClick={onUpdateTronAccount.bind(
@@ -1114,7 +1115,7 @@ class UserWallet extends React.Component {
                                 className="link"
                                 onClick={onShowTRXTransaction.bind(
                                     this,
-                                    TRX_address
+                                    tronAddr
                                 )}
                             >
                                 {tt('tron_jsx.tron_tx_history')}
