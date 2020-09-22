@@ -297,17 +297,7 @@ export default class PdfDownload extends Component {
         const tron_public_key = this.props.tron_public_key;
 
         offset += 0.15;
-        this.drawQr(
-            ctx,
-            'steem://import/wif/' +
-                tron_public_key +
-                '/account/' +
-                this.props.name,
-            margin,
-            offset,
-            qrSize,
-            '#f4f4f4'
-        );
+        this.drawQr(ctx, tron_public_key, margin, offset, qrSize, '#f4f4f4');
         offset += 0.1;
         offset += this.renderText(
             ctx,
@@ -362,17 +352,7 @@ export default class PdfDownload extends Component {
         const tron_private_key = this.props.tron_private_key;
 
         offset += 0.15;
-        this.drawQr(
-            ctx,
-            'steem://import/wif/' +
-                tron_private_key +
-                '/account/' +
-                this.props.name,
-            margin,
-            offset,
-            qrSize,
-            '#f4f4f4'
-        );
+        this.drawQr(ctx, tron_private_key, margin, offset, qrSize, '#f4f4f4');
 
         offset += 0.1;
         offset += this.renderText(ctx, 'TRON Account Private Key', {
