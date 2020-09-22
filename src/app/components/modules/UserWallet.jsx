@@ -162,8 +162,14 @@ class UserWallet extends React.Component {
     };
 
     handleClaimRewards = account => {
-        this.setState({ claimInProgress: true }); // disable the claim button
-        this.props.claimRewards(account);
+        const { currentUserTronAddr } = this.props;
+        if (currentUserTronAddr === '') {
+            this.props.showTronCreate();
+        }
+        if (parseFloat(account.get('reward_vesting_steem').split(' ')[0]) > 0) {
+            this.setState({ claimInProgress: true }); // disable the claim button
+            this.props.claimRewards(account);
+        }
     };
 
     getCurrentApr = gprops => {

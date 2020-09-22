@@ -243,7 +243,11 @@ export function pricePerTRX(state) {
 }
 
 export function totalPendingClaimTron(pending, vests, vestsPerTrx) {
-    if (pending && vests && vestsPerTrx) {
+    if (
+        pending !== undefined &&
+        vests !== undefined &&
+        vestsPerTrx !== undefined
+    ) {
         const spWorthTron =
             parseFloat(vests.split(' ')[0]) > 0
                 ? (
