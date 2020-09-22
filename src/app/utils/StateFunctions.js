@@ -241,3 +241,18 @@ export function pricePerTRX(state) {
         .get('price_usd'); // real-time price
     return trx_price ? parseFloat(trx_price) : 0.02; // default price
 }
+
+export function totalPendingClaimTron(pending, vests, vestsPerTrx) {
+    if (pending && vests && vestsPerTrx) {
+        const spWorthTron =
+            parseFloat(vests.split(' ')[0]) > 0
+                ? (
+                      parseFloat(vests.split(' ')[0]) / parseFloat(vestsPerTrx)
+                  ).toFixed(6)
+                : '0';
+        const total =
+            parseFloat(pending.split(' ')[0]) + parseFloat(spWorthTron);
+        return total > 0 ? `${total} TRX` : null;
+    }
+    return null;
+}

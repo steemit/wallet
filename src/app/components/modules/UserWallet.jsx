@@ -18,6 +18,7 @@ import {
     powerdownSteem,
     pricePerSteem,
     pricePerTRX,
+    totalPendingClaimTron,
 } from 'app/utils/StateFunctions';
 import WalletSubMenu from 'app/components/elements/WalletSubMenu';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
@@ -226,6 +227,7 @@ class UserWallet extends React.Component {
             account,
             currentUser,
             open_orders,
+            vestsPerTrx,
         } = this.props;
         const { showQR } = this.state;
         const gprops = this.props.gprops.toJS();
@@ -679,12 +681,11 @@ class UserWallet extends React.Component {
             parseFloat(account.get('reward_vesting_steem').split(' ')[0]) > 0
                 ? account.get('reward_vesting_steem').replace('STEEM', 'SP')
                 : null;
-        const reward_tron =
-            typeof this.props.tron_reward === 'string'
-                ? parseFloat(this.props.tron_reward.split(' ')[0]) > 0
-                    ? this.props.tron_reward
-                    : null
-                : null;
+        const reward_tron = totalPendingClaimTron(
+            account.get('pending_claim_tron_reward'),
+            account.get('reward_vesting_balance'),
+            vestsPerTrx
+        );
         const rewards = [];
         if (reward_steem) rewards.push(reward_steem);
         if (reward_sbd) rewards.push(reward_sbd);
@@ -704,13 +705,18 @@ class UserWallet extends React.Component {
                 rewards_str = `${rewards[0]} and ${rewards[1]}`;
                 break;
             case 1:
-                rewards_str = `${rewards[0]}`;
+                rewards_str = `${rewards[0] ? rewards[0] : rewards[3]}`;
                 break;
             default:
         }
 
         let claimbox;
-        if (currentUser && rewards_str && isMyAccount) {
+        if (
+            account.get('pending_claim_tron_reward') &&
+            currentUser &&
+            rewards_str &&
+            isMyAccount
+        ) {
             claimbox = (
                 <div className="row">
                     <div className="columns small-12">
@@ -1141,14 +1147,6 @@ export default connect(
         const sbd_interest = gprops.get('sbd_interest_rate');
         // This is current logined user.
         const currentUser = ownProps.currentUser;
-        // Current visiting user
-        const account = ownProps.account;
-        const currentUserPendingClaimTronReward =
-            currentUser && currentUser.has('pending_claim_tron_reward')
-                ? Number(
-                      currentUser.get('pending_claim_tron_reward').split(' ')[0]
-                  )
-                : 0;
         const currentUserTronAddr =
             currentUser && currentUser.has('tron_addr')
                 ? currentUser.get('tron_addr')
@@ -1162,6 +1160,7 @@ export default connect(
             currentUser && currentUser.has('tip_count_lock')
                 ? currentUser.get('tip_count_lock')
                 : false;
+        const vestsPerTrx = state.app.get('vests_per_trx');
         return {
             ...ownProps,
             open_orders: state.market.get('open_orders'),
@@ -1172,12 +1171,12 @@ export default connect(
             gprops,
             trackingId: state.app.getIn(['trackingId'], null),
             currentUser,
-            currentUserPendingClaimTronReward,
             currentUserTronAddr,
             unbindTipLimit,
             currentUserTipCount,
             currentUserTipCountLock,
             tronCreatePopupStatus: state.user.get('show_tron_create_modal'),
+            vestsPerTrx,
         };
     },
     // mapDispatchToProps

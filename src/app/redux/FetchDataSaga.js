@@ -72,10 +72,12 @@ export function* fetchState(location_change_action) {
         const state = yield call(getStateAsync, url);
         // get tron information by steem username
         // and merge into account
-        const tronAccount = yield call(checkTronUser, username);
-        Object.keys(tronAccount).forEach(k => {
-            state.accounts[username][k] = tronAccount[k];
-        });
+        if (username) {
+            const tronAccount = yield call(checkTronUser, username);
+            Object.keys(tronAccount).forEach(k => {
+                state.accounts[username][k] = tronAccount[k];
+            });
+        }
         yield put(globalActions.receiveState(state));
         // unlock tron account create tip
         yield put(
