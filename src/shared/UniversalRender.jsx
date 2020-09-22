@@ -266,9 +266,11 @@ export async function serverRender(
 
         // If a user profile URL is requested but no profile information is
         // included in the API response, return User Not Found.
+        const matches =
+            url.match(routeRegex.UserProfile1) ||
+            url.match(routeRegex.UserProfile2);
         if (
-            (url.match(routeRegex.UserProfile1) ||
-                url.match(routeRegex.UserProfile2)) &&
+            matches &&
             Object.getOwnPropertyNames(onchain.accounts).length === 0
         ) {
             // protect for invalid account
@@ -277,6 +279,17 @@ export async function serverRender(
                 statusCode: 404,
                 body: renderToString(<NotFound />),
             };
+        }
+
+        const accountname = matches ? matches[1] : null;
+        if (accountname) {
+            // TODO: ssr getTronInfo
+            // requestTimer.startTimer('getTronInfo_ms');
+            // const tronAccount = await getTronInfo(accountname);
+            // requestTimer.stopTimer('getTronInfo_ms');
+            // Object.keys(tronAccount).forEach(k => {
+            //     onchain.accounts[accountname][k] = tronAccount[k];
+            // });
         }
 
         server_store = createStore(rootReducer, {
