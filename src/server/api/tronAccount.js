@@ -16,11 +16,11 @@ export default function tronAccount(app) {
     // const regex = new RegExp(/^((1?\d?\d|2[0-4]\d|25[0-5])($|\.(?!$))){4}$/)
     const white_list = config.get('white_list');
     router.get('/create_account', function*() {
-        let host = this.host.split(':')[0];
+        const host = this.host.split(':')[0];
         if (!white_list.includes(host)) {
             this.body = JSON.stringify({
                 ip: this.request.ip,
-                host: host,
+                host,
                 msg:
                     'not trusted host reject value' + white_list.includes(host),
             });
@@ -32,15 +32,14 @@ export default function tronAccount(app) {
         } catch (err) {
             console.log('error ' + JSON.stringify(err));
             this.body = JSON.stringify({ error: JSON.stringify(err) });
-            return;
         }
     });
     router.get('/get_account', function*() {
-        let host = this.host.split(':')[0];
+        const host = this.host.split(':')[0];
         if (!white_list.includes(host)) {
             this.body = JSON.stringify({
                 ip: this.request.ip,
-                host: host,
+                host,
                 msg:
                     'not trusted host reject value' +
                     white_list.includes(host) +
@@ -61,7 +60,6 @@ export default function tronAccount(app) {
         } catch (err) {
             console.log('error ' + JSON.stringify(err));
             this.body = JSON.stringify({ error: JSON.stringify(err) });
-            return;
         }
     });
 }
