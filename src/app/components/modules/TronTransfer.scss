@@ -30,12 +30,23 @@
   }
 }
 
-.switch{
-  float: right;
-  font-size: 10px;
-  margin-right:0 !important;
-  background-color: transparent;
-  border: 1px solid #06D6A9;
-  color: #1FBF8F;
-  padding: 0.85em 1em;
+.reveal {
+  .switch{
+    float: right;
+    font-size: 10px;
+    margin-right:0 !important;
+    border: 1px solid #06D6A9;
+    color: #1FBF8F;
+    padding: 0.85em 1em;
+    cursor: pointer;
+  }
+
+  .switch, .switch:hover, .switch:focus {
+    background-color: transparent;
+  }
+
+  .switch:hover, .switch:focus {
+    border-color: #788187;
+    color: #333;
+  }
 }
