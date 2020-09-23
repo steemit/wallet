@@ -1018,16 +1018,17 @@
     },
     "tron_jsx": {
         "content0":
-            "Vote with TRX for SR nodes to contribute to the TRON ecosystem and earn up to 8 percentage APR.",
+            "Vote with TRX for SR nodes to contribute to the TRON ecosystem and earn up to 8%% APR.",
         "content1":
             "You need to freeze TRX first to get the voting right before casting your vote.",
         "content2": "Here are the steps:",
-        "step1":
-            "Step1: click \"Vote\" button , which redirect to Tron scan vote page",
-        "step2": "Step2: click \"link wallet\",chose \"import\"",
+        "step1": "Step1: click \"Voting\" to access Tronscan voting page",
+        "step2":
+            "Step2: click \"Link wallet\", and then select \"Import account to log in\".",
         "step3":
-            "Step3: Click \"Sign in\" button once finish input TRON private key ",
-        "step4": "Step4: click \"Vote\" button and follow the instruction",
+            "Step3: enter the private key of your TRON account and click \"Login\".",
+        "step4":
+            "Step4: click the \"Vote\" button and follow the instructions.",
         "vote_button": "go vote",
         "step": "step",
         "tron_tx_history": "TRON transaction history >",
