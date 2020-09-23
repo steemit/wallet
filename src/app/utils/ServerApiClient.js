@@ -101,8 +101,13 @@ export function acceptTos() {
     return fetch('/api/v1/acceptTos', request);
 }
 
-export function checkTronUser(username) {
-    const queryString = '/api/v1/tron/tron_user?username=' + username;
+export function checkTronUser(data, type = 'steem') {
+    let queryString = '';
+    if (type === 'steem') {
+        queryString = `/api/v1/tron/tron_user?username=${data}`;
+    } else {
+        queryString = `/api/v1/tron/tron_user?tron_addr=${data}`;
+    }
     return fetch(queryString)
         .then(res => {
             return res.json();
@@ -141,7 +146,9 @@ export function createTronAccount() {
 
 export function getTronAccount(tron_address) {
     const queryString = '/api/v1/tron/get_account?tron_address=' + tron_address;
-    return fetch(queryString);
+    return fetch(queryString).then(res => {
+        return res.json();
+    });
 }
 
 export function getTronConfig() {

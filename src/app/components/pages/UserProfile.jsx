@@ -369,8 +369,8 @@ module.exports = {
                 dispatch(userActions.setTransferDefaults(transferDefaults));
                 dispatch(userActions.showTransfer());
             },
-            showTronTransfer: () => {
-                dispatch(userActions.showTronTransfer());
+            showTronTransfer: transferDefaults => {
+                dispatch(userActions.showTronTransfer(transferDefaults));
             },
             clearPowerdownDefaults: () => {
                 dispatch(userActions.clearPowerdownDefaults());

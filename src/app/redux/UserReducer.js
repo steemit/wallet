@@ -46,12 +46,15 @@ const SHOW_TRON_CREATE = 'user/SHOW_TRON_CREATE';
 export const HIDE_TRON_CREATE = 'user/HIDE_TRON_CREATE';
 const SHOW_TRON_CREATE_SUCCESS = 'user/SHOW_TRON_CREATE_SUCCESS';
 const HIDE_TRON_CREATE_SUCCESS = 'user/HIDE_TRON_CREATE_SUCCESS';
+const SET_TRON_ACCOUNT_CHECK_ERROR = 'user/SET_TRON_ACCOUNT_CHECK_ERROR';
+const SET_TO_TRON_ADDR = 'user/SET_TO_TRON_ADDR';
 // Saga-related
 export const LOAD_SAVINGS_WITHDRAW = 'user/LOAD_SAVINGS_WITHDRAW';
 export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
 export const CHECK_TRON = 'user/CHECK_TRON';
 export const UPDATE_TRON_ADDR = 'user/UPDATE_TRON_ADDR';
 export const RESET_ERROR = 'user/RESET_ERROR';
+
 const defaultState = fromJS({
     current: null,
     show_login_modal: false,
@@ -67,6 +70,8 @@ const defaultState = fromJS({
     locale: DEFAULT_LANGUAGE,
     show_side_panel: false,
     maybeLoggedIn: false,
+    tron_account_check_error: null,
+    to_tron_addr: null,
 });
 
 export default function reducer(state = defaultState, action) {
@@ -284,7 +289,13 @@ export default function reducer(state = defaultState, action) {
             return state.set('show_tron_create_success_modal', true);
         case HIDE_TRON_CREATE_SUCCESS:
             return state.set('show_tron_create_success_modal', false);
-
+        case SET_TRON_ACCOUNT_CHECK_ERROR:
+            return state.set(
+                'tron_account_check_error',
+                payload ? payload : null
+            );
+        case SET_TO_TRON_ADDR:
+            return state.set('to_tron_addr', payload ? payload : null);
         default:
             return state;
     }
@@ -513,3 +524,13 @@ export const hideSidePanel = () => {
         type: HIDE_SIDE_PANEL,
     };
 };
+
+export const setTronAccountCheckError = payload => ({
+    type: SET_TRON_ACCOUNT_CHECK_ERROR,
+    payload,
+});
+
+export const setToTronAddr = payload => ({
+    type: SET_TO_TRON_ADDR,
+    payload,
+});

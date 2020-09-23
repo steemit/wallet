@@ -741,8 +741,7 @@
         "from": "从",
         "to": "到",
         "asset_currently_collecting": "%(asset)s目前获得%(interest)s%%利息",
-        "invalid_tron_address":
-            "无效tron地址. 有效的base58 tron 地址应该会有34字节",
+        "invalid_tron_address": "地址格式错误",
         "confirm_tron_transfer": "确认转账",
         "sign_complete_transfer": "签名完成转账",
         "beware_of_spam_and_phishing_links":
@@ -840,6 +839,10 @@
         "create_tron_success": "创建成功",
         "create_tron_success_content": "已经成功创建TRON账户，若下载失败，请",
         "qr_code": "复制二维码",
-        "copy": "复制"
+        "copy": "复制",
+        "switch_to_tron_account": "切换为TRON账户",
+        "switch_to_steem_account": "切换为Steem账户",
+        "unbind_tron_addr": "此用户未开通TRON账户",
+        "username_not_exist": "账户不存在"
     }
 }

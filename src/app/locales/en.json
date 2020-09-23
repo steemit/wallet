@@ -896,8 +896,7 @@
         "autocomplete_previous_transfers": "previous transfers",
         "autocomplete_user_following": "following",
         "confirm_transfer": "Transfer %(amount)s from %(from)s to %(to)s?",
-        "invalid_tron_address":
-            "invalid tron address.  Valid base58 tron address should have the length of 34",
+        "invalid_tron_address": "Invalid account format",
         "confirm_tron_transfer": "Confirm transfer",
         "sign_complete_transfer": "Sign to complete transfer"
     },
@@ -1065,6 +1064,10 @@
         "create_tron_success_content":
             "You successfully create a TRON account.If fail to download, please ",
         "qr_code": "QR code",
-        "copy": "copy"
+        "copy": "copy",
+        "switch_to_tron_account": "Switch to TRON account",
+        "switch_to_steem_account": "Switch to Steem account",
+        "unbind_tron_addr": "This user does not have a TRON account",
+        "username_not_exist": "Account not found"
     }
 }

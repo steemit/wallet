@@ -83,94 +83,29 @@ const highSecurityPages = [
     /\/proposals/,
 ];
 
-function* checkTron({ payload: { to_username, to_tron_address } }) {
-    const [username, tron_addr] = yield select(state => [
-        state.user.getIn(['current', 'username']),
-        state.user.getIn(['current', 'tron_address']),
-    ]);
-    if (!to_username && to_tron_address != null) {
-        if (to_tron_address == tron_addr) {
+function* checkTron({ payload: { account, type } }) {
+    if (account === null) {
+        yield put(userActions.setToTronAddr(null));
+        yield put(userActions.setTronAccountCheckError(null));
+        return;
+    }
+    try {
+        const user = yield checkTronUser(account, type);
+        if (user.tron_addr === '') {
+            yield put(userActions.setToTronAddr(null));
             yield put(
-                userActions.setUser({
-                    username,
-                    tron_transfer_msg: 'cannot transfer trx to yourself',
-                    to_tron_address: '',
-                })
+                userActions.setTronAccountCheckError(
+                    tt('tron_jsx.unbind_tron_addr')
+                )
             );
             return;
         }
-        const response2 = yield getTronAccount(to_tron_address);
-        const res = yield response2.json();
-        if (res.error != undefined) {
-            yield put(
-                userActions.setUser({
-                    username,
-                    tron_transfer_msg: res.error.replace('"', ''),
-                    to_tron_address: '',
-                })
-            );
-        } else {
-            yield put(
-                userActions.setUser({
-                    username,
-                    tron_transfer_msg: '',
-                    to_tron_address,
-                })
-            );
-        }
-        return;
-    }
-    if (to_username == username) {
+        yield put(userActions.setToTronAddr(user.tron_addr));
+        yield put(userActions.setTronAccountCheckError(null));
+    } catch (e) {
+        yield put(userActions.setToTronAddr(null));
         yield put(
-            userActions.setUser({
-                username,
-                tron_transfer_msg: 'cannot transfer TRX to yourself',
-                to_tron_address: '',
-            })
-        );
-        return;
-    }
-    const account = yield call(getAccount, to_username);
-    if (!account) {
-        console.log('No account');
-        yield put(
-            userActions.setUser({
-                username,
-                tron_transfer_msg: 'invalid account name,no account on chain',
-                to_tron_address: '',
-            })
-        );
-        return;
-    }
-
-    const response = yield checkTronUser(to_username);
-    const body = yield response.json();
-    if (body.status && body.status == 'ok') {
-        if (body.result.tron_addr != '' || body.result.tron_addr.length > 0) {
-            yield put(
-                userActions.setUser({
-                    username,
-                    tron_transfer_msg: '',
-                    to_tron_address: body.result.tron_addr,
-                })
-            );
-        } else {
-            yield put(
-                userActions.setUser({
-                    username,
-                    tron_transfer_msg: tt(
-                        'chainvalidation_js.user_no_tron_account'
-                    ),
-                    to_tron_address: '',
-                })
-            );
-        }
-    } else {
-        yield put(
-            userActions.setUser({
-                username,
-                tron_transfer_msg: tt('chainvalidation_js.unknow_recipient'),
-            })
+            userActions.setTronAccountCheckError(tt(`tron_jsx.${e.message}`))
         );
     }
 }
@@ -728,6 +663,8 @@ function* updateTronPopupTipCount() {
         state.user.getIn(['current', 'tip_count']),
         state.user.getIn(['current', 'private_keys']),
     ]);
+
+    if (!tip_count || !private_keys) return;
 
     // charge that which level private key we own.
     let privateKeyType = null;
