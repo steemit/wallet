@@ -1,3 +1,6 @@
+/* eslint-disable no-multi-assign */
+/* eslint-disable no-continue */
+/* eslint-disable no-restricted-syntax */
 /**
     @arg {string} name - form state will appear in this.state[name]
     @arg {object} instance - `this` for the component
