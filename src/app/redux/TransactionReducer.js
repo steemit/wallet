@@ -1,3 +1,5 @@
+/* eslint-disable no-multi-assign */
+/* eslint-disable no-restricted-syntax */
 import { fromJS, Map } from 'immutable';
 
 // Action constants
