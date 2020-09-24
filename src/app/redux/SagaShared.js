@@ -5,6 +5,7 @@ import tt from 'counterpart';
 import { api } from '@steemit/steem-js';
 import { setUserPreferences, checkTronUser } from 'app/utils/ServerApiClient';
 import { getStateAsync } from 'app/utils/steemApi';
+import { getTronAccount } from 'app/utils/tronApi';
 import * as globalActions from './GlobalReducer';
 import * as appActions from './AppReducer';
 import * as transactionActions from './TransactionReducer';
@@ -42,7 +43,26 @@ export function* getAccount(username, force = false) {
         if (account) {
             // get tron information by steem username
             // and merge into account
-            const tronAccount = fromJS(yield call(checkTronUser, username));
+            let tronAccount = fromJS(yield call(checkTronUser, username));
+
+            // get tron balance and merge into account
+            tronAccount = tronAccount.mergeDeep(fromJS({ tron_balance: 0 }));
+            if (tronAccount.get('tron_addr')) {
+                const tronNetworkAccount = yield call(
+                    getTronAccount,
+                    tronAccount.get('tron_addr')
+                );
+                if (
+                    Object.keys(tronNetworkAccount).length > 0 &&
+                    tronNetworkAccount.balance !== undefined
+                ) {
+                    tronAccount = tronAccount.mergeDeep(
+                        fromJS({
+                            tron_balance: tronNetworkAccount.balance / 1e6,
+                        })
+                    );
+                }
+            }
             // merge and update account
             account = fromJS(account).mergeDeep(tronAccount);
             yield put(globalActions.receiveAccount({ account }));

@@ -13,6 +13,7 @@ import * as userActions from 'app/redux/UserReducer';
 import { checkTronUser } from 'app/utils/ServerApiClient';
 import { fromJS, Map, Set } from 'immutable';
 import { getStateAsync } from 'app/utils/steemApi';
+import { getTronAccount } from 'app/utils/tronApi';
 import * as globalActions from './GlobalReducer';
 import * as appActions from './AppReducer';
 import constants from './constants';
@@ -77,6 +78,21 @@ export function* fetchState(location_change_action) {
             Object.keys(tronAccount).forEach(k => {
                 state.accounts[username][k] = tronAccount[k];
             });
+            // get tron balance and merge into account
+            state.accounts[username]['tron_balance'] = 0;
+            if (tronAccount.tron_addr) {
+                const tronNetworkAccount = yield call(
+                    getTronAccount,
+                    tronAccount.tron_addr
+                );
+                if (
+                    Object.keys(tronNetworkAccount).length > 0 &&
+                    tronNetworkAccount.balance !== undefined
+                ) {
+                    state.accounts[username]['tron_balance'] =
+                        tronNetworkAccount.balance / 1e6;
+                }
+            }
         }
         yield put(globalActions.receiveState(state));
         // unlock tron account create tip

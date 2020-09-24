@@ -72,6 +72,7 @@ const defaultState = fromJS({
     maybeLoggedIn: false,
     tron_account_check_error: null,
     to_tron_addr: null,
+    tron_balance: 0,
 });
 
 export default function reducer(state = defaultState, action) {

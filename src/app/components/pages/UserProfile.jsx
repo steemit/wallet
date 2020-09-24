@@ -68,12 +68,12 @@ export default class UserProfile extends React.Component {
                 accountname,
                 isMyAccount,
                 socialUrl,
+                routeParams: { section },
             },
             onPrint,
         } = this;
 
         // Redirect user homepage to transfers page
-        const { section } = this.props.routeParams;
         if (!section) {
             if (process.env.BROWSER) {
                 browserHistory.replace(`/@${accountname}/transfers`);

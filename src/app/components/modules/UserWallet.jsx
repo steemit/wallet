@@ -228,7 +228,7 @@ class UserWallet extends React.Component {
             onShowJUST,
         } = this;
         const {
-            convertToSteem,
+            // convertToSteem,
             price_per_steem,
             price_per_trx,
             savings_withdraws,
@@ -247,8 +247,14 @@ class UserWallet extends React.Component {
         // do not render if state appears to contain only lite account info
         if (!account.has('vesting_shares')) return null;
 
-        // if (!account.has('tip_count')) return null;
+        // this is for the ssr logic
+        const hasLoadedAccountTronInfo = account.has('tron_addr');
+        // if (!hasLoadedAccountTronInfo) return null;
+
         const tronAddr = account.get('tron_addr');
+        const tronBalance = parseFloat(
+            hasLoadedAccountTronInfo ? account.get('tron_balance') : 0
+        );
 
         const vesting_steem = vestingSteem(account.toJS(), gprops);
         const delegated_steem = delegatedSteem(account.toJS(), gprops);
@@ -405,7 +411,6 @@ class UserWallet extends React.Component {
                       }
                       return o;
                   }, 0) / assetPrecision;
-        const tron_balance = parseFloat(this.props.tron_balance);
 
         // set displayed estimated value
         const total_sbd =
@@ -420,14 +425,13 @@ class UserWallet extends React.Component {
             saving_balance_steem +
             savings_pending +
             steemOrders;
-        const total_trx = parseFloat(tron_balance);
         const total_value =
             '$' +
             numberWithCommas(
                 (
                     total_steem * price_per_steem +
                     total_sbd +
-                    total_trx * price_per_trx
+                    tronBalance * price_per_trx
                 ).toFixed(2)
             );
         // console.log(total_trx * price_per_trx);
@@ -648,7 +652,7 @@ class UserWallet extends React.Component {
             '$' + sbd_balance_savings.toFixed(3)
         );
 
-        const trx_balance_str = numberWithCommas(tron_balance.toFixed(3));
+        const trx_balance_str = numberWithCommas(tronBalance.toFixed(6));
 
         const savings_menu = [
             {
@@ -1004,7 +1008,7 @@ class UserWallet extends React.Component {
                         </div>
                     </div>
                     <div className="column small-12 medium-4">
-                        {isMyAccount ? (
+                        {hasLoadedAccountTronInfo && isMyAccount ? (
                             <DropdownMenu
                                 className="Wallet_dropdown"
                                 items={trx_menu}
@@ -1191,12 +1195,12 @@ export default connect(
                 })
             );
         },
-        convertToSteem: e => {
-            //post 2018-01-31 if no calls to this function exist may be safe to remove. Investigate use of ConvertToSteem.jsx
-            e.preventDefault();
-            const name = 'convertToSteem';
-            dispatch(globalActions.showDialog({ name }));
-        },
+        // convertToSteem: e => {
+        //     //post 2018-01-31 if no calls to this function exist may be safe to remove. Investigate use of ConvertToSteem.jsx
+        //     e.preventDefault();
+        //     const name = 'convertToSteem';
+        //     dispatch(globalActions.showDialog({ name }));
+        // },
         showTronUpdate: e => {
             if (e) e.preventDefault();
             dispatch(userActions.showTronUpdate());
