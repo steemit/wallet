@@ -308,7 +308,7 @@ class TransferForm extends Component {
         const { loading, trxError, advanced } = this.state;
         const {
             currentUser,
-            currentAccount,
+            // currentAccount,
             toVesting,
             transferToSelf,
             dispatchSubmit,

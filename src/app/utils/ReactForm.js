@@ -140,6 +140,8 @@ export default function reactForm({
 function setFormState(name, instance, fields, validation) {
     let formValid = true;
     let formTouched = false;
+    // TODO: optimize validation.
+    // Don't trigger all rules when each input is typing.
     const v = validation(getData(fields, instance.state));
     for (const field of fields) {
         const fieldName = n(field);
