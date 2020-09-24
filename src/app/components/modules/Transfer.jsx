@@ -221,11 +221,17 @@ class TransferForm extends Component {
                         ? tt('transfer_jsx.amount_is_in_form')
                         : insufficientFunds(values.asset, values.amount)
                             ? tt('transfer_jsx.insufficient_funds')
-                            : countDecimals(values.amount) > 3
-                                ? tt(
-                                      'transfer_jsx.use_only_3_digits_of_precison'
-                                  )
-                                : null,
+                            : this.state.tronTransfer
+                                ? countDecimals(values.amount) > 6
+                                    ? tt(
+                                          'transfer_jsx.use_only_6_digits_of_precision'
+                                      )
+                                    : null
+                                : countDecimals(values.amount) > 3
+                                    ? tt(
+                                          'transfer_jsx.use_only_3_digits_of_precison'
+                                      )
+                                    : null,
                 asset: props.toVesting
                     ? null
                     : !values.asset
@@ -962,7 +968,7 @@ export default connect(
         const tronBalance =
             currentUser && currentUser.has('tron_balance')
                 ? currentUser.get('tron_balance')
-                : '0.00';
+                : 0;
         const toTronAddr = state.user.get('to_tron_addr');
         const tronAccountCheckError = state.user.get(
             'tron_account_check_error'
