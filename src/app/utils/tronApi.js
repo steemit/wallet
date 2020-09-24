@@ -20,14 +20,10 @@ export async function transferTrxTo(from, to, amount, memo, privateKey) {
     });
     const sumAmount = parseInt(amount * 1e6, 10);
     // build tx
-    const tx = await tronWeb.transactionBuilder.sendTrx(to, sumAmount, from);
+    let tx = await tronWeb.transactionBuilder.sendTrx(to, sumAmount, from);
     if (memo) {
         // write memo
-        const memoTx = await tronWeb.transactionBuilder.addUpdateData(
-            tx,
-            memo,
-            'utf8'
-        );
+        tx = await tronWeb.transactionBuilder.addUpdateData(tx, memo, 'utf8');
     }
     // sign
     const signedTx = await tronWeb.trx.sign(tx, privateKey);

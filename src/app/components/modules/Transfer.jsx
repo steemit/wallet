@@ -1087,6 +1087,11 @@ export default connect(
         }) => {
             const username = currentUser.get('username');
             const successCallback = result => {
+                if (result.result !== true) {
+                    console.error('tron transfer failed:', result);
+                    errorCallback(result.code);
+                    return;
+                }
                 // refresh transfer history
                 dispatch(
                     globalActions.getState({ url: `@${username}/transfers` })
