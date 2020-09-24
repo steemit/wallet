@@ -250,6 +250,7 @@ function* usernamePasswordLogin({
                 ),
                 tip_count: account.get('tip_count'),
                 tron_addr: account.get('tron_addr'),
+                tron_balance: account.get('tron_balance'),
             })
         );
         return;
@@ -355,6 +356,7 @@ function* usernamePasswordLogin({
                     ),
                     tip_count: account.get('tip_count'),
                     tron_addr: account.get('tron_addr'),
+                    tron_balance: account.get('tron_balance'),
                 })
             );
         } else {
@@ -373,6 +375,7 @@ function* usernamePasswordLogin({
                     ),
                     tip_count: account.get('tip_count'),
                     tron_addr: account.get('tron_addr'),
+                    tron_balance: account.get('tron_balance'),
                 })
             );
         }
@@ -425,6 +428,7 @@ function* usernamePasswordLogin({
                         ),
                         tip_count: account.get('tip_count'),
                         tron_addr: account.get('tron_addr'),
+                        tron_balance: account.get('tron_balance'),
                     })
                 );
             } else {
