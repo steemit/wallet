@@ -1,3 +1,12 @@
+/* eslint-disable no-plusplus */
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable no-undef */
+/* eslint-disable no-empty */
+/* eslint-disable no-constant-condition */
+/* eslint-disable prefer-const */
+/* eslint-disable no-shadow */
+/* eslint-disable no-lonely-if */
 import { call, put, select, all, takeEvery } from 'redux-saga/effects';
 import { fromJS, Set, Map } from 'immutable';
 import tt from 'counterpart';
@@ -17,14 +26,8 @@ import * as proposalActions from 'app/redux/ProposalReducer';
 import { DEBT_TICKER } from 'app/client_config';
 import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 import { isLoggedInWithKeychain } from 'app/utils/SteemKeychain';
-import { TRON_HOST } from 'app/client_config';
-
-// tron web configuration
-const TronWeb = require('tronweb');
-const HttpProvider = TronWeb.providers.HttpProvider;
-const fullNode = new HttpProvider(TRON_HOST);
-const solidityNode = new HttpProvider(TRON_HOST);
-const tronWeb = new TronWeb(fullNode, solidityNode);
+import { transferTrxTo } from 'app/utils/tronApi';
+import diff_match_patch from 'diff-match-patch';
 
 export const transactionWatches = [
     takeEvery(transactionActions.BROADCAST_OPERATION, broadcastOperation),
@@ -42,67 +45,27 @@ const hook = {
     accepted_withdraw_vesting,
 };
 
-export function* tronTransfer({
-    payload: {
-        username,
-        from,
-        to,
-        amount,
-        memo,
-        privateKey,
-        successCallback,
-        errorCallback,
-    },
-}) {
-    if (parseInt(amount) == NaN) {
-        errorCallback('amount is not integer,only accept int TRX');
-        return;
-    }
-    if (to == undefined || privateKey == undefined) {
-        errorCallback('check to tron address or privatekey');
+export function* tronTransfer({ payload }) {
+    if (payload.to == undefined || payload.privateKey == undefined) {
+        payload.errorCallback('check to tron address or privatekey');
         return;
     }
     try {
-        tronWeb.setFullNode($STM_Config.tron_host);
-        tronWeb.setSolidityNode($STM_Config.tron_host);
-        tronWeb.setEventServer($STM_Config.tron_host);
-        tronWeb.setPrivateKey(privateKey);
-        const sumAmount = 1000000 * amount;
-        const unSignTransaction = yield tronWeb.transactionBuilder.sendTrx(
-            to,
-            sumAmount,
-            from
+        const result = yield transferTrxTo(
+            payload.from,
+            payload.to,
+            payload.amount,
+            payload.memo,
+            payload.privateKey
         );
-        // write memo
-        const transactionWithMemo = yield tronWeb.transactionBuilder.addUpdateData(
-            unSignTransaction,
-            memo,
-            'utf8'
-        );
-        // sign
-        const signedTransaction = yield tronWeb.trx.sign(
-            transactionWithMemo,
-            privateKey
-        );
-        // broadcast
-        const trx_result = yield tronWeb.trx.sendRawTransaction(
-            signedTransaction
-        );
-        let trx_hash = trx_result.txid;
-        let timeout_count = 60 * 10; //  10 minutes
-        while (timeout_count > 0) {
-            const result = yield tronWeb.trx.getTransactionInfo(trx_hash);
-            if (result.id && result.id == trx_hash) {
-                successCallback();
-                console.log('TRX transaction successful confirmed');
-                return;
-            }
-            yield new Promise(resolve => setTimeout(resolve, 1000)); // sleep 1 seccond
-            timeout_count--;
-        }
-        errorCallback('transaction was not confirmed within 10 minutes');
+        payload.successCallback(result);
     } catch (err) {
-        errorCallback(err.toString());
+        console.error('tron transfer error:', err);
+        if (err) {
+            payload.errorCallback(
+                tt(`tron_jsx.${err.replace(/\s+/g, '_').toLowerCase()}`)
+            );
+        }
     }
 }
 export function* preBroadcast_transfer({ operation }) {
@@ -471,8 +434,6 @@ function* accepted_account_update({ operation }) {
     account = fromJS(account);
     yield put(globalActions.receiveAccount({ account }));
 }
-
-import diff_match_patch from 'diff-match-patch';
 
 const dmp = new diff_match_patch();
 

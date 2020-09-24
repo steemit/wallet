@@ -83,19 +83,27 @@ const highSecurityPages = [
     /\/proposals/,
 ];
 
-function* checkTron({ payload: { account, type } }) {
-    if (account === null) {
+function* checkTron({ payload: { from, to, type } }) {
+    if (to === null) {
         yield put(userActions.setToTronAddr(null));
         yield put(userActions.setTronAccountCheckError(null));
         return;
     }
     try {
-        const user = yield checkTronUser(account, type);
+        const user = yield checkTronUser(to, type);
         if (user.tron_addr === '') {
             yield put(userActions.setToTronAddr(null));
             yield put(
                 userActions.setTronAccountCheckError(
                     tt('tron_jsx.unbind_tron_addr')
+                )
+            );
+            return;
+        }
+        if (user.tron_addr === from) {
+            yield put(
+                userActions.setTronAccountCheckError(
+                    tt('tron_jsx.cannot_transfer_to_yourself')
                 )
             );
             return;

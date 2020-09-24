@@ -844,6 +844,9 @@
         "switch_to_tron_account": "切换为TRON账户",
         "switch_to_steem_account": "切换为Steem账户",
         "unbind_tron_addr": "此用户未开通TRON账户",
-        "username_not_exist": "账户不存在"
+        "username_not_exist": "账户不存在",
+        "cannot_transfer_to_yourself": "不能转给自己",
+        "private_key_does_not_match_address_in_transaction": "私钥错误",
+        "transaction_send_success": "转账请求发送成功"
     }
 }

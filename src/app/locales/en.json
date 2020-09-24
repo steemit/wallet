@@ -1070,6 +1070,10 @@
         "switch_to_tron_account": "Switch to TRON account",
         "switch_to_steem_account": "Switch to Steem account",
         "unbind_tron_addr": "This user does not have a TRON account",
-        "username_not_exist": "Account not found"
+        "username_not_exist": "Account not found",
+        "cannot_transfer_to_yourself": "不能转给自己",
+        "private_key_does_not_match_address_in_transaction":
+            "Private key does not match address in transaction",
+        "transaction_send_success": "Transaction has been sent successfully."
     }
 }

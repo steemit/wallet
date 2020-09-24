@@ -14,9 +14,11 @@ import tt from 'counterpart';
 import * as transactionActions from 'app/redux/TransactionReducer';
 import * as userActions from 'app/redux/UserReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
+import * as appActions from 'app/redux/AppReducer';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import ConfirmTransfer from 'app/components/elements/ConfirmTransfer';
 import runTests, { browserTests } from 'app/utils/BrowserTests';
+import { recordAdsView } from 'app/utils/ServerApiClient';
 import {
     validate_account_name_with_memo,
     validate_memo_field,
@@ -152,16 +154,19 @@ class TransferForm extends Component {
         this.setState({ advanced: !this.state.advanced });
     };
 
-    tronValidation = address => {
+    tronValidation = (from, to) => {
         if (this.state.tronTransfer) {
             if (this.state.switchSteem) {
-                const text = validate_account_name(address);
+                const text = validate_account_name(to);
                 if (text !== null) return text;
-                this.props.checkTron(address, 'steem');
+                this.props.checkTron(from, to, 'steem');
                 return null;
             } else if (this.state.switchTron) {
-                if (address.length !== 34) {
+                if (to.length !== 34) {
                     return tt('transfer_jsx.invalid_tron_address');
+                }
+                if (from === to) {
+                    return tt('tron_jsx.cannot_transfer_to_yourself');
                 }
                 return null;
             }
@@ -210,7 +215,7 @@ class TransferForm extends Component {
                 to: !values.to
                     ? tt('g.required')
                     : this.state.tronTransfer
-                        ? this.tronValidation(values.to)
+                        ? this.tronValidation(props.tronAddr, values.to)
                         : validate_account_name_with_memo(
                               values.to,
                               values.memo
@@ -308,12 +313,12 @@ class TransferForm extends Component {
         const { loading, trxError, advanced } = this.state;
         const {
             currentUser,
-            // currentAccount,
             toVesting,
             transferToSelf,
             dispatchSubmit,
-            tron_transfer_submit,
             tronAccountCheckError,
+            tronTransferSubmit,
+            trackingId,
         } = this.props;
         const { transferType } = this.props.initialValues;
         const { submitting, valid, handleSubmit } = this.state.transfer;
@@ -388,7 +393,7 @@ class TransferForm extends Component {
                                     tronLoading: true,
                                 });
 
-                                tron_transfer_submit({
+                                tronTransferSubmit({
                                     currentUser,
                                     from: this.props.tronAddr,
                                     to: this.props.toTronAddr,
@@ -396,6 +401,7 @@ class TransferForm extends Component {
                                     memo: memo.value,
                                     privateKey: this.state.tronPrivateKey,
                                     errorCallback: this.errorCallback,
+                                    trackingId,
                                 });
                             }}
                             disabled={
@@ -753,12 +759,7 @@ class TransferForm extends Component {
                                 )}
                                 <button
                                     type="submit"
-                                    disabled={
-                                        submitting ||
-                                        !valid ||
-                                        (this.state.tronTransfer &&
-                                            this.props.tron_transfer_msg != '')
-                                    }
+                                    disabled={submitting || !valid}
                                     className="button"
                                 >
                                     {toVesting
@@ -784,12 +785,6 @@ class TransferForm extends Component {
             </form>
         );
 
-        const to_address =
-            to && to.value
-                ? this.state.switchTron
-                    ? this.state.to_tron_address
-                    : to.value
-                : '';
         const ConfirmTronTransfer = (
             <div className="info">
                 <div key={`transaction-group-${0}`} className="input-group">
@@ -807,10 +802,7 @@ class TransferForm extends Component {
                         disabled={true}
                         key={`transaction-input-${0}`}
                     />
-                    <span className="tron_address">
-                        {' '}
-                        {this.state.tron_address}
-                    </span>
+                    <span className="tron_address"> {this.props.tronAddr}</span>
                 </div>
                 <div key={`transaction-group-${1}`} className="input-group">
                     <span
@@ -823,13 +815,13 @@ class TransferForm extends Component {
                         className="input-group-field"
                         type="text"
                         required
-                        value={to_address}
+                        value={to.value}
                         disabled={true}
                         key={`transaction-input-${1}`}
                     />
                     {this.state.switchSteem && (
                         <span className="tron_address">
-                            {this.state.to_tron_address}
+                            {this.props.toTronAddr}
                         </span>
                     )}
                 </div>
@@ -937,6 +929,32 @@ const AssetBalance = ({ onClick, balanceValue }) => (
     </a>
 );
 
+const TxLink = ({ txId, trackingId }) => (
+    <div>
+        <span>{tt('tron_jsx.transaction_send_success')}</span>
+        <a
+            onClick={() => {
+                const new_window = window.open();
+                const tron_host = $STM_Config.tron_host
+                    ? $STM_Config.tron_host.toString()
+                    : 'tronscan.org';
+                if (tron_host && tron_host.includes('shasta')) {
+                    new_window.location = `https://shasta.tronscan.org/#/transaction/${txId}`;
+                } else {
+                    new_window.location = `https://tronscan.org/#/transaction/${txId}`;
+                }
+                recordAdsView({
+                    trackingId,
+                    adTag: 'TronHistory',
+                });
+            }}
+            style={{ paddingLeft: '10px' }}
+        >
+            {txId}
+        </a>
+    </div>
+);
+
 export default connect(
     // mapStateToProps
     (state, ownProps) => {
@@ -975,6 +993,7 @@ export default connect(
         );
         return {
             ...ownProps,
+            trackingId: state.app.getIn(['trackingId'], null),
             currentUser,
             currentAccount,
             toVesting,
@@ -1064,21 +1083,34 @@ export default connect(
             memo,
             privateKey,
             errorCallback,
+            trackingId,
         }) => {
             const username = currentUser.get('username');
-            const successCallback = () => {
+            const successCallback = result => {
                 // refresh transfer history
                 dispatch(
                     globalActions.getState({ url: `@${username}/transfers` })
                 );
                 dispatch(userActions.hideTransfer());
                 console.log(
-                    `success finish tron transfer...from ${from} to ${to}`
+                    `success finish tron transfer from ${from} to ${to}`,
+                    result
+                );
+                dispatch(
+                    appActions.addNotification({
+                        key: 'chpwd_' + Date.now(),
+                        message: (
+                            <TxLink
+                                txId={result.txid}
+                                trackingId={trackingId}
+                            />
+                        ),
+                        dismissAfter: 5000,
+                    })
                 );
             };
             dispatch(
                 transactionActions.tronTransfer({
-                    username,
                     from,
                     to,
                     amount,
@@ -1089,8 +1121,8 @@ export default connect(
                 })
             );
         },
-        checkTron: (account, type) => {
-            dispatch(userActions.checkTron({ account, type }));
+        checkTron: (from, to, type) => {
+            dispatch(userActions.checkTron({ from, to, type }));
         },
     })
 )(TransferForm);
