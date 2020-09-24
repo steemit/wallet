@@ -166,7 +166,7 @@ app.use(function*(next) {
     // redirect to home page if known account
     if (this.method === 'GET' && this.url === '/' && this.session.a) {
         this.status = 302;
-        this.redirect(`/@${this.session.a}`);
+        this.redirect(`/@${this.session.a}/transfers`);
         return;
     }
     // normalize user name url from cased params

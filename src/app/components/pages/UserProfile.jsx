@@ -39,6 +39,11 @@ export default class UserProfile extends React.Component {
         this.onPrint = () => {
             window.print();
         };
+        this.redirect = this.redirect.bind(this);
+    }
+
+    componentWillMount() {
+        this.redirect();
     }
 
     shouldComponentUpdate(np, ns) {
@@ -53,9 +58,26 @@ export default class UserProfile extends React.Component {
         );
     }
 
+    componentDidUpdate(prevProps) {
+        this.redirect();
+    }
+
     componentWillUnmount() {
         this.props.clearTransferDefaults();
         this.props.clearPowerdownDefaults();
+    }
+
+    redirect() {
+        const {
+            accountname,
+            routeParams: { section },
+        } = this.props;
+        // Redirect user homepage to transfers page
+        if (!section) {
+            if (process.env.BROWSER) {
+                browserHistory.replace(`/@${accountname}/transfers`);
+            }
+        }
     }
 
     render() {
@@ -72,14 +94,6 @@ export default class UserProfile extends React.Component {
             },
             onPrint,
         } = this;
-
-        // Redirect user homepage to transfers page
-        if (!section) {
-            if (process.env.BROWSER) {
-                browserHistory.replace(`/@${accountname}/transfers`);
-            }
-            return null;
-        }
 
         // Loading status
         const status = globalStatus
