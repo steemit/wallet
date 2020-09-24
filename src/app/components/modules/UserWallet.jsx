@@ -37,7 +37,7 @@ import * as userActions from 'app/redux/UserReducer';
 import * as appActions from 'app/redux/AppReducer';
 import { recordAdsView } from 'app/utils/ServerApiClient';
 import QRCode from 'react-qr';
-// import LoadingIndicator from 'app/components/elements/LoadingIndicator';
+import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 
 const assetPrecision = 1000;
 
@@ -247,14 +247,12 @@ class UserWallet extends React.Component {
         // do not render if state appears to contain only lite account info
         if (!account.has('vesting_shares')) return null;
 
-        // this is for the ssr logic
-        const hasLoadedAccountTronInfo = account.has('tron_addr');
-        // if (!hasLoadedAccountTronInfo) return null;
-
         const tronAddr = account.get('tron_addr');
-        const tronBalance = parseFloat(
-            hasLoadedAccountTronInfo ? account.get('tron_balance') : 0
-        );
+        const tronBalance =
+            account.get('tron_balance') !== undefined &&
+            account.get('tron_balance')
+                ? parseFloat(account.get('tron_balance'))
+                : 0;
 
         const vesting_steem = vestingSteem(account.toJS(), gprops);
         const delegated_steem = delegatedSteem(account.toJS(), gprops);
@@ -1008,7 +1006,7 @@ class UserWallet extends React.Component {
                         </div>
                     </div>
                     <div className="column small-12 medium-4">
-                        {hasLoadedAccountTronInfo && isMyAccount ? (
+                        {tronAddr !== undefined && isMyAccount ? (
                             <DropdownMenu
                                 className="Wallet_dropdown"
                                 items={trx_menu}
@@ -1019,7 +1017,8 @@ class UserWallet extends React.Component {
                             trx_balance_str + ' TRX'
                         )}
                         <div className="columns shrink">
-                            {isMyAccount &&
+                            {tronAddr !== undefined &&
+                                isMyAccount &&
                                 !tronAddr && (
                                     <button
                                         className="UserWallet__tron button buttonSmall hollow"
@@ -1030,7 +1029,8 @@ class UserWallet extends React.Component {
                                 )}
                         </div>
                         <div className="columns shrink">
-                            {isMyAccount &&
+                            {tronAddr !== undefined &&
+                                isMyAccount &&
                                 tronAddr && (
                                     <button
                                         className="UserWallet__tron button buttonSmall hollow"
@@ -1039,6 +1039,11 @@ class UserWallet extends React.Component {
                                         {tt('userwallet_jsx.update_trx_button')}
                                     </button>
                                 )}
+                        </div>
+                        <div className="columns shrink">
+                            {tronAddr === undefined && (
+                                <LoadingIndicator type="circle" />
+                            )}
                         </div>
                     </div>
                 </div>
