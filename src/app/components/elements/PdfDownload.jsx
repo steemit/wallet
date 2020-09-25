@@ -24,8 +24,10 @@ function image2canvas(image, bgcolor) {
 export default class PdfDownload extends Component {
     constructor(props) {
         super(props);
+        this.state = { loaded: false };
         this.downloadPdf = this.downloadPdf.bind(this);
-        this.state = { loaded: true };
+        this.handleImageLoaded = this.handleImageLoaded.bind(this);
+        this.handleImageErrored = this.handleImageErrored.bind(this);
     }
 
     // shouldComponentUpdate(nextProps, nextState){
@@ -33,14 +35,14 @@ export default class PdfDownload extends Component {
     //     return true;
     // }
     componentDidMount() {
-        if (this.props.download === true) {
+        if (this.props.download === true && this.state.loaded === true) {
             this.downloadPdf();
         }
     }
 
     componentDidUpdate(prevProps) {
         // start to download pdf key file
-        if (this.props.download !== prevProps.download && this.props.download) {
+        if (this.props.download === true && this.state.loaded === true) {
             this.downloadPdf();
         }
     }
@@ -66,6 +68,22 @@ export default class PdfDownload extends Component {
         this.renderPdf(keys, filename).save(filename);
     }
 
+    handleImageLoaded() {
+        console.log('test image has loaded');
+        this.setState({ loaded: true });
+        if (this.props.handleImageLoaded) {
+            this.props.handleImageLoaded();
+        }
+    }
+
+    handleImageErrored() {
+        console.error('pdf logo loaded error.');
+        this.setState({ loaded: true });
+        if (this.props.handleImageErrored) {
+            this.props.handleImageErrored();
+        }
+    }
+
     render() {
         return (
             <div className="pdf-download">
@@ -74,29 +92,31 @@ export default class PdfDownload extends Component {
                     src="/images/pdf-logo.svg"
                     style={{ display: 'none' }}
                     className="pdf-logo"
+                    onLoad={this.handleImageLoaded}
+                    onError={this.handleImageErrored}
                 />
-                {this.state.loaded &&
-                    (!this.props.link ? (
-                        <button
-                            style={{ display: 'block' }}
-                            onClick={e => {
-                                this.downloadPdf();
-                                e.preventDefault();
-                            }}
-                        >
-                            {this.props.label}
-                        </button>
-                    ) : (
-                        <Link
-                            style={{ display: 'block', color: '#1FBF8F' }}
-                            onClick={e => {
-                                this.downloadPdf();
-                                e.preventDefault();
-                            }}
-                        >
-                            {this.props.label}
-                        </Link>
-                    ))}
+
+                {!this.props.link ? (
+                    <button
+                        style={{ display: 'block' }}
+                        onClick={e => {
+                            this.downloadPdf();
+                            e.preventDefault();
+                        }}
+                    >
+                        {this.props.label}
+                    </button>
+                ) : (
+                    <Link
+                        style={{ display: 'block', color: '#1FBF8F' }}
+                        onClick={e => {
+                            this.downloadPdf();
+                            e.preventDefault();
+                        }}
+                    >
+                        {this.props.label}
+                    </Link>
+                )}
             </div>
         );
     }

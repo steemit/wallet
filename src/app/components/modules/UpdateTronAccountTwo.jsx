@@ -42,6 +42,7 @@ class UpdateTronAccountTwo extends Component {
                     <div style={{ display: 'flex' }}>
                         <span>{tt('tron_jsx.update_success_content3')}</span>
                         <PdfDownload
+                            filename={`TRON account for @${username}`}
                             name={username}
                             tron_public_key={tronAddr}
                             tron_private_key={tronPrivateKey}
