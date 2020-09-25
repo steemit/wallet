@@ -696,7 +696,7 @@ function* updateTronPopupTipCount() {
     yield put(
         userActions.setUser({
             tip_count: tip_count + 1,
-            tip_count_lock: true,
+            tip_count_lock: true, // prevent tip popup multi times
         })
     );
 

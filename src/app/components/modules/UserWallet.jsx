@@ -148,9 +148,8 @@ class UserWallet extends React.Component {
             currentUserTronAddr,
             currentUserTipCount,
             unbindTipLimit,
-            tronCreatePopupStatus,
-            currentUserTipCountLock,
         } = nextProps;
+        const { currentUserTipCountLock, tronCreatePopupStatus } = this.props;
         if (
             currentUserTronAddr === '' &&
             currentUserTipCount !== 999 &&
