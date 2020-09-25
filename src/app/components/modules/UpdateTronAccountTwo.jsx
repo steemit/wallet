@@ -39,7 +39,8 @@ class UpdateTronAccountTwo extends Component {
                 </div>
                 <div style={styles.container}>
                     <div>{tt('tron_jsx.update_success_content')}</div>
-                    <div>
+                    <div style={{ display: 'flex' }}>
+                        <span>{tt('tron_jsx.update_success_content3')}</span>
                         <PdfDownload
                             name={username}
                             tron_public_key={tronAddr}
@@ -51,6 +52,9 @@ class UpdateTronAccountTwo extends Component {
                             link={true}
                             download={!!tronPrivateKey}
                         />
+                        <span>
+                            {tt('tron_jsx.create_tron_success_content3')}
+                        </span>
                     </div>
                     <div>{tt('tron_jsx.update_success_content2')}</div>
                 </div>

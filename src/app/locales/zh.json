@@ -772,7 +772,7 @@
         "redeem_rewards": "赎回奖励(转移至余额)",
         "buy_steem_or_steem_power": "购买STEEM",
         "trx_description":
-            "TRX链接了整个TRON生态系统，可以在任何时候发送给任何地方.通过冻结和投票参与TRON生态建设，获得客观收益. TRX奖励根据你可以赎回的SP,按个数等比例发放.",
+            "TRX链接了整个TRON生态系统，可以在任何时候发送给任何地方.通过冻结和投票参与TRON生态建设，获得可观收益. TRX奖励根据你可以赎回的SP,按个数等比例发放.",
         "create_trx_description":
             "还没创建TRON账户,请点击右侧创建TRON账号按钮创建并领取TRX奖励",
         "create_trx_button": "创建TRON账户",
@@ -813,8 +813,8 @@
         "tron_tx_history": "TRON账号交易历史 >",
         "update_tron_account": "更新TRON账号",
         "update_tron_content":
-            "更新TRON账号请确认一下信息,以避免不必要的经济损失. ",
-        "update_tron_content1": "已经安全保持了此TRON账户私钥",
+            "更新TRON账号请确认以下信息,以避免不必要的经济损失. ",
+        "update_tron_content1": "已经安全保存了此TRON账户私钥",
         "update_tron_content2":
             "或已经将此TRON账户导入至其他支持TRON账户的钱包中，",
         "update_tron_content3":
@@ -825,11 +825,12 @@
             "是否同意更新TRON账户并下载带有更新后TRON账户公私钥的PDF？",
         "update_button": "更新并下载",
         "update_success": "更新成功",
-        "update_success_content": "已经成功更新TRON账户。若下载失败 ",
+        "update_success_content": "已经成功更新TRON账户。",
+        "update_success_content3": "若下载失败，",
         "update_success_click": "点此下载",
         "update_success_content2":
             "请小心保管，若丢失无法找回，不要与任何人共享此文件。",
-        "safe_save_button": "安全保存",
+        "safe_save_button": "已安全保存PDF",
         "create_tron_account": "创建TRON账户领取奖励",
         "create_tron_account_content":
             "Steemit 将会为你发放额外的TRX奖励，此账户用来接收奖励。",

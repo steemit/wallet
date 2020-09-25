@@ -88,7 +88,7 @@ export default class PdfDownload extends Component {
                         </button>
                     ) : (
                         <Link
-                            style={{ display: 'block' }}
+                            style={{ display: 'block', color: '#1FBF8F' }}
                             onClick={e => {
                                 this.downloadPdf();
                                 e.preventDefault();
@@ -187,16 +187,22 @@ export default class PdfDownload extends Component {
             '#1F0FD1'
         );
         offset += 0.265;
-        offset += this.renderText(ctx, `Steem keys for @${this.props.name}`, {
-            scale,
-            x: margin,
-            y: offset,
-            lineHeight: 1.0,
-            maxWidth: maxLineWidth,
-            color: 'white',
-            fontSize: 0.36,
-            font: 'Roboto-Bold',
-        });
+        offset += this.renderText(
+            ctx,
+            this.props.filename
+                ? this.props.filename
+                : `Steem keys for @${this.props.name}`,
+            {
+                scale,
+                x: margin,
+                y: offset,
+                lineHeight: 1.0,
+                maxWidth: maxLineWidth,
+                color: 'white',
+                fontSize: 0.36,
+                font: 'Roboto-Bold',
+            }
+        );
 
         /*
         offset += 0.1;
