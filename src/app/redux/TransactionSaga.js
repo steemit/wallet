@@ -250,6 +250,7 @@ function hasPrivateKeys(payload) {
 function* broadcastPayload({
     payload: { operations, keys, username, successCallback, errorCallback },
 }) {
+    console.log('TEST debug broadcastPayload:', operations, keys, username);
     let needsActiveAuth = false;
     // console.log('broadcastPayload')
     if ($STM_Config.read_only_mode) return;
