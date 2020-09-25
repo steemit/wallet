@@ -1197,6 +1197,9 @@ export default connect(
                     type: 'claim_reward_balance',
                     operation,
                     successCallback,
+                    errorCallback: err => {
+                        console.error('claim reward balance error:', err);
+                    },
                 })
             );
         },
