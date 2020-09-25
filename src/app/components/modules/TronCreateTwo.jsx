@@ -35,8 +35,12 @@ class TronCreateTwo extends Component {
                 </div>
                 <div style={styles.container}>
                     <div>{tt('tron_jsx.create_tron_success_content')}</div>
-                    <div>
+                    <div style={{ display: 'flex' }}>
+                        <span>
+                            {tt('tron_jsx.create_tron_success_content2')}
+                        </span>
                         <PdfDownload
+                            filename={`TRON account for @${username}`}
                             name={username}
                             tron_public_key={tronAddr}
                             tron_private_key={tronPrivateKey}
@@ -47,6 +51,9 @@ class TronCreateTwo extends Component {
                             link={true}
                             download={!!tronPrivateKey}
                         />
+                        <span>
+                            {tt('tron_jsx.create_tron_success_content3')}
+                        </span>
                     </div>
                     <div>{tt('tron_jsx.update_success_content2')}</div>
                 </div>

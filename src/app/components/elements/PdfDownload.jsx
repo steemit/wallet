@@ -60,7 +60,9 @@ export default class PdfDownload extends Component {
 
     downloadPdf() {
         const keys = this.generateKeys(this.props.name, this.props.password);
-        const filename = this.props.name + '_steem_keys.pdf';
+        const filename = this.props.filename
+            ? this.props.filename
+            : this.props.name + '_steem_keys.pdf';
         this.renderPdf(keys, filename).save(filename);
     }
 

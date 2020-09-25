@@ -34,13 +34,14 @@ import {
     checkTronUser,
     updateTronUser,
     getTronAccount,
-    createTronAccount,
+    // createTronAccount,
     getTronConfig,
 } from 'app/utils/ServerApiClient';
 import { loadFollows } from 'app/redux/FollowSaga';
 import { translate } from 'app/Translator';
 import tt from 'counterpart';
 import { takeEvery } from 'redux-saga';
+import { createTronAccount } from 'app/utils/tronApi';
 
 const max_pop_window_count = 5;
 export const userWatches = [
@@ -730,6 +731,7 @@ function* updateTronAddr() {
     // create tron account
     const tronAccount = yield createTronAccount();
     if (
+        tronAccount === null ||
         tronAccount.address === undefined ||
         tronAccount.address.base58 === undefined
     ) {

@@ -1,6 +1,21 @@
 /* eslint-disable import/prefer-default-export */
 import TronWeb from 'tronweb';
 
+export async function createTronAccount() {
+    const apiTronHost = global.$STM_Config
+        ? global.$STM_Config.tron_host
+        : 'https://api.shasta.trongrid.io';
+    const tronWeb = new TronWeb({
+        fullHost: apiTronHost,
+    });
+    try {
+        return await tronWeb.createAccount();
+    } catch (err) {
+        console.error('create tron account error:' + err);
+        return null;
+    }
+}
+
 export async function getTronAccount(addr) {
     const apiTronHost = global.$STM_Config
         ? global.$STM_Config.tron_host
