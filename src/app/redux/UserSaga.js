@@ -677,7 +677,7 @@ function* updateTronPopupTipCount() {
         state.user.getIn(['current', 'private_keys']),
     ]);
 
-    if (!tip_count || !private_keys) return;
+    if (tip_count === undefined || private_keys === undefined) return;
 
     // charge that which level private key we own.
     let privateKeyType = null;
