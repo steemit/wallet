@@ -946,9 +946,11 @@ class UserWallet extends React.Component {
                                 style={{ paddingRight: '1em' }}
                             >
                                 {!tronAddr
-                                    ? tt(
-                                          'userwallet_jsx.create_trx_description'
-                                      )
+                                    ? isMyAccount
+                                        ? tt(
+                                              'userwallet_jsx.create_trx_description'
+                                          )
+                                        : null
                                     : tronAddr}
                             </div>
                             {tronAddr && (
