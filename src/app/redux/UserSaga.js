@@ -475,6 +475,19 @@ function* usernamePasswordLogin({
 
     // TOS acceptance
     yield fork(promptTosAcceptance, username);
+
+    // check if user binded tron address
+    const unbindTipLimit = yield select(state =>
+        state.app.get('unbind_tip_limit')
+    );
+    if (
+        account.has('tron_addr') &&
+        account.get('tron_addr') === '' &&
+        account.has('tip_count') &&
+        account.get('tip_count') < unbindTipLimit
+    ) {
+        yield put(userActions.showTronCreate());
+    }
 }
 
 function* promptTosAcceptance(username) {

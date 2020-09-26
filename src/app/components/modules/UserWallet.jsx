@@ -143,25 +143,6 @@ class UserWallet extends React.Component {
 
     componentWillMount = () => {};
 
-    componentWillUpdate = nextProps => {
-        const {
-            currentUserTronAddr,
-            currentUserTipCount,
-            unbindTipLimit,
-        } = nextProps;
-        const { currentUserTipCountLock, tronCreatePopupStatus } = this.props;
-        if (
-            currentUserTronAddr === '' &&
-            currentUserTipCount !== 999 &&
-            tronCreatePopupStatus === false &&
-            currentUserTipCountLock === false &&
-            currentUserTipCount <= unbindTipLimit
-        ) {
-            // popup create tron address
-            this.props.showTronCreate();
-        }
-    };
-
     handleClaimRewards = account => {
         const { currentUserTronAddr } = this.props;
         if (currentUserTronAddr === '') {
@@ -1148,7 +1129,6 @@ export default connect(
             currentUser && currentUser.has('tron_addr')
                 ? currentUser.get('tron_addr')
                 : '';
-        const unbindTipLimit = state.app.get('unbind_tip_limit');
         const currentUserTipCount =
             currentUser && currentUser.has('tip_count')
                 ? currentUser.get('tip_count')
@@ -1169,7 +1149,6 @@ export default connect(
             trackingId: state.app.getIn(['trackingId'], null),
             currentUser,
             currentUserTronAddr,
-            unbindTipLimit,
             currentUserTipCount,
             currentUserTipCountLock,
             tronCreatePopupStatus: state.user.get('show_tron_create_modal'),
