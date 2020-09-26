@@ -167,6 +167,9 @@ export default function useTronRewardApi(app) {
             }
         });
         if (Object.keys(updateData).length > 0) {
+            // update avtive field
+            updateData.is_tron_addr_actived = 0;
+            updateData.tron_addr_active_time = null;
             // update db
             yield models.TronUser.update(updateData, {
                 where: models.escAttrs(conditions),
