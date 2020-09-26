@@ -39,7 +39,7 @@ class UpdateTronAccountTwo extends Component {
                 </div>
                 <div style={styles.container}>
                     <div>{tt('tron_jsx.update_success_content')}</div>
-                    <div style={{ display: 'flex' }}>
+                    <div className="tron-account-dl">
                         <span>{tt('tron_jsx.update_success_content3')}</span>
                         <PdfDownload
                             filename={`TRON account for @${username}`}
