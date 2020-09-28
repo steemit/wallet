@@ -684,7 +684,11 @@
         "sign_up_now_to_earn": "现在就来注册赚取",
         "free_money": "免费的钱！",
         "returning_users": "返回用户:",
-        "use_keychain": "Use keychain extension"
+        "use_keychain": "Use keychain extension",
+        "not_a_steemit_user": "还不是Steemit用户？",
+        "free_register": "免费注册",
+        "login_to_wallet": "登录钱包",
+        "sign_transfer": "登录完成转账"
     },
     "chainvalidation_js": {
         "account_name_should": "帐户名称应该",
@@ -842,7 +846,7 @@
         "create_tron_success_content": "已经成功创建TRON账户，",
         "create_tron_success_content2": "若下载失败，",
         "create_tron_success_content3": "带有TRON账户公私钥的PDF。",
-        "qr_code": "复制二维码",
+        "qr_code": "二维码",
         "copy": "复制",
         "switch_to_tron_account": "切换为TRON账户",
         "switch_to_steem_account": "切换为Steem账户",

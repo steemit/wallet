@@ -1,3 +1,11 @@
+/* eslint-disable import/newline-after-import */
+/* eslint-disable import/first */
+/* eslint-disable no-useless-escape */
+/* eslint-disable jsx-a11y/no-static-element-interactions */
+/* eslint-disable class-methods-use-this */
+/* eslint-disable react/no-string-refs */
+/* eslint-disable no-undef */
+/* eslint-disable react/require-default-props */
 /* eslint react/prop-types: 0 */
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
@@ -82,10 +90,12 @@ class LoginForm extends Component {
                 password: useKeychain
                     ? null
                     : !values.password
-                      ? tt('g.required')
-                      : PublicKey.fromString(values.password)
-                        ? tt('loginform_jsx.you_need_a_private_password_or_key')
-                        : null,
+                        ? tt('g.required')
+                        : PublicKey.fromString(values.password)
+                            ? tt(
+                                  'loginform_jsx.you_need_a_private_password_or_key'
+                              )
+                            : null,
             }),
         });
     }
@@ -411,7 +421,6 @@ class LoginForm extends Component {
                     </label>
                 </div>
                 <div className="login-modal-buttons">
-                    <br />
                     <button
                         type="submit"
                         disabled={submitting || disabled}
@@ -420,18 +429,18 @@ class LoginForm extends Component {
                     >
                         {submitLabel}
                     </button>
-                    {this.props.onCancel && (
-                        <button
-                            type="button float-right"
-                            disabled={submitting}
-                            className="button hollow"
-                            onClick={onCancel}
-                        >
-                            {tt('g.cancel')}
-                        </button>
-                    )}
+                    <div className="register">
+                        <div className="register-title">
+                            {tt('loginform_jsx.not_a_steemit_user')}
+                        </div>
+                        <div className="register-link">
+                            <a href={SIGNUP_URL}>
+                                {tt('loginform_jsx.free_register')}
+                            </a>
+                        </div>
+                    </div>
                 </div>
-                {!isTransfer && signupLink}
+                {/*!isTransfer && signupLink*/}
             </form>
         );
 
