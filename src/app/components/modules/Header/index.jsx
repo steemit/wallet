@@ -1,7 +1,12 @@
+/* eslint-disable jsx-a11y/no-static-element-interactions */
+/* eslint-disable no-empty */
+/* eslint-disable react/forbid-prop-types */
+/* eslint-disable no-useless-constructor */
+/* eslint-disable react/require-default-props */
+/* eslint-disable no-undef */
 import React from 'react';
 import PropTypes from 'prop-types';
-import { browserHistory } from 'react-router';
-import { Link } from 'react-router';
+import { Link, browserHistory } from 'react-router';
 import { connect } from 'react-redux';
 import Icon from 'app/components/elements/Icon';
 import resolveRoute from 'app/ResolveRoute';
@@ -263,6 +268,9 @@ const mapDispatchToProps = dispatch => ({
     },
 });
 
-const connectedHeader = connect(mapStateToProps, mapDispatchToProps)(Header);
+const connectedHeader = connect(
+    mapStateToProps,
+    mapDispatchToProps
+)(Header);
 
 export default connectedHeader;
