@@ -193,6 +193,7 @@ export default function useTronRewardApi(app) {
 async function getUserPublicKey(username, authType = 'posting') {
     const user = await steem.api.getAccountsAsync([username]);
     if (user.length === 0) return null;
+    if (authType === 'memo' && user[0]['memo_key']) return user[0]['memo_key'];
     if (user[0][authType] === undefined) return null;
     return user[0][authType].key_auths[0][0];
 }
