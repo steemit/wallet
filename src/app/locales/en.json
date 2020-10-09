@@ -750,7 +750,7 @@
         "from_to": "from %(from)s to %(to)s"
     },
     "explorepost_jsx": {
-        "copied": "Copied!",
+        "copied": "Copied Successfully",
         "copy": "COPY",
         "alternative_sources": "Alternative Sources"
     },
@@ -927,9 +927,9 @@
         "redeem_rewards": "Redeem Rewards (Transfer to Balance)",
         "buy_steem_or_steem_power": "Buy STEEM",
         "trx_description":
-            "TRX connects all TRON ECO system, which can be sent to anywhere at anytime. You can receive a decent reward by voting and freezing trx for TRON ECO system. The number of reward TRX is based on the x percentage of the reward SP.",
+            "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere. You can gain promising return by freezing your tokens and voting for proposals to advance the TRON ecosystem. TRX rewards will be distributed in proportion to the number of SP you can redeem.",
         "create_trx_description":
-            "Not have TRX account? just click right creating TRX account button where a TRX reward can be received.",
+            "You must have a TRON account first. Please click \"Create A TRON Account\" on the right side to claim TRX rewards.",
         "create_trx_button": "CREATE TRON ACCOUNT",
         "update_trx_button": "UPDATE TRON ACCOUNT",
         "just_mortgage": "go JUST mortgage",

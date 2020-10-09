@@ -333,20 +333,16 @@ export default class PdfDownload extends Component {
         offset += 0.15;
         this.drawQr(ctx, tron_public_key, margin, offset, qrSize, '#f4f4f4');
         offset += 0.1;
-        offset += this.renderText(
-            ctx,
-            'TRON Account Public key(Tron Account Address)',
-            {
-                scale,
-                x: margin + qrSize + 0.1,
-                y: offset,
-                lineHeight,
-                maxWidth: maxLineWidth,
-                color: 'black',
-                fontSize: 0.2,
-                font: 'Roboto-Bold',
-            }
-        );
+        offset += this.renderText(ctx, 'TRON Public Key (TRON Address)', {
+            scale,
+            x: margin + qrSize + 0.1,
+            y: offset,
+            lineHeight,
+            maxWidth: maxLineWidth,
+            color: 'black',
+            fontSize: 0.2,
+            font: 'Roboto-Bold',
+        });
 
         offset += this.renderText(
             ctx,
@@ -389,7 +385,7 @@ export default class PdfDownload extends Component {
         this.drawQr(ctx, tron_private_key, margin, offset, qrSize, '#f4f4f4');
 
         offset += 0.1;
-        offset += this.renderText(ctx, 'TRON Account Private Key', {
+        offset += this.renderText(ctx, 'TRON Private Key', {
             scale,
             x: margin + qrSize + 0.1,
             y: offset,

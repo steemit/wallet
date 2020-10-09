@@ -630,7 +630,7 @@
         "from_to": "从%(from)s到%(to)s"
     },
     "explorepost_jsx": {
-        "copied": "已复制！",
+        "copied": "复制成功",
         "copy": "复制",
         "alternative_sources": "其他资源"
     },
@@ -776,9 +776,9 @@
         "redeem_rewards": "赎回奖励(转移至余额)",
         "buy_steem_or_steem_power": "购买STEEM",
         "trx_description":
-            "TRX链接了整个TRON生态系统，可以在任何时候发送给任何地方.通过冻结和投票参与TRON生态建设，获得可观收益. TRX奖励根据你可以赎回的SP,按个数等比例发放.",
+            "TRX链接了整个TRON生态系统，可以在任何时候发送给任何地方。通过冻结和投票参与TRON生态建设，获得可观收益。TRX奖励根据你可以赎回的SP，按个数等比例发放。",
         "create_trx_description":
-            "还没创建TRON账户,请点击右侧创建TRON账号按钮创建并领取TRX奖励",
+            "还未创建TRON账户，请点击右侧创建TRON账号按钮创建并领取TRX奖励。",
         "create_trx_button": "创建TRON账户",
         "update_trx_button": "更新TRON账户",
         "just_mortgage": " 去JUST抵押",
@@ -833,7 +833,7 @@
         "update_success_content3": "若下载失败，",
         "update_success_click": "点此下载",
         "update_success_content2":
-            "请小心保管，若丢失无法找回，不要与任何人共享此文件。",
+            "请小心保管，丢失无法找回。不要与任何人共享此文件。",
         "safe_save_button": "已安全保存PDF",
         "create_tron_account": "创建TRON账户领取奖励",
         "create_tron_account_content":
@@ -843,7 +843,7 @@
             "是否同意创建TRON账户并下载带有TRON账户公私钥的PDF？",
         "create_tron_agree": "同意",
         "create_tron_success": "创建成功",
-        "create_tron_success_content": "已经成功创建TRON账户，",
+        "create_tron_success_content": "已经成功创建TRON账户。",
         "create_tron_success_content2": "若下载失败，",
         "create_tron_success_content3": "带有TRON账户公私钥的PDF。",
         "qr_code": "二维码",
