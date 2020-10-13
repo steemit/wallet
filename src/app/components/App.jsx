@@ -50,7 +50,7 @@ class App extends React.Component {
     componentWillMount() {
         if (process.env.BROWSER) localStorage.removeItem('autopost'); // July 14 '16 compromise, renamed to autopost2
         // make sure the autologin triggered each refresh page not each rendered progress.
-        if (this.props.frontendHasRendered === false) {
+        if (process.env.BROWSER && this.props.frontendHasRendered === false) {
             this.props.setFeRendered();
             this.props.loginUser();
         }
