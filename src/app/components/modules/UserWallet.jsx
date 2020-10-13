@@ -630,7 +630,7 @@ class UserWallet extends React.Component {
             '$' + sbd_balance_savings.toFixed(3)
         );
 
-        const trx_balance_str = numberWithCommas(tronBalance.toFixed(6));
+        const trx_balance_str = numberWithCommas(tronBalance.toFixed(3));
 
         const savings_menu = [
             {
@@ -1082,15 +1082,17 @@ class UserWallet extends React.Component {
                         {/** history */}
                         <h4>
                             {tt('userwallet_jsx.history')}
-                            <Link
-                                className="link"
-                                onClick={onShowTRXTransaction.bind(
-                                    this,
-                                    tronAddr
-                                )}
-                            >
-                                {tt('tron_jsx.tron_tx_history')}
-                            </Link>
+                            {tronAddr && (
+                                <Link
+                                    className="link"
+                                    onClick={onShowTRXTransaction.bind(
+                                        this,
+                                        tronAddr
+                                    )}
+                                >
+                                    {tt('tron_jsx.tron_tx_history')}
+                                </Link>
+                            )}
                         </h4>
                         <div className="secondary">
                             <span>

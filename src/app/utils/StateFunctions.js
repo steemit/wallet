@@ -252,7 +252,7 @@ export function totalPendingClaimTron(pending, vests, vestsPerTrx) {
             parseFloat(vests.split(' ')[0]) > 0
                 ? (
                       parseFloat(vests.split(' ')[0]) / parseFloat(vestsPerTrx)
-                  ).toFixed(6)
+                  ).toFixed(3)
                 : '0';
         const total =
             parseFloat(pending.split(' ')[0]) + parseFloat(spWorthTron);
