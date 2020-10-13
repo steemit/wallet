@@ -9,6 +9,7 @@ import { connect } from 'react-redux';
 import AppPropTypes from 'app/utils/AppPropTypes';
 import Header from 'app/components/modules/Header';
 import * as userActions from 'app/redux/UserReducer';
+import * as appActions from 'app/redux/AppReducer';
 import classNames from 'classnames';
 import ConnectedSidePanel from 'app/components/modules/ConnectedSidePanel';
 import CloseButton from 'app/components/elements/CloseButton';
@@ -48,7 +49,11 @@ class App extends React.Component {
 
     componentWillMount() {
         if (process.env.BROWSER) localStorage.removeItem('autopost'); // July 14 '16 compromise, renamed to autopost2
-        this.props.loginUser();
+        // make sure the autologin triggered each refresh page not each rendered progress.
+        if (this.props.frontendHasRendered === false) {
+            this.props.setFeRendered();
+            this.props.loginUser();
+        }
     }
 
     componentDidMount() {
@@ -274,9 +279,11 @@ export default connect(
             pathname: ownProps.location.pathname,
             order: ownProps.params.order,
             category: ownProps.params.category,
+            frontendHasRendered: state.app.get('frontend_has_rendered'),
         };
     },
     dispatch => ({
         loginUser: () => dispatch(userActions.usernamePasswordLogin({})),
+        setFeRendered: () => dispatch(appActions.setFeRendered({})),
     })
 )(App);

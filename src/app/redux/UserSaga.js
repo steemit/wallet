@@ -64,7 +64,7 @@ export const userWatches = [
             // TODO: log error to server, conveyor is unavailable
         }
     }),
-    takeEvery(userActions.HIDE_TRON_CREATE, updateTronPopupTipCount),
+    takeLatest(userActions.HIDE_TRON_CREATE, updateTronPopupTipCount),
     function* getLatestFeedPrice() {
         try {
             const history = yield call([api, api.getFeedHistoryAsync]);

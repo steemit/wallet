@@ -82,6 +82,7 @@ async function appRender(ctx, locales = false, resolvedAssets = false) {
                 vests_per_trx: config.get('tron_reward.vests_per_trx'),
                 tron_host: config.get('tron_create_node'),
                 unbind_tip_limit: config.get('tron_reward.unbind_tip_limit'),
+                frontend_has_rendered: false,
             },
         };
 
