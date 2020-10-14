@@ -928,6 +928,12 @@
         "buy_steem_or_steem_power": "Buy STEEM",
         "trx_description":
             "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere. You can gain promising return by freezing your tokens and voting for proposals to advance the TRON ecosystem. TRX rewards will be distributed in proportion to the number of SP you can redeem.",
+        "trx_description1":
+            "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere.",
+        "trx_description2":
+            "You can gain promising return by freezing your tokens and voting for proposals to advance the TRON ecosystem.",
+        "trx_description3":
+            "TRX rewards will be distributed in proportion to the number of SP you can redeem.",
         "create_trx_description":
             "You must have a TRON account first. Please click \"Create A TRON Account\" on the right side to claim TRX rewards.",
         "create_trx_button": "CREATE TRON ACCOUNT",
@@ -1058,9 +1064,9 @@
         "safe_save_button": "PDF securely saved",
         "create_tron_account": "Create a TRON account and claim rewards",
         "create_tron_account_content":
-            "Steemit will distribute extra TRX to you as rewards. This account is for receiving such rewards",
+            "Steemit will distribute extra TRX to you as rewards. This account is for receiving such rewards.",
         "create_tron_account_content1":
-            "The system will automatically create a free TRON account for you.",
+            "The system will automatically create a TRON account for you for free.",
         "create_tron_account_content2":
             "Do you agree to create a TRON account and download the PDF with your TRON public and private keys?",
         "create_tron_agree": "Agree",

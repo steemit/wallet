@@ -983,8 +983,19 @@ class UserWallet extends React.Component {
                                 </div>
                             )}
                         </div>
-                        <div className="secondary">
-                            {tt('userwallet_jsx.trx_description')}
+                        <div
+                            className="secondary"
+                            style={{ marginTop: '1.2em' }}
+                        >
+                            <span style={{ display: 'block' }}>
+                                {tt('userwallet_jsx.trx_description1')}
+                            </span>
+                            <span style={{ display: 'block' }}>
+                                {tt('userwallet_jsx.trx_description2')}
+                            </span>
+                            <span style={{ display: 'block' }}>
+                                {tt('userwallet_jsx.trx_description3')}
+                            </span>
                         </div>
                     </div>
                     <div className="column small-12 medium-4">

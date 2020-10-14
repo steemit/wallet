@@ -17,7 +17,10 @@ const wait = ms =>
 
 export const sharedWatches = [
     takeEvery(globalActions.GET_STATE, getState),
-    takeLatest([appActions.TOGGLE_NIGHTMODE], saveUserPreferences),
+    takeLatest(
+        [appActions.SET_USER_PREFERENCES, appActions.TOGGLE_NIGHTMODE],
+        saveUserPreferences
+    ),
     takeEvery('transaction/ERROR', showTransactionErrorNotification),
 ];
 
