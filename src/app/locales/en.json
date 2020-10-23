@@ -938,7 +938,7 @@
             "You must have a TRON account first. Please click \"Create A TRON Account\" on the right side to claim TRX rewards.",
         "create_trx_button": "CREATE TRON ACCOUNT",
         "update_trx_button": "UPDATE TRON ACCOUNT",
-        "just_mortgage": "go JUST mortgage",
+        "just_mortgage": "Staking by JUST",
         "create_trx_failed": "Create Tron Account Failed!"
     },
     "powerdown_jsx": {
