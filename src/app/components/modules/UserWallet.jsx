@@ -227,6 +227,7 @@ class UserWallet extends React.Component {
         // do not render if state appears to contain only lite account info
         if (!account.has('vesting_shares')) return null;
 
+        const hasTronAddr = account.has('tron_addr');
         const tronAddr = account.get('tron_addr');
         const tronBalance =
             account.get('tron_balance') !== undefined &&
@@ -524,13 +525,6 @@ class UserWallet extends React.Component {
                     this.props.showVote();
                 },
             },
-            {
-                value: ' ',
-                link: '#',
-                onClick: e => {
-                    e.preventDefault();
-                },
-            },
         ];
         if (isMyAccount) {
             steem_menu.push({
@@ -572,6 +566,11 @@ class UserWallet extends React.Component {
                 onClick: onShowWithdrawSBD,
             });
             trx_menu.push({
+                value: tt('userwallet_jsx.just_mortgage'),
+                link: '#',
+                onClick: onShowJUST,
+            });
+            trx_menu.push({
                 value: tt('g.buy'),
                 link: '#',
                 onClick: e => {
@@ -592,11 +591,6 @@ class UserWallet extends React.Component {
                     });
                     onShowTRX(e);
                 },
-            });
-            trx_menu.push({
-                value: tt('userwallet_jsx.just_mortgage'),
-                link: '#',
-                onClick: onShowJUST,
             });
         }
 
@@ -999,7 +993,7 @@ class UserWallet extends React.Component {
                         </div>
                     </div>
                     <div className="column small-12 medium-4">
-                        {tronAddr !== undefined && isMyAccount ? (
+                        {hasTronAddr && tronAddr && isMyAccount ? (
                             <DropdownMenu
                                 className="Wallet_dropdown"
                                 items={trx_menu}
@@ -1009,8 +1003,11 @@ class UserWallet extends React.Component {
                         ) : (
                             trx_balance_str + ' TRX'
                         )}
-                        <div className="columns shrink">
-                            {tronAddr !== undefined &&
+                        <div
+                            className="columns shrink"
+                            style={{ paddingRight: '0' }}
+                        >
+                            {hasTronAddr &&
                                 isMyAccount &&
                                 !tronAddr && (
                                     <button
@@ -1021,8 +1018,11 @@ class UserWallet extends React.Component {
                                     </button>
                                 )}
                         </div>
-                        <div className="columns shrink">
-                            {tronAddr !== undefined &&
+                        <div
+                            className="columns shrink"
+                            style={{ paddingRight: '0' }}
+                        >
+                            {hasTronAddr &&
                                 isMyAccount &&
                                 tronAddr && (
                                     <button
@@ -1034,9 +1034,7 @@ class UserWallet extends React.Component {
                                 )}
                         </div>
                         <div className="columns shrink">
-                            {tronAddr === undefined && (
-                                <LoadingIndicator type="circle" />
-                            )}
+                            {!hasTronAddr && <LoadingIndicator type="circle" />}
                         </div>
                     </div>
                 </div>

@@ -540,11 +540,11 @@
         "tron_account": {
             "title": "tron account",
             "desc1":
-                "TRON account address is used for receiving TRX rewards. TRX rewards are given in Proportion ot he number of of SP you can redeem.",
+                "TRON account address is used for receiving TRX rewards. TRX rewards are given in proportion to he number of SP you can redeem.",
             "desc2":
-                "TRON account address is also the TRON account public key,which is used for transfers. The public key is the address you send the tokens to",
+                "TRON account address is also the TRON account public key. It is used for transfers. The public key is the address you send the tokens to.",
             "desc3":
-                "The private key has the highest authority on your TRON account,which also being used for signing transactions of TRON, such as transactions tokens,freezing and voting",
+                "The private key has the highest authority on your TRON account. It is used for signing transactions of TRON, such as transferring tokens, freezing and voting.",
             "address": "TRON ACCOUNT ADDRESS",
             "tron_key": "TRON ACCOUNT Private key",
             "tron_key_tip":
