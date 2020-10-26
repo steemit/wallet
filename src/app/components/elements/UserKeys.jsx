@@ -1,3 +1,12 @@
+/* eslint-disable no-script-url */
+/* eslint-disable jsx-a11y/anchor-is-valid */
+/* eslint-disable global-require */
+/* eslint-disable jsx-a11y/alt-text */
+/* eslint-disable jsx-a11y/label-has-for */
+/* eslint-disable no-plusplus */
+/* eslint-disable react/require-default-props */
+/* eslint-disable react/forbid-prop-types */
+/* eslint-disable no-undef */
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
@@ -5,6 +14,7 @@ import QRCode from 'react-qr';
 import tt from 'counterpart';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import Keys from 'app/components/elements/Keys';
+import * as userActions from 'app/redux/UserReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 
 const keyTypes = ['Posting', 'Active', 'Owner', 'Memo'];
@@ -31,6 +41,7 @@ class UserKeys extends Component {
             };
         });
         this.changeTab = this.changeTab.bind(this);
+        this.onCreateTronAccount = this.onCreateTronAccount.bind(this);
     }
     componentWillUpdate(nextProps, nextState) {
         const { wifShown, setWifShown } = nextProps;
@@ -43,18 +54,27 @@ class UserKeys extends Component {
         });
         if (wifShown !== hasWif) setWifShown(hasWif);
     }
+
     changeTab(e) {
         this.setState({
             activeTab: e,
         });
     }
+
+    onCreateTronAccount = e => {
+        e.target.blur();
+        this.props.showTronCreate();
+    };
+
     render() {
         const {
-            props: { account, isMyAccount, tron_address },
+            props: { account, isMyAccount },
             state: { activeTab },
         } = this;
         const { onKey } = this;
         let idx = 0;
+        const hasTronAddr = account.has('tron_addr');
+        const tronAddr = account.get('tron_addr');
 
         // do not render if account is not loaded or available
         if (!account) return null;
@@ -207,64 +227,77 @@ class UserKeys extends Component {
                                     <p className="key__description">
                                         {tt('userkeys_jsx.tron_account.desc3')}
                                     </p>
-                                    <div className="ShowKey">
-                                        <div className="row key__private">
-                                            <div className="key__private-title">
-                                                <h5>
+                                    {hasTronAddr &&
+                                        tronAddr && (
+                                            <div>
+                                                <div className="ShowKey">
+                                                    <div className="row key__private">
+                                                        <div className="key__private-title">
+                                                            <h5>
+                                                                {tt(
+                                                                    'userkeys_jsx.tron_account.address'
+                                                                )}
+                                                            </h5>
+                                                        </div>
+
+                                                        <div className="key__private-container">
+                                                            <div className="key__private-input">
+                                                                <input
+                                                                    className="key__input"
+                                                                    type="text"
+                                                                    value={
+                                                                        tronAddr
+                                                                    }
+                                                                    readOnly
+                                                                />
+                                                            </div>
+                                                            <div className="key__reveal">
+                                                                <QRCode
+                                                                    text={
+                                                                        tronAddr
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <h5
+                                                    style={{
+                                                        marginTop: '20px',
+                                                    }}
+                                                >
                                                     {tt(
-                                                        'userkeys_jsx.tron_account.address'
+                                                        'userkeys_jsx.tron_account.tron_key'
                                                     )}
                                                 </h5>
-                                            </div>
-
-                                            <div className="key__private-container">
-                                                <div className="key__private-input">
-                                                    <input
-                                                        className="key__input"
-                                                        type="text"
-                                                        value={
-                                                            tron_address
-                                                                ? tron_address
-                                                                : '•'.repeat(44)
-                                                        }
-                                                        readOnly
-                                                    />
-                                                </div>
-                                                <div className="key__reveal">
-                                                    {tron_address ? (
-                                                        <QRCode
-                                                            text={tron_address}
-                                                        />
-                                                    ) : (
-                                                        <a
-                                                            // onClick={showLogin}
-                                                            className="hollow button"
-                                                        >
-                                                            {tt(
-                                                                'userkeys_jsx.Reveal'
-                                                            )}
-                                                        </a>
+                                                <p
+                                                    style={{
+                                                        paddingLeft: '10px',
+                                                        fontSize: '0.875rem',
+                                                        fontWeight: 500,
+                                                    }}
+                                                >
+                                                    {tt(
+                                                        'userkeys_jsx.tron_account.tron_key_tip'
                                                     )}
-                                                </div>
+                                                </p>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <h5 style={{ marginTop: '20px' }}>
-                                        {tt(
-                                            'userkeys_jsx.tron_account.tron_key'
                                         )}
-                                    </h5>
-                                    <p
-                                        style={{
-                                            paddingLeft: '10px',
-                                            fontSize: '0.875rem',
-                                            fontWeight: 500,
-                                        }}
-                                    >
-                                        {tt(
-                                            'userkeys_jsx.tron_account.tron_key_tip'
+                                    {hasTronAddr &&
+                                        !tronAddr && (
+                                            <div>
+                                                <button
+                                                    className="UserWallet__tron button hollow"
+                                                    onClick={
+                                                        this.onCreateTronAccount
+                                                    }
+                                                >
+                                                    {tt(
+                                                        'userwallet_jsx.create_trx_button'
+                                                    )}
+                                                </button>
+                                            </div>
                                         )}
-                                    </p>
                                 </div>
                                 <div className="key__col permissions">
                                     <h5 className="permissions__h5">
@@ -587,19 +620,17 @@ export default connect(
         const isMyAccount =
             state.user.getIn(['current', 'username'], false) ===
             account.get('name');
-        console.log('isMyAccount', isMyAccount);
         const wifShown = state.global.get('UserKeys_wifShown');
         const currentUser = state.user.get('current');
-        const tron_address =
-            currentUser && currentUser.has('tron_address')
-                ? currentUser.get('tron_address')
-                : '';
-
-        return { ...ownProps, isMyAccount, wifShown, tron_address };
+        return { ...ownProps, isMyAccount, wifShown };
     },
     dispatch => ({
         setWifShown: shown => {
             dispatch(globalActions.receiveState({ UserKeys_wifShown: shown }));
+        },
+        showTronCreate: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.showTronCreate());
         },
     })
 )(UserKeys);

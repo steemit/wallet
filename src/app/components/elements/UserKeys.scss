@@ -12,11 +12,11 @@
 	}
 	h1 {
 		@include font-size(28px);
-		margin-bottom: 16px;	
+		margin-bottom: 16px;
 	}
 	h3 {
 		@include font-size(24px);
-		margin-bottom: 0;		
+		margin-bottom: 0;
 	}
 	h5 {
 		@include font-size(18px);
@@ -26,7 +26,7 @@
 	&__intro {
 		margin-bottom: 3em;
 		padding: 16px;
-		
+
 		@include MQ(M) {
 			padding: 0;
 			display: flex;
@@ -35,21 +35,21 @@
 	}
 	&__intro-col {
 		max-width: 780px;
-		
+
 		&:nth-child(1) {
 			@include MQ(M) {
-				padding-right: 1em;		
-			}			
+				padding-right: 1em;
+			}
 		}
-		&:nth-child(2) {	
-			padding-right: 1em;	
+		&:nth-child(2) {
+			padding-right: 1em;
 			@include MQ(M) {
-				padding-left: 1em;	
-				padding-right: 0;	
+				padding-left: 1em;
+				padding-right: 0;
 			}
 		}
 
-	}	
+	}
 	&__diagram {
 		margin-top: 2.5em;
 		width: 100%;
@@ -70,9 +70,9 @@
 		transition: 0.2s all ease-in-out;
 	  &:hover {
 		  @include themify($themes) {
-		    background-color: themed('backgroundColorOpaque');  
-		    color: themed('textColorPrimary');  
-		  }      
+		    background-color: themed('backgroundColorOpaque');
+		    color: themed('textColorPrimary');
+		  }
 	  }
 	}
 	.button.hollow {
@@ -83,33 +83,45 @@
 		padding-left: 20px;
 		margin-bottom: 0;
 	}
+
+	.UserWallet__tron {
+		background-color: #fff !important;
+		border: 1px solid #06D6A9 !important;
+	    color: #1FBF8F !important;
+	}
+
+	.UserWallet__tron:hover {
+		background-color: #fff !important;
+		border: 1px solid #788187 !important;
+	    color: #333 !important;
+	}
 }
 
 
 .key {
 	margin-bottom: 2em;
 	@include themify($themes) {
-	   	border: themed('border');  
+	   	border: themed('border');
 			background: themed('moduleBackgroundColor');
 			border-top: 0;
-	} 		
+	}
 	&__description {
 		@include font-size(16px);
 		line-height: 1.4;
 		&--last {
-			margin-bottom: 0;			
+			margin-bottom: 0;
 		}
 
-	}	  	
+	}
 	&__title-container {
 		display: none;
 		padding: 16px;
 		@include MQ(FL) {
 			padding: 18px 24px;
-		}		
+		}
 	  	@include themify($themes) {
-	   		border-bottom: themed('border');  
-	  	} 		
+	   		border-bottom: themed('border');
+	  	}
 	}
 	&__content-container {
 		@include MQ(FL) {
@@ -122,14 +134,14 @@
 		@include MQ(FL) {
 			padding: 24px;
 		}
-		&:nth-child(1) {	
+		&:nth-child(1) {
 			@include MQ(FL) {
 				padding-right: 50px;
-			}				
+			}
 		}
 		&:nth-child(2) {
 		  	@include themify($themes) {
-		   		border-left: themed('border');  
+		   		border-left: themed('border');
 		   		flex: 0 0 360px;
 		  	}
 		}
@@ -161,7 +173,7 @@
 			@include themify($themes) {
 			   	background-color: themed('buttonBackgroundHover');
 			   	border: themed('borderTransparent');
-			}			
+			}
 		}
 	}
 	&__input {
@@ -177,7 +189,7 @@
 		}
 		@media only screen and (min-width: 620px) {
 			@include font-size(15px);
-		}		
+		}
 	}
 	&__private-container {
 		width: 100%;
@@ -223,11 +235,11 @@
 	padding: 64px 0;
 	width: 100vw;
 	position: relative;
-	margin-left: -50vw; 
+	margin-left: -50vw;
 	left: 50%;
-	
+
 	@include themify($themes) {
-		border-top: themed('border');  
+		border-top: themed('border');
 		background: themed('backgroundColorEmphasis');
 	}
 	&__container {

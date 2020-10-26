@@ -60,6 +60,7 @@ class TransferForm extends Component {
             tronLoading: false,
         };
         this.initForm(props);
+        this.tronValidationLock = undefined;
     }
 
     componentDidMount() {
@@ -72,6 +73,10 @@ class TransferForm extends Component {
         runTests();
 
         this.buildTransferAutocomplete();
+    }
+
+    componentWillUnmount() {
+        this.clearToTronInfo();
     }
 
     // covert tron address into the one only showing first and last 6 digit
@@ -159,7 +164,12 @@ class TransferForm extends Component {
             if (this.state.switchSteem) {
                 const text = validate_account_name(to);
                 if (text !== null) return text;
-                this.props.checkTron(from, to, 'steem');
+                if (this.tronValidationLock) {
+                    clearTimeout(this.tronValidationLock);
+                }
+                this.tronValidationLock = setTimeout(() => {
+                    this.props.checkTron(from, to, 'steem');
+                }, 800);
                 return null;
             } else if (this.state.switchTron) {
                 if (to.length !== 34) {
@@ -168,6 +178,7 @@ class TransferForm extends Component {
                 if (from === to) {
                     return tt('tron_jsx.cannot_transfer_to_yourself');
                 }
+                this.props.setToTronAddr(to);
                 return null;
             }
         }
@@ -289,7 +300,17 @@ class TransferForm extends Component {
     };
 
     onChangeTo = async value => {
-        this.state.to.props.onChange(value);
+        if (this.state.tronTransfer) {
+            // tron transfer
+            this.state.to.props.onChange(value);
+        } else {
+            // origin steem, sbd, etc. trnasfer
+            this.state.to.props.onChange(value);
+        }
+    };
+
+    clearToTronInfo = () => {
+        this.props.checkTron(null, null, null);
     };
 
     render() {
@@ -349,7 +370,9 @@ class TransferForm extends Component {
                             />
                             <span className="tron_address">
                                 {' '}
-                                {this.state.tron_address}
+                                {this.covertTronAddress(
+                                    this.state.tron_address
+                                )}
                             </span>
                         </div>
                     </div>
@@ -591,9 +614,8 @@ class TransferForm extends Component {
                                                 switchTron: true,
                                                 switchSteem: false,
                                             });
-                                            const value =
-                                                this.state.to.value || '';
-                                            this.onChangeTo(value);
+                                            this.onChangeTo('');
+                                            this.clearToTronInfo();
                                         }}
                                     >
                                         {tt('tron_jsx.switch_to_tron_account')}
@@ -608,9 +630,8 @@ class TransferForm extends Component {
                                                 switchTron: false,
                                                 switchSteem: true,
                                             });
-                                            const value =
-                                                this.state.to.value || '';
-                                            this.onChangeTo(value);
+                                            this.onChangeTo('');
+                                            this.clearToTronInfo();
                                         }}
                                     >
                                         {tt('tron_jsx.switch_to_steem_account')}
@@ -802,7 +823,10 @@ class TransferForm extends Component {
                         disabled={true}
                         key={`transaction-input-${0}`}
                     />
-                    <span className="tron_address"> {this.props.tronAddr}</span>
+                    <span className="tron_address">
+                        {' '}
+                        {this.covertTronAddress(this.props.tronAddr)}
+                    </span>
                 </div>
                 <div key={`transaction-group-${1}`} className="input-group">
                     <span
@@ -815,13 +839,17 @@ class TransferForm extends Component {
                         className="input-group-field"
                         type="text"
                         required
-                        value={to.value}
+                        value={
+                            this.state.switchSteem
+                                ? to.value
+                                : this.covertTronAddress(to.value)
+                        }
                         disabled={true}
                         key={`transaction-input-${1}`}
                     />
                     {this.state.switchSteem && (
                         <span className="tron_address">
-                            {this.props.toTronAddr}
+                            {this.covertTronAddress(this.props.toTronAddr)}
                         </span>
                     )}
                 </div>
@@ -1085,6 +1113,7 @@ export default connect(
             errorCallback,
             trackingId,
         }) => {
+            console.log('Tron Transfer:', from, to, amount, memo);
             const username = currentUser.get('username');
             const successCallback = result => {
                 if (result.result !== true) {
@@ -1128,6 +1157,10 @@ export default connect(
         },
         checkTron: (from, to, type) => {
             dispatch(userActions.checkTron({ from, to, type }));
+        },
+        setToTronAddr: tronAddr => {
+            // this method is for the tron transfer when user uses tron address as the 'to' address.
+            dispatch(userActions.setToTronAddr(tronAddr));
         },
     })
 )(TransferForm);

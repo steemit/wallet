@@ -469,7 +469,7 @@
             "desc2":
                 "TRON账户地址也是TRON账户的公钥， 用于转账。 您进行代币转账的接收地址就是公钥。",
             "desc3":
-                "该私钥对应您TRON账户的最高权限， 用于您在TRON的交易签名，例如代币转账，冻结代币和投票。",
+                "私钥对应您TRON账户的最高权限， 用于您在TRON的交易签名，例如代币转账，冻结代币和投票。",
             "address": "TRON账户地址",
             "tron_key": "TRON账户私钥",
             "tron_key_tip": "请在带有TRON账户公私钥的PDF中查看。",
@@ -819,16 +819,16 @@
         "vote_button": "去投票",
         "step": "步骤",
         "tron_tx_history": "TRON账号交易历史 >",
-        "update_tron_account": "更新TRON账号",
+        "update_tron_account": "更新TRON账户",
         "update_tron_content":
-            "更新TRON账号请确认以下信息,以避免不必要的经济损失. ",
-        "update_tron_content1": "已经安全保存了此TRON账户私钥",
+            "更新TRON账户前请确认以下信息，以避免不必要的经济损失。",
+        "update_tron_content1": "已经安全保存了此TRON账户的私钥，",
         "update_tron_content2":
             "或已经将此TRON账户导入至其他支持TRON账户的钱包中，",
         "update_tron_content3":
-            "或已经将此TRON账户中的资产转移到您的其他TRON账户中",
+            "或已经将此TRON账户中的资产转移到您的其他TRON账户中。",
         "update_tron_content4":
-            "更新TRON账户之后得到的TRX奖励将发放至更新后的TRON账户",
+            "更新TRON账户之后得到的TRX奖励将发放至更新后的TRON账户。",
         "update_tron_content5":
             "是否同意更新TRON账户并下载带有更新后TRON账户公私钥的PDF？",
         "update_button": "更新并下载",
