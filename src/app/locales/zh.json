@@ -219,7 +219,8 @@
             "one": "%(count)s回复",
             "other": "%(count)s个回复"
         },
-        "input_tron_private_key": "请输入TRON私钥"
+        "input_tron_private_key": "请输入TRON账户私钥",
+        "input_tron_address": "请输入TRON账户地址"
     },
     "navigation": {
         "about": "关于",
@@ -739,6 +740,8 @@
         "balance_subject_to_3_day_withdraw_waiting_period":
             "余额取决于3天的提款等待期，",
         "move_funds_to_another_account": "将资金转移给另一个Steem的用户。",
+        "move_funds_to_another_tron_account":
+            "将资金转移给另一个Steem或TRON账户。",
         "protect_funds_by_requiring_a_3_day_withdraw_waiting_period":
             "通过设置3天的提款等待期来保护资金。",
         "withdraw_funds_after_the_required_3_day_waiting_period":
@@ -810,8 +813,8 @@
     "tron_jsx": {
         "content0":
             "使用TRX为SR节点投票，参与TRON生态的建设，您将享受最高约8%%的年化收益率。",
-        "content1": "投票前需要先将TRX进行冻结获得投票权",
-        "content2": "具体步骤如下:",
+        "content1": "投票前需要先将TRX进行冻结获得投票权。",
+        "content2": "具体操作步骤如下：",
         "step1": "Step1: 点击\"去投票\"进入Tronscan投票页面",
         "step2": "Step2: 点击\"链接钱包\"，选择\"导入账户登录\"",
         "step3": "Step3: 输入TRON账户私钥后点击\"登陆\"",

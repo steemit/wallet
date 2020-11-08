@@ -46,8 +46,13 @@ const hook = {
 };
 
 export function* tronTransfer({ payload }) {
-    if (payload.to == undefined || payload.privateKey == undefined) {
-        payload.errorCallback('check to tron address or privatekey');
+    if (payload.to == undefined) {
+        payload.errorCallback(tt('g.input_tron_address'));
+        return;
+    }
+
+    if (payload.privateKey == undefined) {
+        payload.errorCallback(tt('g.input_tron_private_key'));
         return;
     }
     try {

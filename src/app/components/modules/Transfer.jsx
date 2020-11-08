@@ -328,6 +328,10 @@ class TransferForm extends Component {
             'Savings Withdraw': tt(
                 'transfer_jsx.withdraw_funds_after_the_required_3_day_waiting_period'
             ),
+            'Transfer to TRON Account': tt(
+                'transfer_jsx.move_funds_to_another_tron_account',
+                { APP_NAME }
+            ),
         };
         const powerTip3 = tt(
             'tips_js.converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again',
@@ -943,7 +947,9 @@ class TransferForm extends Component {
                                 ? tt('transfer_jsx.convert_to_VESTING_TOKEN', {
                                       VESTING_TOKEN,
                                   })
-                                : transferType}
+                                : this.state.tronTransfer
+                                    ? 'Transfer to Account'
+                                    : transferType}
                         </h3>
                     )}
                 </div>
@@ -1028,6 +1034,9 @@ export default connect(
         const tronAccountCheckError = state.user.has('tron_account_check_error')
             ? state.user.get('tron_account_check_error')
             : null;
+        if (initialValues.asset == 'TRX') {
+            initialValues.transferType = 'Transfer to TRON Account';
+        }
         return {
             ...ownProps,
             trackingId: state.app.getIn(['trackingId'], null),
