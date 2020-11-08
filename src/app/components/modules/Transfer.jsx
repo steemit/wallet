@@ -292,7 +292,7 @@ class TransferForm extends Component {
                     ? currentAccount.get('savings_sbd_balance')
                     : currentAccount.get('sbd_balance')
                 : asset.value === 'TRX'
-                    ? this.props.tronBalance + ' TRX'
+                    ? Math.floor(this.props.tronBalance * 1000) / 1000 + ' TRX'
                     : null;
     }
 
