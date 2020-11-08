@@ -92,6 +92,8 @@ function* checkTron({ payload: { from, to, type } }) {
     }
     try {
         const user = yield checkTronUser(to, type);
+        // unlock async validation
+        yield put(appActions.unlockTransferAsyncValidation());
         if (user.tron_addr === '') {
             yield put(userActions.setToTronAddr(null));
             yield put(
@@ -112,6 +114,7 @@ function* checkTron({ payload: { from, to, type } }) {
         yield put(userActions.setToTronAddr(user.tron_addr));
         yield put(userActions.setTronAccountCheckError(null));
     } catch (e) {
+        yield put(appActions.unlockTransferAsyncValidation());
         yield put(userActions.setToTronAddr(null));
         yield put(
             userActions.setTronAccountCheckError(tt(`tron_jsx.${e.message}`))

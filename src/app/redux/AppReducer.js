@@ -8,6 +8,8 @@ const FETCH_DATA_END = 'app/FETCH_DATA_END';
 const ADD_NOTIFICATION = 'app/ADD_NOTIFICATION';
 const REMOVE_NOTIFICATION = 'app/REMOVE_NOTIFICATION';
 const SET_FE_RENDERED = 'app/SET_FE_RENDERED';
+const LOCK_TRANSFER_ASYNC_VALIDATION = 'app/LOCK_TRANSFER_ASYNC_VALIDATION';
+const UNLOCK_TRANSFER_ASYNC_VALIDATION = 'app/UNLOCK_TRANSFER_ASYNC_VALIDATION';
 export const SET_USER_PREFERENCES = 'app/SET_USER_PREFERENCES';
 export const TOGGLE_NIGHTMODE = 'app/TOGGLE_NIGHTMODE';
 export const RECEIVE_FEATURE_FLAGS = 'app/RECEIVE_FEATURE_FLAGS';
@@ -25,6 +27,7 @@ export const defaultState = Map({
     }),
     featureFlags: Map({}),
     modalLoading: false,
+    transferAsyncValidationLock: 0,
 });
 
 export default function reducer(state = defaultState, action = {}) {
@@ -76,6 +79,17 @@ export default function reducer(state = defaultState, action = {}) {
             return state.set('modalLoading', false);
         case SET_FE_RENDERED:
             return state.set('frontend_has_rendered', true);
+        case LOCK_TRANSFER_ASYNC_VALIDATION:
+            return state.set(
+                'transferAsyncValidationLock',
+                parseInt(state.get('transferAsyncValidationLock'), 10) + 1
+            );
+        case UNLOCK_TRANSFER_ASYNC_VALIDATION:
+            const newLock =
+                state.get('transferAsyncValidationLock') > 0
+                    ? parseInt(state.get('transferAsyncValidationLock'), 10) - 1
+                    : 0;
+            return state.set('transferAsyncValidationLock', newLock);
         default:
             return state;
     }
@@ -135,5 +149,15 @@ export const modalLoadingEnd = payload => ({
 
 export const setFeRendered = payload => ({
     type: SET_FE_RENDERED,
+    payload,
+});
+
+export const lockTransferAsyncValidation = payload => ({
+    type: LOCK_TRANSFER_ASYNC_VALIDATION,
+    payload,
+});
+
+export const unlockTransferAsyncValidation = payload => ({
+    type: UNLOCK_TRANSFER_ASYNC_VALIDATION,
     payload,
 });

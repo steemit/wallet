@@ -166,7 +166,10 @@ class TransferForm extends Component {
                 if (text !== null) return text;
                 if (this.tronValidationLock) {
                     clearTimeout(this.tronValidationLock);
+                    this.props.unlockTransferAsyncValidation();
                 }
+                // lock async validations
+                this.props.lockTransferAsyncValidation();
                 this.tronValidationLock = setTimeout(() => {
                     this.props.checkTron(from, to, 'steem');
                 }, 800);
@@ -232,7 +235,7 @@ class TransferForm extends Component {
                               values.memo
                           ),
                 amount: !values.amount
-                    ? 'Required'
+                    ? tt('g.required')
                     : !/^\d+(\.\d+)?$/.test(values.amount)
                         ? tt('transfer_jsx.amount_is_in_form')
                         : insufficientFunds(values.asset, values.amount)
@@ -289,7 +292,7 @@ class TransferForm extends Component {
                     ? currentAccount.get('savings_sbd_balance')
                     : currentAccount.get('sbd_balance')
                 : asset.value === 'TRX'
-                    ? this.props.tronBalance + ' TRX'
+                    ? Math.floor(this.props.tronBalance * 1000) / 1000 + ' TRX'
                     : null;
     }
 
@@ -340,6 +343,7 @@ class TransferForm extends Component {
             tronAccountCheckError,
             tronTransferSubmit,
             trackingId,
+            transferAsyncValidationLock,
         } = this.props;
         const { transferType } = this.props.initialValues;
         const { submitting, valid, handleSubmit } = this.state.transfer;
@@ -780,7 +784,12 @@ class TransferForm extends Component {
                                 )}
                                 <button
                                     type="submit"
-                                    disabled={submitting || !valid}
+                                    disabled={
+                                        submitting ||
+                                        !valid ||
+                                        tronAccountCheckError !== null ||
+                                        transferAsyncValidationLock > 0
+                                    }
                                     className="button"
                                 >
                                     {toVesting
@@ -1016,9 +1025,9 @@ export default connect(
                 ? currentUser.get('tron_balance')
                 : 0;
         const toTronAddr = state.user.get('to_tron_addr');
-        const tronAccountCheckError = state.user.get(
-            'tron_account_check_error'
-        );
+        const tronAccountCheckError = state.user.has('tron_account_check_error')
+            ? state.user.get('tron_account_check_error')
+            : null;
         return {
             ...ownProps,
             trackingId: state.app.getIn(['trackingId'], null),
@@ -1037,6 +1046,11 @@ export default connect(
             tronBalance,
             toTronAddr,
             tronAccountCheckError,
+            transferAsyncValidationLock: state.app.has(
+                'transferAsyncValidationLock'
+            )
+                ? state.app.get('transferAsyncValidationLock')
+                : 0,
         };
     },
 
@@ -1162,5 +1176,9 @@ export default connect(
             // this method is for the tron transfer when user uses tron address as the 'to' address.
             dispatch(userActions.setToTronAddr(tronAddr));
         },
+        lockTransferAsyncValidation: () =>
+            dispatch(appActions.lockTransferAsyncValidation()),
+        unlockTransferAsyncValidation: () =>
+            dispatch(appActions.unlockTransferAsyncValidation()),
     })
 )(TransferForm);
