@@ -1049,7 +1049,7 @@
         "update_tron_content":
             "Please confirm the information below before updating your TRON account to avoid unnecessary asset loss.",
         "update_tron_content1":
-            "The private key for this TRON account has to been saved,",
+            "The private key for this TRON account has been saved,",
         "update_tron_content2":
             "or this TRON account has been imported to other TRON-supporting wallets,",
         "update_tron_content3":

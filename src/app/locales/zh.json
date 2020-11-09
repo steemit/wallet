@@ -161,7 +161,7 @@
         "incorrect_password": "密码错误",
         "username_does_not_exist": "用户名不存在",
         "account_name_should_start_with_a_letter": "帐户名称应该以字母开头",
-        "account_name_should_be_shorter": "账户名应该更短",
+        "account_name_should_be_shorter": "账户名称应该更短。",
         "account_name_should_be_longer": "账户名应该更长",
         "account_name_should_have_only_letters_digits_or_dashes":
             "帐户名称应该只有字母、数字或破折号",
@@ -703,7 +703,12 @@
         "end_with_a_letter_or_digit": "字母或数字结尾",
         "verified_exchange_no_memo": "如果你要转账到交易所，你必须填写备注。",
         "user_no_tron_account": "此用户没有绑定tron账号",
-        "unknow_recipient": "未知收款人"
+        "unknow_recipient": "未知的接收者",
+        "account_name_should_be_longer": "账户名应该更长",
+        "each_account_segment_should_start_with_a_letter":
+            "账户名称各部分应以字母开头。",
+        "each_account_segment_should_be_longer": "账户名称各部分应该更长。",
+        "account_name_should_be_shorter": "账户名称应该更短。"
     },
     "settings_jsx": {
         "invalid_url": "无效的URL",

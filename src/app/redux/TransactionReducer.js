@@ -1,6 +1,7 @@
 /* eslint-disable no-multi-assign */
 /* eslint-disable no-restricted-syntax */
 import { fromJS, Map } from 'immutable';
+import tt from 'counterpart';
 
 // Action constants
 const CONFIRM_OPERATION = 'transaction/CONFIRM_OPERATION';
@@ -78,6 +79,7 @@ export default function reducer(state = defaultState, action) {
                                     errorStackItem.data.name === operation.to &&
                                     errorStackItem.data.what === 'unknown key'
                                 ) {
+                                    // errorKey = tt('chainvalidation_js.unknow_recipient');
                                     errorKey = 'Unknown recipient';
                                     break;
                                 }
