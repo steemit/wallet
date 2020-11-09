@@ -551,7 +551,7 @@
             "tron_key": "TRON Account Private Key",
             "tron_key_tip":
                 "Please check in the PDF containing public and private keys of the TRON account.",
-            "tron_account_permissions": "TRON Private Key Permission",
+            "tron_account_permissions": "TRON Private Key Permissions",
             "tron_account_permissions1": "Use your TRON Private key to:",
             "tron_account_permissions2": "Transfer tokens",
             "tron_account_permissions3": "Freeze and unfreeze TRX",
@@ -615,7 +615,7 @@
             "memo_Key_permissions3": "View an encrypted message"
         },
         "public_key": {
-            "title": "Public Key",
+            "title": "Public Keys",
             "desc1":
                 "Each Steem Key has a public and private key to encrypt and decrypt data. Public keys are associated with usernames and can be used to look up associated transactions on the blockchain. Your public keys are not required for login on Steemit.com and you don't need to store these safely.",
             "desc2":
