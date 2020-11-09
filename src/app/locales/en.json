@@ -937,7 +937,7 @@
         "trx_description2":
             "You can gain promising return by freezing your tokens and voting for proposals to advance the TRON ecosystem.",
         "trx_description3":
-            "TRX rewards will be distributed in proportion to the number of SP you can redeem.",
+            "TRX rewards will be distributed in proportion to the number of SP you can redeem. The distribution process may take several minutes.",
         "create_trx_description":
             "You must have a TRON account first. Please click \"Create A TRON Account\" on the right side to claim TRX rewards.",
         "create_trx_button": "Create TRON account",

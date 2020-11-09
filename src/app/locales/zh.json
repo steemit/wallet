@@ -788,7 +788,8 @@
         "trx_description1":
             "TRX链接了整个TRON生态系统，可以在任何时候发送给任何地方。",
         "trx_description2": "通过冻结和投票参与TRON生态建设，获得可观收益。",
-        "trx_description3": "TRX奖励根据你可以赎回的SP，按个数等比例发放。",
+        "trx_description3":
+            "TRX奖励根据你可以赎回的SP，按个数等比例发放。发放过程可能需要几分钟",
         "create_trx_description":
             "还未创建TRON账户，请点击右侧“创建TRON账号”按钮创建并领取TRX奖励。",
         "create_trx_button": "创建TRON账户",
@@ -849,7 +850,7 @@
         "safe_save_button": "已安全保存PDF",
         "create_tron_account": "创建TRON账户领取奖励",
         "create_tron_account_content":
-            "Steemit 将会为你发放额外的TRX奖励，此账户用来接收奖励。",
+            "Steemit 将为您发放额外的TRX奖励，此账户用来接收奖励。",
         "create_tron_account_content1": "系统会自动为您免费创建TRON账户。",
         "create_tron_account_content2":
             "是否同意创建TRON账户并下载带有TRON账户公私钥的PDF？",
