@@ -299,7 +299,7 @@ class LoginForm extends Component {
         } else {
             titleText = (
                 <h3>
-                    {tt('loginform_jsx.returning_users')}
+                    {/*tt('loginform_jsx.returning_users')*/}
                     <span className="OpAction">{title}</span>
                 </h3>
             );
