@@ -160,7 +160,7 @@ export default class UserProfile extends React.Component {
                         </div>
                     </div>
                     <br />
-                    <UserKeys account={accountImm} />
+                    <UserKeys account={accountImm} isMyAccount={isMyAccount} />
                 </div>
             );
         } else if (section === 'password') {
