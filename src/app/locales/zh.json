@@ -678,6 +678,7 @@
         "password_info":
             "密码或私钥输入不正确。有可能是输入错误。提示：Steemit创建的密码或私钥中永远不包含 0(零)， O(大写O)， I(大写i)和l (小写L)。",
         "enter_your_username": "输入您的用户名",
+        "enter_steem_key": "输入一个Steem密钥（最好是你的发帖密钥）",
         "password_or_wif": "密码或WIF",
         "this_operation_requires_your_key_or_master_password":
             "此操作需要您的%(authType)s密钥或主密码。",

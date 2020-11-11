@@ -538,7 +538,7 @@
         "userkeys_info_2":
             "Please take note of your Steem and TRON Keys listed below. Ideally, use a Password Manager (like 1Password or LastPass) or store an offline copy safely (on a piece of paper or on a file on a USB drive).",
         "leare_more": "Learn more",
-        "Reveal": "Display",
+        "Reveal": "Reveal",
         "tron_account": {
             "title": "TRON Account",
             "desc1":
