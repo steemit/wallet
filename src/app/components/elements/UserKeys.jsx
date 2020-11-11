@@ -68,7 +68,7 @@ class UserKeys extends Component {
 
     render() {
         const {
-            props: { account, isMyAccount },
+            props: { account, isMyAccount, currentUsername },
             state: { activeTab },
         } = this;
         const { onKey } = this;
@@ -283,7 +283,8 @@ class UserKeys extends Component {
                                                 </p>
                                             </div>
                                         )}
-                                    {hasTronAddr &&
+                                    {isMyAccount &&
+                                        hasTronAddr &&
                                         !tronAddr && (
                                             <div>
                                                 <button
@@ -621,8 +622,8 @@ export default connect(
             state.user.getIn(['current', 'username'], false) ===
             account.get('name');
         const wifShown = state.global.get('UserKeys_wifShown');
-        const currentUser = state.user.get('current');
-        return { ...ownProps, isMyAccount, wifShown };
+        const currentUsername = state.user.getIn(['current', 'username']);
+        return { ...ownProps, isMyAccount, wifShown, currentUsername };
     },
     dispatch => ({
         setWifShown: shown => {
