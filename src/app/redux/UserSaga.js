@@ -33,7 +33,6 @@ import {
     acceptTos,
     checkTronUser,
     updateTronUser,
-    getTronAccount,
     // createTronAccount,
     getTronConfig,
 } from 'app/utils/ServerApiClient';
@@ -805,11 +804,22 @@ function* updateTronAddr() {
         return;
     }
 
+    const account = yield call(getAccount, username, true);
+    if (!account) {
+        console.log('No account');
+        yield put(
+            userActions.loginError({
+                error: 'Username does not exist, when update tron address',
+            })
+        );
+        return;
+    }
     // update current login user's state
     yield put(
         userActions.setUser({
             tron_addr: tronPubKey,
             tron_private_key: tronPrivKey,
+            tron_balance: account.get('tron_balance'),
         })
     );
 
