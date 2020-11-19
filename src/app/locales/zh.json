@@ -95,6 +95,7 @@
         "sign_up": "注册",
         "since": "自从",
         "submit": "提交",
+        "trade": "交易",
         "power_up": "Power Up",
         "submit_a_story": "发表故事",
         "tag": "标签",
@@ -114,7 +115,7 @@
         "version": "版本",
         "vote": "点赞",
         "votes": "点赞数",
-        "tronVote": "投票",
+        "tronVote": "投票 APY 8%%+",
         "wallet": "钱包",
         "warning": "警告",
         "yes": "是的",
@@ -791,6 +792,9 @@
         "trx_description2": "通过冻结和投票参与TRON生态建设，获得可观收益。",
         "trx_description3":
             "TRX奖励根据你可以赎回的SP，按个数等比例发放。发放过程可能需要几分钟",
+        "trx_description4": "建议",
+        "trx_description5": "下载TronLink钱包",
+        "trx_description6": "，导入你的TRON账户来管理TRX资产。",
         "create_trx_description":
             "还未创建TRON账户，请点击右侧“创建TRON账号”按钮创建并领取TRX奖励。",
         "create_trx_button": "创建TRON账户",
@@ -819,7 +823,7 @@
     },
     "tron_jsx": {
         "content0":
-            "使用TRX为SR节点投票，参与TRON生态的建设，您将享受最高约8%%的年化收益率。",
+            "使用TRX为SR节点投票，参与TRON生态的建设，你将预计享受超过8%%的年化收益率。",
         "content1": "投票前需要先将TRX进行冻结获得投票权。",
         "content2": "具体操作步骤如下：",
         "step1": "Step1: 点击\"去投票\"进入Tronscan投票页面",

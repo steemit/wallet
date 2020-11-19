@@ -48,27 +48,27 @@ class UserWallet extends React.Component {
             claimInProgress: false,
             showQR: false,
         };
-        this.onShowDepositSteem = e => {
+        this.onShowSteemTrade = e => {
             if (e && e.preventDefault) e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'TradeSteem',
+            });
             // const name = this.props.currentUser.get('username');
             const new_window = window.open();
             new_window.opener = null;
             new_window.location = 'https://poloniex.com/exchange#trx_steem';
         };
-        this.onShowWithdrawSteem = e => {
-            e.preventDefault();
+        this.onShowTrxTrade = e => {
+            if (e && e.preventDefault) e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'TradeTrx',
+            });
+            // const name = this.props.currentUser.get('username');
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location = 'https://poloniex.com/exchange#trx_steem';
-        };
-        this.onShowDepositPower = (currentUserName, e) => {
-            // this function will not be called since power menu comment
-            e.preventDefault();
-            const new_window = window.open();
-            new_window.opener = null;
-            new_window.location =
-                'https://blocktrades.us/?input_coin_type=eth&output_coin_type=steem_power&receive_address=' +
-                currentUserName;
+            new_window.location = 'https://poloniex.com/exchange#usdt_trx';
         };
         this.onShowDepositSBD = (currentUserName, e) => {
             e.preventDefault();
@@ -83,12 +83,6 @@ class UserWallet extends React.Component {
             new_window.opener = null;
             new_window.location =
                 'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD';
-        };
-        this.onShowTRX = e => {
-            e.preventDefault();
-            const new_window = window.open();
-            new_window.opener = null;
-            new_window.location = 'https://poloniex.com/exchange#usdt_trx';
         };
         this.onShowTRXTransaction = (trx_address, e) => {
             e.preventDefault();
@@ -198,12 +192,8 @@ class UserWallet extends React.Component {
 
     render() {
         const {
-            onShowDepositSteem,
-            onShowWithdrawSteem,
             onShowDepositSBD,
             onShowWithdrawSBD,
-            onShowDepositPower,
-            onShowTRX,
             onShowTRXTransaction,
             onShowJUST,
         } = this;
@@ -528,17 +518,9 @@ class UserWallet extends React.Component {
         ];
         if (isMyAccount) {
             steem_menu.push({
-                value: tt('g.buy'),
+                value: tt('g.trade'),
                 link: '#',
-                onClick: onShowDepositSteem.bind(
-                    this,
-                    currentUser.get('username')
-                ),
-            });
-            steem_menu.push({
-                value: tt('g.sell'),
-                link: '#',
-                onClick: onShowWithdrawSteem,
+                onClick: this.onShowSteemTrade,
             });
             steem_menu.push({
                 value: tt('userwallet_jsx.market'),
@@ -566,31 +548,9 @@ class UserWallet extends React.Component {
                 onClick: onShowWithdrawSBD,
             });
             trx_menu.push({
-                value: tt('userwallet_jsx.just_mortgage'),
+                value: tt('g.trade'),
                 link: '#',
-                onClick: onShowJUST,
-            });
-            trx_menu.push({
-                value: tt('g.buy'),
-                link: '#',
-                onClick: e => {
-                    onShowTRX(e);
-                    recordAdsView({
-                        trackingId: this.props.trackingId,
-                        adTag: 'TronBuy',
-                    });
-                },
-            });
-            trx_menu.push({
-                value: tt('g.sell'),
-                link: '#',
-                onClick: e => {
-                    recordAdsView({
-                        trackingId: this.props.trackingId,
-                        adTag: 'TronSell',
-                    });
-                    onShowTRX(e);
-                },
+                onClick: this.onShowTrxTrade,
             });
         }
 
@@ -991,6 +951,24 @@ class UserWallet extends React.Component {
                             </span>
                             <span style={{ display: 'block' }}>
                                 {tt('userwallet_jsx.trx_description3')}
+                            </span>
+                            <span style={{ display: 'block' }}>
+                                {tt('userwallet_jsx.trx_description4')}
+                                <a
+                                    style={{ color: '#1FBF8F' }}
+                                    href="https://www.tronlink.org/"
+                                    onClick={e => {
+                                        if (e && e.preventDefault)
+                                            e.preventDefault();
+                                        recordAdsView({
+                                            trackingId: this.props.trackingId,
+                                            adTag: 'ToTronLink',
+                                        });
+                                    }}
+                                >
+                                    {tt('userwallet_jsx.trx_description5')}
+                                </a>
+                                {tt('userwallet_jsx.trx_description6')}
                             </span>
                         </div>
                     </div>

@@ -114,6 +114,7 @@
         "sign_up": "Sign up",
         "since": "since %(date)s",
         "submit": "Submit",
+        "trade": "Trade",
         "power_up": "Power Up",
         "submit_a_story": "Post",
         "tag": "Tag",
@@ -134,7 +135,7 @@
         "version": "Version",
         "vote": "Vote",
         "votes": "votes",
-        "tronVote": "Vote",
+        "tronVote": "Vote APY 8%%+",
         "wallet": "Wallet",
         "warning": "warning",
         "yes": "Yes",
@@ -938,6 +939,10 @@
             "You can gain promising return by freezing your tokens and voting for proposals to advance the TRON ecosystem.",
         "trx_description3":
             "TRX rewards will be distributed in proportion to the number of SP you can redeem. The distribution process may take several minutes.",
+        "trx_description4": "",
+        "trx_description5": "Download TronLink wallet",
+        "trx_description6":
+            " and import your TRON account to manage TRX assets.",
         "create_trx_description":
             "You must have a TRON account first. Please click \"Create A TRON Account\" on the right side to claim TRX rewards.",
         "create_trx_button": "Create TRON account",
@@ -1031,7 +1036,7 @@
     },
     "tron_jsx": {
         "content0":
-            "Vote with TRX for SR nodes to contribute to the TRON ecosystem and earn up to 8%% APR.",
+            "Vote with TRX for SR nodes to contribute to the TRON ecosystem and you’re expected to earn over 8%% APY.",
         "content1":
             "You need to freeze TRX first to get the voting right before casting your vote.",
         "content2": "Here are the steps:",
