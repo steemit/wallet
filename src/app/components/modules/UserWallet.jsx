@@ -492,6 +492,26 @@ class UserWallet extends React.Component {
             },
             { value: tt('userwallet_jsx.market'), link: '/market' },
         ];
+        const tronVoteEl = (
+            <div>
+                <span>{tt('g.tronVote')}</span>
+                <span
+                    style={{
+                        display: 'inline-block',
+                        marginLeft: '6px',
+                        backgroundColor: '#06D6A9',
+                        color: '#fff',
+                        borderRadius: '4px',
+                        height: '20px',
+                        fontSize: '12px',
+                        padding: '3px 5px',
+                        boxShadow: '0px 1px 5px rgba(4, 176, 139, 0.31)',
+                    }}
+                >
+                    {tt('g.tronVoteTag')}
+                </span>
+            </div>
+        );
         const trx_menu = [
             {
                 value: tt('g.transfer'),
@@ -506,6 +526,7 @@ class UserWallet extends React.Component {
             {
                 value: tt('g.tronVote'),
                 link: '#',
+                label: tronVoteEl,
                 onClick: e => {
                     e.preventDefault();
                     recordAdsView({
