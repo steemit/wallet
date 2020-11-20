@@ -60,8 +60,8 @@ export default function useTronRewardApi(app) {
         if (tronUser === null) {
             // check if on chain
             try {
-                const pubKey = yield getUserPublicKey(username);
-                if (pubKey === null) {
+                const pubKeys = yield getUserPublicKey(username);
+                if (pubKeys.length === 0) {
                     // user does not exist on chain
                     this.body = JSON.stringify({ error: 'username_not_exist' });
                     return;
@@ -116,16 +116,16 @@ export default function useTronRewardApi(app) {
         // get public key
         const authType =
             data.auth_type !== undefined ? data.auth_type : 'posting';
-        let pubKey = null;
+        let pubKeys = [];
         try {
-            pubKey = yield getUserPublicKey(data.username, authType);
+            pubKeys = yield getUserPublicKey(data.username, authType);
         } catch (e) {
             this.body = JSON.stringify({
                 error: e.message,
             });
             return;
         }
-        if (pubKey === null) {
+        if (pubKeys.length === 0) {
             this.body = JSON.stringify({
                 error: 'username_not_exist_on_chain',
             });
@@ -134,7 +134,14 @@ export default function useTronRewardApi(app) {
 
         // auth
         try {
-            if (!authData(data, pubKey)) {
+            const isDataInvalid = pubKeys.every(pubKey => {
+                console.log('TEST pubKey:', pubKey);
+                if (authData(data, pubKey)) {
+                    return false;
+                }
+                return true;
+            });
+            if (isDataInvalid === true) {
                 this.body = JSON.stringify({
                     error: 'data_is_invalid',
                 });
@@ -191,9 +198,14 @@ export default function useTronRewardApi(app) {
 }
 
 async function getUserPublicKey(username, authType = 'posting') {
-    const user = await steem.api.getAccountsAsync([username]);
-    if (user.length === 0) return null;
-    if (authType === 'memo' && user[0]['memo_key']) return user[0]['memo_key'];
-    if (user[0][authType] === undefined) return null;
-    return user[0][authType].key_auths[0][0];
+    const users = await steem.api.getAccountsAsync([username]);
+    if (users.length === 0) return [];
+    if (authType === 'memo' && users[0]['memo_key'])
+        return [users[0]['memo_key']];
+    if (users[0][authType] === undefined) return [];
+    const result = [];
+    users[0][authType].key_auths.forEach((v, i) => {
+        result.push(users[0][authType].key_auths[i][0]);
+    });
+    return result;
 }

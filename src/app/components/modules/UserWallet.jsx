@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable react/jsx-no-bind */
 /* eslint-disable no-plusplus */
 /* eslint-disable no-undef */
@@ -69,6 +70,16 @@ class UserWallet extends React.Component {
             const new_window = window.open();
             new_window.opener = null;
             new_window.location = 'https://poloniex.com/exchange#usdt_trx';
+        };
+        this.onShowTronLink = e => {
+            if (e && e.preventDefault) e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'ToTronLink',
+            });
+            const new_window = window.open();
+            new_window.opener = null;
+            new_window.location = 'https://www.tronlink.org/';
         };
         this.onShowDepositSBD = (currentUserName, e) => {
             e.preventDefault();
@@ -977,15 +988,7 @@ class UserWallet extends React.Component {
                                 {tt('userwallet_jsx.trx_description4')}
                                 <a
                                     style={{ color: '#1FBF8F' }}
-                                    href="https://www.tronlink.org/"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={e => {
-                                        recordAdsView({
-                                            trackingId: this.props.trackingId,
-                                            adTag: 'ToTronLink',
-                                        });
-                                    }}
+                                    onClick={this.onShowTronLink}
                                 >
                                     {tt('userwallet_jsx.trx_description5')}
                                 </a>
