@@ -979,8 +979,6 @@ class UserWallet extends React.Component {
                                     style={{ color: '#1FBF8F' }}
                                     href="https://www.tronlink.org/"
                                     onClick={e => {
-                                        if (e && e.preventDefault)
-                                            e.preventDefault();
                                         recordAdsView({
                                             trackingId: this.props.trackingId,
                                             adTag: 'ToTronLink',
