@@ -135,7 +135,6 @@ export default function useTronRewardApi(app) {
         // auth
         try {
             const isDataInvalid = pubKeys.every(pubKey => {
-                console.log('TEST pubKey:', pubKey);
                 if (authData(data, pubKey)) {
                     return false;
                 }
