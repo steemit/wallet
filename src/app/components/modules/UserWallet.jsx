@@ -978,6 +978,8 @@ class UserWallet extends React.Component {
                                 <a
                                     style={{ color: '#1FBF8F' }}
                                     href="https://www.tronlink.org/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     onClick={e => {
                                         recordAdsView({
                                             trackingId: this.props.trackingId,
