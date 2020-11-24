@@ -82,10 +82,14 @@ export default connect(
             currentUser && currentUser.has('tron_private_key')
                 ? currentUser.get('tron_private_key')
                 : '';
+        const tronErrMsg = state.app.has('tronErrMsg')
+            ? state.app.get('tronErrMsg')
+            : null;
         return {
             ...ownProps,
             loading: state.app.get('modalLoading'),
             tronPrivateKey,
+            tronErrMsg,
         };
     },
     dispatch => ({
@@ -103,6 +107,9 @@ export default connect(
         },
         endLoading: () => {
             dispatch(appActions.modalLoadingEnd());
+        },
+        setTronErrMsg: msg => {
+            dispatch(appActions.setTronErrMsg(msg));
         },
     })
 )(TronCreateOne);

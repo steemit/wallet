@@ -691,6 +691,8 @@
         "use_keychain": "Use keychain extension",
         "not_a_steemit_user": "还不是Steemit用户？",
         "free_register": "免费注册",
+        "there_is_no_private_key_in_browser_cache":
+            "在浏览器缓存中没有找到私钥",
         "login_to_wallet": "登录钱包",
         "sign_transfer": "登录完成转账"
     },
@@ -874,5 +876,8 @@
         "cannot_transfer_to_yourself": "不能转给自己",
         "private_key_does_not_match_address_in_transaction": "私钥错误",
         "transaction_send_success": "转账请求发送成功"
+    },
+    "tron_err_msg": {
+        "data_is_invalid": "数据异常.请确认你使用的私钥是正确的。"
     }
 }

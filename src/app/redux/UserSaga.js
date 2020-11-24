@@ -374,6 +374,8 @@ function* usernamePasswordLogin({
             yield put(
                 userActions.setUser({
                     username,
+                    private_keys, // TODO: this is a temp way ,by: ety001
+                    login_owner_pubkey, // TODO: this is a temp way ,by: ety001
                     vesting_shares: account.get('vesting_shares'),
                     received_vesting_shares: account.get(
                         'received_vesting_shares'
@@ -749,16 +751,16 @@ function* updateTronAddr() {
 
     // charge that which level private key we own.
     let privateKeyType = null;
-    if (private_keys.has('active_private')) privateKeyType = 'active_private';
-    if (private_keys.has('posting_private')) privateKeyType = 'posting_private';
+    if (private_keys && private_keys.has('active_private'))
+        privateKeyType = 'active_private';
+    if (private_keys && private_keys.has('posting_private'))
+        privateKeyType = 'posting_private';
     if (privateKeyType === null) {
         console.log('there is no private key in browser cache.');
         yield put(
-            appActions.addNotification({
-                key: 'chpwd_' + Date.now(),
-                message: tt('loginform_jsx.login_to_create_tron_addr'),
-                dismissAfter: 3000,
-            })
+            appActions.setTronErrMsg(
+                tt('loginform_jsx.there_is_no_private_key_in_browser_cache')
+            )
         );
         return;
     }
@@ -771,11 +773,7 @@ function* updateTronAddr() {
         tronAccount.address.base58 === undefined
     ) {
         yield put(
-            appActions.addNotification({
-                key: 'chpwd_' + Date.now(),
-                message: tt('userwallet_jsx.create_trx_failed'),
-                dismissAfter: 3000,
-            })
+            appActions.setTronErrMsg(tt('userwallet_jsx.create_trx_failed'))
         );
         return;
     }
@@ -794,13 +792,7 @@ function* updateTronAddr() {
         private_keys.get(privateKeyType).toWif()
     );
     if (result.error !== undefined) {
-        yield put(
-            appActions.addNotification({
-                key: 'chpwd_' + Date.now(),
-                message: result.error,
-                dismissAfter: 3000,
-            })
-        );
+        yield put(appActions.setTronErrMsg(tt(`tron_err_msg.${result.error}`)));
         return;
     }
 
@@ -808,9 +800,9 @@ function* updateTronAddr() {
     if (!account) {
         console.log('No account');
         yield put(
-            userActions.loginError({
-                error: 'Username does not exist, when update tron address',
-            })
+            appActions.setTronErrMsg(
+                'Username does not exist, when update tron address'
+            )
         );
         return;
     }
