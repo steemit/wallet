@@ -9,7 +9,13 @@ import tt from 'counterpart';
 class Keys extends Component {
     static propTypes = {
         account: PropTypes.object.isRequired, // immutable Map
-        authType: PropTypes.oneOf(['posting', 'active', 'owner', 'memo']),
+        authType: PropTypes.oneOf([
+            'posting',
+            'active',
+            'owner',
+            'memo',
+            'tron',
+        ]),
     };
 
     shouldComponentUpdate(nextProps, nextState) {
@@ -21,7 +27,9 @@ class Keys extends Component {
     }
 
     render() {
-        const { props: { account, authType, privateKeys, onKey } } = this;
+        const {
+            props: { account, authType, privateKeys, onKey, title },
+        } = this;
 
         // normalize public auths as simple lists of keys
         const pubkeys =
@@ -48,6 +56,7 @@ class Keys extends Component {
                         authTypeName={tt_auth_type}
                         accountName={account.get('name')}
                         onKey={onKey}
+                        title={title}
                     />
                 ))}
             </span>

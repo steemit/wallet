@@ -1,15 +1,19 @@
+/* eslint-disable prefer-const */
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable no-plusplus */
 import tt from 'counterpart';
 import BadActorList from 'app/utils/BadActorList';
 import VerifiedExchangeList from 'app/utils/VerifiedExchangeList';
 import { PrivateKey, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
+import { checkTronUser } from 'app/utils/ServerApiClient';
 
 export function validate_account_name(value) {
-    let i, label, len, length, ref;
+    let i, label, len;
 
     if (!value) {
         return tt('chainvalidation_js.account_name_should_not_be_empty');
     }
-    length = value.length;
+    const length = value.length;
     if (length < 3) {
         return tt('chainvalidation_js.account_name_should_be_longer');
     }
@@ -19,7 +23,7 @@ export function validate_account_name(value) {
     if (BadActorList.includes(value)) {
         return tt('chainvalidation_js.badactor');
     }
-    ref = value.split('.');
+    const ref = value.split('.');
     for (i = 0, len = ref.length; i < len; i++) {
         label = ref[i];
         if (!/^[a-z]/.test(label)) {
@@ -51,6 +55,27 @@ export function validate_account_name(value) {
     return null;
 }
 
+// tron transfer
+// export async function validate_account_name_with_memo_tron(name, memo) {
+//     if (VerifiedExchangeList.includes(name) && !memo) {
+//         return tt('chainvalidation_js.verified_exchange_no_memo');
+//     }
+
+//     if (validate_account_name(name) == null) {
+//         const response = await checkTronUser(name);
+//         const body = await response.json();
+//         if (body.status && body.status == 'ok') {
+//             if (
+//                 body.result.tron_addr != '' ||
+//                 body.result.tron_addr.length > 0
+//             ) {
+//                 return null;
+//             } else return tt('chainvalidation_js.user_no_tron_account');
+//         } else {
+//             return tt('chainvalidation_js.unknow_recipient');
+//         }
+//     } else return validate_account_name(name);
+// }
 /**
  * Do some additional validation for situations where an account name is used along with a memo.
  * Currently only used in the Transfers compoonent.
@@ -68,7 +93,7 @@ export function validate_account_name_with_memo(name, memo) {
 
 export function validate_memo_field(value, username, memokey) {
     value = value.split(' ').filter(v => v != '');
-    for (var w in value) {
+    for (let w in value) {
         // Only perform key tests if it might be a key, i.e. it is a long string.
         if (value[w].length >= 39) {
             if (/5[HJK]\w{40,45}/i.test(value[w])) {

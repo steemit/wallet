@@ -1,3 +1,6 @@
+/* eslint-disable no-multi-assign */
+/* eslint-disable no-continue */
+/* eslint-disable no-restricted-syntax */
 /**
     @arg {string} name - form state will appear in this.state[name]
     @arg {object} instance - `this` for the component
@@ -128,7 +131,7 @@ export default function reactForm({
         fs.props.onBlur = () => {
             // Some errors are better shown only after blur === true
             const v = { ...(instance.state[fieldName] || {}) };
-            v.blur = true;
+            // v.blur = true;
             instance.setState({ [fieldName]: v });
         };
     }
@@ -137,6 +140,8 @@ export default function reactForm({
 function setFormState(name, instance, fields, validation) {
     let formValid = true;
     let formTouched = false;
+    // TODO: optimize validation.
+    // Don't trigger all rules when each input is typing.
     const v = validation(getData(fields, instance.state));
     for (const field of fields) {
         const fieldName = n(field);
@@ -197,6 +202,8 @@ function n(field) {
 const hasValue = v =>
     v == null
         ? false
-        : (typeof v === 'string' ? v.trim() : v) === '' ? false : true;
+        : (typeof v === 'string' ? v.trim() : v) === ''
+            ? false
+            : true;
 const toString = v => (hasValue(v) ? v : '');
 const toBoolean = v => (hasValue(v) ? JSON.parse(v) : '');

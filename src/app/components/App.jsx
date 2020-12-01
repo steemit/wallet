@@ -1,9 +1,15 @@
+/* eslint-disable react/require-default-props */
+/* eslint-disable no-constant-condition */
+/* eslint-disable no-undef */
+/* eslint-disable react/no-string-refs */
+/* eslint-disable no-underscore-dangle */
 import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import AppPropTypes from 'app/utils/AppPropTypes';
 import Header from 'app/components/modules/Header';
 import * as userActions from 'app/redux/UserReducer';
+import * as appActions from 'app/redux/AppReducer';
 import classNames from 'classnames';
 import ConnectedSidePanel from 'app/components/modules/ConnectedSidePanel';
 import CloseButton from 'app/components/elements/CloseButton';
@@ -43,7 +49,11 @@ class App extends React.Component {
 
     componentWillMount() {
         if (process.env.BROWSER) localStorage.removeItem('autopost'); // July 14 '16 compromise, renamed to autopost2
-        this.props.loginUser();
+        // make sure the autologin triggered each refresh page not each rendered progress.
+        if (process.env.BROWSER && this.props.frontendHasRendered === false) {
+            this.props.setFeRendered();
+            this.props.loginUser();
+        }
     }
 
     componentDidMount() {
@@ -65,6 +75,17 @@ class App extends React.Component {
         }
     }
 
+    shouldComponentUpdate(nextProps, nextState) {
+        const { pathname, new_visitor, nightmodeEnabled } = this.props;
+        const n = nextProps;
+        return (
+            pathname !== n.pathname ||
+            new_visitor !== n.new_visitor ||
+            this.state.showCallout !== nextState.showCallout ||
+            nightmodeEnabled !== n.nightmodeEnabled
+        );
+    }
+
     _addEntropyCollector() {
         if (!this.listenerActive && this.refs.App_root) {
             this.refs.App_root.addEventListener(
@@ -84,17 +105,6 @@ class App extends React.Component {
             );
             this.listenerActive = null;
         }
-    }
-
-    shouldComponentUpdate(nextProps, nextState) {
-        const { pathname, new_visitor, nightmodeEnabled } = this.props;
-        const n = nextProps;
-        return (
-            pathname !== n.pathname ||
-            new_visitor !== n.new_visitor ||
-            this.state.showCallout !== nextState.showCallout ||
-            nightmodeEnabled !== n.nightmodeEnabled
-        );
     }
 
     onEntropyEvent = e => {
@@ -168,9 +178,9 @@ class App extends React.Component {
                             />
                             <ul>
                                 <li>
-                                    /*<a href="https://steemit.com/steemit/@steemitblog/steemit-com-is-now-open-source">
+                                    {/*<a href="https://steemit.com/steemit/@steemitblog/steemit-com-is-now-open-source">
                                         ...STORY TEXT...
-                                    </a>*/
+                                    </a>*/}
                                 </li>
                             </ul>
                         </div>
@@ -269,9 +279,11 @@ export default connect(
             pathname: ownProps.location.pathname,
             order: ownProps.params.order,
             category: ownProps.params.category,
+            frontendHasRendered: state.app.get('frontend_has_rendered'),
         };
     },
     dispatch => ({
         loginUser: () => dispatch(userActions.usernamePasswordLogin({})),
+        setFeRendered: () => dispatch(appActions.setFeRendered({})),
     })
 )(App);

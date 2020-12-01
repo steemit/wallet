@@ -2,6 +2,10 @@
     @extend .e-btn-hollow;
 }
 
+.UserWallet__tron {
+    @extend .e-btn-hollow;
+}
+
 .UserWallet__balance {
     padding-bottom: 1rem;
     padding-top: 1rem;
@@ -18,7 +22,13 @@
     margin-right: 0 !important;
     margin-top: 1rem;
 }
-
+.UserWallet__tron {
+    margin-right: 0 !important;
+}
+.buttonSmall{
+    font-size: 10px;
+    margin-top: 20px;
+}
 .UserWallet__claimbox {
     margin: 1.5rem 0 0.5rem;
     padding: 1rem 1rem 1.1rem 1rem;
@@ -47,9 +57,16 @@
         .button {
             margin: 8px 0 0 0;
         }
+        .buttonSmall{
+            font-size: 10px;
+            margin-left: -20px;
+        }
     }
 }
-
+.link {
+    font-size: 15px;
+    margin-left: 20px;
+}
 .WalletSubMenu {
     > li > a {
         transition: 0.2s all ease-in-out;
@@ -90,4 +107,26 @@
     .Wallet_dropdown {
         left: 10px !important;
     }
+}
+
+.UserWallet__balance.tron {
+  .tron-addr {
+    display: flex;
+    align-items: center;
+    .show-qrcode {
+      width: 40%;
+    }
+    button {
+      margin-right: 10px !important;
+    }
+  }
+  .qrcode {
+    position: absolute;
+    left: 90px;
+    top: -36%;
+    z-index: 1;
+  }
+  .LoadingIndicator {
+    float: right;
+  }
 }

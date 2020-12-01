@@ -523,7 +523,7 @@
         "influence_token":
             "Token che ti danno più controllo sui pagamenti dei post e ti consentono di guadagnare sulle ricompense da curatore.",
         "estimated_value":
-            "Il valore stimato si basa sul valore medio di %(LIQUID_TOKEN)s in dollari US. ",
+            "Valutazione totale delle attività dell'account in USD.",
         "non_transferable":
             "%(VESTING_TOKEN)s non è trasferibile e richiede 1 mese, (4 pagamenti) per riconvertirli in  %(LIQUID_TOKEN)s.",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
@@ -711,7 +711,13 @@
             "I trasferimenti sono temporaneamente disabilitati.",
         "history": "CRONOLOGIA",
         "redeem_rewards": "Riscuoti le ricompense (Trasferisci sul conto)",
-        "buy_steem_or_steem_power": "Compra STEEM"
+        "buy_steem_or_steem_power": "Compra STEEM",
+        "trx_description":
+            "TRX collega tutto il sistema TRON ECO, che può essere inviato ovunque e in qualsiasi momento. Puoi ricevere una ricompensa decente votando e congelando trx per il sistema TRON ECO. Il numero di TRX ricompensa si basa sulla percentuale x dell'SP ricompensa.",
+        "create_trx_description":
+            "Non hai un account TRX? è sufficiente fare clic con il pulsante destro del mouse per creare un account TRX in cui è possibile ricevere un premio TRX.",
+        "create_trx_button": "CREA UN ACCOUNT TRON",
+        "update_trx_account": "aggiorna l'account TRON"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",

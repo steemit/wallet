@@ -69,7 +69,10 @@ class ShowKey extends Component {
     };
 
     render() {
-        const { showLogin, props: { pubkey, authType } } = this;
+        const {
+            showLogin,
+            props: { pubkey, authType, title },
+        } = this;
         const { wif } = this.state;
 
         const qrIcon = (
@@ -102,7 +105,8 @@ class ShowKey extends Component {
                 <br />
                 <div className="row key__private">
                     <div className="key__private-title">
-                        <h5>Your Private {this.props.authTypeName} Key</h5>
+                        {/* <h5>Your Private {this.props.authTypeName} Key</h5> */}
+                        <h5>{tt(title)}</h5>
                     </div>
 
                     <div className="key__private-container">
@@ -122,7 +126,7 @@ class ShowKey extends Component {
                                     onClick={showLogin}
                                     className="hollow button"
                                 >
-                                    Reveal
+                                    {tt('userkeys_jsx.Reveal')}
                                 </a>
                             )}
                         </div>

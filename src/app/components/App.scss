@@ -70,7 +70,7 @@
     max-width: 240px;
     @include opacity(0);
     @include MQ(M) {
-      @include font-size(34px);  
+      @include font-size(34px);
       max-width: 280px;
     }
   }
@@ -94,7 +94,7 @@
   }
   .row {
     @include MQ(M) {
-      align-items: center;  
+      align-items: center;
     }
   }
   .button {
@@ -146,18 +146,18 @@
     background: transparent;
     color: $color-white;
     border: 1px solid #30414A;
-    box-shadow: 0px 0px 0px 0 #30414A, 2px 2px 0 0 #30414A;     
+    box-shadow: 0px 0px 0px 0 #30414A, 2px 2px 0 0 #30414A;
     @include opacity(0);
     &:hover, &:focus {
-      box-shadow: 0px 0px 0px 0 #30414A, 4px 4px 0 0 $color-teal; 
-    } 
+      box-shadow: 0px 0px 0px 0 #30414A, 4px 4px 0 0 $color-teal;
+    }
   }
 
     .heroImage {
         max-height: 360px;
         @include opacity(0);
         animation: fade-in-up 0.6s ease-out both;
-        @media screen and (prefers-reduced-motion) { 
+        @media screen and (prefers-reduced-motion) {
           animation: none;
           @include opacity(1);
         }
@@ -183,5 +183,34 @@
   padding-top: 40px;
   .close-button {
     right: 0;
+  }
+}
+
+.reveal {
+  .tron-account-dl {
+    margin: 12px 0;
+    .pdf-download {
+      display: inline-block;
+    }
+  }
+}
+
+.LoginForm {
+  .login-modal-buttons {
+    margin-top: 1.5em;
+    display: flex;
+    justify-content: space-between;
+    .register {
+      text-align: right;
+      .register-title {
+        font-size: 0.8em;
+      }
+      .register-link {
+        font-size: 1.2em;
+        a {
+          color: #1FBF8F;
+        }
+      }
+    }
   }
 }

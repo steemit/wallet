@@ -80,7 +80,7 @@ export default function reducer(state = defaultState, action = {}) {
             }
             // let transfer_history from new state override completely, otherwise
             // deep merge may not work as intended.
-            let mergedState = state.mergeDeep(new_state);
+            const mergedState = state.mergeDeep(new_state);
             return mergedState.update(
                 'accounts',
                 accountMap =>

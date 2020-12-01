@@ -1,3 +1,6 @@
+/* eslint-disable no-else-return */
+/* eslint-disable import/no-dynamic-require */
+/* eslint-disable global-require */
 /* eslint react/display-name: 0 */
 /* eslint space-before-function-paren:0 */
 // https://github.com/eslint/eslint/issues/4442
@@ -36,7 +39,7 @@ let get_state_perf,
     get_content_perf = false;
 if (process.env.OFFLINE_SSR_TEST) {
     const testDataDir = process.env.OFFLINE_SSR_TEST_DATA_DIR || 'api_mockdata';
-    let uri = `${__dirname}/../../`;
+    const uri = `${__dirname}/../../`;
     get_state_perf = require(uri + testDataDir + '/get_state');
     get_content_perf = require(uri + testDataDir + '/get_content');
 }
@@ -263,9 +266,11 @@ export async function serverRender(
 
         // If a user profile URL is requested but no profile information is
         // included in the API response, return User Not Found.
+        const matches =
+            url.match(routeRegex.UserProfile1) ||
+            url.match(routeRegex.UserProfile2);
         if (
-            (url.match(routeRegex.UserProfile1) ||
-                url.match(routeRegex.UserProfile2)) &&
+            matches &&
             Object.getOwnPropertyNames(onchain.accounts).length === 0
         ) {
             // protect for invalid account
@@ -274,6 +279,17 @@ export async function serverRender(
                 statusCode: 404,
                 body: renderToString(<NotFound />),
             };
+        }
+
+        const accountname = matches ? matches[1] : null;
+        if (accountname) {
+            // TODO: ssr getTronInfo
+            // requestTimer.startTimer('getTronInfo_ms');
+            // const tronAccount = await getTronInfo(accountname);
+            // requestTimer.stopTimer('getTronInfo_ms');
+            // Object.keys(tronAccount).forEach(k => {
+            //     onchain.accounts[accountname][k] = tronAccount[k];
+            // });
         }
 
         server_store = createStore(rootReducer, {

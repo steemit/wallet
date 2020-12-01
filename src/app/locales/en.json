@@ -114,6 +114,7 @@
         "sign_up": "Sign up",
         "since": "since %(date)s",
         "submit": "Submit",
+        "trade": "Trade",
         "power_up": "Power Up",
         "submit_a_story": "Post",
         "tag": "Tag",
@@ -134,6 +135,8 @@
         "version": "Version",
         "vote": "Vote",
         "votes": "votes",
+        "tronVote": "Vote",
+        "tronVoteTag": "APY 8%%+",
         "wallet": "Wallet",
         "warning": "warning",
         "yes": "Yes",
@@ -253,7 +256,10 @@
             "warning":
                 "Legitimate users, including employees of Steemit Inc., will never ask you for a private key or master password.",
             "checkbox": "I understand"
-        }
+        },
+        "input_tron_private_key":
+            "Please enter the private key of your TRON account.",
+        "input_tron_address": "Please enter the TRON account address"
     },
     "navigation": {
         "about": "About Steemit, Inc.",
@@ -528,7 +534,95 @@
         "the_private_key_or_password_should_be_kept_offline":
             "The private key or password for the owner key should be kept offline as much as possible.",
         "the_memo_key_is_used_to_create_and_read_memos":
-            "This key can be used to send and view encrypted memos on the Steem blockchain."
+            "This key can be used to send and view encrypted memos on the Steem blockchain.",
+        "userkeys_info_1":
+            "Any password or key is more likely to get compromised the more it is used. That's why Steem uses a hierarchical key system to keep you safe. You are issued with Steem and TRON keys which have different permissions. For example, the Posting Key (which is intended to be used frequently) has a limited set of permissions for social actions that require less security. You'll need to be more careful with your Active Key since it has permissions to perform wallet related actions.",
+        "userkeys_info_2":
+            "Please take note of your Steem and TRON Keys listed below. Ideally, use a Password Manager (like 1Password or LastPass) or store an offline copy safely (on a piece of paper or on a file on a USB drive).",
+        "leare_more": "Learn more",
+        "Reveal": "Reveal",
+        "tron_account": {
+            "title": "TRON Account",
+            "desc1":
+                "TRON account address is used for receiving TRX rewards. TRX rewards are given in proportion to the number of SP you can redeem.",
+            "desc2":
+                "TRON account address is also the TRON account public key. It is used for transfers. The public key is the address you send the tokens to.",
+            "desc3":
+                "The private key has the highest authority on your TRON account. It is used for signing transactions of TRON, such as transferring tokens, freezing and voting.",
+            "address": "TRON Account Address",
+            "tron_key": "TRON Account Private Key",
+            "tron_key_tip":
+                "Please check in the PDF containing public and private keys of the TRON account.",
+            "tron_account_permissions": "TRON Private Key Permissions",
+            "tron_account_permissions1": "Use your TRON Private key to:",
+            "tron_account_permissions2": "Transfer tokens",
+            "tron_account_permissions3": "Freeze and unfreeze TRX",
+            "tron_account_permissions4": "Vote for TRON SRs",
+            "tron_account_permissions5": "Explore TRON ecology"
+        },
+        "posting_key": {
+            "title": "Post Key",
+            "desc1":
+                "This key should be used for social networking actions, like posting, commenting and voting. This key has a limited set of permissions and it is not able to be used for monetary actions. So you can't lose money if someone else gets access to this key.",
+            "desc2":
+                "Use this key to log in to other Steem-powered social networks like Steemit, Busy and eSteem. Store this key safely.",
+            "address": "Your Private Posting Key",
+            "posting_key_title": "Your Private Posting Key",
+            "Posting_Key_permissions": "Posting Key permissions",
+            "Posting_Key_permissions1": "Use your Posting Key to:",
+            "Posting_Key_permissions2": "Publish a post or comment",
+            "Posting_Key_permissions3": "Edit a post or comment",
+            "Posting_Key_permissions4": "Upvote or downvote",
+            "Posting_Key_permissions5": "Resteem content",
+            "Posting_Key_permissions6": "Follow people",
+            "Posting_Key_permissions7": "Mute accounts"
+        },
+        "active_key": {
+            "title": "Active Key",
+            "desc1":
+                "This key has additional permissions for more sensitive monetary-related actions, like transferring and exchanging tokens.",
+            "desc2":
+                "When performing a wallet related action, you may be prompted to authenticate with your Active key. You should only enter your Active Key into apps which you trust because anyone with access to this key can take your tokens. Do yourself a favor and store this key safely to avoid losing tokens in the future.",
+            "active_key_title": "Your Private Active Key",
+            "active_Key_permissions": "Active Key permissions",
+            "active_Key_permissions1": "Use your Active Key to:",
+            "active_Key_permissions2": "Transfer tokens",
+            "active_Key_permissions3": "Power STEEM up or down",
+            "active_Key_permissions4": "SBD conversion",
+            "active_Key_permissions5": "Vote for witnesses",
+            "active_Key_permissions6": "Place an order on an exchange",
+            "active_Key_permissions7": "Certain profile changes",
+            "active_Key_permissions8": "Publish a Witness price feed",
+            "active_Key_permissions9": "Create a new user"
+        },
+        "owner_key": {
+            "title": "Owner Key",
+            "desc":
+                "The owner key is required to change the other keys. This key has additional permissions to recover your account or change your other keys. It's the most important key and should be securely stored offline.",
+            "owner_key_title": "Your Private Owner Key",
+            "owner_Key_permissions": "Owner Key permissions",
+            "owner_Key_permissions1": "Use your Owner Key to:",
+            "owner_Key_permissions2": "Reset Owner, Active, and Posting keys",
+            "owner_Key_permissions3": "Recover your account",
+            "owner_Key_permissions4": "Decline voting rights"
+        },
+        "memo_key": {
+            "title": "Memo Key",
+            "desc":
+                "The Memo key because it is a bit of an outlier. The only thing the Memo Key can do is encrypt and decrypt private messages that are sent through the blockchain. While this could one day be a powerful feature, today it is not commonly used. If you have received a private message that you would like to decrypt, as always you should use the key with the minimum necessary authorities, which in this case would be the Memo Key.",
+            "memo_key_title": "Your Private Memo Key",
+            "memo_Key_permissions": "Memo Key permissions",
+            "memo_Key_permissions1": "Use your Memo Key to:",
+            "memo_Key_permissions2": "Send an encrypted message",
+            "memo_Key_permissions3": "View an encrypted message"
+        },
+        "public_key": {
+            "title": "Public Keys",
+            "desc1":
+                "Each Steem Key has a public and private key to encrypt and decrypt data. Public keys are associated with usernames and can be used to look up associated transactions on the blockchain. Your public keys are not required for login on Steemit.com and you don't need to store these safely.",
+            "desc2":
+                "View public key information for this account (in the 'Authorities' module):"
+        }
     },
     "suggestpassword_jsx": {
         "APP_NAME_cannot_recover_passwords_keep_this_page_in_a_secure_location":
@@ -553,8 +647,7 @@
             "Tradeable tokens that may be transferred anywhere at anytime.<br/>%(LIQUID_TOKEN)s can be converted to %(VESTING_TOKEN)s in a process called powering up.",
         "influence_token":
             "Influence tokens which give you more control over post payouts and allow you to earn on curation rewards.",
-        "estimated_value":
-            "The estimated value is based on an average value of %(LIQUID_TOKEN)s in US dollars.",
+        "estimated_value": "Total account asset valuation in USD.",
         "non_transferable":
             "%(VESTING_TOKEN)s is non-transferable and requires 1 month (4 payments) to convert back to %(LIQUID_TOKEN)s.",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
@@ -661,7 +754,7 @@
         "from_to": "from %(from)s to %(to)s"
     },
     "explorepost_jsx": {
-        "copied": "Copied!",
+        "copied": "Copied Successfully",
         "copy": "COPY",
         "alternative_sources": "Alternative Sources"
     },
@@ -692,6 +785,7 @@
         "login_to_vote": "Login to Vote",
         "login_to_post": "Login to Post",
         "login_to_comment": "Login to Comment",
+        "login_to_create_tron_addr": "Login to create a tron address.",
         "posting": "Posting",
         "active_or_owner": "Active or Owner",
         "this_password_is_bound_to_your_account_owner_key":
@@ -725,7 +819,11 @@
         "login_to_wallet": "Login to Wallet",
         "sign_transfer": "Sign to complete transfer",
         "use_keychain": "Use keychain extension",
-        "dont_have_an_account": "Don't have a Steem account?"
+        "dont_have_an_account": "Don't have a Steem account?",
+        "not_a_steemit_user": "Not a Steemit User?",
+        "free_register": "Free to register",
+        "there_is_no_private_key_in_browser_cache":
+            "There is no private key in browser cache."
     },
     "chainvalidation_js": {
         "account_name_should_not_be_empty": "Account name should not be empty.",
@@ -748,7 +846,9 @@
         "memo_has_privatekey":
             "Please do not include what appears to be a private key or password.",
         "memo_is_privatekey": "Do not use private keys in memos.",
-        "memo_is_password": "Do not use passwords in memos."
+        "memo_is_password": "Do not use passwords in memos.",
+        "user_no_tron_account": "This user does not have a TRON account",
+        "unknow_recipient": "Unknown recipient"
     },
     "settings_jsx": {
         "invalid_url": "Invalid URL",
@@ -781,6 +881,7 @@
         "amount_is_in_form": "Amount is in the form 99999.999",
         "insufficient_funds": "Insufficient funds",
         "use_only_3_digits_of_precison": "Use only 3 digits of precison",
+        "use_only_6_digits_of_precision": "Use only 6 digits of precision",
         "send_to_account": "Send to account",
         "asset": "Asset",
         "this_memo_is_private": "This memo is private",
@@ -789,6 +890,8 @@
         "balance_subject_to_3_day_withdraw_waiting_period":
             "Balances subject to 3 day withdraw waiting period.",
         "move_funds_to_another_account": "Move funds to another Steem account.",
+        "move_funds_to_another_tron_account":
+            "Transfer funds to another Steem or TRON account.",
         "protect_funds_by_requiring_a_3_day_withdraw_waiting_period":
             "Protect funds by requiring a 3 day withdraw waiting period.",
         "withdraw_funds_after_the_required_3_day_waiting_period":
@@ -803,7 +906,10 @@
             "Transactions will not show until they are confirmed on the blockchain, which may take a few minutes.",
         "autocomplete_previous_transfers": "previous transfers",
         "autocomplete_user_following": "following",
-        "confirm_transfer": "Transfer %(amount)s from %(from)s to %(to)s?"
+        "confirm_transfer": "Transfer %(amount)s from %(from)s to %(to)s?",
+        "invalid_tron_address": "Invalid account format",
+        "confirm_tron_transfer": "Confirm transfer",
+        "sign_complete_transfer": "Sign to complete transfer"
     },
     "userwallet_jsx": {
         "transfer": "Transfer",
@@ -827,7 +933,25 @@
         "transfers_are_temporary_disabled": "Transfers are temporary disabled.",
         "history": "HISTORY",
         "redeem_rewards": "Redeem Rewards (Transfer to Balance)",
-        "buy_steem_or_steem_power": "Buy STEEM"
+        "buy_steem_or_steem_power": "Buy STEEM",
+        "trx_description":
+            "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere. You can gain promising return by freezing your tokens and voting for proposals to advance the TRON ecosystem. TRX rewards will be distributed in proportion to the number of SP you can redeem.",
+        "trx_description1":
+            "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere.",
+        "trx_description2":
+            "You can gain promising return by freezing your tokens and voting for proposals to advance the TRON ecosystem.",
+        "trx_description3":
+            "TRX rewards will be distributed in proportion to the number of SP you can redeem. The distribution process may take several minutes.",
+        "trx_description4": "",
+        "trx_description5": "Download TronLink wallet",
+        "trx_description6":
+            " and import your TRON account to manage TRX assets.",
+        "create_trx_description":
+            "You must have a TRON account first. Please click \"Create A TRON Account\" on the right side to claim TRX rewards.",
+        "create_trx_button": "Create TRON account",
+        "update_trx_button": "Update the TRON account",
+        "just_mortgage": "Staking by JUST",
+        "create_trx_failed": "Create Tron Account Failed!"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
@@ -906,10 +1030,76 @@
             "end_date": "End Date",
             "daily_pay": "Daily Pay",
             "total_votes": "Total Votes*",
+            "tronVote": "Vote",
             "permlink": "",
             "subject": "Subject"
         },
         "confirm_remove_proposal_description":
             "Proposal removal is permanent and the fee paid for creating the proposal is not refundable."
+    },
+    "tron_jsx": {
+        "content0":
+            "Vote with TRX for SR nodes to contribute to the TRON ecosystem and you’re expected to earn over 8%% APY.",
+        "content1":
+            "You need to freeze TRX first to get the voting right before casting your vote.",
+        "content2": "Here are the steps:",
+        "step1": "Step1: click \"Voting\" to access Tronscan voting page",
+        "step2":
+            "Step2: click \"Link wallet\", and then select \"Import account to log in\".",
+        "step3":
+            "Step3: enter the private key of your TRON account and click \"Login\".",
+        "step4":
+            "Step4: click the \"Vote\" button and follow the instructions.",
+        "vote_button": "Vote Now",
+        "step": "Steps",
+        "tron_tx_history": "TRON transaction history >",
+        "update_tron_account": "Update the TRON account",
+        "update_tron_content":
+            "Please confirm the information below before updating your TRON account to avoid unnecessary asset loss.",
+        "update_tron_content1":
+            "The private key for this TRON account has been saved,",
+        "update_tron_content2":
+            "or this TRON account has been imported to other TRON-supporting wallets,",
+        "update_tron_content3":
+            "or assets in this TRON account has been transfered to your other TRON accounts.",
+        "update_tron_content4":
+            "After updating your TRON account, your TRX rewards will be distributed to your updated TRON account.",
+        "update_tron_content5":
+            "Do you agree to update your TRON account and download the PDF containing the public and private keys of the updated TRON account？",
+        "update_button": "Update and download",
+        "update_success": "Updated successfully",
+        "update_success_content": "Your TRON account has been updated.",
+        "update_success_content3": "If the file wasn't downloaded,",
+        "update_success_click": "click here",
+        "update_success_content2":
+            "Please keep it safe, otherwise we cannot recover it for you.Please do not share the file with anyone else.",
+        "safe_save_button": "PDF securely saved",
+        "create_tron_account": "Create a TRON account and claim rewards",
+        "create_tron_account_content":
+            "Steemit will distribute extra TRX to you as rewards. This account is for receiving such rewards.",
+        "create_tron_account_content1":
+            "The system will automatically create a TRON account for you for free.",
+        "create_tron_account_content2":
+            "Do you agree to create a TRON account and download the PDF with your TRON public and private keys?",
+        "create_tron_agree": "Agree",
+        "create_tron_success": "Your account has been created",
+        "create_tron_success_content": "You have created a TRON account.",
+        "create_tron_success_content2": "If the file wasn't downloaded, ",
+        "create_tron_success_content3":
+            " to download the PDF with your TRON public and private keys.",
+        "qr_code": "QR code",
+        "copy": "copy",
+        "switch_to_tron_account": "Switch to TRON account",
+        "switch_to_steem_account": "Switch to Steem account",
+        "unbind_tron_addr": "This user does not have a TRON account",
+        "username_not_exist": "Account not found",
+        "cannot_transfer_to_yourself": "Cannot transfer to yourself",
+        "private_key_does_not_match_address_in_transaction":
+            "Private key does not match address in transaction",
+        "transaction_send_success": "Transaction has been sent successfully."
+    },
+    "tron_err_msg": {
+        "data_is_invalid":
+            "Data is invalid. Please check if you are using the correct private key."
     }
 }

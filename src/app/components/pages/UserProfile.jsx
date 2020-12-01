@@ -1,8 +1,8 @@
+/* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint react/prop-types: 0 */
 import React from 'react';
-import { Link } from 'react-router';
+import { Link, browserHistory } from 'react-router';
 import { connect } from 'react-redux';
-import { browserHistory } from 'react-router';
 import classnames from 'classnames';
 import * as globalActions from 'app/redux/GlobalReducer';
 import * as transactionActions from 'app/redux/TransactionReducer';
@@ -39,6 +39,11 @@ export default class UserProfile extends React.Component {
         this.onPrint = () => {
             window.print();
         };
+        this.redirect = this.redirect.bind(this);
+    }
+
+    componentWillMount() {
+        this.redirect();
     }
 
     shouldComponentUpdate(np, ns) {
@@ -53,9 +58,26 @@ export default class UserProfile extends React.Component {
         );
     }
 
+    componentDidUpdate(prevProps) {
+        this.redirect();
+    }
+
     componentWillUnmount() {
         this.props.clearTransferDefaults();
         this.props.clearPowerdownDefaults();
+    }
+
+    redirect() {
+        const {
+            accountname,
+            routeParams: { section },
+        } = this.props;
+        // Redirect user homepage to transfers page
+        if (!section) {
+            if (process.env.BROWSER) {
+                browserHistory.replace(`/@${accountname}/transfers`);
+            }
+        }
     }
 
     render() {
@@ -68,19 +90,10 @@ export default class UserProfile extends React.Component {
                 accountname,
                 isMyAccount,
                 socialUrl,
+                routeParams: { section },
             },
             onPrint,
         } = this;
-        const username = currentUser ? currentUser.get('username') : null;
-
-        // Redirect user homepage to transfers page
-        const { section } = this.props.routeParams;
-        if (!section) {
-            if (process.env.BROWSER) {
-                browserHistory.replace(`/@${accountname}/transfers`);
-            }
-            return null;
-        }
 
         // Loading status
         const status = globalStatus
@@ -117,7 +130,9 @@ export default class UserProfile extends React.Component {
                     <UserWallet
                         account={accountImm}
                         showTransfer={this.props.showTransfer}
+                        showTronTransfer={this.props.showTronTransfer}
                         showPowerdown={this.props.showPowerdown}
+                        showVote={this.props.showVote}
                         currentUser={currentUser}
                         withdrawVesting={this.props.withdrawVesting}
                     />
@@ -145,7 +160,7 @@ export default class UserProfile extends React.Component {
                         </div>
                     </div>
                     <br />
-                    <UserKeys account={accountImm} />
+                    <UserKeys account={accountImm} isMyAccount={isMyAccount} />
                 </div>
             );
         } else if (section === 'password') {
@@ -342,7 +357,6 @@ module.exports = {
             const accountname = ownProps.routeParams.accountname.toLowerCase();
             const isMyAccount =
                 currentUser && currentUser.get('username') === accountname;
-
             return {
                 loading: state.app.get('loading'),
                 globalStatus: state.global.get('status'),
@@ -356,6 +370,9 @@ module.exports = {
             };
         },
         dispatch => ({
+            showVote: () => {
+                dispatch(userActions.showVote());
+            },
             login: () => {
                 dispatch(userActions.showLogin());
             },
@@ -365,6 +382,9 @@ module.exports = {
             showTransfer: transferDefaults => {
                 dispatch(userActions.setTransferDefaults(transferDefaults));
                 dispatch(userActions.showTransfer());
+            },
+            showTronTransfer: transferDefaults => {
+                dispatch(userActions.showTronTransfer(transferDefaults));
             },
             clearPowerdownDefaults: () => {
                 dispatch(userActions.clearPowerdownDefaults());

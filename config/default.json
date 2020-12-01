@@ -7,14 +7,14 @@
         "directives": {
             "childSrc": "'self'",
             "connectSrc":
-                "'self' steemit.com https://api.steemit.com https://testnet.steemitdev.com www.googletagmanager.com www.google-analytics.com pagead2.googlesyndication.com googleads.g.doubleclick.net",
+                "'self' steemit.com https://api.steemit.com https://testnet.steemitdev.com www.googletagmanager.com www.google-analytics.com pagead2.googlesyndication.com googleads.g.doubleclick.net api.trongrid.io",
             "defaultSrc": "'self'",
             "fontSrc": "data: fonts.gstatic.com",
             "frameAncestors": "'none'",
             "imgSrc": "* data:",
             "objectSrc": "'none'",
             "pluginTypes": "application/pdf",
-            "scriptSrc": "'self' www.google-analytics.com",
+            "scriptSrc": "'self' www.google-analytics.com staticfiles.steemit.com localhost:8080",
             "styleSrc": "'self' 'unsafe-inline' fonts.googleapis.com",
             "reportUri": "/api/v1/csp_violation"
         },
@@ -78,5 +78,22 @@
     "address_prefix": "STM",
     "conveyor_posting_wif": false,
     "conveyor_username": false,
-    "social_url": "https://steemit.com"
+    "social_url": "https://steemit.com",
+    "tron_reward": {
+      "switch": "on",
+      "vests_per_trx": 10000,
+      "unbind_tip_limit": 5
+    },
+    "redis_url": "redis://127.0.0.1:6379",
+    "redis_env": "develop",
+    "tron_create_key": "ade06c9d42d42c7e24bf93dcbb0a481193a6869400ddee21855d4cf585eaad8a",
+    "tron_create_node": "https://api.shasta.trongrid.io",
+    "tron_create_address":"xxxxx",
+    "white_list":"steemit.com localhost steemit-sdc 127.0.0.1",
+    "steem_market_endpoint": "http://34.196.9.171",
+    "steem_market_token": "xxxx",
+    "steem_market_cache": {
+      "ttl": 7200,
+      "key": "steem-market"
+    }
 }
