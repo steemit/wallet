@@ -7,7 +7,7 @@ import models from 'db/models';
 import steem from '@steemit/steem-js';
 import { getRecordCache2, updateRecordCache2 } from 'db/cache';
 import config from 'config';
-import { logRequest } from 'server/utils/loggers';
+import { logRequest, log } from 'server/utils/loggers';
 import { getRemoteIp, rateLimitReq } from 'server/utils/misc';
 import { authData } from '@steemfans/auth-data';
 import { clearPendingClaimTronReward } from 'db/utils/user_utils';
@@ -34,9 +34,13 @@ export default function useTronRewardApi(app) {
     });
 
     router.get('/tron_user', function*() {
+        const t1 = process.uptime() * 1000;
         const q = this.request.query;
         if (!q) {
             this.body = JSON.stringify({ error: 'need_params' });
+            log('[timer] get /tron_user all', {
+                t: process.uptime() * 1000 - t1,
+            });
             return;
         }
         const username = q.username;
@@ -44,6 +48,9 @@ export default function useTronRewardApi(app) {
         if (!username && !tronAddr) {
             this.body = JSON.stringify({
                 error: 'need_username_or_tron_addr_param',
+            });
+            log('[timer] get /tron_user all', {
+                t: process.uptime() * 1000 - t1,
             });
             return;
         }
@@ -64,10 +71,16 @@ export default function useTronRewardApi(app) {
                 if (pubKeys.length === 0) {
                     // user does not exist on chain
                     this.body = JSON.stringify({ error: 'username_not_exist' });
+                    log('[timer] get /tron_user all', {
+                        t: process.uptime() * 1000 - t1,
+                    });
                     return;
                 }
             } catch (e) {
                 this.body = JSON.stringify({ error: e.message });
+                log('[timer] get /tron_user all', {
+                    t: process.uptime() * 1000 - t1,
+                });
                 return;
             }
             // insert user data into db
@@ -82,6 +95,9 @@ export default function useTronRewardApi(app) {
                 );
             } catch (e) {
                 this.body = JSON.stringify({ error: e.message });
+                log('[timer] get /tron_user all', {
+                    t: process.uptime() * 1000 - t1,
+                });
                 return;
             }
         }
@@ -94,9 +110,11 @@ export default function useTronRewardApi(app) {
         };
 
         this.body = JSON.stringify({ status: 'ok', result });
+        log('[timer] get /tron_user all', { t: process.uptime() * 1000 - t1 });
     });
 
     router.post('/tron_user', koaBody, function*() {
+        const t1 = process.uptime() * 1000;
         const data =
             typeof this.request.body === 'string'
                 ? JSON.parse(this.request.body)
@@ -105,11 +123,17 @@ export default function useTronRewardApi(app) {
             this.body = JSON.stringify({
                 error: 'valid_input_data',
             });
+            log('[timer] post /tron_user all', {
+                t: process.uptime() * 1000 - t1,
+            });
             return;
         }
         if (data.username === undefined) {
             this.body = JSON.stringify({
                 error: 'username_required',
+            });
+            log('[timer] post /tron_user all', {
+                t: process.uptime() * 1000 - t1,
             });
             return;
         }
@@ -123,11 +147,17 @@ export default function useTronRewardApi(app) {
             this.body = JSON.stringify({
                 error: e.message,
             });
+            log('[timer] post /tron_user all', {
+                t: process.uptime() * 1000 - t1,
+            });
             return;
         }
         if (pubKeys.length === 0) {
             this.body = JSON.stringify({
                 error: 'username_not_exist_on_chain',
+            });
+            log('[timer] post /tron_user all', {
+                t: process.uptime() * 1000 - t1,
             });
             return;
         }
@@ -136,19 +166,31 @@ export default function useTronRewardApi(app) {
         try {
             const isDataInvalid = pubKeys.every(pubKey => {
                 if (authData(data, pubKey)) {
+                    log('[timer] post /tron_user all', {
+                        t: process.uptime() * 1000 - t1,
+                    });
                     return false;
                 }
+                log('[timer] post /tron_user all', {
+                    t: process.uptime() * 1000 - t1,
+                });
                 return true;
             });
             if (isDataInvalid === true) {
                 this.body = JSON.stringify({
                     error: 'data_is_invalid',
                 });
+                log('[timer] post /tron_user all', {
+                    t: process.uptime() * 1000 - t1,
+                });
                 return;
             }
         } catch (e) {
             this.body = JSON.stringify({
                 error: e.message,
+            });
+            log('[timer] post /tron_user all', {
+                t: process.uptime() * 1000 - t1,
             });
             return;
         }
@@ -161,6 +203,9 @@ export default function useTronRewardApi(app) {
         );
         if (tronUser === null) {
             this.body = JSON.stringify({ error: 'user_not_exist' });
+            log('[timer] post /tron_user all', {
+                t: process.uptime() * 1000 - t1,
+            });
             return;
         }
 
@@ -193,11 +238,14 @@ export default function useTronRewardApi(app) {
         }
 
         this.body = JSON.stringify({ status: 'ok' });
+        log('[timer] post /tron_user all', { t: process.uptime() * 1000 - t1 });
     });
 }
 
 async function getUserPublicKey(username, authType = 'posting') {
+    const t1 = process.uptime() * 1000;
     const users = await steem.api.getAccountsAsync([username]);
+    log('[timer] getUserPublicKey:', { t: process.uptime() * 1000 - t1 });
     if (users.length === 0) return [];
     if (authType === 'memo' && users[0]['memo_key'])
         return [users[0]['memo_key']];

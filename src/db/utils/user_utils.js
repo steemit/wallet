@@ -5,15 +5,20 @@ import { log } from 'server/utils/loggers';
 
 const clearPendingClaimTronReward = async username => {
     const vestsPerTrx = Number(config.get('tron_reward.vests_per_trx'));
+    let t1, t2;
+    t1 = process.uptime() * 1000;
     const user = await models.TronUser.findOne({
         where: {
             username,
         },
     });
+    t2 = process.uptime() * 1000;
+    log('[timer] clearPendingClaimTronReward findOne', { t: t2 - t1 });
     if (user && user.getDataValue('pending_claim_tron_reward') > 0) {
         const pendingClaimTronReward =
             user.getDataValue('pending_claim_tron_reward') / 1e5;
         // transaction
+        t1 = process.update() * 1000;
         models.sequelize.transaction().then(transaction => {
             // clear pending_claim_tron_reward
             return user
@@ -52,6 +57,8 @@ const clearPendingClaimTronReward = async username => {
                     });
                 });
         });
+        t2 = process.uptime() * 1000;
+        log('[timer] clearPendingClaimTronReward transaction:', { t: t2 - t1 });
     }
 };
 
