@@ -1,6 +1,7 @@
 /* eslint-disable arrow-parens */
 import config from 'config';
 import models from 'db/models';
+import { Model } from 'sequelize';
 import { log } from 'server/utils/loggers';
 
 const clearPendingClaimTronReward = async username => {
@@ -62,6 +63,44 @@ const clearPendingClaimTronReward = async username => {
     }
 };
 
+const insertUserData = async data => {
+    const t1 = process.uptime() * 1000;
+    try {
+        const result = await models.TronUser.create(data);
+        log('[timer] insertUserData:', {
+            t: process.uptime() * 1000 - t1,
+            result,
+        });
+        return true;
+    } catch (e) {
+        log('insertUserData failed:', { e });
+        return false;
+    }
+};
+
+const updateUserData = async (username, data) => {
+    const t1 = process.uptime() * 1000;
+    try {
+        const user = await models.TronUser.findOne({
+            where: {
+                username,
+            },
+        });
+        if (!user) throw new Error('not_found_tron_user_when_updateUserData');
+        const result = await user.update(data);
+        log('[timer] updateUserData:', {
+            t: process.uptime() * 1000 - t1,
+            result,
+        });
+        return true;
+    } catch (e) {
+        log('updateUserData failed:', { e });
+        return false;
+    }
+};
+
 module.exports = {
     clearPendingClaimTronReward,
+    insertUserData,
+    updateUserData,
 };

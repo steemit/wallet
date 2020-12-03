@@ -10,7 +10,11 @@ import config from 'config';
 import { logRequest, log } from 'server/utils/loggers';
 import { getRemoteIp, rateLimitReq } from 'server/utils/misc';
 import { authData } from '@steemfans/auth-data';
-import { clearPendingClaimTronReward } from 'db/utils/user_utils';
+import {
+    clearPendingClaimTronReward,
+    insertUserData,
+    updateUserData,
+} from 'db/utils/user_utils';
 
 export default function useTronRewardApi(app) {
     const router = koa_router({ prefix: '/api/v1/tron' });
@@ -239,6 +243,94 @@ export default function useTronRewardApi(app) {
 
         this.body = JSON.stringify({ status: 'ok' });
         log('[timer] post /tron_user all', { t: process.uptime() * 1000 - t1 });
+    });
+
+    /**
+     * !!!! This API MUST NOT USE in the frontend !!!!
+     * data = {
+     *   internal_api_token: '',
+     *   data_from: '', // faucet, tron-reward
+     *   method: 'insert|update',
+     *   username: '',
+     *   will_update_data: {},
+     * }
+     */
+    router.post('/tron_user_from_internal', koaBody, function*() {
+        const t1 = process.uptime() * 1000;
+        const data =
+            typeof this.request.body === 'string'
+                ? JSON.parse(this.request.body)
+                : this.request.body;
+        console.log('input data:::', data);
+        const internalApiToken = config.get('internal_api_token');
+        // check if set env
+        if (!internalApiToken || internalApiToken === 'xxxx') {
+            this.body = JSON.stringify({ error: 'not_set_internal_api_token' });
+            log('[timer] post /tron_user_from_internal all', {
+                t: process.uptime() * 1000 - t1,
+                data_from: data.data_from,
+            });
+            return;
+        }
+        // check if token correct
+        if (
+            !data.internal_api_token ||
+            data.internal_api_token !== internalApiToken
+        ) {
+            this.body = JSON.stringify({ error: 'internal_api_token_error' });
+            log('[timer] post /tron_user_from_internal all', {
+                t: process.uptime() * 1000 - t1,
+                data_from: data.data_from,
+            });
+            return;
+        }
+
+        if (['insert', 'update'].indexOf(data.method) === -1) {
+            this.body = JSON.stringify({ error: 'method_is_incorrect' });
+            log('[timer] post /tron_user_from_internal all', {
+                t: process.uptime() * 1000 - t1,
+                data_from: data.data_from,
+            });
+            return;
+        }
+
+        let result;
+        if (data.method === 'insert') {
+            if (!data.will_update_data.username) {
+                this.body = JSON.stringify({ error: 'username_not_exist' });
+                log('[timer] post /tron_user_from_internal all', {
+                    t: process.uptime() * 1000 - t1,
+                    data_from: data.data_from,
+                });
+                return;
+            }
+            const willInsertData = {
+                username: data.will_update_data.username,
+            };
+            const allNotNullFields = {
+                tron_addr: null,
+                is_new_user: 0,
+                pending_claim_tron_reward: 0,
+                is_tron_addr_actived: 0,
+                tip_count: 0,
+            };
+            Object.keys(allNotNullFields).forEach(field => {
+                if (Object.keys(data.will_update_data).indexOf(field) === -1) {
+                    willInsertData[field] = allNotNullFields[field];
+                } else {
+                    willInsertData[field] = data.will_update_data[field];
+                }
+            });
+            result = yield insertUserData(willInsertData);
+        } else if (data.method === 'update') {
+            result = yield updateUserData(data.username, data.will_update_data);
+        }
+
+        this.body = JSON.stringify({ status: 'ok' });
+        log('[timer] post /tron_user_from_internal all', {
+            t: process.uptime() * 1000 - t1,
+            data_from: data.data_from,
+        });
     });
 }
 
