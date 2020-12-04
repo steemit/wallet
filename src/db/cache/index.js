@@ -172,12 +172,17 @@ function* getRecordCache2(model, conditions = {}) {
     const conditionsStr = parseResultToArr(conditions).join('_');
     const cacheKey = `${keyPrefix}${conditionsStr}`;
 
-    let result;
+    let result, t1, t2, t3;
     try {
+        t1 = process.uptime();
         result =
             env === 'production'
                 ? yield getAsync(cacheKey)
                 : log('getRecordCache2', { msg: 'none_production' });
+        t2 = process.uptime();
+        log('[timer] tron_user getRecordCache2 redis getAsync', {
+            t: (t2 - t1) * 1000,
+        });
         if (!result) {
             // not hit cache
             log('getRecordCache2', {
@@ -187,12 +192,24 @@ function* getRecordCache2(model, conditions = {}) {
             const dbOptions = {
                 where: conditions,
             };
+            t1 = process.uptime();
             result = yield model.findOne(dbOptions);
+            t2 = process.uptime();
+            log('[timer] tron_user getRecordCache2 db findOne', {
+                t: (t2 - t1) * 1000,
+            });
             if (result === null) return null;
             result = result.get();
             if (env === 'production') {
+                t1 = process.uptime();
                 yield setAsync(cacheKey, JSON.stringify(result));
+                t2 = process.uptime();
                 yield expireAsync([cacheKey, EXPIRED_TIME]);
+                t3 = process.uptime();
+                log(
+                    '[timer] tron_user getRecordCache2 redis setAsync, expireAsync:',
+                    { t1: (t2 - t1) * 1000, t2: (t3 - t2) * 1000 }
+                );
             }
             return parseNullToEmptyString(result);
         }
@@ -215,19 +232,37 @@ function* updateRecordCache2(model, conditions = {}) {
     const conditionsStr = parseResultToArr(conditions).join('_');
     const cacheKey = `${keyPrefix}${conditionsStr}`;
 
+    let t1, t2, t3;
     try {
         const dbOptions = {
             where: conditions,
         };
+        t1 = process.uptime();
         let result = yield model.findOne(dbOptions);
+        t2 = process.uptime();
+        log('[timer] tron_user updateRecordCache2 db findOne:', {
+            t: (t2 - t1) * 1000,
+        });
         if (result === null) {
+            t1 = process.uptime();
             yield delAsync(cacheKey);
+            t2 = process.uptime();
+            log('[timer] tron_user updateRecordCache2 redis delAsync:', {
+                t: (t2 - t1) * 1000,
+            });
             return true;
         }
         result = result.get();
         if (env === 'production') {
+            t1 = process.uptime();
             yield setAsync(cacheKey, JSON.stringify(result));
+            t2 = process.uptime();
             yield expireAsync([cacheKey, EXPIRED_TIME]);
+            t3 = process.uptime();
+            log(
+                '[timer] tron_user updateRecordCache2 redis setAsync, expireAsync:',
+                { t1: (t2 - t1) * 1000, t2: (t3 - t2) * 1000 }
+            );
         }
         return true;
     } catch (e) {

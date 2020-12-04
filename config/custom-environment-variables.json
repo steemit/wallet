@@ -83,5 +83,6 @@
   "tron_create_key": "TRON_CREATE_KEY",
   "tron_create_node": "TRON_CREATE_NODE",
   "steem_market_endpoint": "STEEM_MARKET_ENDPOINT",
-  "steem_market_token": "STEEM_MARKET_TOKEN"
+  "steem_market_token": "STEEM_MARKET_TOKEN",
+  "internal_api_token": "INTERNAL_API_TOKEN"
 }

@@ -7,10 +7,14 @@ import models from 'db/models';
 import steem from '@steemit/steem-js';
 import { getRecordCache2, updateRecordCache2 } from 'db/cache';
 import config from 'config';
-import { logRequest } from 'server/utils/loggers';
+import { logRequest, log } from 'server/utils/loggers';
 import { getRemoteIp, rateLimitReq } from 'server/utils/misc';
 import { authData } from '@steemfans/auth-data';
-import { clearPendingClaimTronReward } from 'db/utils/user_utils';
+import {
+    clearPendingClaimTronReward,
+    insertUserData,
+    updateUserData,
+} from 'db/utils/user_utils';
 
 export default function useTronRewardApi(app) {
     const router = koa_router({ prefix: '/api/v1/tron' });
@@ -34,9 +38,13 @@ export default function useTronRewardApi(app) {
     });
 
     router.get('/tron_user', function*() {
+        const t1 = process.uptime() * 1000;
         const q = this.request.query;
         if (!q) {
             this.body = JSON.stringify({ error: 'need_params' });
+            log('[timer] get /tron_user all', {
+                t: process.uptime() * 1000 - t1,
+            });
             return;
         }
         const username = q.username;
@@ -44,6 +52,9 @@ export default function useTronRewardApi(app) {
         if (!username && !tronAddr) {
             this.body = JSON.stringify({
                 error: 'need_username_or_tron_addr_param',
+            });
+            log('[timer] get /tron_user all', {
+                t: process.uptime() * 1000 - t1,
             });
             return;
         }
@@ -64,10 +75,16 @@ export default function useTronRewardApi(app) {
                 if (pubKeys.length === 0) {
                     // user does not exist on chain
                     this.body = JSON.stringify({ error: 'username_not_exist' });
+                    log('[timer] get /tron_user all', {
+                        t: process.uptime() * 1000 - t1,
+                    });
                     return;
                 }
             } catch (e) {
                 this.body = JSON.stringify({ error: e.message });
+                log('[timer] get /tron_user all', {
+                    t: process.uptime() * 1000 - t1,
+                });
                 return;
             }
             // insert user data into db
@@ -82,6 +99,9 @@ export default function useTronRewardApi(app) {
                 );
             } catch (e) {
                 this.body = JSON.stringify({ error: e.message });
+                log('[timer] get /tron_user all', {
+                    t: process.uptime() * 1000 - t1,
+                });
                 return;
             }
         }
@@ -94,9 +114,11 @@ export default function useTronRewardApi(app) {
         };
 
         this.body = JSON.stringify({ status: 'ok', result });
+        log('[timer] get /tron_user all', { t: process.uptime() * 1000 - t1 });
     });
 
     router.post('/tron_user', koaBody, function*() {
+        const t1 = process.uptime() * 1000;
         const data =
             typeof this.request.body === 'string'
                 ? JSON.parse(this.request.body)
@@ -105,11 +127,17 @@ export default function useTronRewardApi(app) {
             this.body = JSON.stringify({
                 error: 'valid_input_data',
             });
+            log('[timer] post /tron_user all', {
+                t: process.uptime() * 1000 - t1,
+            });
             return;
         }
         if (data.username === undefined) {
             this.body = JSON.stringify({
                 error: 'username_required',
+            });
+            log('[timer] post /tron_user all', {
+                t: process.uptime() * 1000 - t1,
             });
             return;
         }
@@ -123,11 +151,17 @@ export default function useTronRewardApi(app) {
             this.body = JSON.stringify({
                 error: e.message,
             });
+            log('[timer] post /tron_user all', {
+                t: process.uptime() * 1000 - t1,
+            });
             return;
         }
         if (pubKeys.length === 0) {
             this.body = JSON.stringify({
                 error: 'username_not_exist_on_chain',
+            });
+            log('[timer] post /tron_user all', {
+                t: process.uptime() * 1000 - t1,
             });
             return;
         }
@@ -136,19 +170,31 @@ export default function useTronRewardApi(app) {
         try {
             const isDataInvalid = pubKeys.every(pubKey => {
                 if (authData(data, pubKey)) {
+                    log('[timer] post /tron_user all', {
+                        t: process.uptime() * 1000 - t1,
+                    });
                     return false;
                 }
+                log('[timer] post /tron_user all', {
+                    t: process.uptime() * 1000 - t1,
+                });
                 return true;
             });
             if (isDataInvalid === true) {
                 this.body = JSON.stringify({
                     error: 'data_is_invalid',
                 });
+                log('[timer] post /tron_user all', {
+                    t: process.uptime() * 1000 - t1,
+                });
                 return;
             }
         } catch (e) {
             this.body = JSON.stringify({
                 error: e.message,
+            });
+            log('[timer] post /tron_user all', {
+                t: process.uptime() * 1000 - t1,
             });
             return;
         }
@@ -161,6 +207,9 @@ export default function useTronRewardApi(app) {
         );
         if (tronUser === null) {
             this.body = JSON.stringify({ error: 'user_not_exist' });
+            log('[timer] post /tron_user all', {
+                t: process.uptime() * 1000 - t1,
+            });
             return;
         }
 
@@ -193,11 +242,102 @@ export default function useTronRewardApi(app) {
         }
 
         this.body = JSON.stringify({ status: 'ok' });
+        log('[timer] post /tron_user all', { t: process.uptime() * 1000 - t1 });
+    });
+
+    /**
+     * !!!! This API MUST NOT USE in the frontend !!!!
+     * data = {
+     *   internal_api_token: '',
+     *   data_from: '', // faucet, tron-reward
+     *   method: 'insert|update',
+     *   username: '',
+     *   will_update_data: {},
+     * }
+     */
+    router.post('/tron_user_from_internal', koaBody, function*() {
+        const t1 = process.uptime() * 1000;
+        const data =
+            typeof this.request.body === 'string'
+                ? JSON.parse(this.request.body)
+                : this.request.body;
+        console.log('input data:::', data);
+        const internalApiToken = config.get('internal_api_token');
+        // check if set env
+        if (!internalApiToken || internalApiToken === 'xxxx') {
+            this.body = JSON.stringify({ error: 'not_set_internal_api_token' });
+            log('[timer] post /tron_user_from_internal all', {
+                t: process.uptime() * 1000 - t1,
+                data_from: data.data_from,
+            });
+            return;
+        }
+        // check if token correct
+        if (
+            !data.internal_api_token ||
+            data.internal_api_token !== internalApiToken
+        ) {
+            this.body = JSON.stringify({ error: 'internal_api_token_error' });
+            log('[timer] post /tron_user_from_internal all', {
+                t: process.uptime() * 1000 - t1,
+                data_from: data.data_from,
+            });
+            return;
+        }
+
+        if (['insert', 'update'].indexOf(data.method) === -1) {
+            this.body = JSON.stringify({ error: 'method_is_incorrect' });
+            log('[timer] post /tron_user_from_internal all', {
+                t: process.uptime() * 1000 - t1,
+                data_from: data.data_from,
+            });
+            return;
+        }
+
+        let result;
+        if (data.method === 'insert') {
+            if (!data.will_update_data.username) {
+                this.body = JSON.stringify({ error: 'username_not_exist' });
+                log('[timer] post /tron_user_from_internal all', {
+                    t: process.uptime() * 1000 - t1,
+                    data_from: data.data_from,
+                });
+                return;
+            }
+            const willInsertData = {
+                username: data.will_update_data.username,
+            };
+            const allNotNullFields = {
+                tron_addr: null,
+                is_new_user: 0,
+                pending_claim_tron_reward: 0,
+                is_tron_addr_actived: 0,
+                tip_count: 0,
+            };
+            Object.keys(allNotNullFields).forEach(field => {
+                if (Object.keys(data.will_update_data).indexOf(field) === -1) {
+                    willInsertData[field] = allNotNullFields[field];
+                } else {
+                    willInsertData[field] = data.will_update_data[field];
+                }
+            });
+            result = yield insertUserData(willInsertData);
+        } else if (data.method === 'update') {
+            result = yield updateUserData(data.username, data.will_update_data);
+        }
+
+        this.body = JSON.stringify({ status: 'ok' });
+        log('[timer] post /tron_user_from_internal all', {
+            t: process.uptime() * 1000 - t1,
+            data_from: data.data_from,
+        });
     });
 }
 
 async function getUserPublicKey(username, authType = 'posting') {
+    const t1 = process.uptime() * 1000;
     const users = await steem.api.getAccountsAsync([username]);
+    log('[timer] getUserPublicKey:', { t: process.uptime() * 1000 - t1 });
     if (users.length === 0) return [];
     if (authType === 'memo' && users[0]['memo_key'])
         return [users[0]['memo_key']];
