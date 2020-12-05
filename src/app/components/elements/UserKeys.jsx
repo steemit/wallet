@@ -1,3 +1,12 @@
+/* eslint-disable no-script-url */
+/* eslint-disable jsx-a11y/anchor-is-valid */
+/* eslint-disable global-require */
+/* eslint-disable jsx-a11y/alt-text */
+/* eslint-disable jsx-a11y/label-has-for */
+/* eslint-disable no-plusplus */
+/* eslint-disable react/require-default-props */
+/* eslint-disable react/forbid-prop-types */
+/* eslint-disable no-undef */
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
@@ -5,6 +14,7 @@ import QRCode from 'react-qr';
 import tt from 'counterpart';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import Keys from 'app/components/elements/Keys';
+import * as userActions from 'app/redux/UserReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 
 const keyTypes = ['Posting', 'Active', 'Owner', 'Memo'];
@@ -21,13 +31,17 @@ class UserKeys extends Component {
     constructor() {
         super();
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserKeys');
-        this.state = {};
+        this.state = {
+            activeTab: 1,
+        };
         this.onKey = {};
         keyTypes.forEach(key => {
             this.onKey[key] = (wif, pubkey) => {
                 this.setState({ [key]: { wif, pubkey } });
             };
         });
+        this.changeTab = this.changeTab.bind(this);
+        this.onCreateTronAccount = this.onCreateTronAccount.bind(this);
     }
     componentWillUpdate(nextProps, nextState) {
         const { wifShown, setWifShown } = nextProps;
@@ -40,12 +54,27 @@ class UserKeys extends Component {
         });
         if (wifShown !== hasWif) setWifShown(hasWif);
     }
+
+    changeTab(e) {
+        this.setState({
+            activeTab: e,
+        });
+    }
+
+    onCreateTronAccount = e => {
+        e.target.blur();
+        this.props.showTronCreate();
+    };
+
     render() {
         const {
-            props: { account, isMyAccount },
+            props: { account, isMyAccount, currentUsername },
+            state: { activeTab },
         } = this;
         const { onKey } = this;
         let idx = 0;
+        const hasTronAddr = account.has('tron_addr');
+        const tronAddr = account.get('tron_addr');
 
         // do not render if account is not loaded or available
         if (!account) return null;
@@ -108,24 +137,12 @@ class UserKeys extends Component {
                     <div className="UserKeys__intro-col">
                         <h1>Keys & Permissions </h1>
                         <p className="UserKeys__p">
-                            Any password or key is more likely to get
-                            compromised the more it is used. That's why Steem
-                            uses a hierarchical key system to keep you safe. You
-                            are issued with four keys which have different
-                            permissions. For example, the Posting Key (which is
-                            intended to be used frequently) has a limited set of
-                            permissions for social actions that require less
-                            security. You'll need to be more careful with your
-                            Active Key since it has permissions to perform
-                            wallet related actions.
+                            {tt('userkeys_jsx.userkeys_info_1')}
                         </p>
                         <p className="UserKeys__p">
-                            Please take note of your Steem Keys listed below.
-                            Ideally, use a Password Manager (like 1Password or
-                            LastPass) or store an offline copy safely (on a
-                            piece of paper or on a file on a USB drive).
+                            {tt('userkeys_jsx.userkeys_info_2')}
                         </p>
-                        <h5>Learn more</h5>
+                        <h5>{tt('userkeys_jsx.leare_more')}</h5>
                         <a
                             className="UserKeys__link"
                             href="https://steemit.com/steem/@steemitblog/steem-basics-understanding-private-keys-part-1"
@@ -140,240 +157,458 @@ class UserKeys extends Component {
                         />
                     </div>
                 </div>
-                <div className="key">
-                    <div className="key__title-container">
-                        <h3>Posting Key</h3>
-                    </div>
-                    <div className="key__content-container">
-                        <div className="key__col">
-                            <p className="key__description">
-                                This key should be used for social networking
-                                actions, like posting, commenting and voting.
-                                This key has a limited set of permissions and it
-                                is not able to be used for monetary actions. So
-                                you can't lose money if someone else gets access
-                                to this key.
-                            </p>
-                            <p className="key__description">
-                                Use this key to log in to other Steem-powered
-                                social networks like Steemit, Busy and eSteem.
-                                Store this key safely.
-                            </p>
-                            <Keys
-                                account={account}
-                                authType="posting"
-                                onKey={onKey.Posting}
-                            />
-                        </div>
-                        <div className="key__col permissions">
-                            <h5 className="permissions__h5">
-                                Posting Key permissions
-                            </h5>
-                            <p className="permissions__p">
-                                Use your Posting Key to:
-                            </p>
-                            <ul className="permissions__list">
-                                <li className="permissions__li">
-                                    Publish a post or comment
-                                </li>
-                                <li className="permissions__li">
-                                    Edit a post or comment
-                                </li>
-                                <li className="permissions__li">
-                                    Upvote or downvote
-                                </li>
-                                <li className="permissions__li">
-                                    Resteem content
-                                </li>
-                                <li className="permissions__li">
-                                    Follow people
-                                </li>
-                                <li className="permissions__li">
-                                    Mute accounts
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+                <ul className="user-keys-tabs WalletSubMenu menu">
+                    <li>
+                        <a
+                            href="javascript:;"
+                            className={`${activeTab == 1 ? 'active' : ''}`}
+                            onClick={() => this.changeTab(1)}
+                        >
+                            {tt('userkeys_jsx.tron_account.title')}
+                        </a>
+                    </li>
+                    <li>
+                        <a
+                            href="javascript:;"
+                            className={`${activeTab == 2 ? 'active' : ''}`}
+                            onClick={() => this.changeTab(2)}
+                        >
+                            {tt('userkeys_jsx.posting_key.title')}
+                        </a>
+                    </li>
+                    <li>
+                        <a
+                            href="javascript:;"
+                            className={`${activeTab == 3 ? 'active' : ''}`}
+                            onClick={() => this.changeTab(3)}
+                        >
+                            {tt('userkeys_jsx.active_key.title')}
+                        </a>
+                    </li>
+                    <li>
+                        <a
+                            href="javascript:;"
+                            className={`${activeTab == 4 ? 'active' : ''}`}
+                            onClick={() => this.changeTab(4)}
+                        >
+                            {tt('userkeys_jsx.owner_key.title')}
+                        </a>
+                    </li>
+                    <li>
+                        <a
+                            href="javascript:;"
+                            className={`${activeTab == 5 ? 'active' : ''}`}
+                            onClick={() => this.changeTab(5)}
+                        >
+                            {tt('userkeys_jsx.memo_key.title')}
+                        </a>
+                    </li>
+                    <li>
+                        <a
+                            href="javascript:;"
+                            className={`${activeTab == 6 ? 'active' : ''}`}
+                            onClick={() => this.changeTab(6)}
+                        >
+                            {tt('userkeys_jsx.public_key.title')}
+                        </a>
+                    </li>
+                </ul>
+                <div>
+                    {activeTab == 1 && (
+                        <div className="key">
+                            <div className="key__content-container">
+                                <div className="key__col">
+                                    <p className="key__description">
+                                        {tt('userkeys_jsx.tron_account.desc1')}
+                                    </p>
+                                    <p className="key__description">
+                                        {tt('userkeys_jsx.tron_account.desc2')}
+                                    </p>
+                                    <p className="key__description">
+                                        {tt('userkeys_jsx.tron_account.desc3')}
+                                    </p>
+                                    {hasTronAddr &&
+                                        tronAddr && (
+                                            <div>
+                                                <div className="ShowKey">
+                                                    <div className="row key__private">
+                                                        <div className="key__private-title">
+                                                            <h5>
+                                                                {tt(
+                                                                    'userkeys_jsx.tron_account.address'
+                                                                )}
+                                                            </h5>
+                                                        </div>
 
-                <div className="key">
-                    <div className="key__title-container">
-                        <h3>Active Key</h3>
-                    </div>
-                    <div className="key__content-container">
-                        <div className="key__col">
-                            <p className="key__description">
-                                This key has additional permissions for more
-                                sensitive monetary-related actions, like
-                                transferring and exchanging tokens.
-                            </p>
-                            <p className="key__description">
-                                When performing a wallet related action, you may
-                                be prompted to authenticate with your Active
-                                key. You should only enter your Active Key into
-                                apps which you trust because anyone with access
-                                to this key can take your tokens. Do yourself a
-                                favor and store this key safely to avoid losing
-                                tokens in the future.
-                            </p>
+                                                        <div className="key__private-container">
+                                                            <div className="key__private-input">
+                                                                <input
+                                                                    className="key__input"
+                                                                    type="text"
+                                                                    value={
+                                                                        tronAddr
+                                                                    }
+                                                                    readOnly
+                                                                />
+                                                            </div>
+                                                            <div className="key__reveal">
+                                                                <QRCode
+                                                                    text={
+                                                                        tronAddr
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <h5
+                                                    style={{
+                                                        marginTop: '20px',
+                                                    }}
+                                                >
+                                                    {tt(
+                                                        'userkeys_jsx.tron_account.tron_key'
+                                                    )}
+                                                </h5>
+                                                <p
+                                                    style={{
+                                                        paddingLeft: '10px',
+                                                        fontSize: '0.875rem',
+                                                        fontWeight: 500,
+                                                    }}
+                                                >
+                                                    {tt(
+                                                        'userkeys_jsx.tron_account.tron_key_tip'
+                                                    )}
+                                                </p>
+                                            </div>
+                                        )}
+                                    {isMyAccount &&
+                                        hasTronAddr &&
+                                        !tronAddr && (
+                                            <div>
+                                                <button
+                                                    className="UserWallet__tron button hollow"
+                                                    onClick={
+                                                        this.onCreateTronAccount
+                                                    }
+                                                >
+                                                    {tt(
+                                                        'userwallet_jsx.create_trx_button'
+                                                    )}
+                                                </button>
+                                            </div>
+                                        )}
+                                </div>
+                                <div className="key__col permissions">
+                                    <h5 className="permissions__h5">
+                                        {tt(
+                                            'userkeys_jsx.tron_account.tron_account_permissions'
+                                        )}
+                                    </h5>
+                                    <p className="permissions__p">
+                                        {tt(
+                                            'userkeys_jsx.tron_account.tron_account_permissions1'
+                                        )}
+                                    </p>
+                                    <ul className="permissions__list">
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.tron_account.tron_account_permissions2'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.tron_account.tron_account_permissions3'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.tron_account.tron_account_permissions4'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.tron_account.tron_account_permissions5'
+                                            )}
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {activeTab == 2 && (
+                        <div className="key">
+                            <div className="key__title-container">
+                                <h3>Posting Key</h3>
+                            </div>
+                            <div className="key__content-container">
+                                <div className="key__col">
+                                    <p className="key__description">
+                                        {tt('userkeys_jsx.posting_key.desc1')}
+                                    </p>
+                                    <p className="key__description">
+                                        {tt('userkeys_jsx.posting_key.desc2')}
+                                    </p>
+                                    <Keys
+                                        account={account}
+                                        authType="posting"
+                                        onKey={onKey.Posting}
+                                        title={
+                                            'userkeys_jsx.posting_key.posting_key_title'
+                                        }
+                                    />
+                                </div>
+                                <div className="key__col permissions">
+                                    <h5 className="permissions__h5">
+                                        {tt(
+                                            'userkeys_jsx.posting_key.Posting_Key_permissions'
+                                        )}
+                                    </h5>
+                                    <p className="permissions__p">
+                                        {tt(
+                                            'userkeys_jsx.posting_key.Posting_Key_permissions1'
+                                        )}
+                                    </p>
+                                    <ul className="permissions__list">
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.posting_key.Posting_Key_permissions2'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.posting_key.Posting_Key_permissions3'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.posting_key.Posting_Key_permissions4'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.posting_key.Posting_Key_permissions5'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.posting_key.Posting_Key_permissions6'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.posting_key.Posting_Key_permissions7'
+                                            )}
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-                            <Keys
-                                account={account}
-                                authType="active"
-                                onKey={onKey.Active}
-                            />
-                        </div>
-                        <div className="key__col permissions">
-                            <h5 className="permissions__h5">
-                                Active Key permissions
-                            </h5>
-                            <p className="permissions__p">
-                                Use your Active Key to:
-                            </p>
-                            <ul className="permissions__list">
-                                <li className="permissions__li">
-                                    Transfer tokens
-                                </li>
-                                <li className="permissions__li">
-                                    Power STEEM up or down
-                                </li>
-                                <li className="permissions__li">
-                                    SBD conversion
-                                </li>
-                                <li className="permissions__li">
-                                    Vote for witnesses
-                                </li>
-                                <li className="permissions__li">
-                                    Place an order on an exchange
-                                </li>
-                                <li className="permissions__li">
-                                    Certain profile changes
-                                </li>
-                                <li className="permissions__li">
-                                    Publish a Witness price feed
-                                </li>
-                                <li className="permissions__li">
-                                    Create a new user
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div className="key">
-                    <div className="key__title-container">
-                        <h3>Owner Key</h3>
-                    </div>
-                    <div className="key__content-container">
-                        <div className="key__col">
-                            <p className="key__description">
-                                {tt(
-                                    'userkeys_jsx.the_owner_key_is_required_to_change_other_keys'
-                                )}
-                                &nbsp;This key has additional permissions to
-                                recover your account or change your other keys.
-                                It's the most important key and should be
-                                securely stored offline.
-                            </p>
-                            <Keys
-                                account={account}
-                                authType="owner"
-                                onKey={onKey.Owner}
-                            />
-                        </div>
-                        <div className="key__col permissions">
-                            <h5 className="permissions__h5">
-                                Owner Key permissions
-                            </h5>
-                            <p className="permissions__p">
-                                Use your Owner Key to:
-                            </p>
-                            <ul className="permissions__list">
-                                <li className="permissions__li">
-                                    Reset Owner, Active, and Posting keys
-                                </li>
-                                <li className="permissions__li">
-                                    Recover your account
-                                </li>
-                                <li className="permissions__li">
-                                    Decline voting rights
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+                    {activeTab == 3 && (
+                        <div className="key">
+                            <div className="key__title-container">
+                                <h3>Active Key</h3>
+                            </div>
+                            <div className="key__content-container">
+                                <div className="key__col">
+                                    <p className="key__description">
+                                        {tt('userkeys_jsx.active_key.desc1')}
+                                    </p>
+                                    <p className="key__description">
+                                        {tt('userkeys_jsx.active_key.desc2')}
+                                    </p>
 
-                <div className="key">
-                    <div className="key__title-container">
-                        <h3>Memo Key</h3>
-                    </div>
-                    <div className="key__content-container">
-                        <div className="key__col">
-                            <p className="key__description">
-                                The Memo key because it is a bit of an outlier.
-                                The only thing the Memo Key can do is encrypt
-                                and decrypt private messages that are sent
-                                through the blockchain. While this could one day
-                                be a powerful feature, today it is not commonly
-                                used. If you have received a private message
-                                that you would like to decrypt, as always you
-                                should use the key with the minimum necessary
-                                authorities, which in this case would be the
-                                Memo Key.
-                            </p>
-                            <Keys
-                                account={account}
-                                authType="memo"
-                                onKey={onKey.Memo}
-                            />
+                                    <Keys
+                                        account={account}
+                                        authType="active"
+                                        onKey={onKey.Active}
+                                        title={
+                                            'userkeys_jsx.active_key.active_key_title'
+                                        }
+                                    />
+                                </div>
+                                <div className="key__col permissions">
+                                    <h5 className="permissions__h5">
+                                        {tt(
+                                            'userkeys_jsx.active_key.active_Key_permissions'
+                                        )}
+                                    </h5>
+                                    <p className="permissions__p">
+                                        {tt(
+                                            'userkeys_jsx.active_key.active_Key_permissions1'
+                                        )}
+                                    </p>
+                                    <ul className="permissions__list">
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.active_key.active_Key_permissions2'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.active_key.active_Key_permissions3'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.active_key.active_Key_permissions4'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.active_key.active_Key_permissions5'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.active_key.active_Key_permissions6'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.active_key.active_Key_permissions7'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.active_key.active_Key_permissions8'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.active_key.active_Key_permissions9'
+                                            )}
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
-                        <div className="key__col permissions">
-                            <h5 className="permissions__h5">
-                                Memo Key permissions
-                            </h5>
-                            <p className="permissions__p">
-                                Use your Memo Key to:
-                            </p>
-                            <ul className="permissions__list">
-                                <li className="permissions__li">
-                                    Send an encrypted message
-                                </li>
-                                <li className="permissions__li">
-                                    View an encrypted message
-                                </li>
-                            </ul>
+                    )}
+                    {activeTab == 4 && (
+                        <div className="key">
+                            <div className="key__title-container">
+                                <h3>Owner Key</h3>
+                            </div>
+                            <div className="key__content-container">
+                                <div className="key__col">
+                                    <p className="key__description">
+                                        {tt('userkeys_jsx.owner_key.desc')}
+                                    </p>
+                                    <Keys
+                                        account={account}
+                                        authType="owner"
+                                        onKey={onKey.Owner}
+                                        title={
+                                            'userkeys_jsx.owner_key.owner_key_title'
+                                        }
+                                    />
+                                </div>
+                                <div className="key__col permissions">
+                                    <h5 className="permissions__h5">
+                                        {tt(
+                                            'userkeys_jsx.owner_key.owner_Key_permissions'
+                                        )}
+                                    </h5>
+                                    <p className="permissions__p">
+                                        {tt(
+                                            'userkeys_jsx.owner_key.owner_Key_permissions1'
+                                        )}
+                                    </p>
+                                    <ul className="permissions__list">
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.owner_key.owner_Key_permissions2'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.owner_key.owner_Key_permissions3'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.owner_key.owner_Key_permissions4'
+                                            )}
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    )}
 
-                <div className="public-keys">
-                    <div className="public-keys__container">
-                        <div className="public-keys__intro">
-                            <h3 className="public-keys__h3">Public Keys</h3>
-                            <p className="public-keys__description">
-                                Each Steem Key has a public and private key to
-                                encrypt and decrypt data. Public keys are
-                                associated with usernames and can be used to
-                                look up associated transactions on the
-                                blockchain. Your public keys are not required
-                                for login on Steemit.com and you don't need to
-                                store these safely.
-                            </p>
-                            <p className="public-keys__description">
-                                View public key information for this account (in
-                                the 'Authorities' module):{' '}
-                                <a
-                                    className="public-keys__link"
-                                    href={
-                                        'https://steemscan.com/account/' +
-                                        account.get('name')
-                                    }
-                                >
-                                    steemscan.com/account/{account.get('name')}
-                                </a>
-                            </p>
+                    {activeTab == 5 && (
+                        <div className="key">
+                            <div className="key__title-container">
+                                <h3>Memo Key</h3>
+                            </div>
+                            <div className="key__content-container">
+                                <div className="key__col">
+                                    <p className="key__description">
+                                        {tt('userkeys_jsx.memo_key.desc')}
+                                    </p>
+                                    <Keys
+                                        account={account}
+                                        authType="memo"
+                                        onKey={onKey.Memo}
+                                        title={
+                                            'userkeys_jsx.memo_key.memo_key_title'
+                                        }
+                                    />
+                                </div>
+                                <div className="key__col permissions">
+                                    <h5 className="permissions__h5">
+                                        {tt(
+                                            'userkeys_jsx.memo_key.memo_Key_permissions'
+                                        )}
+                                    </h5>
+                                    <p className="permissions__p">
+                                        {tt(
+                                            'userkeys_jsx.memo_key.memo_Key_permissions1'
+                                        )}
+                                    </p>
+                                    <ul className="permissions__list">
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.memo_key.memo_Key_permissions2'
+                                            )}
+                                        </li>
+                                        <li className="permissions__li">
+                                            {tt(
+                                                'userkeys_jsx.memo_key.memo_Key_permissions3'
+                                            )}
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
-                        {/*   <div>{wifQrs && <span>{wifQrs}</span>}</div> */}
-                    </div>
+                    )}
+
+                    {activeTab == 6 && (
+                        <div className="key">
+                            <div className="key__col">
+                                <p className="public-keys__description">
+                                    {tt('userkeys_jsx.public_key.desc1')}
+                                </p>
+                                <p className="public-keys__description">
+                                    {tt('userkeys_jsx.public_key.desc2')}{' '}
+                                    <a
+                                        className="public-keys__link"
+                                        href={
+                                            'https://steemscan.com/account/' +
+                                            account.get('name')
+                                        }
+                                    >
+                                        steemscan.com/account/{account.get(
+                                            'name'
+                                        )}
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -386,14 +621,17 @@ export default connect(
         const isMyAccount =
             state.user.getIn(['current', 'username'], false) ===
             account.get('name');
-        console.log('isMyAccount', isMyAccount);
         const wifShown = state.global.get('UserKeys_wifShown');
-
-        return { ...ownProps, isMyAccount, wifShown };
+        const currentUsername = state.user.getIn(['current', 'username']);
+        return { ...ownProps, isMyAccount, wifShown, currentUsername };
     },
     dispatch => ({
         setWifShown: shown => {
             dispatch(globalActions.receiveState({ UserKeys_wifShown: shown }));
+        },
+        showTronCreate: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.showTronCreate());
         },
     })
 )(UserKeys);

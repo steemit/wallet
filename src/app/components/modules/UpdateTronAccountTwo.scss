@@ -1,0 +1,15 @@
+
+  .container{
+    display: flex;
+    flex-direction: row ;
+    flex-flow: row wrap;
+    /* justify-content: space-between; */
+
+  }
+  .item {
+    width: 100px;
+    margin-top: -20px;
+  }
+  .flowBelow{
+      margin-top: 100px;
+  }

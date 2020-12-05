@@ -1,3 +1,14 @@
+/* eslint-disable no-useless-escape */
+/* eslint-disable no-prototype-builtins */
+/* eslint-disable require-yield */
+/* eslint-disable no-empty-pattern */
+/* eslint-disable prefer-rest-params */
+/* eslint-disable no-shadow */
+/* eslint-disable arrow-parens */
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable prefer-const */
+/* eslint-disable import/prefer-default-export */
+/* eslint-disable no-unused-vars */
 import { fromJS, Set, List } from 'immutable';
 import { call, put, select, fork, takeLatest } from 'redux-saga/effects';
 import { api } from '@steemit/steem-js';
@@ -6,7 +17,8 @@ import { PrivateKey, Signature, hash } from '@steemit/steem-js/lib/auth/ecc';
 import { accountAuthLookup } from 'app/redux/AuthSaga';
 import { getAccount } from 'app/redux/SagaShared';
 import * as userActions from 'app/redux/UserReducer';
-import { receiveFeatureFlags } from 'app/redux/AppReducer';
+import * as appActions from 'app/redux/AppReducer';
+import * as globalActions from 'app/redux/GlobalReducer';
 import {
     hasCompatibleKeychain,
     isLoggedInWithKeychain,
@@ -19,10 +31,18 @@ import {
     serverApiRecordEvent,
     isTosAccepted,
     acceptTos,
+    checkTronUser,
+    updateTronUser,
+    // createTronAccount,
+    getTronConfig,
 } from 'app/utils/ServerApiClient';
 import { loadFollows } from 'app/redux/FollowSaga';
 import { translate } from 'app/Translator';
+import tt from 'counterpart';
+import { takeEvery } from 'redux-saga';
+import { createTronAccount } from 'app/utils/tronApi';
 
+const max_pop_window_count = 5;
 export const userWatches = [
     takeLatest('@@router/LOCATION_CHANGE', removeHighSecurityKeys), // keep first to remove keys early when a page change happens
     takeLatest(
@@ -34,6 +54,8 @@ export const userWatches = [
     takeLatest(userActions.LOGOUT, logout),
     takeLatest(userActions.LOGIN_ERROR, loginError),
     takeLatest(userActions.LOAD_SAVINGS_WITHDRAW, loadSavingsWithdraw),
+    takeLatest(userActions.CHECK_TRON, checkTron),
+    takeLatest(userActions.UPDATE_TRON_ADDR, updateTronAddr),
     takeLatest(userActions.ACCEPT_TERMS, function*() {
         try {
             yield call(acceptTos);
@@ -41,6 +63,7 @@ export const userWatches = [
             // TODO: log error to server, conveyor is unavailable
         }
     }),
+    takeLatest(userActions.HIDE_TRON_CREATE, updateTronPopupTipCount),
     function* getLatestFeedPrice() {
         try {
             const history = yield call([api, api.getFeedHistoryAsync]);
@@ -59,6 +82,44 @@ const highSecurityPages = [
     /\/~witnesses/,
     /\/proposals/,
 ];
+
+function* checkTron({ payload: { from, to, type } }) {
+    if (to === null) {
+        yield put(userActions.setToTronAddr(null));
+        yield put(userActions.setTronAccountCheckError(null));
+        return;
+    }
+    try {
+        const user = yield checkTronUser(to, type);
+        // unlock async validation
+        yield put(appActions.unlockTransferAsyncValidation());
+        if (user.tron_addr === '') {
+            yield put(userActions.setToTronAddr(null));
+            yield put(
+                userActions.setTronAccountCheckError(
+                    tt('tron_jsx.unbind_tron_addr')
+                )
+            );
+            return;
+        }
+        if (user.tron_addr === from) {
+            yield put(
+                userActions.setTronAccountCheckError(
+                    tt('tron_jsx.cannot_transfer_to_yourself')
+                )
+            );
+            return;
+        }
+        yield put(userActions.setToTronAddr(user.tron_addr));
+        yield put(userActions.setTronAccountCheckError(null));
+    } catch (e) {
+        yield put(appActions.unlockTransferAsyncValidation());
+        yield put(userActions.setToTronAddr(null));
+        yield put(
+            userActions.setTronAccountCheckError(tt(`tron_jsx.${e.message}`))
+        );
+    }
+}
 
 function* loadSavingsWithdraw() {
     const username = yield select(state =>
@@ -120,7 +181,6 @@ function* usernamePasswordLogin({
         yield fork(loadFollows, currentUsername, 'blog');
         yield fork(loadFollows, currentUsername, 'ignore');
     }
-
     const user = yield select(state => state.user);
     const loginType = user.get('login_type');
     const justLoggedIn = loginType === 'basic';
@@ -177,7 +237,7 @@ function* usernamePasswordLogin({
     const isRole = (role, fn) =>
         !userProvidedRole || role === userProvidedRole ? fn() : undefined;
 
-    const account = yield call(getAccount, username);
+    const account = yield call(getAccount, username, true);
     if (!account) {
         console.log('No account');
         yield put(userActions.loginError({ error: 'Username does not exist' }));
@@ -196,6 +256,12 @@ function* usernamePasswordLogin({
                 delegated_vesting_shares: account.get(
                     'delegated_vesting_shares'
                 ),
+                pending_claim_tron_reward: account.get(
+                    'pending_claim_tron_reward'
+                ),
+                tip_count: account.get('tip_count'),
+                tron_addr: account.get('tron_addr'),
+                tron_balance: account.get('tron_balance'),
             })
         );
         return;
@@ -296,12 +362,20 @@ function* usernamePasswordLogin({
                     delegated_vesting_shares: account.get(
                         'delegated_vesting_shares'
                     ),
+                    pending_claim_tron_reward: account.get(
+                        'pending_claim_tron_reward'
+                    ),
+                    tip_count: account.get('tip_count'),
+                    tron_addr: account.get('tron_addr'),
+                    tron_balance: account.get('tron_balance'),
                 })
             );
         } else {
             yield put(
                 userActions.setUser({
                     username,
+                    private_keys, // TODO: this is a temp way ,by: ety001
+                    login_owner_pubkey, // TODO: this is a temp way ,by: ety001
                     vesting_shares: account.get('vesting_shares'),
                     received_vesting_shares: account.get(
                         'received_vesting_shares'
@@ -309,11 +383,16 @@ function* usernamePasswordLogin({
                     delegated_vesting_shares: account.get(
                         'delegated_vesting_shares'
                     ),
+                    pending_claim_tron_reward: account.get(
+                        'pending_claim_tron_reward'
+                    ),
+                    tip_count: account.get('tip_count'),
+                    tron_addr: account.get('tron_addr'),
+                    tron_balance: account.get('tron_balance'),
                 })
             );
         }
     }
-
     try {
         // const challengeString = yield serverApiLoginChallenge()
         const offchainData = yield select(state => state.offchain);
@@ -331,6 +410,8 @@ function* usernamePasswordLogin({
                         username,
                         buf,
                         'Posting',
+                        // eslint-disable-next-line arrow-parens
+                        // eslint-disable-next-line no-shadow
                         response => {
                             resolve(response);
                         }
@@ -355,6 +436,12 @@ function* usernamePasswordLogin({
                         delegated_vesting_shares: account.get(
                             'delegated_vesting_shares'
                         ),
+                        pending_claim_tron_reward: account.get(
+                            'pending_claim_tron_reward'
+                        ),
+                        tip_count: account.get('tip_count'),
+                        tron_addr: account.get('tron_addr'),
+                        tron_balance: account.get('tron_balance'),
                     })
                 );
             } else {
@@ -368,7 +455,6 @@ function* usernamePasswordLogin({
                 sign('posting', private_keys.get('posting_private'));
                 // sign('active', private_keys.get('active_private'))
             }
-
             console.log('Logging in as', username);
             const response = yield serverApiLogin(username, signatures);
             const body = yield response.json();
@@ -393,6 +479,19 @@ function* usernamePasswordLogin({
 
     // TOS acceptance
     yield fork(promptTosAcceptance, username);
+
+    // check if user binded tron address
+    const unbindTipLimit = yield select(state =>
+        state.app.get('unbind_tip_limit')
+    );
+    if (
+        account.has('tron_addr') &&
+        account.get('tron_addr') === '' &&
+        account.has('tip_count') &&
+        account.get('tip_count') < unbindTipLimit
+    ) {
+        yield put(userActions.showTronCreate());
+    }
 }
 
 function* promptTosAcceptance(username) {
@@ -434,7 +533,7 @@ function* getFeatureFlags(username, posting_private) {
                 posting_private
             );
         }
-        yield put(receiveFeatureFlags(flags));
+        yield put(appActions.receiveFeatureFlags(flags));
     } catch (error) {
         // Do nothing; feature flags are not ready yet. Or posting_private is not available.
     }
@@ -442,7 +541,7 @@ function* getFeatureFlags(username, posting_private) {
 
 function* saveLogin_localStorage() {
     if (!process.env.BROWSER) {
-        console.error('Non-browser environment, skipping localstorage');
+        console.error('Non-browser environment, skipping local storage');
         return;
     }
     localStorage.removeItem('autopost2');
@@ -583,4 +682,147 @@ function* lookupPreviousOwnerAuthority({ payload: {} }) {
     }
     // console.log('UserSage ---> previous_owner_authority', previous_owner_authority.toJS())
     yield put(userActions.setUser({ previous_owner_authority }));
+}
+
+/**
+ *
+ */
+function* updateTronPopupTipCount() {
+    const [username, tip_count, private_keys] = yield select(state => [
+        state.user.getIn(['current', 'username']),
+        state.user.getIn(['current', 'tip_count']),
+        state.user.getIn(['current', 'private_keys']),
+    ]);
+
+    if (tip_count === undefined || private_keys === undefined) return;
+
+    // charge that which level private key we own.
+    let privateKeyType = null;
+    if (private_keys.has('active_private')) privateKeyType = 'active_private';
+    if (private_keys.has('posting_private')) privateKeyType = 'posting_private';
+    if (private_keys.has('owner_private')) privateKeyType = 'owner_private';
+    if (private_keys.has('memo_private')) privateKeyType = 'memo_private';
+    if (privateKeyType === null) {
+        console.log('there is no private key in browser cache.');
+        return;
+    }
+
+    let authType;
+    switch (privateKeyType) {
+        case 'active_private':
+            authType = 'active';
+            break;
+        case 'posting_private':
+            authType = 'posting';
+            break;
+        case 'owner_private':
+            authType = 'owner';
+            break;
+        case 'memo_private':
+            authType = 'memo';
+            break;
+        default:
+            throw Error('unexpected auth type.');
+    }
+
+    const data = {
+        username,
+        auth_type: authType,
+        tip_count: tip_count + 1,
+    };
+    yield put(
+        userActions.setUser({
+            tip_count: tip_count + 1,
+            tip_count_lock: true, // prevent tip popup multi times
+        })
+    );
+
+    // let updateTronUser executes in next event loop
+    setTimeout(() =>
+        updateTronUser(data, private_keys.get(privateKeyType).toWif())
+    );
+}
+
+function* updateTronAddr() {
+    const [username, private_keys] = yield select(state => [
+        state.user.getIn(['current', 'username']),
+        state.user.getIn(['current', 'private_keys']),
+    ]);
+
+    // charge that which level private key we own.
+    let privateKeyType = null;
+    if (private_keys && private_keys.has('active_private'))
+        privateKeyType = 'active_private';
+    if (private_keys && private_keys.has('posting_private'))
+        privateKeyType = 'posting_private';
+    if (privateKeyType === null) {
+        console.log('there is no private key in browser cache.');
+        yield put(
+            appActions.setTronErrMsg(
+                tt('loginform_jsx.there_is_no_private_key_in_browser_cache')
+            )
+        );
+        return;
+    }
+
+    // create tron account
+    const tronAccount = yield createTronAccount();
+    if (
+        tronAccount === null ||
+        tronAccount.address === undefined ||
+        tronAccount.address.base58 === undefined
+    ) {
+        yield put(
+            appActions.setTronErrMsg(tt('userwallet_jsx.create_trx_failed'))
+        );
+        return;
+    }
+
+    const tronPrivKey = tronAccount.privateKey;
+    const tronPubKey = tronAccount.address.base58;
+
+    // update steem user's tron_addr
+    const data = {
+        username,
+        auth_type: privateKeyType === 'active_private' ? 'active' : 'posting',
+        tron_addr: tronPubKey,
+    };
+    const result = yield updateTronUser(
+        data,
+        private_keys.get(privateKeyType).toWif()
+    );
+    if (result.error !== undefined) {
+        yield put(appActions.setTronErrMsg(tt(`tron_err_msg.${result.error}`)));
+        return;
+    }
+
+    const account = yield call(getAccount, username, true);
+    if (!account) {
+        console.log('No account');
+        yield put(
+            appActions.setTronErrMsg(
+                'Username does not exist, when update tron address'
+            )
+        );
+        return;
+    }
+    // update current login user's state
+    yield put(
+        userActions.setUser({
+            tron_addr: tronPubKey,
+            tron_private_key: tronPrivKey,
+            tron_balance: account.get('tron_balance'),
+        })
+    );
+
+    // update current route user's state
+    const state = {
+        accounts: {},
+    };
+    state.accounts[username] = {};
+    const tronInfo = yield call(checkTronUser, username);
+    Object.keys(tronInfo).forEach(k => {
+        state.accounts[username][k] = tronInfo[k];
+    });
+    yield put(globalActions.receiveState(state));
 }

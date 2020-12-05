@@ -1,3 +1,7 @@
+/* eslint-disable no-useless-escape */
+/* eslint-disable operator-assignment */
+/* eslint-disable no-void */
+/* eslint-disable prefer-const */
 import tt from 'counterpart';
 
 function fractional_part_len(value) {
@@ -77,7 +81,9 @@ export function countDecimals(amount) {
     const parts = amount.split('.');
     return parts.length > 2
         ? undefined
-        : parts.length === 1 ? 0 : parts[1].length;
+        : parts.length === 1
+            ? 0
+            : parts[1].length;
 }
 
 // this function searches for right translation of provided error (usually from back-end)

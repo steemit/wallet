@@ -516,8 +516,7 @@
             "교환과 송금이 가능한 토큰입니다.<br/> 파워업을 통해 %(LIQUID_TOKEN)s을 %(VESTING_TOKEN)s으로 전환 하실 수 있습니다.",
         "influence_token":
             "스팀잇에서의 영향력을 나타냅니다. 스팀 파워가 높을수록 보팅 금액이 더 높아지고, 큐레이션 보상도 더 많이 받을 수 있습니다.",
-        "estimated_value":
-            "%(LIQUID_TOKEN)s의 평균 가격을 US달러로 환산한 기준입니다.",
+        "estimated_value": "USD로 표시된 총 계정 자산 평가.",
         "non_transferable":
             "%(VESTING_TOKEN)s는 전송이 불가능하며, 다시 %(LIQUID_TOKEN)s으로 전환하기 위해서는 1달이 소요됩니다. (4회로 나누어 전환 됩니다)",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
@@ -700,7 +699,13 @@
             "현재 일시적인 이유로 송금이 불가능합니다.",
         "history": "거래 내역",
         "redeem_rewards": "내 지갑으로 입금하기",
-        "buy_steem_or_steem_power": "STEEM 구입"
+        "buy_steem_or_steem_power": "STEEM 구입",
+        "trx_description":
+            "TRX는 모든 TRON ECO 시스템을 연결하여 언제 어디서나 전송할 수 있습니다. TRON ECO 시스템에 대한 투표 및 동결 trx를 통해 적절한 보상을받을 수 있습니다. 보상 횟수 TRX는 보상 SP의 x 백분율을 기준으로합니다.",
+        "create_trx_description":
+            "TRX 계정이 없으십니까? TRX 보상을받을 수있는 TRX 계정 생성 버튼을 오른쪽 클릭하세요..",
+        "create_trx_button": "트론 계정 생성",
+        "update_trx_account": "TRON 계정 업데이트"
     },
     "powerdown_jsx": {
         "power_down": "파워 다운",

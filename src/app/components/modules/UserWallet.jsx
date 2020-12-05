@@ -1,8 +1,13 @@
+/* eslint-disable jsx-a11y/no-static-element-interactions */
+/* eslint-disable react/jsx-no-bind */
+/* eslint-disable no-plusplus */
+/* eslint-disable no-undef */
 /* eslint react/prop-types: 0 */
 import React from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import tt from 'counterpart';
+import { CopyToClipboard } from 'react-copy-to-clipboard';
 import { List } from 'immutable';
 import SavingsWithdrawHistory from 'app/components/elements/SavingsWithdrawHistory';
 import TransferHistoryRow from 'app/components/cards/TransferHistoryRow';
@@ -13,6 +18,8 @@ import {
     delegatedSteem,
     powerdownSteem,
     pricePerSteem,
+    pricePerTRX,
+    totalPendingClaimTron,
 } from 'app/utils/StateFunctions';
 import WalletSubMenu from 'app/components/elements/WalletSubMenu';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
@@ -27,6 +34,11 @@ import {
 import * as transactionActions from 'app/redux/TransactionReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
+import * as userActions from 'app/redux/UserReducer';
+import * as appActions from 'app/redux/AppReducer';
+import { recordAdsView } from 'app/utils/ServerApiClient';
+import QRCode from 'react-qr';
+import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 
 const assetPrecision = 1000;
 
@@ -35,27 +47,39 @@ class UserWallet extends React.Component {
         super();
         this.state = {
             claimInProgress: false,
+            showQR: false,
         };
-        this.onShowDepositSteem = e => {
+        this.onShowSteemTrade = e => {
             if (e && e.preventDefault) e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'TradeSteem',
+            });
             // const name = this.props.currentUser.get('username');
             const new_window = window.open();
             new_window.opener = null;
             new_window.location = 'https://poloniex.com/exchange#trx_steem';
         };
-        this.onShowWithdrawSteem = e => {
-            e.preventDefault();
+        this.onShowTrxTrade = e => {
+            if (e && e.preventDefault) e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'TradeTrx',
+            });
+            // const name = this.props.currentUser.get('username');
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location = 'https://poloniex.com/exchange#trx_steem';
+            new_window.location = 'https://poloniex.com/exchange#usdt_trx';
         };
-        this.onShowDepositPower = (currentUserName, e) => {   // this function will not be called since power menu comment
-            e.preventDefault();
+        this.onShowTronLink = e => {
+            if (e && e.preventDefault) e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'ToTronLink',
+            });
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location =
-                'https://blocktrades.us/?input_coin_type=eth&output_coin_type=steem_power&receive_address=' +
-                currentUserName;
+            new_window.location = 'https://www.tronlink.org/';
         };
         this.onShowDepositSBD = (currentUserName, e) => {
             e.preventDefault();
@@ -71,12 +95,68 @@ class UserWallet extends React.Component {
             new_window.location =
                 'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD';
         };
+        this.onShowTRXTransaction = (trx_address, e) => {
+            e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'TronHistory',
+            });
+            const new_window = window.open();
+            new_window.opener = null;
+            const tron_host = $STM_Config.tron_host
+                ? $STM_Config.tron_host.toString()
+                : 'tronscan.org';
+            if (tron_host && tron_host.includes('shasta')) {
+                new_window.location =
+                    'https://shasta.tronscan.org/#/address/' +
+                    trx_address +
+                    '/transactions';
+            } else {
+                new_window.location =
+                    'https://tronscan.org/#/address/' +
+                    trx_address +
+                    '/transactions';
+            }
+        };
+        // see tron vote component
+        // this.onShowTRXVote = (trx_address, e) => {
+        //     e.preventDefault();
+        //     recordAdsView({
+        //         trackingId: this.props.trackingId,
+        //         adTag: 'TronVote',
+        //     });
+        //     const new_window = window.open();
+        //     new_window.opener = null;
+        //     new_window.location = '';
+        // };
+        this.onShowJUST = e => {
+            e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'StakingByJust',
+            });
+            const new_window = window.open();
+            new_window.opener = null;
+            new_window.location =
+                'https://just.tronscan.org/?lang=en-US#/login';
+        };
+        this.showQR = e => {
+            this.setState({ showQR: true });
+        };
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
     }
 
+    componentWillMount = () => {};
+
     handleClaimRewards = account => {
-        this.setState({ claimInProgress: true }); // disable the claim button
-        this.props.claimRewards(account);
+        const { currentUserTronAddr } = this.props;
+        if (currentUserTronAddr === '') {
+            this.props.showTronCreate();
+        }
+        if (parseFloat(account.get('reward_vesting_steem').split(' ')[0]) > 0) {
+            this.setState({ claimInProgress: true }); // disable the claim button
+            this.props.claimRewards(account);
+        }
     };
 
     getCurrentApr = gprops => {
@@ -105,6 +185,12 @@ class UserWallet extends React.Component {
 
         // Now lets calculate the "APR"
         const vestingRewardPercent = gprops.vesting_reward_percent / 10000;
+        if (
+            gprops.virtual_supply === undefined ||
+            gprops.total_vesting_fund_steem === undefined
+        ) {
+            return 0;
+        }
         const virtualSupply = gprops.virtual_supply.split(' ').shift();
         const totalVestingFunds = gprops.total_vesting_fund_steem
             .split(' ')
@@ -117,20 +203,23 @@ class UserWallet extends React.Component {
 
     render() {
         const {
-            onShowDepositSteem,
-            onShowWithdrawSteem,
             onShowDepositSBD,
             onShowWithdrawSBD,
-            onShowDepositPower,
+            onShowTRXTransaction,
+            onShowJUST,
         } = this;
         const {
-            convertToSteem,
+            // convertToSteem,
             price_per_steem,
+            price_per_trx,
             savings_withdraws,
             account,
             currentUser,
             open_orders,
+            vestsPerTrx,
+            notify,
         } = this.props;
+        const { showQR } = this.state;
         const gprops = this.props.gprops.toJS();
 
         // do not render if account is not loaded or available
@@ -138,6 +227,14 @@ class UserWallet extends React.Component {
 
         // do not render if state appears to contain only lite account info
         if (!account.has('vesting_shares')) return null;
+
+        const hasTronAddr = account.has('tron_addr');
+        const tronAddr = account.get('tron_addr');
+        const tronBalance =
+            account.get('tron_balance') !== undefined &&
+            account.get('tron_balance')
+                ? parseFloat(account.get('tron_balance'))
+                : 0;
 
         const vesting_steem = vestingSteem(account.toJS(), gprops);
         const delegated_steem = delegatedSteem(account.toJS(), gprops);
@@ -156,6 +253,24 @@ class UserWallet extends React.Component {
                 asset,
                 transferType,
             });
+        };
+
+        const showTronTransfer = (asset, transferType, e) => {
+            e.preventDefault();
+            this.props.showTransfer({
+                to: isMyAccount ? null : account.get('name'),
+                asset,
+                transferType,
+            });
+        };
+
+        const onCreateTronAccount = e => {
+            e.target.blur();
+            this.props.showTronCreate();
+        };
+        const onUpdateTronAccount = e => {
+            e.target.blur();
+            this.props.showTronUpdate();
         };
 
         const savings_balance = account.get('savings_balance');
@@ -293,9 +408,13 @@ class UserWallet extends React.Component {
         const total_value =
             '$' +
             numberWithCommas(
-                (total_steem * price_per_steem + total_sbd).toFixed(2)
+                (
+                    total_steem * price_per_steem +
+                    total_sbd +
+                    tronBalance * price_per_trx
+                ).toFixed(2)
             );
-
+        // console.log(total_trx * price_per_trx);
         // format spacing on estimated value based on account state
         let estimate_output = <p>{total_value}</p>;
         if (isMyAccount) {
@@ -393,19 +512,56 @@ class UserWallet extends React.Component {
             },
             { value: tt('userwallet_jsx.market'), link: '/market' },
         ];
+        const tronVoteEl = (
+            <div>
+                <span>{tt('g.tronVote')}</span>
+                <span
+                    style={{
+                        display: 'inline-block',
+                        marginLeft: '6px',
+                        backgroundColor: '#06D6A9',
+                        color: '#fff',
+                        borderRadius: '4px',
+                        height: '20px',
+                        fontSize: '12px',
+                        padding: '3px 5px',
+                        boxShadow: '0px 1px 5px rgba(4, 176, 139, 0.31)',
+                    }}
+                >
+                    {tt('g.tronVoteTag')}
+                </span>
+            </div>
+        );
+        const trx_menu = [
+            {
+                value: tt('g.transfer'),
+                link: '#',
+                // todo  replace with TRX function
+                onClick: showTronTransfer.bind(
+                    this,
+                    'TRX',
+                    'Transfer to Account'
+                ),
+            },
+            {
+                value: tt('g.tronVote'),
+                link: '#',
+                label: tronVoteEl,
+                onClick: e => {
+                    e.preventDefault();
+                    recordAdsView({
+                        trackingId: this.props.trackingId,
+                        adTag: 'TronVote',
+                    });
+                    this.props.showVote();
+                },
+            },
+        ];
         if (isMyAccount) {
             steem_menu.push({
-                value: tt('g.buy'),
+                value: tt('g.trade'),
                 link: '#',
-                onClick: onShowDepositSteem.bind(
-                    this,
-                    currentUser.get('username')
-                ),
-            });
-            steem_menu.push({
-                value: tt('g.sell'),
-                link: '#',
-                onClick: onShowWithdrawSteem,
+                onClick: this.onShowSteemTrade,
             });
             steem_menu.push({
                 value: tt('userwallet_jsx.market'),
@@ -432,7 +588,13 @@ class UserWallet extends React.Component {
                 link: '#',
                 onClick: onShowWithdrawSBD,
             });
+            trx_menu.push({
+                value: tt('g.trade'),
+                link: '#',
+                onClick: this.onShowTrxTrade,
+            });
         }
+
         if (divesting) {
             power_menu.push({
                 value: 'Cancel Power Down',
@@ -461,6 +623,10 @@ class UserWallet extends React.Component {
         );
         const savings_sbd_balance_str = numberWithCommas(
             '$' + sbd_balance_savings.toFixed(3)
+        );
+
+        const trx_balance_str = numberWithCommas(
+            (Math.floor(tronBalance * 1000) / 1000).toString()
         );
 
         const savings_menu = [
@@ -499,14 +665,23 @@ class UserWallet extends React.Component {
             parseFloat(account.get('reward_vesting_steem').split(' ')[0]) > 0
                 ? account.get('reward_vesting_steem').replace('STEEM', 'SP')
                 : null;
-
+        const reward_tron = totalPendingClaimTron(
+            account.get('pending_claim_tron_reward'),
+            account.get('reward_vesting_balance'),
+            vestsPerTrx
+        );
         const rewards = [];
         if (reward_steem) rewards.push(reward_steem);
         if (reward_sbd) rewards.push(reward_sbd);
         if (reward_sp) rewards.push(reward_sp);
-
+        if (reward_tron) rewards.push(reward_tron);
         let rewards_str;
         switch (rewards.length) {
+            case 4:
+                rewards_str = `${rewards[0]}, ${rewards[1]} , ${
+                    rewards[2]
+                } and ${rewards[3]}`;
+                break;
             case 3:
                 rewards_str = `${rewards[0]}, ${rewards[1]} and ${rewards[2]}`;
                 break;
@@ -514,12 +689,18 @@ class UserWallet extends React.Component {
                 rewards_str = `${rewards[0]} and ${rewards[1]}`;
                 break;
             case 1:
-                rewards_str = `${rewards[0]}`;
+                rewards_str = `${rewards[0] ? rewards[0] : rewards[3]}`;
                 break;
+            default:
         }
 
         let claimbox;
-        if (currentUser && rewards_str && isMyAccount) {
+        if (
+            account.get('pending_claim_tron_reward') &&
+            currentUser &&
+            rewards_str &&
+            isMyAccount
+        ) {
             claimbox = (
                 <div className="row">
                     <div className="columns small-12">
@@ -544,14 +725,18 @@ class UserWallet extends React.Component {
 
         let spApr = 0;
         try {
-            // TODO: occasionally fails. grops not loaded yet?
             spApr = this.getCurrentApr(gprops);
-        } catch (e) {}
+        } catch (e) {
+            console.error(e);
+        }
 
         return (
             <div className="UserWallet">
                 {claimbox}
                 <div className="row">
+                    {/*<div>
+                        <LoadingIndicator type="circle" />
+                    </div>*/}
                     <div className="columns small-10 medium-12 medium-expand">
                         <WalletSubMenu
                             accountname={account.get('name')}
@@ -564,7 +749,7 @@ class UserWallet extends React.Component {
                             {isMyAccount && (
                                 <button
                                     className="UserWallet__buysp button hollow"
-                                    onClick={onShowDepositSteem}
+                                    onClick={this.onShowDepositSteem}
                                 >
                                     {tt(
                                         'userwallet_jsx.buy_steem_or_steem_power'
@@ -729,11 +914,149 @@ class UserWallet extends React.Component {
                         )}
                     </div>
                 </div>
-                <div className="UserWallet__balance row">
+                <div className="UserWallet__balance row tron">
+                    <div className="column small-12 medium-8">
+                        TRX
+                        <div className="secondary tron-addr">
+                            <div
+                                className="tron-addr-item"
+                                style={{ paddingRight: '1em' }}
+                            >
+                                {!tronAddr
+                                    ? isMyAccount
+                                        ? tt(
+                                              'userwallet_jsx.create_trx_description'
+                                          )
+                                        : null
+                                    : tronAddr}
+                            </div>
+                            {tronAddr && (
+                                <div className="tron-addr-item">
+                                    <CopyToClipboard
+                                        text={tronAddr}
+                                        onCopy={() =>
+                                            notify(tt('explorepost_jsx.copied'))
+                                        }
+                                    >
+                                        <button
+                                            className="UserWallet__tron button buttonSmall hollow"
+                                            onClick={e => e.target.blur()}
+                                        >
+                                            {tt('tron_jsx.copy')}
+                                        </button>
+                                    </CopyToClipboard>
+                                </div>
+                            )}
+                            {tronAddr && (
+                                <div
+                                    className={`tron-addr-item ${showQR &&
+                                        'show-qrcode'}`}
+                                    style={{ position: 'relative' }}
+                                >
+                                    <button
+                                        className="UserWallet__tron button buttonSmall hollow"
+                                        onClick={e => {
+                                            e.target.blur();
+                                            this.setState({
+                                                showQR: !showQR,
+                                            });
+                                        }}
+                                    >
+                                        {tt('tron_jsx.qr_code')}{' '}
+                                    </button>
+                                    {showQR && (
+                                        <div className="qrcode">
+                                            <QRCode
+                                                text={tronAddr}
+                                                onClick={() =>
+                                                    this.setState({
+                                                        showQR: !this.state
+                                                            .showQR,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        <div
+                            className="secondary"
+                            style={{ marginTop: '1.2em' }}
+                        >
+                            <span style={{ display: 'block' }}>
+                                {tt('userwallet_jsx.trx_description1')}
+                            </span>
+                            <span style={{ display: 'block' }}>
+                                {tt('userwallet_jsx.trx_description2')}
+                            </span>
+                            <span style={{ display: 'block' }}>
+                                {tt('userwallet_jsx.trx_description3')}
+                            </span>
+                            <span style={{ display: 'block' }}>
+                                {tt('userwallet_jsx.trx_description4')}
+                                <a
+                                    style={{ color: '#1FBF8F' }}
+                                    onClick={this.onShowTronLink}
+                                >
+                                    {tt('userwallet_jsx.trx_description5')}
+                                </a>
+                                {tt('userwallet_jsx.trx_description6')}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="column small-12 medium-4">
+                        {hasTronAddr && tronAddr && isMyAccount ? (
+                            <DropdownMenu
+                                className="Wallet_dropdown"
+                                items={trx_menu}
+                                el="li"
+                                selected={trx_balance_str + ' TRX'}
+                            />
+                        ) : (
+                            trx_balance_str + ' TRX'
+                        )}
+                        <div
+                            className="columns shrink"
+                            style={{ paddingRight: '0' }}
+                        >
+                            {hasTronAddr &&
+                                isMyAccount &&
+                                !tronAddr && (
+                                    <button
+                                        className="UserWallet__tron button buttonSmall hollow"
+                                        onClick={onCreateTronAccount.bind(this)}
+                                    >
+                                        {tt('userwallet_jsx.create_trx_button')}
+                                    </button>
+                                )}
+                        </div>
+                        <div
+                            className="columns shrink"
+                            style={{ paddingRight: '0' }}
+                        >
+                            {hasTronAddr &&
+                                isMyAccount &&
+                                tronAddr && (
+                                    <button
+                                        className="UserWallet__tron button buttonSmall hollow"
+                                        onClick={onUpdateTronAccount.bind(this)}
+                                    >
+                                        {tt('userwallet_jsx.update_trx_button')}
+                                    </button>
+                                )}
+                        </div>
+                        <div className="columns shrink">
+                            {!hasTronAddr && <LoadingIndicator type="circle" />}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="UserWallet__balance row zebra">
                     <div className="column small-12 medium-8">
                         {tt('userwallet_jsx.estimated_account_value')}
                         <div className="secondary">
-                            {tt('tips_js.estimated_value', { LIQUID_TOKEN })}
+                            {tt('tips_js.estimated_value')}
                         </div>
                     </div>
                     <div className="column small-12 medium-4">
@@ -779,7 +1102,20 @@ class UserWallet extends React.Component {
                 <div className="row">
                     <div className="column small-12">
                         {/** history */}
-                        <h4>{tt('userwallet_jsx.history')}</h4>
+                        <h4>
+                            {tt('userwallet_jsx.history')}
+                            {tronAddr && (
+                                <Link
+                                    className="link"
+                                    onClick={onShowTRXTransaction.bind(
+                                        this,
+                                        tronAddr
+                                    )}
+                                >
+                                    {tt('tron_jsx.tron_tx_history')}
+                                </Link>
+                            )}
+                        </h4>
                         <div className="secondary">
                             <span>
                                 {tt(
@@ -807,16 +1143,40 @@ export default connect(
     // mapStateToProps
     (state, ownProps) => {
         const price_per_steem = pricePerSteem(state);
+        const price_per_trx = pricePerTRX(state);
         const savings_withdraws = state.user.get('savings_withdraws');
         const gprops = state.global.get('props');
         const sbd_interest = gprops.get('sbd_interest_rate');
+        // This is current logined user.
+        const currentUser = ownProps.currentUser;
+        const currentUserTronAddr =
+            currentUser && currentUser.has('tron_addr')
+                ? currentUser.get('tron_addr')
+                : '';
+        const currentUserTipCount =
+            currentUser && currentUser.has('tip_count')
+                ? currentUser.get('tip_count')
+                : 999;
+        const currentUserTipCountLock =
+            currentUser && currentUser.has('tip_count_lock')
+                ? currentUser.get('tip_count_lock')
+                : false;
+        const vestsPerTrx = state.app.get('vests_per_trx');
         return {
             ...ownProps,
             open_orders: state.market.get('open_orders'),
             price_per_steem,
+            price_per_trx,
             savings_withdraws,
             sbd_interest,
             gprops,
+            trackingId: state.app.getIn(['trackingId'], null),
+            currentUser,
+            currentUserTronAddr,
+            currentUserTipCount,
+            currentUserTipCountLock,
+            tronCreatePopupStatus: state.user.get('show_tron_create_modal'),
+            vestsPerTrx,
         };
     },
     // mapDispatchToProps
@@ -841,14 +1201,34 @@ export default connect(
                     type: 'claim_reward_balance',
                     operation,
                     successCallback,
+                    errorCallback: err => {
+                        console.error('claim reward balance error:', err);
+                    },
                 })
             );
         },
-        convertToSteem: e => {
-            //post 2018-01-31 if no calls to this function exist may be safe to remove. Investigate use of ConvertToSteem.jsx
-            e.preventDefault();
-            const name = 'convertToSteem';
-            dispatch(globalActions.showDialog({ name }));
+        // convertToSteem: e => {
+        //     //post 2018-01-31 if no calls to this function exist may be safe to remove. Investigate use of ConvertToSteem.jsx
+        //     e.preventDefault();
+        //     const name = 'convertToSteem';
+        //     dispatch(globalActions.showDialog({ name }));
+        // },
+        showTronUpdate: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.showTronUpdate());
+        },
+        showTronCreate: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.showTronCreate());
+        },
+        notify: message => {
+            dispatch(
+                appActions.addNotification({
+                    key: 'chpwd_' + Date.now(),
+                    message,
+                    dismissAfter: 3000,
+                })
+            );
         },
     })
 )(UserWallet);

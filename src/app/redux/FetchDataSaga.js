@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import {
     call,
     put,
@@ -8,11 +9,14 @@ import {
 } from 'redux-saga/effects';
 import { api } from '@steemit/steem-js';
 import { loadFollows } from 'app/redux/FollowSaga';
+import * as userActions from 'app/redux/UserReducer';
+import { checkTronUser } from 'app/utils/ServerApiClient';
+import { fromJS, Map, Set } from 'immutable';
+import { getStateAsync } from 'app/utils/steemApi';
+import { getTronAccount } from 'app/utils/tronApi';
 import * as globalActions from './GlobalReducer';
 import * as appActions from './AppReducer';
 import constants from './constants';
-import { fromJS, Map, Set } from 'immutable';
-import { getStateAsync } from 'app/utils/steemApi';
 
 const REQUEST_DATA = 'fetchDataSaga/REQUEST_DATA';
 const GET_CONTENT = 'fetchDataSaga/GET_CONTENT';
@@ -28,8 +32,9 @@ let is_initial_state = true;
 export function* fetchState(location_change_action) {
     const { pathname } = location_change_action.payload;
     const m = pathname.match(/^\/@([a-z0-9\.-]+)/);
+    let username;
     if (m && m.length === 2) {
-        const username = m[1];
+        username = m[1];
         yield fork(loadFollows, username, 'blog');
     }
 
@@ -66,7 +71,36 @@ export function* fetchState(location_change_action) {
     yield put(appActions.fetchDataBegin());
     try {
         const state = yield call(getStateAsync, url);
+        // get tron information by steem username
+        // and merge into account
+        if (username) {
+            const tronAccount = yield call(checkTronUser, username);
+            Object.keys(tronAccount).forEach(k => {
+                state.accounts[username][k] = tronAccount[k];
+            });
+            // get tron balance and merge into account
+            state.accounts[username]['tron_balance'] = 0;
+            if (tronAccount.tron_addr) {
+                const tronNetworkAccount = yield call(
+                    getTronAccount,
+                    tronAccount.tron_addr
+                );
+                if (
+                    Object.keys(tronNetworkAccount).length > 0 &&
+                    tronNetworkAccount.balance !== undefined
+                ) {
+                    state.accounts[username]['tron_balance'] =
+                        tronNetworkAccount.balance / 1e6;
+                }
+            }
+        }
         yield put(globalActions.receiveState(state));
+        // unlock tron account create tip
+        yield put(
+            userActions.setUser({
+                tip_count_lock: false,
+            })
+        );
         // If a user's transfer page is being loaded, fetch related account data.
         yield call(getTransferUsers, pathname);
     } catch (error) {
@@ -85,11 +119,9 @@ export function* fetchState(location_change_action) {
 function* getTransferUsers(pathname) {
     if (pathname.match(/^\/@([a-z0-9\.-]+)\/transfers/)) {
         const username = pathname.match(/^\/@([a-z0-9\.-]+)/)[1];
-
         const transferHistory = yield select(state =>
             state.global.getIn(['accounts', username, 'transfer_history'])
         );
-
         // Find users in the transfer history to consider sending users' reputations.
         const transferUsers = transferHistory.reduce((acc, cur) => {
             if (cur.getIn([1, 'op', 0]) === 'transfer') {

@@ -1,4 +1,3 @@
-'use strict';
 module.exports = {
     up: (queryInterface, Sequelize) => {
         return queryInterface
@@ -19,40 +18,46 @@ module.exports = {
                 },
                 pending_claim_tron_reward: {
                     allowNull: false,
+                    defaultValue: 0,
                     type: Sequelize.BIGINT.UNSIGNED,
                 },
                 is_new_user: {
                     allowNull: false,
+                    defaultValue: 0,
                     type: Sequelize.BOOLEAN,
                 },
                 is_tron_addr_actived: {
                     allowNull: false,
+                    defaultValue: 0,
                     type: Sequelize.BOOLEAN,
                 },
-                tran_addr_active_time: {
-                    allowNull: false,
+                tron_addr_active_time: {
+                    allowNull: true,
+                    defaultValue: null,
                     type: Sequelize.DATE,
                 },
                 tip_count: {
                     allowNull: false,
+                    defaultValue: 0,
                     type: Sequelize.INTEGER.UNSIGNED,
                 },
-                createdAt: {
+                created_at: {
                     allowNull: false,
                     type: Sequelize.DATE,
                 },
-                updatedAt: {
+                updated_at: {
                     allowNull: false,
                     type: Sequelize.DATE,
                 },
             })
-            .then(function() {
+            .then(() => {
                 queryInterface.addIndex('tron_user', ['username'], {
-                    indicesType: 'UNIQUE',
+                    unique: true,
                 });
                 queryInterface.addIndex('tron_user', ['tron_addr']);
             });
     },
+    // eslint-disable-next-line no-unused-vars
     down: (queryInterface, Sequelize) => {
         return queryInterface.dropTable('tron_user');
     },

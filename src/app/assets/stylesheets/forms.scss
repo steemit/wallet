@@ -70,8 +70,8 @@ p.error {
 
 label {
   @include themify($themes) {
-    color: themed('textColorPrimary');  
-  }    
+    color: themed('textColorPrimary');
+  }
 }
 
 $input-font-family: helvetica, sans-serif;

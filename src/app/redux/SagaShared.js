@@ -1,12 +1,14 @@
+/* eslint-disable no-restricted-syntax */
 import { fromJS } from 'immutable';
 import { call, put, select, takeEvery, takeLatest } from 'redux-saga/effects';
 import tt from 'counterpart';
 import { api } from '@steemit/steem-js';
+import { setUserPreferences, checkTronUser } from 'app/utils/ServerApiClient';
+import { getStateAsync } from 'app/utils/steemApi';
+import { getTronAccount } from 'app/utils/tronApi';
 import * as globalActions from './GlobalReducer';
 import * as appActions from './AppReducer';
 import * as transactionActions from './TransactionReducer';
-import { setUserPreferences } from 'app/utils/ServerApiClient';
-import { getStateAsync } from 'app/utils/steemApi';
 
 const wait = ms =>
     new Promise(resolve => {
@@ -15,7 +17,10 @@ const wait = ms =>
 
 export const sharedWatches = [
     takeEvery(globalActions.GET_STATE, getState),
-    takeLatest([appActions.TOGGLE_NIGHTMODE], saveUserPreferences),
+    takeLatest(
+        [appActions.SET_USER_PREFERENCES, appActions.TOGGLE_NIGHTMODE],
+        saveUserPreferences
+    ),
     takeEvery('transaction/ERROR', showTransactionErrorNotification),
 ];
 
@@ -25,7 +30,7 @@ export function* getAccount(username, force = false) {
     );
 
     // hive never serves `owner` prop (among others)
-    let isLite = !!account && !account.get('owner');
+    const isLite = !!account && !account.get('owner');
 
     if (!account || force || isLite) {
         console.log(
@@ -39,7 +44,30 @@ export function* getAccount(username, force = false) {
 
         [account] = yield call([api, api.getAccountsAsync], [username]);
         if (account) {
-            account = fromJS(account);
+            // get tron information by steem username
+            // and merge into account
+            let tronAccount = fromJS(yield call(checkTronUser, username));
+
+            // get tron balance and merge into account
+            tronAccount = tronAccount.mergeDeep(fromJS({ tron_balance: 0 }));
+            if (tronAccount.get('tron_addr')) {
+                const tronNetworkAccount = yield call(
+                    getTronAccount,
+                    tronAccount.get('tron_addr')
+                );
+                if (
+                    Object.keys(tronNetworkAccount).length > 0 &&
+                    tronNetworkAccount.balance !== undefined
+                ) {
+                    tronAccount = tronAccount.mergeDeep(
+                        fromJS({
+                            tron_balance: tronNetworkAccount.balance / 1e6,
+                        })
+                    );
+                }
+            }
+            // merge and update account
+            account = fromJS(account).mergeDeep(tronAccount);
             yield put(globalActions.receiveAccount({ account }));
         }
     }

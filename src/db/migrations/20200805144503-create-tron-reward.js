@@ -1,4 +1,3 @@
-'use strict';
 module.exports = {
     up: (queryInterface, Sequelize) => {
         return queryInterface
@@ -41,22 +40,23 @@ module.exports = {
                     allowNull: false,
                     type: Sequelize.FLOAT,
                 },
-                createdAt: {
+                created_at: {
                     allowNull: false,
                     type: Sequelize.DATE,
                 },
-                updatedAt: {
+                updated_at: {
                     allowNull: false,
                     type: Sequelize.DATE,
                 },
             })
-            .then(function() {
+            .then(() => {
                 queryInterface.addIndex('tron_reward', ['username']);
                 queryInterface.addIndex('tron_reward', ['tron_addr']);
                 queryInterface.addIndex('tron_reward', ['block_num']);
                 queryInterface.addIndex('tron_reward', ['steem_tx_id']);
             });
     },
+    // eslint-disable-next-line no-unused-vars
     down: (queryInterface, Sequelize) => {
         return queryInterface.dropTable('tron_reward');
     },

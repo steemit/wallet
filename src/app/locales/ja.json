@@ -516,8 +516,7 @@
             "いつでもどこへでも送ることができる取引可能なトークンです。<br/>%(LIQUID_TOKEN)sはパワーアップによって%(VESTING_TOKEN)sに変換できます。",
         "influence_token":
             "投稿への支払額の制御権を持ち、キュレーション報酬を得ることが可能になる、プラットフォームにおける影響力を持つトークンです。",
-        "estimated_value":
-            "推定値は%(LIQUID_TOKEN)sの平均値に基いてUSドルで表されます。",
+        "estimated_value": "米ドルでの総勘定資産評価。",
         "non_transferable":
             "%(VESTING_TOKEN)sは移転不可能であり、再び%(LIQUID_TOKEN)sに変換するには、1ヶ月（4週間）かかります。",
         "converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again":
@@ -701,7 +700,13 @@
             "送金は一時的に無効になっています。",
         "history": "履歴",
         "redeem_rewards": "報酬の請求 (残高に送る)",
-        "buy_steem_or_steem_power": "STEEMを購入する"
+        "buy_steem_or_steem_power": "STEEMを購入する",
+        "trx_description":
+            "TRXはすべてのTRON ECOシステムを接続し、いつでもどこでも送信できます。 TRON ECOシステムのtrxに投票して凍結することで、まともな報酬を受け取ることができます。報酬TRXの数は、報酬SPのxパーセントに基づいています.",
+        "create_trx_description":
+            "TRXアカウントをお持ちではありませんか？ TRX報酬を受け取ることができるTRXアカウント作成ボタンを右クリックするだけです.",
+        "create_trx_button": "TRONアカウントを作成する",
+        "update_trx_account": "TRONアカウントを更新する"
     },
     "powerdown_jsx": {
         "power_down": "パワーダウン",
