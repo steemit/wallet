@@ -123,6 +123,7 @@ export default function useTronRewardApi(app) {
             typeof this.request.body === 'string'
                 ? JSON.parse(this.request.body)
                 : this.request.body;
+        log('[post:/tron_user]input data:', { data });
         if (typeof data !== 'object') {
             this.body = JSON.stringify({
                 error: 'valid_input_data',
@@ -238,7 +239,18 @@ export default function useTronRewardApi(app) {
 
         // when update tron_addr, check if pending_claim_tron_reward empty
         if (data.tron_addr) {
-            clearPendingClaimTronReward(tronUser.username);
+            try {
+                clearPendingClaimTronReward(tronUser.username);
+            } catch (e) {
+                this.body = JSON.stringify({
+                    error: e.message,
+                });
+                log('[timer] post /tron_user all', {
+                    t: process.uptime() * 1000 - t1,
+                    e,
+                });
+                return;
+            }
         }
 
         this.body = JSON.stringify({ status: 'ok' });
