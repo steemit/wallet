@@ -19,7 +19,7 @@ const clearPendingClaimTronReward = async username => {
         const pendingClaimTronReward =
             user.getDataValue('pending_claim_tron_reward') / 1e5;
         // transaction
-        t1 = process.update() * 1000;
+        t1 = process.uptime() * 1000;
         models.sequelize.transaction().then(transaction => {
             // clear pending_claim_tron_reward
             return user
