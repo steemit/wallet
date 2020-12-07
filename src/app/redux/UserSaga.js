@@ -764,6 +764,7 @@ function* updateTronAddr() {
                 tt('loginform_jsx.there_is_no_private_key_in_browser_cache')
             )
         );
+        yield put(appActions.modalLoadingEnd());
         return;
     }
 
@@ -778,6 +779,7 @@ function* updateTronAddr() {
         yield put(
             appActions.setTronErrMsg(tt('userwallet_jsx.create_trx_failed'))
         );
+        yield put(appActions.modalLoadingEnd());
         return;
     }
 
@@ -797,6 +799,7 @@ function* updateTronAddr() {
     if (result.error !== undefined) {
         console.error('tron_err_msg:', result.error);
         yield put(appActions.setTronErrMsg(tt(`tron_err_msg.${result.error}`)));
+        yield put(appActions.modalLoadingEnd());
         return;
     }
 
@@ -808,6 +811,7 @@ function* updateTronAddr() {
                 'Username does not exist, when update tron address'
             )
         );
+        yield put(appActions.modalLoadingEnd());
         return;
     }
     // update current login user's state
@@ -829,6 +833,7 @@ function* updateTronAddr() {
         state.accounts[username][k] = tronInfo[k];
     });
     yield put(globalActions.receiveState(state));
+    yield put(appActions.modalLoadingEnd());
 }
 
 function* claimPendingTrx({ payload: { username } }) {
