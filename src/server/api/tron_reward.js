@@ -344,6 +344,58 @@ export default function useTronRewardApi(app) {
             data_from: data.data_from,
         });
     });
+
+    router.post('/claim_pending_trx_reward', koaBody, function*() {
+        const t1 = process.uptime() * 1000;
+        const data =
+            typeof this.request.body === 'string'
+                ? JSON.parse(this.request.body)
+                : this.request.body;
+        log('[post:/claim_pending_trx_reward]input data:', { data });
+        if (typeof data !== 'object') {
+            this.body = JSON.stringify({
+                error: 'valid_input_data',
+            });
+            log('[timer] post /claim_pending_trx_reward all', {
+                t: process.uptime() * 1000 - t1,
+                e: 'valid_input_data',
+            });
+            return;
+        }
+        if (data.username === undefined) {
+            this.body = JSON.stringify({
+                error: 'username_required',
+            });
+            log('[timer] post /claim_pending_trx_reward all', {
+                t: process.uptime() * 1000 - t1,
+                e: 'username_required',
+            });
+            return;
+        }
+        try {
+            const user = getRecordCache2(
+                models.TronUser,
+                models.escAttrs({ username: data.username })
+            );
+            if (user) {
+                yield clearPendingClaimTronReward(data.username);
+            }
+            this.body = JSON.stringify({
+                status: 'ok',
+            });
+            log('[timer] post /claim_pending_trx_reward all', {
+                t: process.uptime() * 1000 - t1,
+            });
+        } catch (e) {
+            this.body = JSON.stringify({
+                error: e.message,
+            });
+            log('[timer] post /claim_pending_trx_reward all', {
+                t: process.uptime() * 1000 - t1,
+                e,
+            });
+        }
+    });
 }
 
 async function getUserPublicKey(username, authType = 'posting') {

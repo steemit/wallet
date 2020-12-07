@@ -226,7 +226,10 @@ function* updateRecordCache2(model, conditions = {}) {
         return false;
     }
 
-    if (conditions.length <= 0) return false;
+    if (Object.keys(conditions).length <= 0) {
+        log('updateRecordCache2', { msg: 'conditions is empty.' });
+        return false;
+    }
 
     const keyPrefix = model.getCachePrefix();
     const conditionsStr = parseResultToArr(conditions).join('_');
@@ -259,6 +262,7 @@ function* updateRecordCache2(model, conditions = {}) {
             t2 = process.uptime();
             yield expireAsync([cacheKey, EXPIRED_TIME]);
             t3 = process.uptime();
+            log('updateRecordCache2 redis has updated:', { cacheKey, result });
             log(
                 '[timer] tron_user updateRecordCache2 redis setAsync, expireAsync:',
                 { t1: (t2 - t1) * 1000, t2: (t3 - t2) * 1000 }

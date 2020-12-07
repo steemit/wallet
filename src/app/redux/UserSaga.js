@@ -35,6 +35,7 @@ import {
     updateTronUser,
     // createTronAccount,
     getTronConfig,
+    claimPendingTrxReward,
 } from 'app/utils/ServerApiClient';
 import { loadFollows } from 'app/redux/FollowSaga';
 import { translate } from 'app/Translator';
@@ -64,6 +65,7 @@ export const userWatches = [
         }
     }),
     takeLatest(userActions.HIDE_TRON_CREATE, updateTronPopupTipCount),
+    takeLatest(userActions.CLAIM_PENDING_TRX, claimPendingTrx),
     function* getLatestFeedPrice() {
         try {
             const history = yield call([api, api.getFeedHistoryAsync]);
@@ -756,7 +758,7 @@ function* updateTronAddr() {
     if (private_keys && private_keys.has('posting_private'))
         privateKeyType = 'posting_private';
     if (privateKeyType === null) {
-        console.log('there is no private key in browser cache.');
+        console.error('there is no private key in browser cache.');
         yield put(
             appActions.setTronErrMsg(
                 tt('loginform_jsx.there_is_no_private_key_in_browser_cache')
@@ -772,6 +774,7 @@ function* updateTronAddr() {
         tronAccount.address === undefined ||
         tronAccount.address.base58 === undefined
     ) {
+        console.error('create_trx_failed');
         yield put(
             appActions.setTronErrMsg(tt('userwallet_jsx.create_trx_failed'))
         );
@@ -792,13 +795,14 @@ function* updateTronAddr() {
         private_keys.get(privateKeyType).toWif()
     );
     if (result.error !== undefined) {
+        console.error('tron_err_msg:', result.error);
         yield put(appActions.setTronErrMsg(tt(`tron_err_msg.${result.error}`)));
         return;
     }
 
     const account = yield call(getAccount, username, true);
     if (!account) {
-        console.log('No account');
+        console.error('username does not exist, when update tron address');
         yield put(
             appActions.setTronErrMsg(
                 'Username does not exist, when update tron address'
@@ -825,4 +829,20 @@ function* updateTronAddr() {
         state.accounts[username][k] = tronInfo[k];
     });
     yield put(globalActions.receiveState(state));
+}
+
+function* claimPendingTrx({ payload: { username } }) {
+    const claimResult = yield call(claimPendingTrxReward, username);
+    if (!claimResult.error) {
+        // update current route user's state
+        const state = {
+            accounts: {},
+        };
+        state.accounts[username] = {};
+        const tronInfo = yield call(checkTronUser, username);
+        Object.keys(tronInfo).forEach(k => {
+            state.accounts[username][k] = tronInfo[k];
+        });
+        yield put(globalActions.receiveState(state));
+    }
 }

@@ -54,6 +54,7 @@ export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
 export const CHECK_TRON = 'user/CHECK_TRON';
 export const UPDATE_TRON_ADDR = 'user/UPDATE_TRON_ADDR';
 export const RESET_ERROR = 'user/RESET_ERROR';
+export const CLAIM_PENDING_TRX = 'user/CLAIM_PENDING_TRX';
 
 const defaultState = fromJS({
     current: null,
@@ -297,6 +298,8 @@ export default function reducer(state = defaultState, action) {
             );
         case SET_TO_TRON_ADDR:
             return state.set('to_tron_addr', payload ? payload : null);
+        case CLAIM_PENDING_TRX:
+            return state; // saga
         default:
             return state;
     }
@@ -533,5 +536,10 @@ export const setTronAccountCheckError = payload => ({
 
 export const setToTronAddr = payload => ({
     type: SET_TO_TRON_ADDR,
+    payload,
+});
+
+export const claimPendingTrx = payload => ({
+    type: CLAIM_PENDING_TRX,
     payload,
 });
