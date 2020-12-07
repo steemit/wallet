@@ -5,7 +5,11 @@ import koa_router from 'koa-router';
 import koa_body from 'koa-body';
 import models from 'db/models';
 import steem from '@steemit/steem-js';
-import { getRecordCache2, updateRecordCache2 } from 'db/cache';
+import {
+    getRecordCache2,
+    updateRecordCache2,
+    clearRecordCache2,
+} from 'db/cache';
 import config from 'config';
 import { logRequest, log } from 'server/utils/loggers';
 import { getRemoteIp, rateLimitReq } from 'server/utils/misc';
@@ -395,6 +399,42 @@ export default function useTronRewardApi(app) {
                 e,
             });
         }
+    });
+
+    /**
+     * !!!! This API MUST NOT USE in the frontend !!!!
+     */
+    router.get('/clear_cache', function*() {
+        const q = this.request.query;
+        if (!q) {
+            this.body = JSON.stringify({ error: 'need_params' });
+            return;
+        }
+        const token = q.token;
+        const cacheType = q.type;
+        const data = q.data;
+        if (!token && !cacheType && !data) {
+            this.body = JSON.stringify({
+                error: 'params_error',
+            });
+            return;
+        }
+        const internalApiToken = config.get('internal_api_token');
+        // check if set env
+        if (!internalApiToken || internalApiToken === 'xxxx') {
+            this.body = JSON.stringify({ error: 'not_set_internal_api_token' });
+            return;
+        }
+        // check if token correct
+        if (token !== internalApiToken) {
+            this.body = JSON.stringify({ error: 'internal_api_token_error' });
+            return;
+        }
+
+        if (cacheType === 'user') {
+            yield clearRecordCache2(models.TronUser, { username: data });
+        }
+        this.body = JSON.stringify({ status: 'ok' });
     });
 }
 
