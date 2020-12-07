@@ -17,12 +17,12 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.BIGINT.UNSIGNED,
                 get() {
                     return `${this.getDataValue('pending_claim_tron_reward') /
-                        1e5} TRX`;
+                        1e6} TRX`;
                 },
                 set(v) {
                     this.setDataValue(
                         'pending_claim_tron_reward',
-                        parseInt(v * 1e5, 10)
+                        parseInt(v * 1e6, 10)
                     );
                 },
             },
