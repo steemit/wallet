@@ -1,14 +1,15 @@
 /* eslint-disable arrow-parens */
 import config from 'config';
 import models from 'db/models';
+import { updateRecordCache2 } from 'db/cache';
 import { Model } from 'sequelize';
 import { log } from 'server/utils/loggers';
 
-const clearPendingClaimTronReward = async username => {
+const clearPendingClaimTronReward = function*(username) {
     const vestsPerTrx = Number(config.get('tron_reward.vests_per_trx'));
     let t1, t2;
     t1 = process.uptime() * 1000;
-    const user = await models.TronUser.findOne({
+    const user = yield models.TronUser.findOne({
         where: {
             username,
         },
@@ -19,8 +20,8 @@ const clearPendingClaimTronReward = async username => {
         const pendingClaimTronReward =
             user.getDataValue('pending_claim_tron_reward') / 1e5;
         // transaction
-        t1 = process.update() * 1000;
-        models.sequelize.transaction().then(transaction => {
+        t1 = process.uptime() * 1000;
+        yield models.sequelize.transaction().then(transaction => {
             // clear pending_claim_tron_reward
             return user
                 .update(
@@ -60,13 +61,21 @@ const clearPendingClaimTronReward = async username => {
         });
         t2 = process.uptime() * 1000;
         log('[timer] clearPendingClaimTronReward transaction:', { t: t2 - t1 });
+        t1 = process.uptime() * 1000;
+        yield updateRecordCache2(
+            models.TronUser,
+            models.escAttrs({ username })
+        );
+        log('[timer] clearPendingClaimTronReward updateRecordCache2:', {
+            t: process.uptime() * 1000 - t1,
+        });
     }
 };
 
-const insertUserData = async data => {
+const insertUserData = function*(data) {
     const t1 = process.uptime() * 1000;
     try {
-        const result = await models.TronUser.create(data);
+        const result = yield models.TronUser.create(data);
         log('[timer] insertUserData:', {
             t: process.uptime() * 1000 - t1,
             result,
@@ -78,16 +87,16 @@ const insertUserData = async data => {
     }
 };
 
-const updateUserData = async (username, data) => {
+const updateUserData = function*(username, data) {
     const t1 = process.uptime() * 1000;
     try {
-        const user = await models.TronUser.findOne({
+        const user = yield models.TronUser.findOne({
             where: {
                 username,
             },
         });
         if (!user) throw new Error('not_found_tron_user_when_updateUserData');
-        const result = await user.update(data);
+        const result = yield user.update(data);
         log('[timer] updateUserData:', {
             t: process.uptime() * 1000 - t1,
             result,

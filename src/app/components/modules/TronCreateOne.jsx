@@ -68,6 +68,16 @@ class TronCreateOne extends Component {
                             <LoadingIndicator type="circle" />
                         </span>
                     )}
+                    {this.props.tronErrMsg && (
+                        <span
+                            style={{
+                                display: 'block',
+                                color: 'red',
+                            }}
+                        >
+                            {this.props.tronErrMsg}
+                        </span>
+                    )}
                 </div>
             </div>
         );

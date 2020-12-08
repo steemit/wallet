@@ -155,3 +155,12 @@ export function getTronConfig() {
     const queryString = '/api/v1/tron/get_config';
     return fetch(queryString);
 }
+
+export function claimPendingTrxReward(username) {
+    const request = Object.assign({}, request_base, {
+        body: JSON.stringify({ username }),
+    });
+    return fetch('/api/v1/tron/claim_pending_trx_reward', request).then(res => {
+        return res.json();
+    });
+}
