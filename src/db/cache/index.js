@@ -226,7 +226,10 @@ function* updateRecordCache2(model, conditions = {}) {
         return false;
     }
 
-    if (conditions.length <= 0) return false;
+    if (Object.keys(conditions).length <= 0) {
+        log('updateRecordCache2', { msg: 'conditions is empty.' });
+        return false;
+    }
 
     const keyPrefix = model.getCachePrefix();
     const conditionsStr = parseResultToArr(conditions).join('_');
@@ -259,6 +262,7 @@ function* updateRecordCache2(model, conditions = {}) {
             t2 = process.uptime();
             yield expireAsync([cacheKey, EXPIRED_TIME]);
             t3 = process.uptime();
+            log('updateRecordCache2 redis has updated:', { cacheKey, result });
             log(
                 '[timer] tron_user updateRecordCache2 redis setAsync, expireAsync:',
                 { t1: (t2 - t1) * 1000, t2: (t3 - t2) * 1000 }
@@ -271,6 +275,33 @@ function* updateRecordCache2(model, conditions = {}) {
     }
 }
 
+function* clearRecordCache2(model, conditions = {}) {
+    if (env !== 'production') {
+        log('clearRecordCache2', { msg: 'none_production' });
+        return false;
+    }
+
+    if (Object.keys(conditions).length <= 0) {
+        log('clearRecordCache2', { msg: 'conditions is empty.' });
+        return false;
+    }
+
+    const keyPrefix = model.getCachePrefix();
+    const conditionsStr = parseResultToArr(conditions).join('_');
+    const cacheKey = `${keyPrefix}${conditionsStr}`;
+
+    let t1, t2, t3;
+    try {
+        if (env === 'production') {
+            yield delAsync(cacheKey);
+        }
+        return true;
+    } catch (e) {
+        log('clearRecordCache2', { msg: e.message, cacheKey });
+        return false;
+    }
+}
+
 module.exports = {
     getRecordCache,
     updateRecordCache,
@@ -278,4 +309,5 @@ module.exports = {
     parseNullToEmptyString,
     getRecordCache2,
     updateRecordCache2,
+    clearRecordCache2,
 };

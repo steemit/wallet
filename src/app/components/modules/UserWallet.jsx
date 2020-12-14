@@ -149,13 +149,24 @@ class UserWallet extends React.Component {
     componentWillMount = () => {};
 
     handleClaimRewards = account => {
-        const { currentUserTronAddr } = this.props;
+        const { currentUserTronAddr, claimPendingTrx } = this.props;
         if (currentUserTronAddr === '') {
             this.props.showTronCreate();
         }
+        let isClaiming = false;
+        if (
+            currentUserTronAddr !== '' &&
+            account.get('pending_claim_tron_reward')
+        ) {
+            claimPendingTrx(account.get('username'));
+            isClaiming = true;
+        }
         if (parseFloat(account.get('reward_vesting_steem').split(' ')[0]) > 0) {
-            this.setState({ claimInProgress: true }); // disable the claim button
+            isClaiming = true;
             this.props.claimRewards(account);
+        }
+        if (isClaiming === true) {
+            this.setState({ claimInProgress: true }); // disable the claim button
         }
     };
 
@@ -1227,6 +1238,13 @@ export default connect(
                     key: 'chpwd_' + Date.now(),
                     message,
                     dismissAfter: 3000,
+                })
+            );
+        },
+        claimPendingTrx: username => {
+            dispatch(
+                userActions.claimPendingTrx({
+                    username,
                 })
             );
         },
