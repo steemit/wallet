@@ -627,9 +627,12 @@ class UserWallet extends React.Component {
             '$' + sbd_balance_savings.toFixed(3)
         );
 
-        const trx_balance_str = numberWithCommas(
-            (Math.floor(tronBalance * 1000) / 1000).toString()
-        );
+        const trx_balance_str =
+            tronBalance == 0
+                ? '0.000'
+                : numberWithCommas(
+                      (Math.floor(tronBalance * 1000) / 1000).toString()
+                  );
 
         const savings_menu = [
             {
