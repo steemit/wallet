@@ -561,7 +561,7 @@
             "tron_account_permissions5": "Explore TRON ecology"
         },
         "posting_key": {
-            "title": "Post Key",
+            "title": "Posting Key",
             "desc1":
                 "This key should be used for social networking actions, like posting, commenting and voting. This key has a limited set of permissions and it is not able to be used for monetary actions. So you can't lose money if someone else gets access to this key.",
             "desc2":
@@ -940,7 +940,7 @@
         "trx_description1":
             "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere.",
         "trx_description2":
-            "You can gain promising return by freezing your tokens and voting for proposals to advance the TRON ecosystem.",
+            "You can gain promising return by freezing your tokens and voting for SR to advance the TRON ecosystem.",
         "trx_description3":
             "TRX rewards will be distributed in proportion to the number of SP you can redeem. The distribution process may take several minutes.",
         "trx_description4": "",
@@ -1053,7 +1053,7 @@
             "Step4: click the \"Vote\" button and follow the instructions.",
         "vote_button": "Vote Now",
         "step": "Steps",
-        "tron_tx_history": "TRON transaction history >",
+        "tron_tx_history": "TRON account transaction history >",
         "update_tron_account": "Update the TRON account",
         "update_tron_content":
             "Please confirm the information below before updating your TRON account to avoid unnecessary asset loss.",
