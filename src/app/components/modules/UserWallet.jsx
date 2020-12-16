@@ -81,15 +81,12 @@ class UserWallet extends React.Component {
             new_window.opener = null;
             new_window.location = 'https://www.tronlink.org/';
         };
-        this.onShowDepositSBD = (currentUserName, e) => {
+        this.onShowTradeSBD = e => {
             e.preventDefault();
-            const new_window = window.open();
-            new_window.opener = null;
-            new_window.location =
-                'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD';
-        };
-        this.onShowWithdrawSBD = e => {
-            e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'TradeSBD',
+            });
             const new_window = window.open();
             new_window.opener = null;
             new_window.location =
@@ -213,12 +210,7 @@ class UserWallet extends React.Component {
     };
 
     render() {
-        const {
-            onShowDepositSBD,
-            onShowWithdrawSBD,
-            onShowTRXTransaction,
-            onShowJUST,
-        } = this;
+        const { onShowTRXTransaction, onShowJUST } = this;
         const {
             // convertToSteem,
             price_per_steem,
@@ -578,17 +570,9 @@ class UserWallet extends React.Component {
             //     ),
             // });
             dollar_menu.push({
-                value: tt('g.buy'),
+                value: tt('g.trade'),
                 link: '#',
-                onClick: onShowDepositSBD.bind(
-                    this,
-                    currentUser.get('username')
-                ),
-            });
-            dollar_menu.push({
-                value: tt('g.sell'),
-                link: '#',
-                onClick: onShowWithdrawSBD,
+                onClick: this.onShowTradeSBD,
             });
             trx_menu.push({
                 value: tt('g.trade'),
