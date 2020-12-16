@@ -947,6 +947,8 @@
         "trx_description5": "Download TronLink wallet",
         "trx_description6":
             " and import your TRON account to manage TRX assets.",
+        "trx_description7":
+            "This TRON account is only used to receive TRX rewards and it is not recommended to transfer assets to this account or to store assets.",
         "create_trx_description":
             "You must have a TRON account first. Please click \"Create A TRON Account\" on the right side to claim TRX rewards.",
         "create_trx_button": "Create TRON account",

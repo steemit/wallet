@@ -998,10 +998,16 @@ class UserWallet extends React.Component {
                             <span style={{ display: 'block' }}>
                                 {tt('userwallet_jsx.trx_description3')}
                             </span>
-                            <span style={{ display: 'block' }}>
+                            <span style={{ display: 'block', fontWeight: 500 }}>
+                                {tt('userwallet_jsx.trx_description7')}
+                            </span>
+                            <span style={{ display: 'block', fontWeight: 500 }}>
                                 {tt('userwallet_jsx.trx_description4')}
                                 <a
-                                    style={{ color: '#1FBF8F' }}
+                                    style={{
+                                        color: '#1FBF8F',
+                                        fontWeight: 500,
+                                    }}
                                     onClick={this.onShowTronLink}
                                 >
                                     {tt('userwallet_jsx.trx_description5')}
