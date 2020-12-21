@@ -803,7 +803,7 @@
         "create_trx_description":
             "还未创建TRON账户，请点击右侧“创建TRON账号”按钮创建并领取TRX奖励。",
         "create_trx_button": "创建TRON账户",
-        "update_trx_button": "更新TRON账户",
+        "update_trx_button": "变更TRON账户",
         "just_mortgage": " 去JUST抵押",
         "create_trx_failed": "创建波场账户失败!"
     },
