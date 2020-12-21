@@ -798,6 +798,8 @@
         "trx_description4": "建议",
         "trx_description5": "下载TronLink钱包",
         "trx_description6": "，导入你的TRON账户来管理TRX资产。",
+        "trx_description7":
+            "此TRON账户仅用于领取TRX奖励，不建议向此账户转账或用于存储资产。",
         "create_trx_description":
             "还未创建TRON账户，请点击右侧“创建TRON账号”按钮创建并领取TRX奖励。",
         "create_trx_button": "创建TRON账户",
