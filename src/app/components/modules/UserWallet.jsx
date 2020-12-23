@@ -982,6 +982,9 @@ class UserWallet extends React.Component {
                             <span style={{ display: 'block' }}>
                                 {tt('userwallet_jsx.trx_description3')}
                             </span>
+                            <span style={{ display: 'block', fontWeight: 900 }}>
+                                {tt('userwallet_jsx.trx_description3_1')}
+                            </span>
                             <span style={{ display: 'block', fontWeight: 500 }}>
                                 {tt('userwallet_jsx.trx_description7')}
                             </span>
@@ -1011,38 +1014,56 @@ class UserWallet extends React.Component {
                         ) : (
                             trx_balance_str + ' TRX'
                         )}
-                        <div
-                            className="columns shrink"
-                            style={{ paddingRight: '0' }}
-                        >
-                            {hasTronAddr &&
-                                isMyAccount &&
-                                !tronAddr && (
-                                    <button
-                                        className="UserWallet__tron button buttonSmall hollow"
-                                        onClick={onCreateTronAccount.bind(this)}
-                                    >
-                                        {tt('userwallet_jsx.create_trx_button')}
-                                    </button>
-                                )}
-                        </div>
-                        <div
-                            className="columns shrink"
-                            style={{ paddingRight: '0' }}
-                        >
-                            {hasTronAddr &&
-                                isMyAccount &&
-                                tronAddr && (
-                                    <button
-                                        className="UserWallet__tron button buttonSmall hollow"
-                                        onClick={onUpdateTronAccount.bind(this)}
-                                    >
-                                        {tt('userwallet_jsx.update_trx_button')}
-                                    </button>
-                                )}
-                        </div>
                         <div className="columns shrink">
                             {!hasTronAddr && <LoadingIndicator type="circle" />}
+                        </div>
+                        <div
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                height: '100%',
+                                justifyContent: 'flex-end',
+                                paddingBottom: '16px',
+                            }}
+                        >
+                            <div
+                                className="columns shrink"
+                                style={{ paddingRight: '0' }}
+                            >
+                                {hasTronAddr &&
+                                    isMyAccount &&
+                                    !tronAddr && (
+                                        <button
+                                            className="UserWallet__tron button buttonSmall hollow"
+                                            onClick={onCreateTronAccount.bind(
+                                                this
+                                            )}
+                                        >
+                                            {tt(
+                                                'userwallet_jsx.create_trx_button'
+                                            )}
+                                        </button>
+                                    )}
+                            </div>
+                            <div
+                                className="columns shrink"
+                                style={{ paddingRight: '0' }}
+                            >
+                                {hasTronAddr &&
+                                    isMyAccount &&
+                                    tronAddr && (
+                                        <button
+                                            className="UserWallet__tron button buttonSmall hollow"
+                                            onClick={onUpdateTronAccount.bind(
+                                                this
+                                            )}
+                                        >
+                                            {tt(
+                                                'userwallet_jsx.update_trx_button'
+                                            )}
+                                        </button>
+                                    )}
+                            </div>
                         </div>
                     </div>
                 </div>
