@@ -942,7 +942,9 @@
         "trx_description2":
             "You can gain promising return by freezing your tokens and voting for SR to advance the TRON ecosystem.",
         "trx_description3":
-            "TRX rewards will be distributed in proportion to the number of SP you can redeem. The distribution process may take several minutes.",
+            "TRX rewards will be distributed in proportion to the number of SP you can redeem.",
+        "trx_description3_1":
+            "The distribution process may take several minutes.",
         "trx_description4": "",
         "trx_description5": "Download TronLink wallet",
         "trx_description6":
