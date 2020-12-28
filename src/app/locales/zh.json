@@ -475,7 +475,8 @@
                 "私钥对应您TRON账户的最高权限， 用于您在TRON的交易签名，例如代币转账，冻结代币和投票。",
             "address": "TRON账户地址",
             "tron_key": "TRON账户私钥",
-            "tron_key_tip": "请在带有TRON账户公私钥的PDF中查看。",
+            "tron_key_tip":
+                "请在带有TRON账户公私钥的PDF中查看。如果你正在使用的是已有TRON账户，请使用相应账户的私钥。",
             "tron_account_permissions": "TRON 私钥权限",
             "tron_account_permissions1": "您的 TRON 私钥可用于：",
             "tron_account_permissions2": "代币转账",
@@ -805,7 +806,24 @@
         "create_trx_button": "创建TRON账户",
         "update_trx_button": "变更TRON账户",
         "just_mortgage": " 去JUST抵押",
-        "create_trx_failed": "创建波场账户失败!"
+        "create_trx_failed": "创建波场账户失败!",
+        "bind_exist_tron_addr": "绑定已有TRON账户",
+        "bind_exist_tron_addr_description_1":
+            "绑定已有TRON账户前请确认以下信息，以避免不必要的经济损失。",
+        "bind_exist_tron_addr_description_2":
+            "已经安全保存了正在使用的TRON账户的私钥，",
+        "bind_exist_tron_addr_description_3":
+            "或已经将正在使用的TRON账户导入至其他支持TRON账户的钱包中，",
+        "bind_exist_tron_addr_description_4":
+            "或已经将正在使用的TRON账户中的资产转移到您的其他TRON账户中。",
+        "bind_exist_tron_addr_description_5":
+            "绑定已有TRON账户之后得到的TRX奖励将发放至绑定后的TRON账户。",
+        "bind_exist_tron_addr_description_6": "是否确认绑定已有TRON账户？",
+        "enter_the_tron_account_addr_you_wish_to_link":
+            "输入要绑定的TRON账户地址",
+        "incorrect_account_format": "地址格式错误",
+        "sign_to_link": "签名并绑定",
+        "successfully_linked": "Successfully linked"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
