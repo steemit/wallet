@@ -10,6 +10,7 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
+import { Link } from 'react-router';
 import QRCode from 'react-qr';
 import tt from 'counterpart';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
@@ -297,6 +298,21 @@ class UserKeys extends Component {
                                                         'userwallet_jsx.create_trx_button'
                                                     )}
                                                 </button>
+                                                <Link
+                                                    className=""
+                                                    style={{
+                                                        border: 0,
+                                                        paddingLeft: '20px',
+                                                    }}
+                                                    onClick={
+                                                        this.props
+                                                            .showBindExistTronAddr
+                                                    }
+                                                >
+                                                    {tt(
+                                                        'userwallet_jsx.bind_exist_tron_addr'
+                                                    )}
+                                                </Link>
                                             </div>
                                         )}
                                 </div>
@@ -632,6 +648,10 @@ export default connect(
         showTronCreate: e => {
             if (e) e.preventDefault();
             dispatch(userActions.showTronCreate());
+        },
+        showBindExistTronAddr: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.showBindExistTronAddr());
         },
     })
 )(UserKeys);

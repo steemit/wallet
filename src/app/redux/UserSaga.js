@@ -66,6 +66,7 @@ export const userWatches = [
     }),
     takeLatest(userActions.HIDE_TRON_CREATE, updateTronPopupTipCount),
     takeLatest(userActions.CLAIM_PENDING_TRX, claimPendingTrx),
+    takeLatest(userActions.LOAD_TRON_INFO_AGAIN, loadTronInfo),
     function* getLatestFeedPrice() {
         try {
             const history = yield call([api, api.getFeedHistoryAsync]);
@@ -850,4 +851,8 @@ function* claimPendingTrx({ payload: { username } }) {
         });
         yield put(globalActions.receiveState(state));
     }
+}
+
+function* loadTronInfo({ payload: { username } }) {
+    yield call(getAccount, username, true);
 }
