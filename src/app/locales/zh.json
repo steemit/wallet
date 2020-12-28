@@ -823,7 +823,7 @@
             "输入要绑定的TRON账户地址",
         "incorrect_account_format": "地址格式错误",
         "sign_to_link": "签名并绑定",
-        "successfully_linked": "Successfully linked"
+        "successfully_linked": "绑定成功"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
