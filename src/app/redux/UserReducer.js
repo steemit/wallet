@@ -57,6 +57,7 @@ export const CHECK_TRON = 'user/CHECK_TRON';
 export const UPDATE_TRON_ADDR = 'user/UPDATE_TRON_ADDR';
 export const RESET_ERROR = 'user/RESET_ERROR';
 export const CLAIM_PENDING_TRX = 'user/CLAIM_PENDING_TRX';
+export const LOAD_TRON_INFO_AGAIN = 'user/LOAD_TRON_INFO_AGAIN';
 
 const defaultState = fromJS({
     current: null,
@@ -307,6 +308,8 @@ export default function reducer(state = defaultState, action) {
             return state.set('show_bind_exist_tron_addr_modal', true);
         case HIDE_BIND_EXIST_TRON_ADDR:
             return state.set('show_bind_exist_tron_addr_modal', false);
+        case LOAD_TRON_INFO_AGAIN:
+            return state; // saga
         default:
             return state;
     }
@@ -558,5 +561,10 @@ export const showBindExistTronAddr = payload => ({
 
 export const hideBindExistTronAddr = payload => ({
     type: HIDE_BIND_EXIST_TRON_ADDR,
+    payload,
+});
+
+export const loadTronInfoAgain = payload => ({
+    type: LOAD_TRON_INFO_AGAIN,
     payload,
 });

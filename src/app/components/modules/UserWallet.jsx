@@ -1064,6 +1064,28 @@ class UserWallet extends React.Component {
                                         </button>
                                     )}
                             </div>
+                            <div
+                                className="columns shrink"
+                                style={{
+                                    paddingRight: '0',
+                                    marginBottom: '10px',
+                                }}
+                            >
+                                {hasTronAddr &&
+                                    isMyAccount && (
+                                        <Link
+                                            className="UserWallet__tron"
+                                            style={{ border: 0 }}
+                                            onClick={
+                                                this.props.showBindExistTronAddr
+                                            }
+                                        >
+                                            {tt(
+                                                'userwallet_jsx.bind_exist_tron_addr'
+                                            )}
+                                        </Link>
+                                    )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1236,6 +1258,10 @@ export default connect(
         showTronCreate: e => {
             if (e) e.preventDefault();
             dispatch(userActions.showTronCreate());
+        },
+        showBindExistTronAddr: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.showBindExistTronAddr());
         },
         notify: message => {
             dispatch(
