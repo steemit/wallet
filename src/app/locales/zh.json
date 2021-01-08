@@ -868,6 +868,8 @@
             "更新TRON账户之后得到的TRX奖励将发放至更新后的TRON账户。",
         "update_tron_content5":
             "是否同意更新TRON账户并下载带有更新后TRON账户公私钥的PDF？",
+        "update_tron_content6":
+            "此操作需要使用您的活跃密钥或拥有者密钥或主密码登陆。",
         "update_button": "更新并下载",
         "update_success": "更新成功",
         "update_success_content": "已经成功更新TRON账户。",
@@ -898,6 +900,8 @@
         "transaction_send_success": "转账请求发送成功"
     },
     "tron_err_msg": {
-        "data_is_invalid": "数据异常.请确认你使用的私钥是正确的。"
+        "data_is_invalid": "数据异常.请确认你使用的私钥是正确的。",
+        "need_active_or_owner_key":
+            "需要 active key 或者 owner key 或者 Master password。"
     }
 }
