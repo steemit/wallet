@@ -347,6 +347,12 @@ export default function useTronRewardApi(app) {
                     willInsertData[field] = data.will_update_data[field];
                 }
             });
+            if (willInsertData.tron_addr) {
+                willInsertData.tron_addr_create_count = 1;
+                willInsertData.tron_addr_create_time = Moment().format(
+                    'YYYY-MM-DD HH:mm:ss'
+                );
+            }
             result = yield insertUserData(willInsertData);
         } else if (data.method === 'update') {
             result = yield updateUserData(data.username, data.will_update_data);
