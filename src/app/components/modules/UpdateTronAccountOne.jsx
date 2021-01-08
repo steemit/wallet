@@ -62,6 +62,7 @@ class UpdateTronAccountOne extends Component {
                         </p>
                         <p> {tt('tron_jsx.update_tron_content3')} </p>
                         <p> {tt('tron_jsx.update_tron_content4')} </p>
+                        <p> {tt('tron_jsx.update_tron_content6')} </p>
                         <p> {tt('tron_jsx.update_tron_content5')} </p>
                     </div>
                 </div>
