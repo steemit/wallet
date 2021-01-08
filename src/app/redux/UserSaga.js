@@ -706,7 +706,7 @@ function* updateTronPopupTipCount() {
     if (private_keys.has('owner_private')) privateKeyType = 'owner_private';
     if (private_keys.has('memo_private')) privateKeyType = 'memo_private';
     if (privateKeyType === null) {
-        console.log('there is no private key in browser cache.');
+        console.error('there is no private key in browser cache.');
         return;
     }
 
@@ -756,8 +756,6 @@ function* updateTronAddr() {
     let privateKeyType = null;
     if (private_keys && private_keys.has('active_private'))
         privateKeyType = 'active_private';
-    if (private_keys && private_keys.has('posting_private'))
-        privateKeyType = 'posting_private';
     if (privateKeyType === null) {
         console.error('there is no private key in browser cache.');
         yield put(
@@ -790,7 +788,7 @@ function* updateTronAddr() {
     // update steem user's tron_addr
     const data = {
         username,
-        auth_type: privateKeyType === 'active_private' ? 'active' : 'posting',
+        auth_type: privateKeyType === 'active_private' ? 'active' : '',
         tron_addr: tronPubKey,
     };
     const result = yield updateTronUser(

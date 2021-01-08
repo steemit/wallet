@@ -149,6 +149,18 @@ export default function useTronRewardApi(app) {
         // get public key
         const authType =
             data.auth_type !== undefined ? data.auth_type : 'posting';
+        if (data.tron_addr) {
+            if (['active', 'owner'].indexOf(authType) === -1) {
+                this.body = JSON.stringify({
+                    error: 'need_active_or_owner_key',
+                });
+                log('[timer] post /tron_user all', {
+                    t: process.uptime() * 1000 - t1,
+                });
+                return;
+            }
+        }
+
         let pubKeys = [];
         try {
             pubKeys = yield getUserPublicKey(data.username, authType);

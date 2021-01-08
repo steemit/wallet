@@ -52,6 +52,7 @@ class TronCreateOne extends Component {
                 <div style={styles.container}>
                     <p> {tt('tron_jsx.create_tron_account_content')} </p>
                     <p> {tt('tron_jsx.create_tron_account_content1')} </p>
+                    <p> {tt('tron_jsx.update_tron_content6')} </p>
                     <p> {tt('tron_jsx.create_tron_account_content2')} </p>
                 </div>
                 <div style={styles.flowBelow}>
