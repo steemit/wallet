@@ -150,7 +150,22 @@ export default function useTronRewardApi(app) {
         const authType =
             data.auth_type !== undefined ? data.auth_type : 'posting';
         if (data.tron_addr) {
-            if (['active', 'owner'].indexOf(authType) === -1) {
+            if (data.from === 'condenser') {
+                const conditions = { username: data.username };
+                const tronUser = yield getRecordCache2(
+                    models.TronUser,
+                    models.escAttrs(conditions)
+                );
+                if (tronUser != null && tronUser.tron_addr != '') {
+                    this.body = JSON.stringify({
+                        error: 'need_active_or_owner_key',
+                    });
+                    log('[timer] post /tron_user all', {
+                        t: process.uptime() * 1000 - t1,
+                    });
+                    return;
+                }
+            } else if (['active', 'owner'].indexOf(authType) === -1) {
                 this.body = JSON.stringify({
                     error: 'need_active_or_owner_key',
                 });
