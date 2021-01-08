@@ -137,6 +137,7 @@ class BindExistTronAddr extends Component {
                                         'userwallet_jsx.bind_exist_tron_addr_description_5'
                                     )}
                                 </p>
+                                <p> {tt('tron_jsx.update_tron_content6')} </p>
                                 <p>
                                     {tt(
                                         'userwallet_jsx.bind_exist_tron_addr_description_6'

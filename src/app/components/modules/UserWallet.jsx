@@ -1035,6 +1035,10 @@ class UserWallet extends React.Component {
                                     !tronAddr && (
                                         <button
                                             className="UserWallet__tron button buttonSmall hollow"
+                                            style={{
+                                                marginTop: 0,
+                                                width: '50%',
+                                            }}
                                             onClick={onCreateTronAccount.bind(
                                                 this
                                             )}
@@ -1054,6 +1058,10 @@ class UserWallet extends React.Component {
                                     tronAddr && (
                                         <button
                                             className="UserWallet__tron button buttonSmall hollow"
+                                            style={{
+                                                marginTop: 0,
+                                                width: '50%',
+                                            }}
                                             onClick={onUpdateTronAccount.bind(
                                                 this
                                             )}
@@ -1073,9 +1081,12 @@ class UserWallet extends React.Component {
                             >
                                 {hasTronAddr &&
                                     isMyAccount && (
-                                        <Link
-                                            className="UserWallet__tron"
-                                            style={{ border: 0 }}
+                                        <button
+                                            className="UserWallet__tron button buttonSmall hollow"
+                                            style={{
+                                                marginTop: 0,
+                                                width: '50%',
+                                            }}
                                             onClick={
                                                 this.props.showBindExistTronAddr
                                             }
@@ -1083,7 +1094,7 @@ class UserWallet extends React.Component {
                                             {tt(
                                                 'userwallet_jsx.bind_exist_tron_addr'
                                             )}
-                                        </Link>
+                                        </button>
                                     )}
                             </div>
                         </div>
