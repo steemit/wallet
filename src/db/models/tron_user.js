@@ -31,6 +31,11 @@ module.exports = (sequelize, DataTypes) => {
                 defaultValue: 0,
                 type: DataTypes.BOOLEAN,
             },
+            tron_addr_create_time: {
+                allowNull: true,
+                defaultValue: null,
+                type: DataTypes.DATE,
+            },
             is_tron_addr_actived: {
                 allowNull: false,
                 defaultValue: 0,
@@ -42,6 +47,11 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.DATE,
             },
             tip_count: {
+                allowNull: false,
+                defaultValue: 0,
+                type: DataTypes.INTEGER.UNSIGNED,
+            },
+            tron_addr_create_count: {
                 allowNull: false,
                 defaultValue: 0,
                 type: DataTypes.INTEGER.UNSIGNED,
