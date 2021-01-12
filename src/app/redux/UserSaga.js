@@ -707,6 +707,12 @@ function* updateTronPopupTipCount() {
     if (private_keys.has('memo_private')) privateKeyType = 'memo_private';
     if (privateKeyType === null) {
         console.error('there is no private key in browser cache.');
+        yield put(
+            appActions.setTronErrMsg(
+                tt('tron_err_msg.need_active_or_owner_key')
+            )
+        );
+        yield put(appActions.modalLoadingEnd());
         return;
     }
 
@@ -758,9 +764,14 @@ function* updateTronAddr() {
         privateKeyType = 'active_private';
     if (privateKeyType === null) {
         console.error('there is no private key in browser cache.');
+        // yield put(
+        //     appActions.setTronErrMsg(
+        //         tt('loginform_jsx.there_is_no_private_key_in_browser_cache')
+        //     )
+        // );
         yield put(
             appActions.setTronErrMsg(
-                tt('loginform_jsx.there_is_no_private_key_in_browser_cache')
+                tt('tron_err_msg.need_active_or_owner_key')
             )
         );
         yield put(appActions.modalLoadingEnd());

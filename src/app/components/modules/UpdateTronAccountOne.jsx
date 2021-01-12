@@ -80,6 +80,16 @@ class UpdateTronAccountOne extends Component {
                             <LoadingIndicator type="circle" />
                         </span>
                     )}
+                    {this.props.tronErrMsg && (
+                        <span
+                            style={{
+                                display: 'block',
+                                color: 'red',
+                            }}
+                        >
+                            {this.props.tronErrMsg}
+                        </span>
+                    )}
                 </div>
             </div>
         );
@@ -94,10 +104,14 @@ export default connect(
             currentUser && currentUser.has('tron_private_key')
                 ? currentUser.get('tron_private_key')
                 : '';
+        const tronErrMsg = state.app.has('tronErrMsg')
+            ? state.app.get('tronErrMsg')
+            : null;
         return {
             ...ownProps,
             loading: state.app.get('modalLoading'),
             tronPrivateKey,
+            tronErrMsg,
         };
     },
     dispatch => ({
