@@ -3,9 +3,6 @@ import { api } from '@steemit/steem-js';
 import { PrivateKey as SteemPrivateKey } from '@steemit/steem-js/lib/auth/ecc';
 import { updateTronUser } from 'app/utils/ServerApiClient';
 import TronWeb from 'tronweb';
-import { api } from '@steemit/steem-js';
-import { PrivateKey as SteemPrivateKey } from '@steemit/steem-js/lib/auth/ecc';
-import { updateTronUser } from 'app/utils/ServerApiClient';
 
 export async function createTronAccount() {
     const apiTronHost = global.$STM_Config
