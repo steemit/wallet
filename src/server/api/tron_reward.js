@@ -1,24 +1,24 @@
 /* eslint-disable arrow-parens */
 /* eslint-disable require-yield */
 /* eslint-disable no-unused-vars */
-import koa_router from 'koa-router';
-import koa_body from 'koa-body';
-import models from 'db/models';
+import { authData } from '@steemfans/auth-data';
 import steem from '@steemit/steem-js';
+import config from 'config';
 import {
+    clearRecordCache2,
     getRecordCache2,
     updateRecordCache2,
-    clearRecordCache2,
 } from 'db/cache';
-import config from 'config';
-import { logRequest, log } from 'server/utils/loggers';
-import { getRemoteIp, rateLimitReq } from 'server/utils/misc';
-import { authData } from '@steemfans/auth-data';
+import models from 'db/models';
 import {
     clearPendingClaimTronReward,
     insertUserData,
     updateUserData,
 } from 'db/utils/user_utils';
+import koa_body from 'koa-body';
+import koa_router from 'koa-router';
+import Moment from 'moment';
+import { log, logRequest } from 'server/utils/loggers';
 
 export default function useTronRewardApi(app) {
     const router = koa_router({ prefix: '/api/v1/tron' });
@@ -257,6 +257,16 @@ export default function useTronRewardApi(app) {
             // update avtive field
             updateData.is_tron_addr_actived = 0;
             updateData.tron_addr_active_time = null;
+            if (updateData.tron_addr && !data.is_bind_exist_addr) {
+                // except bind addr
+                updateData.tron_addr_create_count =
+                    tronUser.tron_addr_create_count + 1;
+                if (!tronUser.tron_addr_create_time) {
+                    updateData.tron_addr_create_time = Moment().format(
+                        'YYYY-MM-DD HH:mm:ss'
+                    );
+                }
+            }
             // update db
             yield models.TronUser.update(updateData, {
                 where: models.escAttrs(conditions),
@@ -356,6 +366,7 @@ export default function useTronRewardApi(app) {
                 pending_claim_tron_reward: 0,
                 is_tron_addr_actived: 0,
                 tip_count: 0,
+                tron_addr_create_count: 0,
             };
             Object.keys(allNotNullFields).forEach(field => {
                 if (Object.keys(data.will_update_data).indexOf(field) === -1) {
@@ -364,6 +375,12 @@ export default function useTronRewardApi(app) {
                     willInsertData[field] = data.will_update_data[field];
                 }
             });
+            if (willInsertData.tron_addr) {
+                willInsertData.tron_addr_create_count = 1;
+                willInsertData.tron_addr_create_time = Moment().format(
+                    'YYYY-MM-DD HH:mm:ss'
+                );
+            }
             result = yield insertUserData(willInsertData);
         } else if (data.method === 'update') {
             result = yield updateUserData(data.username, data.will_update_data);
