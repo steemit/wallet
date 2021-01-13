@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
-import { api } from '@steemit/steem-js';
 import { signData } from '@steemfans/auth-data';
+import { api } from '@steemit/steem-js';
 
 const request_base = {
     method: 'post',
@@ -123,6 +123,7 @@ export function checkTronUser(data, type = 'steem') {
  *      username (required)
  *      auth_type
  *      tron_addr
+ *      is_bind_exist_addr
  *      tip_count
  * }
  * privKey required

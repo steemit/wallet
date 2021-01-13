@@ -1,8 +1,8 @@
 /* eslint-disable import/prefer-default-export */
-import TronWeb from 'tronweb';
 import { api } from '@steemit/steem-js';
 import { PrivateKey as SteemPrivateKey } from '@steemit/steem-js/lib/auth/ecc';
 import { updateTronUser } from 'app/utils/ServerApiClient';
+import TronWeb from 'tronweb';
 
 export async function createTronAccount() {
     const apiTronHost = global.$STM_Config
@@ -108,6 +108,7 @@ export async function updateCustomTronAddr(username, password, tronAddr) {
         username,
         auth_type: authType,
         tron_addr: tronAddr,
+        is_bind_exist_addr: true,
     };
     const result = await updateTronUser(data, privateKey.toWif());
     // console.log('debug:send:', data, result);

@@ -257,7 +257,8 @@ export default function useTronRewardApi(app) {
             // update avtive field
             updateData.is_tron_addr_actived = 0;
             updateData.tron_addr_active_time = null;
-            if (updateData.tron_addr) {
+            if (updateData.tron_addr && !data.is_bind_exist_addr) {
+                // except bind addr
                 updateData.tron_addr_create_count =
                     tronUser.tron_addr_create_count + 1;
                 if (!tronUser.tron_addr_create_time) {
