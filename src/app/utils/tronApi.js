@@ -69,13 +69,14 @@ export async function updateCustomTronAddr(username, password, tronAddr) {
             err: 'g.username_does_not_exist',
         };
     }
-    // get owner and active publi keys
+    // get memo, posting, owner and active public keys
     const pubKeys = {};
-    ['owner', 'active'].forEach(authType =>
+    ['posting', 'owner', 'active'].forEach(authType =>
         users[0][authType].key_auths.forEach(
             (v, i) => (pubKeys[users[0][authType].key_auths[i][0]] = authType)
         )
     );
+    pubKeys[users[0]['memo_key']] = 'memo';
     // console.log('debug:pubKeys:', pubKeys);
 
     // parse password
@@ -91,7 +92,7 @@ export async function updateCustomTronAddr(username, password, tronAddr) {
     publicKey = privateKey.toPublicKey().toString();
     // console.log('debug:pub/priv:', privateKey, publicKey);
 
-    // get authType
+    // check password
     const inx = Object.keys(pubKeys).indexOf(publicKey);
     // console.log('debug:inx:', inx, Object.keys(pubKeys));
     if (inx === -1) {
@@ -101,6 +102,12 @@ export async function updateCustomTronAddr(username, password, tronAddr) {
         };
     }
     const authType = pubKeys[Object.keys(pubKeys)[inx]];
+    if (['owner', 'active'].indexOf(authType) === -1) {
+        return {
+            status: false,
+            err: 'tron_err_msg.need_active_or_owner_key',
+        };
+    }
     // console.log('debug:authType:', authType);
 
     // update steem user's tron_addr
