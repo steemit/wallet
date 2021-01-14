@@ -43,6 +43,11 @@ class UpdateTronAccountOne extends Component {
         }
     }
 
+    componentWillUnmount() {
+        const { setTronErrMsg } = this.props;
+        setTronErrMsg(null);
+    }
+
     render() {
         return (
             <div>
@@ -129,6 +134,9 @@ export default connect(
         },
         endLoading: () => {
             dispatch(appActions.modalLoadingEnd());
+        },
+        setTronErrMsg: msg => {
+            dispatch(appActions.setTronErrMsg(msg));
         },
     })
 )(UpdateTronAccountOne);

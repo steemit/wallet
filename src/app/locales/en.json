@@ -1090,7 +1090,7 @@
         "update_tron_content5":
             "Do you agree to update your TRON account and download the PDF containing the public and private keys of the updated TRON account？",
         "update_tron_content6":
-            "This operation requires  logging in with your Active or Owner key or Master password.",
+            "This operation requires logging in with your Active or Owner key or Master password.",
         "update_button": "Update and download",
         "update_success": "Updated successfully",
         "update_success_content": "Your TRON account has been updated.",
@@ -1127,6 +1127,6 @@
         "data_is_invalid":
             "Data is invalid. Please check if you are using the correct private key.",
         "need_active_or_owner_key":
-            "Need Active or Owner key or Master password."
+            "This operation requires logging in with your Active or Owner key or Master password."
     }
 }

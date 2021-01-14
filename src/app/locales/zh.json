@@ -902,6 +902,6 @@
     "tron_err_msg": {
         "data_is_invalid": "数据异常.请确认你使用的私钥是正确的。",
         "need_active_or_owner_key":
-            "需要 active key 或者 owner key 或者 Master password。"
+            "此操作需要使用您的活跃密钥或拥有者密钥或主密码登陆。"
     }
 }

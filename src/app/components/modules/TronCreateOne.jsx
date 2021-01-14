@@ -43,6 +43,11 @@ class TronCreateOne extends Component {
         }
     }
 
+    componentWillUnmount() {
+        const { setTronErrMsg } = this.props;
+        setTronErrMsg(null);
+    }
+
     render() {
         return (
             <div>
