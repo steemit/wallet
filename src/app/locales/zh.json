@@ -856,7 +856,7 @@
         "vote_button": "去投票",
         "step": "步骤",
         "tron_tx_history": "TRON账号交易历史 >",
-        "update_tron_account": "更新TRON账户",
+        "update_tron_account": "变更TRON账户",
         "update_tron_content":
             "更新TRON账户前请确认以下信息，以避免不必要的经济损失。",
         "update_tron_content1": "已经安全保存了此TRON账户的私钥，",
@@ -870,7 +870,7 @@
             "是否同意更新TRON账户并下载带有更新后TRON账户公私钥的PDF？",
         "update_tron_content6":
             "此操作需要使用您的活跃密钥或拥有者密钥或主密码登陆。",
-        "update_button": "更新并下载",
+        "update_button": "变更并下载",
         "update_success": "更新成功",
         "update_success_content": "已经成功更新TRON账户。",
         "update_success_content3": "若下载失败，",

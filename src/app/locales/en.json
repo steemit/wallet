@@ -1076,7 +1076,7 @@
         "vote_button": "Vote Now",
         "step": "Steps",
         "tron_tx_history": "TRON account transaction history >",
-        "update_tron_account": "Update the TRON account",
+        "update_tron_account": "Create new TRON account",
         "update_tron_content":
             "Please confirm the information below before updating your TRON account to avoid unnecessary asset loss.",
         "update_tron_content1":
@@ -1091,7 +1091,7 @@
             "Do you agree to update your TRON account and download the PDF containing the public and private keys of the updated TRON account？",
         "update_tron_content6":
             "This operation requires logging in with your Active or Owner key or Master password.",
-        "update_button": "Update and download",
+        "update_button": "create and download",
         "update_success": "Updated successfully",
         "update_success_content": "Your TRON account has been updated.",
         "update_success_content3": "If the file wasn't downloaded,",
