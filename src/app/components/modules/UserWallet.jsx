@@ -738,7 +738,7 @@ class UserWallet extends React.Component {
                             {isMyAccount && (
                                 <button
                                     className="UserWallet__buysp button hollow"
-                                    onClick={this.onShowDepositSteem}
+                                    onClick={this.onShowSteemTrade}
                                 >
                                     {tt(
                                         'userwallet_jsx.buy_steem_or_steem_power'
