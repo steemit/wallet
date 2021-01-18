@@ -296,7 +296,8 @@ class UserKeys extends Component {
                                                     <button
                                                         className="UserWallet__tron button hollow"
                                                         style={{
-                                                            width: '50%',
+                                                            width: '70%',
+                                                            height: 'auto',
                                                         }}
                                                         onClick={
                                                             this
@@ -317,7 +318,8 @@ class UserKeys extends Component {
                                                     <button
                                                         className="UserWallet__tron button hollow"
                                                         style={{
-                                                            width: '50%',
+                                                            width: '70%',
+                                                            height: 'auto',
                                                         }}
                                                         onClick={
                                                             this.props
