@@ -18,6 +18,11 @@ const styles = {
         flexDirection: 'row',
         alignItems: 'center',
     },
+    flow: {
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
 };
 
 class TronCreateOne extends Component {
@@ -74,7 +79,9 @@ class TronCreateOne extends Component {
                             <LoadingIndicator type="circle" />
                         </span>
                     )}
-                    {this.props.tronErrMsg && (
+                </div>
+                {this.props.tronErrMsg && (
+                    <div style={styles.flow}>
                         <span
                             style={{
                                 display: 'block',
@@ -83,8 +90,8 @@ class TronCreateOne extends Component {
                         >
                             {this.props.tronErrMsg}
                         </span>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         );
     }
