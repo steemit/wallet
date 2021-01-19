@@ -66,6 +66,7 @@ export const userWatches = [
     }),
     takeLatest(userActions.HIDE_TRON_CREATE, updateTronPopupTipCount),
     takeLatest(userActions.CLAIM_PENDING_TRX, claimPendingTrx),
+    takeLatest(userActions.LOAD_TRON_INFO_AGAIN, loadTronInfo),
     function* getLatestFeedPrice() {
         try {
             const history = yield call([api, api.getFeedHistoryAsync]);
@@ -376,8 +377,8 @@ function* usernamePasswordLogin({
             yield put(
                 userActions.setUser({
                     username,
-                    private_keys, // TODO: this is a temp way ,by: ety001
-                    login_owner_pubkey, // TODO: this is a temp way ,by: ety001
+                    private_keys, // TODO: this is a temp way. this will diable the savelogin. by: ety001
+                    login_owner_pubkey, // TODO: this is a temp way. this will diable the savelogin. by: ety001
                     vesting_shares: account.get('vesting_shares'),
                     received_vesting_shares: account.get(
                         'received_vesting_shares'
@@ -705,7 +706,13 @@ function* updateTronPopupTipCount() {
     if (private_keys.has('owner_private')) privateKeyType = 'owner_private';
     if (private_keys.has('memo_private')) privateKeyType = 'memo_private';
     if (privateKeyType === null) {
-        console.log('there is no private key in browser cache.');
+        console.error('there is no private key in browser cache.');
+        yield put(
+            appActions.setTronErrMsg(
+                tt('tron_err_msg.need_active_or_owner_key')
+            )
+        );
+        yield put(appActions.modalLoadingEnd());
         return;
     }
 
@@ -755,13 +762,18 @@ function* updateTronAddr() {
     let privateKeyType = null;
     if (private_keys && private_keys.has('active_private'))
         privateKeyType = 'active_private';
-    if (private_keys && private_keys.has('posting_private'))
-        privateKeyType = 'posting_private';
+    if (private_keys && private_keys.has('owner_private'))
+        privateKeyType = 'owner_private';
     if (privateKeyType === null) {
         console.error('there is no private key in browser cache.');
+        // yield put(
+        //     appActions.setTronErrMsg(
+        //         tt('loginform_jsx.there_is_no_private_key_in_browser_cache')
+        //     )
+        // );
         yield put(
             appActions.setTronErrMsg(
-                tt('loginform_jsx.there_is_no_private_key_in_browser_cache')
+                tt('tron_err_msg.need_active_or_owner_key')
             )
         );
         yield put(appActions.modalLoadingEnd());
@@ -783,13 +795,30 @@ function* updateTronAddr() {
         return;
     }
 
+    let authType;
+    switch (privateKeyType) {
+        case 'active_private':
+            authType = 'active';
+            break;
+        case 'owner_private':
+            authType = 'owner';
+            break;
+        default:
+            yield put(
+                appActions.setTronErrMsg(
+                    tt('tron_err_msg.need_active_or_owner_key')
+                )
+            );
+            return;
+    }
+
     const tronPrivKey = tronAccount.privateKey;
     const tronPubKey = tronAccount.address.base58;
 
     // update steem user's tron_addr
     const data = {
         username,
-        auth_type: privateKeyType === 'active_private' ? 'active' : 'posting',
+        auth_type: authType,
         tron_addr: tronPubKey,
     };
     const result = yield updateTronUser(
@@ -850,4 +879,8 @@ function* claimPendingTrx({ payload: { username } }) {
         });
         yield put(globalActions.receiveState(state));
     }
+}
+
+function* loadTronInfo({ payload: { username } }) {
+    yield call(getAccount, username, true);
 }

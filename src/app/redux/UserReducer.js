@@ -48,6 +48,8 @@ const SHOW_TRON_CREATE_SUCCESS = 'user/SHOW_TRON_CREATE_SUCCESS';
 const HIDE_TRON_CREATE_SUCCESS = 'user/HIDE_TRON_CREATE_SUCCESS';
 const SET_TRON_ACCOUNT_CHECK_ERROR = 'user/SET_TRON_ACCOUNT_CHECK_ERROR';
 const SET_TO_TRON_ADDR = 'user/SET_TO_TRON_ADDR';
+const SHOW_BIND_EXIST_TRON_ADDR = 'user/SHOW_BIND_EXIST_TRON_ADDR';
+const HIDE_BIND_EXIST_TRON_ADDR = 'user/HIDE_BIND_EXIST_TRON_ADDR';
 // Saga-related
 export const LOAD_SAVINGS_WITHDRAW = 'user/LOAD_SAVINGS_WITHDRAW';
 export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
@@ -55,6 +57,7 @@ export const CHECK_TRON = 'user/CHECK_TRON';
 export const UPDATE_TRON_ADDR = 'user/UPDATE_TRON_ADDR';
 export const RESET_ERROR = 'user/RESET_ERROR';
 export const CLAIM_PENDING_TRX = 'user/CLAIM_PENDING_TRX';
+export const LOAD_TRON_INFO_AGAIN = 'user/LOAD_TRON_INFO_AGAIN';
 
 const defaultState = fromJS({
     current: null,
@@ -74,6 +77,7 @@ const defaultState = fromJS({
     tron_account_check_error: null,
     to_tron_addr: null,
     tron_balance: 0,
+    show_bind_exist_tron_addr_modal: false,
 });
 
 export default function reducer(state = defaultState, action) {
@@ -299,6 +303,12 @@ export default function reducer(state = defaultState, action) {
         case SET_TO_TRON_ADDR:
             return state.set('to_tron_addr', payload ? payload : null);
         case CLAIM_PENDING_TRX:
+            return state; // saga
+        case SHOW_BIND_EXIST_TRON_ADDR:
+            return state.set('show_bind_exist_tron_addr_modal', true);
+        case HIDE_BIND_EXIST_TRON_ADDR:
+            return state.set('show_bind_exist_tron_addr_modal', false);
+        case LOAD_TRON_INFO_AGAIN:
             return state; // saga
         default:
             return state;
@@ -541,5 +551,20 @@ export const setToTronAddr = payload => ({
 
 export const claimPendingTrx = payload => ({
     type: CLAIM_PENDING_TRX,
+    payload,
+});
+
+export const showBindExistTronAddr = payload => ({
+    type: SHOW_BIND_EXIST_TRON_ADDR,
+    payload,
+});
+
+export const hideBindExistTronAddr = payload => ({
+    type: HIDE_BIND_EXIST_TRON_ADDR,
+    payload,
+});
+
+export const loadTronInfoAgain = payload => ({
+    type: LOAD_TRON_INFO_AGAIN,
     payload,
 });

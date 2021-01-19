@@ -149,6 +149,33 @@ export default function useTronRewardApi(app) {
         // get public key
         const authType =
             data.auth_type !== undefined ? data.auth_type : 'posting';
+        if (data.tron_addr) {
+            if (data.from === 'condenser') {
+                const conditions = { username: data.username };
+                const tronUser = yield getRecordCache2(
+                    models.TronUser,
+                    models.escAttrs(conditions)
+                );
+                if (tronUser != null && tronUser.tron_addr != '') {
+                    this.body = JSON.stringify({
+                        error: 'need_active_or_owner_key',
+                    });
+                    log('[timer] post /tron_user all', {
+                        t: process.uptime() * 1000 - t1,
+                    });
+                    return;
+                }
+            } else if (['active', 'owner'].indexOf(authType) === -1) {
+                this.body = JSON.stringify({
+                    error: 'need_active_or_owner_key',
+                });
+                log('[timer] post /tron_user all', {
+                    t: process.uptime() * 1000 - t1,
+                });
+                return;
+            }
+        }
+
         let pubKeys = [];
         try {
             pubKeys = yield getUserPublicKey(data.username, authType);
@@ -230,7 +257,8 @@ export default function useTronRewardApi(app) {
             // update avtive field
             updateData.is_tron_addr_actived = 0;
             updateData.tron_addr_active_time = null;
-            if (updateData.tron_addr) {
+            if (updateData.tron_addr && !data.is_bind_exist_addr) {
+                // except bind addr
                 updateData.tron_addr_create_count =
                     tronUser.tron_addr_create_count + 1;
                 if (!tronUser.tron_addr_create_time) {

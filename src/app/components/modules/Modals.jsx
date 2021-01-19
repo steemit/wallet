@@ -24,6 +24,7 @@ import UpdateTronAccountOne from 'app/components/modules/UpdateTronAccountOne';
 import UpdateTronAccountTwo from 'app/components/modules/UpdateTronAccountTwo';
 import TronCreateOne from 'app/components/modules/TronCreateOne';
 import TronCreateTwo from 'app/components/modules/TronCreateTwo';
+import BindExistTronAddr from 'app/components/modules/BindExistTronAddr';
 
 class Modals extends React.Component {
     static defaultProps = {
@@ -44,6 +45,7 @@ class Modals extends React.Component {
         show_tron_update_success_modal: false,
         show_tron_create_modal: false,
         show_tron_create_success_modal: false,
+        show_bind_exist_tron_addr_modal: false,
         loading: false,
     };
     static propTypes = {
@@ -76,6 +78,7 @@ class Modals extends React.Component {
         notifications: PropTypes.object,
         show_terms_modal: PropTypes.bool,
         removeNotification: PropTypes.func,
+        show_bind_exist_tron_addr_modal: PropTypes.bool,
         loading: PropTypes.bool,
     };
 
@@ -147,6 +150,8 @@ class Modals extends React.Component {
             hideTronCreate,
             hideTronCreateSuccess,
             loading,
+            show_bind_exist_tron_addr_modal,
+            hideBindExistTronAddr,
         } = this.props;
 
         const notifications_array = notifications
@@ -224,6 +229,15 @@ class Modals extends React.Component {
                     <Reveal onHide={hideTransfer} show={show_transfer_modal}>
                         <CloseButton onClick={hideTransfer} />
                         <Transfer />
+                    </Reveal>
+                )}
+                {show_bind_exist_tron_addr_modal && (
+                    <Reveal
+                        onHide={hideBindExistTronAddr}
+                        show={show_bind_exist_tron_addr_modal}
+                    >
+                        <CloseButton onClick={hideBindExistTronAddr} />
+                        <BindExistTronAddr />
                     </Reveal>
                 )}
                 {show_tron_transfer_modal && (
@@ -332,6 +346,9 @@ export default connect(
             show_post_advanced_settings_modal: state.user.get(
                 'show_post_advanced_settings_modal'
             ),
+            show_bind_exist_tron_addr_modal: state.user.get(
+                'show_bind_exist_tron_addr_modal'
+            ),
             loading: state.app.get('modalLoading'),
         };
     },
@@ -366,6 +383,9 @@ export default connect(
         },
         hideTronTransfer: () => {
             dispatch(userActions.hideTronTransfer());
+        },
+        hideBindExistTronAddr: () => {
+            dispatch(userActions.hideBindExistTronAddr());
         },
         hidePowerdown: e => {
             if (e) e.preventDefault();

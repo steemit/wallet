@@ -18,6 +18,11 @@ const styles = {
         flexDirection: 'row',
         alignItems: 'center',
     },
+    flow: {
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
 };
 // todo: refactor with tronCreateOne
 class UpdateTronAccountOne extends Component {
@@ -43,6 +48,11 @@ class UpdateTronAccountOne extends Component {
         }
     }
 
+    componentWillUnmount() {
+        const { setTronErrMsg } = this.props;
+        setTronErrMsg(null);
+    }
+
     render() {
         return (
             <div>
@@ -62,6 +72,7 @@ class UpdateTronAccountOne extends Component {
                         </p>
                         <p> {tt('tron_jsx.update_tron_content3')} </p>
                         <p> {tt('tron_jsx.update_tron_content4')} </p>
+                        <p> {tt('tron_jsx.update_tron_content6')} </p>
                         <p> {tt('tron_jsx.update_tron_content5')} </p>
                     </div>
                 </div>
@@ -80,6 +91,18 @@ class UpdateTronAccountOne extends Component {
                         </span>
                     )}
                 </div>
+                {this.props.tronErrMsg && (
+                    <div style={styles.flow}>
+                        <span
+                            style={{
+                                display: 'block',
+                                color: 'red',
+                            }}
+                        >
+                            {this.props.tronErrMsg}
+                        </span>
+                    </div>
+                )}
             </div>
         );
     }
@@ -93,10 +116,14 @@ export default connect(
             currentUser && currentUser.has('tron_private_key')
                 ? currentUser.get('tron_private_key')
                 : '';
+        const tronErrMsg = state.app.has('tronErrMsg')
+            ? state.app.get('tronErrMsg')
+            : null;
         return {
             ...ownProps,
             loading: state.app.get('modalLoading'),
             tronPrivateKey,
+            tronErrMsg,
         };
     },
     dispatch => ({
@@ -114,6 +141,9 @@ export default connect(
         },
         endLoading: () => {
             dispatch(appActions.modalLoadingEnd());
+        },
+        setTronErrMsg: msg => {
+            dispatch(appActions.setTronErrMsg(msg));
         },
     })
 )(UpdateTronAccountOne);

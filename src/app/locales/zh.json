@@ -475,7 +475,8 @@
                 "私钥对应您TRON账户的最高权限， 用于您在TRON的交易签名，例如代币转账，冻结代币和投票。",
             "address": "TRON账户地址",
             "tron_key": "TRON账户私钥",
-            "tron_key_tip": "请在带有TRON账户公私钥的PDF中查看。",
+            "tron_key_tip":
+                "请在带有TRON账户公私钥的PDF中查看。如果你正在使用的是已有TRON账户，请使用相应账户的私钥。",
             "tron_account_permissions": "TRON 私钥权限",
             "tron_account_permissions1": "您的 TRON 私钥可用于：",
             "tron_account_permissions2": "代币转账",
@@ -793,8 +794,8 @@
         "trx_description1":
             "TRX链接了整个TRON生态系统，可以在任何时候发送给任何地方。",
         "trx_description2": "通过冻结和投票参与TRON生态建设，获得可观收益。",
-        "trx_description3":
-            "TRX奖励根据你可以赎回的SP，按个数等比例发放。发放过程可能需要几分钟",
+        "trx_description3": "TRX奖励根据你可以赎回的SP，按个数等比例发放。",
+        "trx_description3_1": "发放过程可能需要几分钟。",
         "trx_description4": "建议",
         "trx_description5": "下载TronLink钱包",
         "trx_description6": "，导入你的TRON账户来管理TRX资产。",
@@ -805,7 +806,24 @@
         "create_trx_button": "创建TRON账户",
         "update_trx_button": "变更TRON账户",
         "just_mortgage": " 去JUST抵押",
-        "create_trx_failed": "创建波场账户失败!"
+        "create_trx_failed": "创建波场账户失败!",
+        "bind_exist_tron_addr": "绑定已有TRON账户",
+        "bind_exist_tron_addr_description_1":
+            "绑定已有TRON账户前请确认以下信息，以避免不必要的经济损失。",
+        "bind_exist_tron_addr_description_2":
+            "已经安全保存了正在使用的TRON账户的私钥，",
+        "bind_exist_tron_addr_description_3":
+            "或已经将正在使用的TRON账户导入至其他支持TRON账户的钱包中，",
+        "bind_exist_tron_addr_description_4":
+            "或已经将正在使用的TRON账户中的资产转移到您的其他TRON账户中。",
+        "bind_exist_tron_addr_description_5":
+            "绑定已有TRON账户之后得到的TRX奖励将发放至绑定后的TRON账户。",
+        "bind_exist_tron_addr_description_6": "是否确认绑定已有TRON账户？",
+        "enter_the_tron_account_addr_you_wish_to_link":
+            "输入要绑定的TRON账户地址",
+        "incorrect_account_format": "地址格式错误",
+        "sign_to_link": "签名并绑定",
+        "successfully_linked": "绑定成功"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
@@ -838,7 +856,7 @@
         "vote_button": "去投票",
         "step": "步骤",
         "tron_tx_history": "TRON账号交易历史 >",
-        "update_tron_account": "更新TRON账户",
+        "update_tron_account": "变更TRON账户",
         "update_tron_content":
             "更新TRON账户前请确认以下信息，以避免不必要的经济损失。",
         "update_tron_content1": "已经安全保存了此TRON账户的私钥，",
@@ -850,7 +868,9 @@
             "更新TRON账户之后得到的TRX奖励将发放至更新后的TRON账户。",
         "update_tron_content5":
             "是否同意更新TRON账户并下载带有更新后TRON账户公私钥的PDF？",
-        "update_button": "更新并下载",
+        "update_tron_content6":
+            "此操作需要使用您的活跃密钥或拥有者密钥或主密码登陆。",
+        "update_button": "变更并下载",
         "update_success": "更新成功",
         "update_success_content": "已经成功更新TRON账户。",
         "update_success_content3": "若下载失败，",
@@ -880,6 +900,8 @@
         "transaction_send_success": "转账请求发送成功"
     },
     "tron_err_msg": {
-        "data_is_invalid": "数据异常.请确认你使用的私钥是正确的。"
+        "data_is_invalid": "数据异常.请确认你使用的私钥是正确的。",
+        "need_active_or_owner_key":
+            "此操作需要使用您的活跃密钥或拥有者密钥或主密码登陆。"
     }
 }

@@ -18,6 +18,11 @@ const styles = {
         flexDirection: 'row',
         alignItems: 'center',
     },
+    flow: {
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
 };
 
 class TronCreateOne extends Component {
@@ -43,6 +48,11 @@ class TronCreateOne extends Component {
         }
     }
 
+    componentWillUnmount() {
+        const { setTronErrMsg } = this.props;
+        setTronErrMsg(null);
+    }
+
     render() {
         return (
             <div>
@@ -52,6 +62,7 @@ class TronCreateOne extends Component {
                 <div style={styles.container}>
                     <p> {tt('tron_jsx.create_tron_account_content')} </p>
                     <p> {tt('tron_jsx.create_tron_account_content1')} </p>
+                    <p> {tt('tron_jsx.update_tron_content6')} </p>
                     <p> {tt('tron_jsx.create_tron_account_content2')} </p>
                 </div>
                 <div style={styles.flowBelow}>
@@ -68,7 +79,9 @@ class TronCreateOne extends Component {
                             <LoadingIndicator type="circle" />
                         </span>
                     )}
-                    {this.props.tronErrMsg && (
+                </div>
+                {this.props.tronErrMsg && (
+                    <div style={styles.flow}>
                         <span
                             style={{
                                 display: 'block',
@@ -77,8 +90,8 @@ class TronCreateOne extends Component {
                         >
                             {this.props.tronErrMsg}
                         </span>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         );
     }

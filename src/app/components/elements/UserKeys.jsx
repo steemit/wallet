@@ -10,6 +10,7 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
+import { Link } from 'react-router';
 import QRCode from 'react-qr';
 import tt from 'counterpart';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
@@ -287,16 +288,49 @@ class UserKeys extends Component {
                                         hasTronAddr &&
                                         !tronAddr && (
                                             <div>
-                                                <button
-                                                    className="UserWallet__tron button hollow"
-                                                    onClick={
-                                                        this.onCreateTronAccount
-                                                    }
+                                                <div
+                                                    style={{
+                                                        width: '50%',
+                                                    }}
                                                 >
-                                                    {tt(
-                                                        'userwallet_jsx.create_trx_button'
-                                                    )}
-                                                </button>
+                                                    <button
+                                                        className="UserWallet__tron button hollow"
+                                                        style={{
+                                                            width: '70%',
+                                                            height: 'auto',
+                                                        }}
+                                                        onClick={
+                                                            this
+                                                                .onCreateTronAccount
+                                                        }
+                                                    >
+                                                        {tt(
+                                                            'userwallet_jsx.create_trx_button'
+                                                        )}
+                                                    </button>
+                                                </div>
+                                                <div
+                                                    style={{
+                                                        width: '50%',
+                                                        marginTop: '10px',
+                                                    }}
+                                                >
+                                                    <button
+                                                        className="UserWallet__tron button hollow"
+                                                        style={{
+                                                            width: '70%',
+                                                            height: 'auto',
+                                                        }}
+                                                        onClick={
+                                                            this.props
+                                                                .showBindExistTronAddr
+                                                        }
+                                                    >
+                                                        {tt(
+                                                            'userwallet_jsx.bind_exist_tron_addr'
+                                                        )}
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
                                 </div>
@@ -632,6 +666,10 @@ export default connect(
         showTronCreate: e => {
             if (e) e.preventDefault();
             dispatch(userActions.showTronCreate());
+        },
+        showBindExistTronAddr: e => {
+            if (e) e.preventDefault();
+            dispatch(userActions.showBindExistTronAddr());
         },
     })
 )(UserKeys);
