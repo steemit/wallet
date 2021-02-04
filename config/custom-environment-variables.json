@@ -84,5 +84,8 @@
   "tron_create_node": "TRON_CREATE_NODE",
   "steem_market_endpoint": "STEEM_MARKET_ENDPOINT",
   "steem_market_token": "STEEM_MARKET_TOKEN",
-  "internal_api_token": "INTERNAL_API_TOKEN"
+  "internal_api_token": "INTERNAL_API_TOKEN",
+  "steem_whale": "STEEM_WHALE",
+  "sbd_whale": "SBD_WHALE",
+  "trx_whale": "TRX_WHALE"
 }

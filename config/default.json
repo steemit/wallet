@@ -96,5 +96,8 @@
       "ttl": 7200,
       "key": "steem-market"
     },
-    "internal_api_token": "xxxx"
+    "internal_api_token": "xxxx",
+    "steem_whale": 10000,
+    "sbd_whale": 500,
+    "trx_whale": 10000
 }
