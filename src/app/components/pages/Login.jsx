@@ -3,9 +3,11 @@ import { connect } from 'react-redux';
 import { browserHistory } from 'react-router';
 import LoginForm from 'app/components/modules/LoginForm';
 import tt from 'counterpart';
+import * as appActions from 'app/redux/AppReducer';
 
 class Login extends React.Component {
     componentWillMount() {
+        this.props.setRouteTag();
         const { username, loggedIn } = this.props;
         if (loggedIn) {
             if (process.env.BROWSER) {
@@ -44,12 +46,18 @@ class Login extends React.Component {
 
 module.exports = {
     path: 'login.html',
-    component: connect((state, ownProps) => {
-        const username = state.user.getIn(['current', 'username']);
-        const loggedIn = !!username;
-        return {
-            username,
-            loggedIn,
-        };
-    })(Login),
+    component: connect(
+        (state, ownProps) => {
+            const username = state.user.getIn(['current', 'username']);
+            const loggedIn = !!username;
+            return {
+                username,
+                loggedIn,
+            };
+        },
+        dispatch => ({
+            setRouteTag: () =>
+                dispatch(appActions.setRouteTag({ routeTag: 'login' })),
+        })
+    )(Login),
 };

@@ -53,7 +53,18 @@ class UserWallet extends React.Component {
             if (e && e.preventDefault) e.preventDefault();
             recordAdsView({
                 trackingId: this.props.trackingId,
-                adTag: 'TradeSteem',
+                adTag: 'TradeSteemBtn',
+            });
+            // const name = this.props.currentUser.get('username');
+            const new_window = window.open();
+            new_window.opener = null;
+            new_window.location = 'https://poloniex.com/exchange#trx_steem';
+        };
+        this.onShowSteemTradeTop = e => {
+            if (e && e.preventDefault) e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'TradeSteemTop',
             });
             // const name = this.props.currentUser.get('username');
             const new_window = window.open();
@@ -738,7 +749,7 @@ class UserWallet extends React.Component {
                             {isMyAccount && (
                                 <button
                                     className="UserWallet__buysp button hollow"
-                                    onClick={this.onShowSteemTrade}
+                                    onClick={this.onShowSteemTradeTop}
                                 >
                                     {tt(
                                         'userwallet_jsx.buy_steem_or_steem_power'

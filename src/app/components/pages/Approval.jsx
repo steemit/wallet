@@ -1,5 +1,6 @@
 import React from 'react';
 import { connect } from 'react-redux';
+import * as appActions from 'app/redux/AppReducer';
 import { VIEW_MODE_WHISTLE, WHISTLE_SIGNUP_COMPLETE } from 'shared/constants';
 
 class Approval extends React.Component {
@@ -11,6 +12,7 @@ class Approval extends React.Component {
     }
 
     componentWillMount() {
+        this.props.setRouteTag();
         if (this.props.location.query.confirm_email) {
             this.setState({ confirm_email: true });
         }
@@ -80,6 +82,9 @@ module.exports = {
                 viewMode: state.app.get('viewMode'),
             };
         },
-        dispatch => ({})
+        dispatch => ({
+            setRouteTag: () =>
+                dispatch(appActions.setRouteTag({ routeTag: 'approval' })),
+        })
     )(Approval),
 };

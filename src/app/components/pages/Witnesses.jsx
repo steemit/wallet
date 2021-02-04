@@ -8,6 +8,7 @@ import * as transactionActions from 'app/redux/TransactionReducer';
 import ByteBuffer from 'bytebuffer';
 import { is, Set, List } from 'immutable';
 import * as globalActions from 'app/redux/GlobalReducer';
+import * as appActions from 'app/redux/AppReducer';
 import tt from 'counterpart';
 
 const Long = ByteBuffer.Long;
@@ -62,6 +63,10 @@ class Witnesses extends React.Component {
                 this.setState(state);
             });
         };
+    }
+
+    componentWillMount() {
+        this.props.setRouteTag();
     }
 
     shouldComponentUpdate(np, ns) {
@@ -480,6 +485,10 @@ module.exports = {
                         })
                     );
                 },
+                setRouteTag: () =>
+                    dispatch(
+                        appActions.setRouteTag({ routeTag: 'vote_to_witness' })
+                    ),
             };
         }
     )(Witnesses),

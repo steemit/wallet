@@ -1,9 +1,14 @@
 import React from 'react';
+import { connect } from 'react-redux';
 import SvgImage from 'app/components/elements/SvgImage';
 import { Link } from 'react-router';
 import Icon from 'app/components/elements/Icon';
+import * as appActions from 'app/redux/AppReducer';
 
 class NotFound extends React.Component {
+    componentWillMount() {
+        this.props.setRouteTag();
+    }
     render() {
         return (
             <div>
@@ -61,5 +66,15 @@ class NotFound extends React.Component {
 
 module.exports = {
     path: '*',
-    component: NotFound,
+    component: connect(
+        (state, ownProps) => {
+            return {};
+        },
+        dispatch => {
+            return {
+                setRouteTag: () =>
+                    dispatch(appActions.setRouteTag({ routeTag: 'not_found' })),
+            };
+        }
+    )(NotFound),
 };

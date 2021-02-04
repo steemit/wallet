@@ -3,7 +3,9 @@ import SvgImage from 'app/components/elements/SvgImage';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import PasswordInput from 'app/components/elements/PasswordInput';
 import constants from 'app/redux/constants';
+import * as appActions from 'app/redux/AppReducer';
 import tt from 'counterpart';
+import { connect } from 'react-redux';
 import { FormattedHTMLMessage } from 'app/Translator';
 import { APP_DOMAIN, APP_NAME, SUPPORT_EMAIL } from 'app/client_config';
 import { PrivateKey } from '@steemit/steem-js/lib/auth/ecc';
@@ -42,6 +44,10 @@ class RecoverAccountStep1 extends React.Component {
         this.onPasswordsChange = this.onPasswordsChange.bind(this);
         this.onSubmit = this.onSubmit.bind(this);
         this.onSubmitEmail = this.onSubmitEmail.bind(this);
+    }
+
+    componentWillMount() {
+        this.props.setRouteTag();
     }
 
     onNameChange(e) {
@@ -295,5 +301,15 @@ class RecoverAccountStep1 extends React.Component {
 
 module.exports = {
     path: 'recover_account_step_1',
-    component: RecoverAccountStep1,
+    component: connect(
+        state => ({}),
+        dispatch => ({
+            setRouteTag: () =>
+                dispatch(
+                    appActions.setRouteTag({
+                        routeTag: 'recover_account_step1',
+                    })
+                ),
+        })
+    )(RecoverAccountStep1),
 };

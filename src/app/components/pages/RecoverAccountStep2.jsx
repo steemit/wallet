@@ -6,6 +6,7 @@ import { PrivateKey } from '@steemit/steem-js/lib/auth/ecc';
 import { api } from '@steemit/steem-js';
 
 import * as userActions from 'app/redux/UserReducer';
+import * as appActions from 'app/redux/AppReducer';
 import * as transactionActions from 'app/redux/TransactionReducer';
 import GeneratedPasswordInput from 'app/components/elements/GeneratedPasswordInput';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
@@ -43,6 +44,10 @@ class RecoverAccountStep2 extends React.Component {
         this.onSubmit = this.onSubmit.bind(this);
         this.onRecoverFailed = this.onRecoverFailed.bind(this);
         this.onRecoverSuccess = this.onRecoverSuccess.bind(this);
+    }
+
+    componentWillMount() {
+        this.props.setRouteTag();
     }
 
     oldPasswordChange(e) {
@@ -208,9 +213,7 @@ class RecoverAccountStep2 extends React.Component {
         } else {
             if (success) {
                 // submit = <h4>Congratulations! Your account has been recovered. Please login using your new password.</h4>;
-                window.location = `/login.html#account=${
-                    account_to_recover
-                }&msg=accountrecovered`;
+                window.location = `/login.html#account=${account_to_recover}&msg=accountrecovered`;
             } else {
                 submit = (
                     <input
@@ -303,6 +306,12 @@ module.exports = {
                 );
                 dispatch(userActions.logout({ type: 'account_recovery' }));
             },
+            setRouteTag: () =>
+                dispatch(
+                    appActions.setRouteTag({
+                        routeTag: 'recover_account_step2',
+                    })
+                ),
         })
     )(RecoverAccountStep2),
 };

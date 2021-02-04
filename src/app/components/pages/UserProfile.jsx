@@ -7,6 +7,7 @@ import classnames from 'classnames';
 import * as globalActions from 'app/redux/GlobalReducer';
 import * as transactionActions from 'app/redux/TransactionReducer';
 import * as userActions from 'app/redux/UserReducer';
+import * as appActions from 'app/redux/AppReducer';
 import { actions as fetchDataSagaActions } from 'app/redux/FetchDataSaga';
 import Icon from 'app/components/elements/Icon';
 import UserKeys from 'app/components/elements/UserKeys';
@@ -43,6 +44,7 @@ export default class UserProfile extends React.Component {
     }
 
     componentWillMount() {
+        this.props.setRouteTag(this.props.accountname);
         this.redirect();
     }
 
@@ -417,6 +419,15 @@ module.exports = {
             },
             requestData: args =>
                 dispatch(fetchDataSagaActions.requestData(args)),
+            setRouteTag: accountname =>
+                dispatch(
+                    appActions.setRouteTag({
+                        routeTag: 'user_index',
+                        params: {
+                            accountname,
+                        },
+                    })
+                ),
         })
     )(UserProfile),
 };

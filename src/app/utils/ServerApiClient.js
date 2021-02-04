@@ -43,6 +43,40 @@ export function serverApiRecordEvent(type, val, rate_limit_ms = 5000) {
     );
 }
 
+export function recordRouteTag(trackingId, tag, params) {
+    if (!process.env.BROWSER || window.$STM_ServerBusy) return;
+    let tags = {
+        app: 'wallet',
+        tag,
+    };
+    let fields = {
+        trackingId,
+    };
+    switch (tag) {
+        case 'user_index':
+            fields = {
+                trackingId,
+                permlink: params.accountname,
+            };
+            break;
+    }
+    api.call(
+        'overseer.collect',
+        [
+            'custom',
+            {
+                measurement: 'route',
+                fields,
+                tags,
+            },
+        ],
+        error => {
+            if (error)
+                console.warn('record route tag error', error, error.data);
+        }
+    );
+}
+
 export function recordAdsView({ trackingId, adTag }) {
     api.call('overseer.collect', ['ad', { trackingId, adTag }], error => {
         if (error) console.warn('overseer error', error);

@@ -1,8 +1,12 @@
 import React from 'react';
 import tt from 'counterpart';
 import { APP_NAME } from 'app/client_config';
+import * as appActions from 'app/redux/AppReducer';
 
 class Support extends React.Component {
+    componentWillMount() {
+        this.props.setRouteTag();
+    }
     render() {
         return (
             <div className="row">
@@ -22,5 +26,11 @@ class Support extends React.Component {
 
 module.exports = {
     path: 'support.html',
-    component: Support,
+    component: connect(
+        (state, ownProps) => ({}),
+        dispatch => ({
+            setRouteTag: () =>
+                dispatch(appActions.setRouteTag({ routeTag: 'support' })),
+        })
+    )(Support),
 };
