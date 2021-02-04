@@ -33,6 +33,7 @@ class Header extends React.Component {
 
     constructor() {
         super();
+        this.handleSignup = this.handleSignup.bind(this);
     }
 
     componentDidUpdate(prevProps) {
@@ -42,6 +43,17 @@ class Header extends React.Component {
                 browserHistory.replace(`/`);
             }
         }
+    }
+
+    handleSignup() {
+        const { routeTag } = this.props;
+        if (!routeTag) return;
+        const signupUrl = routeTag
+            ? `${SIGNUP_URL}/#source=wallet|${routeTag.routeTag}`
+            : SIGNUP_URL;
+        const new_window = window.open();
+        new_window.opener = null;
+        new_window.location = signupUrl;
     }
 
     render() {
@@ -171,7 +183,7 @@ class Header extends React.Component {
                                 </a>
                                 <a
                                     className="Header__signup-link"
-                                    href={SIGNUP_URL}
+                                    onClick={this.handleSignup}
                                 >
                                     {tt('g.sign_up')}
                                 </a>
@@ -243,6 +255,7 @@ const mapStateToProps = (state, ownProps) => {
         nightmodeEnabled: state.user.getIn(['user_preferences', 'nightmode']),
         account_meta: user_profile,
         current_account_name,
+        routeTag: state.app.has('routeTag') ? state.app.get('routeTag') : null,
         ...ownProps,
     };
 };
