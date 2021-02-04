@@ -9,6 +9,7 @@ import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import TimeAgoWrapper from 'app/components/elements/TimeAgoWrapper';
 import Memo from 'app/components/elements/Memo';
+import { userActionRecord } from 'app/utils/ServerApiClient';
 
 class SavingsWithdrawHistory extends React.Component {
     constructor() {
@@ -140,6 +141,9 @@ export default connect(
                 'savingswithdrawhistory_jsx.cancel_this_withdraw_request'
             );
             const successCallback = () => {
+                userActionRecord('cancel_transfer_from_savings', {
+                    username: fro,
+                });
                 // refresh transfer history
                 dispatch(globalActions.getState({ url: `@${fro}/transfers` }));
                 success();

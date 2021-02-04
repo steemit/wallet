@@ -11,6 +11,7 @@ import * as transactionActions from 'app/redux/TransactionReducer';
 import GeneratedPasswordInput from 'app/components/elements/GeneratedPasswordInput';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import Callout from 'app/components/elements/Callout';
+import { userActionRecord } from 'app/utils/ServerApiClient';
 
 function passwordToOwnerPubKey(account_name, password) {
     let pub_key;
@@ -60,6 +61,9 @@ class RecoverAccountStep2 extends React.Component {
     }
 
     onRecoverFailed(error) {
+        userActionRecord('recovery_account', {
+            username: this.props.account_to_recover,
+        });
         this.setState({
             error: error.msg || error.toString(),
             progress_status: '',

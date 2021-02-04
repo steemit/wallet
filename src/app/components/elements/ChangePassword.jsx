@@ -15,6 +15,7 @@ import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import { validate_account_name } from 'app/utils/ChainValidation';
 import { cleanReduxInput } from 'app/utils/ReduxForms';
 import { APP_NAME } from 'app/client_config';
+import { userActionRecord } from 'app/utils/ServerApiClient';
 
 const { string, oneOf } = PropTypes;
 
@@ -83,6 +84,7 @@ class ChangePassword extends React.Component {
         const { password, twofa } = this.props.fields;
         const accountName = this.state.accountName;
         const success = () => {
+            userActionRecord('change_password', { username: accountName });
             this.setState({ loading: false, error: null });
             const { onClose } = this.props;
             if (onClose) onClose();

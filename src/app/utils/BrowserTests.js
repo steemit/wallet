@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
+// import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 import { PrivateKey, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
 import { config } from '@steemit/steem-js';
 
@@ -17,7 +17,7 @@ export default function runTests() {
             console.error(error);
             pass = false;
             rpt += error.stack + '\n\n';
-            serverApiRecordEvent('client_error', error);
+            // serverApiRecordEvent('client_error', error);
         }
     }
 

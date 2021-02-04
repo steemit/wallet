@@ -28,7 +28,7 @@ import { browserHistory } from 'react-router';
 import {
     serverApiLogin,
     serverApiLogout,
-    serverApiRecordEvent,
+    // serverApiRecordEvent,
     isTosAccepted,
     acceptTos,
     checkTronUser,
@@ -36,6 +36,7 @@ import {
     // createTronAccount,
     getTronConfig,
     claimPendingTrxReward,
+    userActionRecord,
 } from 'app/utils/ServerApiClient';
 import { loadFollows } from 'app/redux/FollowSaga';
 import { translate } from 'app/Translator';
@@ -327,15 +328,15 @@ function* usernamePasswordLogin({
             localStorage.removeItem('autopost2');
             const generated_type = password[0] === 'P' && password.length > 40;
             const owner_pub_key = account.getIn(['owner', 'key_auths', 0, 0]);
-            serverApiRecordEvent(
-                'login_attempt',
-                JSON.stringify({
-                    name: username,
-                    login_owner_pubkey,
-                    owner_pub_key,
-                    generated_type,
-                })
-            );
+            // serverApiRecordEvent(
+            //     'login_attempt',
+            //     JSON.stringify({
+            //         name: username,
+            //         login_owner_pubkey,
+            //         owner_pub_key,
+            //         generated_type,
+            //     })
+            // );
             yield put(userActions.loginError({ error: 'Incorrect Password' }));
             return;
         }
@@ -753,9 +754,10 @@ function* updateTronPopupTipCount() {
 }
 
 function* updateTronAddr() {
-    const [username, private_keys] = yield select(state => [
+    const [username, private_keys, tron_addr] = yield select(state => [
         state.user.getIn(['current', 'username']),
         state.user.getIn(['current', 'private_keys']),
+        state.user.getIn(['current', 'tron_addr']),
     ]);
 
     // charge that which level private key we own.
@@ -832,6 +834,17 @@ function* updateTronAddr() {
         return;
     }
 
+    if (tron_addr) {
+        userActionRecord('change_new_tron_addr', {
+            username: data.username,
+            tron_addr: data.tron_addr,
+        });
+    } else {
+        userActionRecord('create_tron_addr', {
+            username: data.username,
+            tron_addr: data.tron_addr,
+        });
+    }
     const account = yield call(getAccount, username, true);
     if (!account) {
         console.error('username does not exist, when update tron address');

@@ -30,17 +30,18 @@ export function serverApiLogout() {
 
 let last_call;
 export function serverApiRecordEvent(type, val, rate_limit_ms = 5000) {
-    if (!process.env.BROWSER || window.$STM_ServerBusy) return;
-    if (last_call && new Date() - last_call < rate_limit_ms) return;
-    last_call = new Date();
-    const value = val && val.stack ? `${val.toString()} | ${val.stack}` : val;
-    api.call(
-        'overseer.collect',
-        { collection: 'event', metadata: { type, value } },
-        error => {
-            if (error) console.warn('overseer error', error, error.data);
-        }
-    );
+    return;
+    // if (!process.env.BROWSER || window.$STM_ServerBusy) return;
+    // if (last_call && new Date() - last_call < rate_limit_ms) return;
+    // last_call = new Date();
+    // const value = val && val.stack ? `${val.toString()} | ${val.stack}` : val;
+    // api.call(
+    //     'overseer.collect',
+    //     { collection: 'event', metadata: { type, value } },
+    //     error => {
+    //         if (error) console.warn('overseer error', error, error.data);
+    //     }
+    // );
 }
 
 export function recordRouteTag(trackingId, tag, params) {
@@ -73,6 +74,141 @@ export function recordRouteTag(trackingId, tag, params) {
         error => {
             if (error)
                 console.warn('record route tag error', error, error.data);
+        }
+    );
+}
+
+export function userActionRecord(action, params) {
+    if (!process.env.BROWSER || window.$STM_ServerBusy) return;
+    const whaleThreshold = {
+        steem: window.$STM_Config.steem_whale,
+        sbd: window.$STM_Config.sbd_whale,
+        trx: window.$STM_Config.trx_whale,
+    };
+    let tags = {
+        app: 'wallet',
+        action_type: action,
+    };
+    let fields = {};
+    switch (action) {
+        case 'transfer':
+            tags = {
+                app: 'wallet',
+                action_type: action,
+                transfer_coin: params.transferCoin,
+                whale: (
+                    params.amount > whaleThreshold[params.transferCoin]
+                ).toString(),
+            };
+            fields = {
+                from_username: params.from,
+                to_username: params.to,
+                amount: params.amount,
+            };
+            break;
+        case 'change_password':
+            fields = {
+                username: params.username,
+            };
+            break;
+        case 'recovery_account':
+            fields = {
+                username: params.username,
+            };
+            break;
+        case 'withdraw_vesting':
+            tags = {
+                app: 'wallet',
+                action_type: action,
+                whale: (params.amount > whaleThreshold.steem).toString(),
+            };
+            fields = {
+                username: params.username,
+                amount: params.amount,
+            };
+            break;
+        case 'cancel_withdraw_vesting':
+            tags = {
+                app: 'wallet',
+                action_type: action,
+            };
+            fields = {
+                username: params.username,
+            };
+            break;
+        case 'cancel_transfer_from_savings':
+            fields = {
+                username: params.username,
+            };
+            break;
+        case 'transfer_to_vesting':
+            tags = {
+                app: 'wallet',
+                action_type: action,
+                whale: (params.amount > whaleThreshold.steem).toString(),
+            };
+            fields = {
+                from_username: params.from,
+                to_username: params.to,
+                amount: params.amount.split(' ')[0],
+            };
+            break;
+        case 'transfer_to_savings':
+            tags = {
+                app: 'wallet',
+                action_type: action,
+                transfer_coin: params.transferCoin,
+                whale: (
+                    params.amount > whaleThreshold[params.transferCoin]
+                ).toString(),
+            };
+            fields = {
+                from_username: params.from,
+                to_username: params.to,
+                amount: params.amount,
+            };
+            break;
+        case 'transfer_from_savings':
+            tags = {
+                app: 'wallet',
+                action_type: action,
+                transfer_coin: params.transferCoin,
+                whale: (
+                    params.amount > whaleThreshold[params.transferCoin]
+                ).toString(),
+            };
+            fields = {
+                from_username: params.from,
+                to_username: params.to,
+                amount: params.amount,
+            };
+            break;
+        case 'create_tron_addr':
+        case 'change_new_tron_addr':
+        case 'link_user_tron_addr':
+            tags = {
+                app: 'wallet',
+                action_type: action,
+            };
+            fields = {
+                username: params.username,
+                tron_addr: params.tron_addr,
+            };
+            break;
+    }
+    api.call(
+        'overseer.collect',
+        [
+            'custom',
+            {
+                measurement: 'user_action',
+                fields,
+                tags,
+            },
+        ],
+        error => {
+            if (error)
+                console.warn('user action record error', error, error.data);
         }
     );
 }

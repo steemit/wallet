@@ -18,7 +18,7 @@ import { hasCompatibleKeychain } from 'app/utils/SteemKeychain';
 import runTests from 'app/utils/BrowserTests';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import reactForm from 'app/utils/ReactForm';
-import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
+// import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 import tt from 'counterpart';
 import { APP_URL } from 'app/client_config';
 import { PrivateKey, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
@@ -115,14 +115,14 @@ class LoginForm extends Component {
     SignUp() {
         const opAction = document.getElementsByClassName('OpAction')[0];
         const onType = opAction ? opAction.textContent : 'Login';
-        serverApiRecordEvent('FreeMoneySignUp', onType);
+        // serverApiRecordEvent('FreeMoneySignUp', onType);
         window.location.href = SIGNUP_URL;
     }
 
     SignIn() {
         const opAction = document.getElementsByClassName('OpAction')[0];
         const onType = opAction ? opAction.textContent : 'Login';
-        serverApiRecordEvent('SignIn', onType);
+        // serverApiRecordEvent('SignIn', onType);
     }
 
     onUseKeychainCheckbox = e => {

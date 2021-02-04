@@ -36,7 +36,7 @@ import * as globalActions from 'app/redux/GlobalReducer';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
 import * as userActions from 'app/redux/UserReducer';
 import * as appActions from 'app/redux/AppReducer';
-import { recordAdsView } from 'app/utils/ServerApiClient';
+import { recordAdsView, userActionRecord } from 'app/utils/ServerApiClient';
 import QRCode from 'react-qr';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 
@@ -302,6 +302,9 @@ class UserWallet extends React.Component {
                     this.setState({ toggleDivestError: e2.toString() });
                 };
                 const successCallback = () => {
+                    userActionRecord('cancel_withdraw_vesting', {
+                        username: currentUser.get('username'),
+                    });
                     this.setState({ toggleDivestError: null });
                 };
                 this.props.withdrawVesting({

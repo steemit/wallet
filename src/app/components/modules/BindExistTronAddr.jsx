@@ -6,6 +6,7 @@ import * as userActions from 'app/redux/UserReducer';
 import * as appActions from 'app/redux/AppReducer';
 import { isTronAddr, updateCustomTronAddr } from 'app/utils/tronApi';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
+import { userActionRecord } from 'app/utils/ServerApiClient';
 
 const styles = {
     container: {
@@ -84,6 +85,10 @@ class BindExistTronAddr extends Component {
                     });
                     return;
                 }
+                userActionRecord('link_user_tron_addr', {
+                    username,
+                    tron_addr: tronAddr,
+                });
                 this.props.loadTronInfoAgain(username);
                 this.props.hideBindExistTronAddr();
                 this.props.notify(tt('userwallet_jsx.successfully_linked'));
