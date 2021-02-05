@@ -18,7 +18,7 @@ import { hasCompatibleKeychain } from 'app/utils/SteemKeychain';
 import runTests from 'app/utils/BrowserTests';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import reactForm from 'app/utils/ReactForm';
-import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
+// import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 import tt from 'counterpart';
 import { APP_URL } from 'app/client_config';
 import { PrivateKey, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
@@ -66,6 +66,7 @@ class LoginForm extends Component {
             });
         };
         this.initForm(props, useKeychain);
+        this.handleSignup = this.handleSignup.bind(this);
     }
 
     componentDidMount() {
@@ -76,6 +77,17 @@ class LoginForm extends Component {
     }
 
     shouldComponentUpdate = shouldComponentUpdate(this, 'LoginForm');
+
+    handleSignup() {
+        const { routeTag } = this.props;
+        if (!routeTag) return;
+        const signupUrl = routeTag
+            ? `${SIGNUP_URL}/#source=wallet|${routeTag.routeTag}`
+            : SIGNUP_URL;
+        const new_window = window.open();
+        new_window.opener = null;
+        new_window.location = signupUrl;
+    }
 
     initForm(props, useKeychain) {
         reactForm({
@@ -103,14 +115,15 @@ class LoginForm extends Component {
     SignUp() {
         const opAction = document.getElementsByClassName('OpAction')[0];
         const onType = opAction ? opAction.textContent : 'Login';
-        serverApiRecordEvent('FreeMoneySignUp', onType);
-        window.location.href = SIGNUP_URL;
+        // serverApiRecordEvent('FreeMoneySignUp', onType);
+        this.handleSignup();
+        // window.location.href = SIGNUP_URL;
     }
 
     SignIn() {
         const opAction = document.getElementsByClassName('OpAction')[0];
         const onType = opAction ? opAction.textContent : 'Login';
-        serverApiRecordEvent('SignIn', onType);
+        // serverApiRecordEvent('SignIn', onType);
     }
 
     onUseKeychainCheckbox = e => {
@@ -434,7 +447,7 @@ class LoginForm extends Component {
                             {tt('loginform_jsx.not_a_steemit_user')}
                         </div>
                         <div className="register-link">
-                            <a href={SIGNUP_URL}>
+                            <a onClick={this.handleSignup}>
                                 {tt('loginform_jsx.free_register')}
                             </a>
                         </div>
@@ -528,6 +541,9 @@ export default connect(
             initialUsername,
             msg,
             offchain_user: state.offchain.get('user'),
+            routeTag: state.app.has('routeTag')
+                ? state.app.get('routeTag')
+                : null,
         };
     },
 

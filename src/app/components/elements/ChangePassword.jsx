@@ -15,6 +15,7 @@ import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import { validate_account_name } from 'app/utils/ChainValidation';
 import { cleanReduxInput } from 'app/utils/ReduxForms';
 import { APP_NAME } from 'app/client_config';
+import { userActionRecord } from 'app/utils/ServerApiClient';
 
 const { string, oneOf } = PropTypes;
 
@@ -36,7 +37,10 @@ class ChangePassword extends React.Component {
         this.onNameChange = this.onNameChange.bind(this);
         this.generateWif = this.generateWif.bind(this);
     }
-    componentWillMount() {}
+    componentWillMount() {
+        this.props.setRouteTag();
+    }
+
     componentWillUnmount() {
         newWif = null;
     }
@@ -80,14 +84,13 @@ class ChangePassword extends React.Component {
         const { password, twofa } = this.props.fields;
         const accountName = this.state.accountName;
         const success = () => {
+            userActionRecord('change_password', { username: accountName });
             this.setState({ loading: false, error: null });
             const { onClose } = this.props;
             if (onClose) onClose();
             if (resetForm) resetForm();
             notify('Password Updated');
-            window.location = `/login.html#account=${
-                accountName
-            }&msg=passwordupdated`;
+            window.location = `/login.html#account=${accountName}&msg=passwordupdated`;
         };
         const error = e => {
             this.setState({ loading: false, error: e });
@@ -353,13 +356,13 @@ const keyValidate = values => ({
     password: !values.password
         ? tt('g.required')
         : PublicKey.fromString(values.password)
-          ? tt('g.you_need_private_password_or_key_not_a_public_key')
-          : null,
+            ? tt('g.you_need_private_password_or_key_not_a_public_key')
+            : null,
     confirmPassword: !values.confirmPassword
         ? tt('g.required')
         : values.confirmPassword.trim() !== newWif
-          ? tt('g.passwords_do_not_match')
-          : null,
+            ? tt('g.passwords_do_not_match')
+            : null,
     confirmCheck: !values.confirmCheck ? tt('g.required') : null,
     confirmSaved: !values.confirmSaved ? tt('g.required') : null,
 });
@@ -446,5 +449,7 @@ export default reduxForm(
                 })
             );
         },
+        setRouteTag: () =>
+            dispatch(appActions.setRouteTag({ routeTag: 'change_password' })),
     })
 )(ChangePassword);

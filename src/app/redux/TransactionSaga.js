@@ -24,7 +24,7 @@ import * as transactionActions from 'app/redux/TransactionReducer';
 import * as userActions from 'app/redux/UserReducer';
 import * as proposalActions from 'app/redux/ProposalReducer';
 import { DEBT_TICKER } from 'app/client_config';
-import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
+// import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 import { isLoggedInWithKeychain } from 'app/utils/SteemKeychain';
 import { transferTrxTo } from 'app/utils/tronApi';
 import diff_match_patch from 'diff-match-patch';
@@ -227,7 +227,7 @@ export function* broadcastOperation({
             eventType === 'Vote'
                 ? `@${operation.author}/${operation.permlink}`
                 : '';
-        serverApiRecordEvent(eventType, page);
+        // serverApiRecordEvent(eventType, page);
     } catch (error) {
         console.error('TransactionSage', error);
         if (errorCallback) errorCallback(error.toString());

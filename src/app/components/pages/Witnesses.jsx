@@ -8,7 +8,9 @@ import * as transactionActions from 'app/redux/TransactionReducer';
 import ByteBuffer from 'bytebuffer';
 import { is, Set, List } from 'immutable';
 import * as globalActions from 'app/redux/GlobalReducer';
+import * as appActions from 'app/redux/AppReducer';
 import tt from 'counterpart';
+import { userActionRecord } from 'app/utils/ServerApiClient';
 
 const Long = ByteBuffer.Long;
 const { string, func, object } = PropTypes;
@@ -62,6 +64,10 @@ class Witnesses extends React.Component {
                 this.setState(state);
             });
         };
+    }
+
+    componentWillMount() {
+        this.props.setRouteTag();
     }
 
     shouldComponentUpdate(np, ns) {
@@ -443,6 +449,10 @@ module.exports = {
         dispatch => {
             return {
                 accountWitnessVote: (username, witness, approve) => {
+                    userActionRecord('account_witness_vote', {
+                        username,
+                        witness,
+                    });
                     dispatch(
                         transactionActions.broadcastOperation({
                             type: 'account_witness_vote',
@@ -454,6 +464,10 @@ module.exports = {
                     );
                 },
                 accountWitnessProxy: (account, proxy, stateCallback) => {
+                    userActionRecord('account_witness_proxy', {
+                        username: account,
+                        proxy,
+                    });
                     dispatch(
                         transactionActions.broadcastOperation({
                             type: 'account_witness_proxy',
@@ -480,6 +494,10 @@ module.exports = {
                         })
                     );
                 },
+                setRouteTag: () =>
+                    dispatch(
+                        appActions.setRouteTag({ routeTag: 'vote_to_witness' })
+                    ),
             };
         }
     )(Witnesses),

@@ -4,6 +4,7 @@ import { browserHistory } from 'react-router';
 import { connect } from 'react-redux';
 import tt from 'counterpart';
 import * as userActions from 'app/redux/UserReducer';
+import * as appActions from 'app/redux/AppReducer';
 import { validate_account_name } from 'app/utils/ChainValidation';
 
 class WalletIndex extends React.Component {
@@ -12,6 +13,7 @@ class WalletIndex extends React.Component {
     }
 
     componentWillMount() {
+        this.props.setRouteTag();
         const { username, loggedIn } = this.props;
         if (loggedIn) {
             if (process.env.BROWSER) {
@@ -137,6 +139,8 @@ module.exports = {
                     if (e) e.preventDefault();
                     dispatch(userActions.showLogin({ type: 'basic' }));
                 },
+                setRouteTag: () =>
+                    dispatch(appActions.setRouteTag({ routeTag: 'index' })),
             };
         }
     )(WalletIndex),

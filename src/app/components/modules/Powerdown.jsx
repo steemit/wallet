@@ -14,6 +14,7 @@ import {
     vestsToSp,
     assetFloat,
 } from 'app/utils/StateFunctions';
+import { userActionRecord } from 'app/utils/ServerApiClient';
 
 class Powerdown extends React.Component {
     constructor(props, context) {
@@ -84,6 +85,7 @@ class Powerdown extends React.Component {
             this.props.withdrawVesting({
                 account,
                 vesting_shares,
+                equalSp: vestsToSp(this.props.state, withdraw),
                 errorCallback,
                 successCallback,
             });
@@ -226,10 +228,15 @@ export default connect(
         withdrawVesting: ({
             account,
             vesting_shares,
+            equalSp,
             errorCallback,
             successCallback,
         }) => {
             const successCallbackWrapper = (...args) => {
+                userActionRecord('withdraw_vesting', {
+                    username: account,
+                    amount: equalSp,
+                });
                 dispatch(
                     globalActions.getState({ url: `@${account}/transfers` })
                 );

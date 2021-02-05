@@ -9,6 +9,7 @@ import { api } from '@steemit/steem-js';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import { PrivateKey } from '@steemit/steem-js/lib/auth/ecc';
 import * as userActions from 'app/redux/UserReducer';
+import * as appActions from 'app/redux/AppReducer';
 import { validate_account_name } from 'app/utils/ChainValidation';
 import runTests from 'app/utils/BrowserTests';
 import GeneratedPasswordInput from 'app/components/elements/GeneratedPasswordInput';
@@ -40,6 +41,10 @@ class CreateAccount extends React.Component {
         this.onNameChange = this.onNameChange.bind(this);
         this.onPasswordChange = this.onPasswordChange.bind(this);
         this.preventDoubleClick = this.preventDoubleClick.bind(this);
+    }
+
+    componentWillMount() {
+        this.props.setRouteTag();
     }
 
     componentDidMount() {
@@ -123,9 +128,7 @@ class CreateAccount extends React.Component {
                         loading: false,
                     });
                 } else {
-                    window.location = `/login.html#account=${
-                        name
-                    }&msg=accountcreated`;
+                    window.location = `/login.html#account=${name}&msg=accountcreated`;
                 }
             })
             .catch(error => {
@@ -286,8 +289,7 @@ class CreateAccount extends React.Component {
                         <div className="callout alert">
                             <p>
                                 It looks like your sign up request is not
-                                approved yet or you already created an account.<br
-                                />
+                                approved yet or you already created an account.<br />
                                 Please try again later or contact{' '}
                                 <a href="mailto:support@steemit.com">
                                     support@steemit.com
@@ -347,8 +349,7 @@ class CreateAccount extends React.Component {
                                     The first rule of Steemit is: Do not lose
                                     your password.<br />
                                     The second rule of Steemit is: Do{' '}
-                                    <strong>not</strong> lose your password.<br
-                                    />
+                                    <strong>not</strong> lose your password.<br />
                                     The third rule of Steemit is: We cannot
                                     recover your password, or your account if
                                     you lose your password.<br />
@@ -498,6 +499,10 @@ module.exports = {
                 if (e) e.preventDefault();
                 dispatch(userActions.showTerms());
             },
+            setRouteTag: () =>
+                dispatch(
+                    appActions.setRouteTag({ routeTag: 'create_account' })
+                ),
         })
     )(CreateAccount),
 };

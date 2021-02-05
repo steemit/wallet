@@ -6,10 +6,12 @@ import { PrivateKey } from '@steemit/steem-js/lib/auth/ecc';
 import { api } from '@steemit/steem-js';
 
 import * as userActions from 'app/redux/UserReducer';
+import * as appActions from 'app/redux/AppReducer';
 import * as transactionActions from 'app/redux/TransactionReducer';
 import GeneratedPasswordInput from 'app/components/elements/GeneratedPasswordInput';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import Callout from 'app/components/elements/Callout';
+import { userActionRecord } from 'app/utils/ServerApiClient';
 
 function passwordToOwnerPubKey(account_name, password) {
     let pub_key;
@@ -45,6 +47,10 @@ class RecoverAccountStep2 extends React.Component {
         this.onRecoverSuccess = this.onRecoverSuccess.bind(this);
     }
 
+    componentWillMount() {
+        this.props.setRouteTag();
+    }
+
     oldPasswordChange(e) {
         const oldPassword = e.target.value.trim();
         this.setState({ oldPassword });
@@ -55,6 +61,9 @@ class RecoverAccountStep2 extends React.Component {
     }
 
     onRecoverFailed(error) {
+        userActionRecord('recovery_account', {
+            username: this.props.account_to_recover,
+        });
         this.setState({
             error: error.msg || error.toString(),
             progress_status: '',
@@ -208,9 +217,7 @@ class RecoverAccountStep2 extends React.Component {
         } else {
             if (success) {
                 // submit = <h4>Congratulations! Your account has been recovered. Please login using your new password.</h4>;
-                window.location = `/login.html#account=${
-                    account_to_recover
-                }&msg=accountrecovered`;
+                window.location = `/login.html#account=${account_to_recover}&msg=accountrecovered`;
             } else {
                 submit = (
                     <input
@@ -303,6 +310,12 @@ module.exports = {
                 );
                 dispatch(userActions.logout({ type: 'account_recovery' }));
             },
+            setRouteTag: () =>
+                dispatch(
+                    appActions.setRouteTag({
+                        routeTag: 'recover_account_step2',
+                    })
+                ),
         })
     )(RecoverAccountStep2),
 };

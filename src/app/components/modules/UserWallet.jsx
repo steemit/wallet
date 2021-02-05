@@ -36,7 +36,7 @@ import * as globalActions from 'app/redux/GlobalReducer';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
 import * as userActions from 'app/redux/UserReducer';
 import * as appActions from 'app/redux/AppReducer';
-import { recordAdsView } from 'app/utils/ServerApiClient';
+import { recordAdsView, userActionRecord } from 'app/utils/ServerApiClient';
 import QRCode from 'react-qr';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 
@@ -53,7 +53,18 @@ class UserWallet extends React.Component {
             if (e && e.preventDefault) e.preventDefault();
             recordAdsView({
                 trackingId: this.props.trackingId,
-                adTag: 'TradeSteem',
+                adTag: 'TradeSteemBtn',
+            });
+            // const name = this.props.currentUser.get('username');
+            const new_window = window.open();
+            new_window.opener = null;
+            new_window.location = 'https://poloniex.com/exchange#trx_steem';
+        };
+        this.onShowSteemTradeTop = e => {
+            if (e && e.preventDefault) e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'TradeSteemTop',
             });
             // const name = this.props.currentUser.get('username');
             const new_window = window.open();
@@ -291,6 +302,9 @@ class UserWallet extends React.Component {
                     this.setState({ toggleDivestError: e2.toString() });
                 };
                 const successCallback = () => {
+                    userActionRecord('cancel_withdraw_vesting', {
+                        username: currentUser.get('username'),
+                    });
                     this.setState({ toggleDivestError: null });
                 };
                 this.props.withdrawVesting({
@@ -738,7 +752,7 @@ class UserWallet extends React.Component {
                             {isMyAccount && (
                                 <button
                                     className="UserWallet__buysp button hollow"
-                                    onClick={this.onShowSteemTrade}
+                                    onClick={this.onShowSteemTradeTop}
                                 >
                                     {tt(
                                         'userwallet_jsx.buy_steem_or_steem_power'

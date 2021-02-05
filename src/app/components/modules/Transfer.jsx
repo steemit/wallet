@@ -18,7 +18,7 @@ import * as appActions from 'app/redux/AppReducer';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import ConfirmTransfer from 'app/components/elements/ConfirmTransfer';
 import runTests, { browserTests } from 'app/utils/BrowserTests';
-import { recordAdsView } from 'app/utils/ServerApiClient';
+import { recordAdsView, userActionRecord } from 'app/utils/ServerApiClient';
 import {
     validate_account_name_with_memo,
     validate_memo_field,
@@ -1087,6 +1087,24 @@ export default connect(
 
             const username = currentUser.get('username');
             const successCallback = () => {
+                const transType = toVesting
+                    ? 'transfer_to_vesting'
+                    : transferType === 'Transfer to Account'
+                        ? 'transfer'
+                        : transferType === 'Transfer to Savings'
+                            ? 'transfer_to_savings'
+                            : transferType === 'Savings Withdraw'
+                                ? 'transfer_from_savings'
+                                : null;
+                if (transType !== null) {
+                    const transferCoin = toVesting ? 'STEEM' : asset;
+                    userActionRecord(transType, {
+                        transferCoin,
+                        amount,
+                        from: username,
+                        to,
+                    });
+                }
                 // refresh transfer history
                 dispatch(
                     globalActions.getState({ url: `@${username}/transfers` })
@@ -1153,6 +1171,12 @@ export default connect(
                     `success finish tron transfer from ${from} to ${to}`,
                     result
                 );
+                userActionRecord('transfer', {
+                    transferCoin: 'trx',
+                    amount,
+                    from,
+                    to,
+                });
                 dispatch(
                     appActions.addNotification({
                         key: 'chpwd_' + Date.now(),

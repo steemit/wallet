@@ -3,7 +3,11 @@ import { fromJS } from 'immutable';
 import { call, put, select, takeEvery, takeLatest } from 'redux-saga/effects';
 import tt from 'counterpart';
 import { api } from '@steemit/steem-js';
-import { setUserPreferences, checkTronUser } from 'app/utils/ServerApiClient';
+import {
+    setUserPreferences,
+    checkTronUser,
+    recordRouteTag,
+} from 'app/utils/ServerApiClient';
 import { getStateAsync } from 'app/utils/steemApi';
 import { getTronAccount } from 'app/utils/tronApi';
 import * as globalActions from './GlobalReducer';
@@ -17,6 +21,7 @@ const wait = ms =>
 
 export const sharedWatches = [
     takeEvery(globalActions.GET_STATE, getState),
+    takeEvery(appActions.ROUTE_TAG_SET, triggeRecordRouteTag),
     takeLatest(
         [appActions.SET_USER_PREFERENCES, appActions.TOGGLE_NIGHTMODE],
         saveUserPreferences
@@ -111,4 +116,12 @@ function* saveUserPreferences({ payload }) {
     const prefs = yield select(state => state.app.get('user_preferences'));
     console.log('saveUserPreferences prefs', prefs);
     yield setUserPreferences(prefs.toJS());
+}
+
+function* triggeRecordRouteTag({ routeTag, params }) {
+    console.log('set_route_tag:', routeTag, params);
+    let trackingId = yield select(state =>
+        state.app.getIn(['trackingId'], null)
+    );
+    yield recordRouteTag(trackingId, routeTag, params);
 }

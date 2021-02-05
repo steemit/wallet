@@ -11,6 +11,7 @@ const SET_FE_RENDERED = 'app/SET_FE_RENDERED';
 const SET_TRON_ERR_MSG = 'app/SET_TRON_ERR_MSG';
 const LOCK_TRANSFER_ASYNC_VALIDATION = 'app/LOCK_TRANSFER_ASYNC_VALIDATION';
 const UNLOCK_TRANSFER_ASYNC_VALIDATION = 'app/UNLOCK_TRANSFER_ASYNC_VALIDATION';
+export const ROUTE_TAG_SET = 'app/ROUTE_TAG_SET';
 export const SET_USER_PREFERENCES = 'app/SET_USER_PREFERENCES';
 export const TOGGLE_NIGHTMODE = 'app/TOGGLE_NIGHTMODE';
 export const RECEIVE_FEATURE_FLAGS = 'app/RECEIVE_FEATURE_FLAGS';
@@ -30,6 +31,7 @@ export const defaultState = Map({
     modalLoading: false,
     transferAsyncValidationLock: 0,
     tronErrMsg: null,
+    routeTag: null,
 });
 
 export default function reducer(state = defaultState, action = {}) {
@@ -94,6 +96,8 @@ export default function reducer(state = defaultState, action = {}) {
             return state.set('transferAsyncValidationLock', newLock);
         case SET_TRON_ERR_MSG:
             return state.set('tronErrMsg', action.msg);
+        case ROUTE_TAG_SET:
+            return state.set('routeTag', action);
         default:
             return state;
     }
@@ -169,4 +173,10 @@ export const unlockTransferAsyncValidation = payload => ({
 export const setTronErrMsg = msg => ({
     type: SET_TRON_ERR_MSG,
     msg,
+});
+
+export const setRouteTag = payload => ({
+    type: ROUTE_TAG_SET,
+    routeTag: payload.routeTag,
+    params: payload.params,
 });

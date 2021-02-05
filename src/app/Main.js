@@ -8,7 +8,7 @@ import plugins from 'app/utils/JsPlugins';
 import Iso from 'iso';
 import { clientRender } from 'shared/UniversalRender';
 import ConsoleExports from './utils/ConsoleExports';
-import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
+// import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 import * as steem from '@steemit/steem-js';
 import { determineViewMode } from 'app/utils/Links';
 import frontendLogger from 'app/utils/FrontendLogger';
@@ -72,7 +72,7 @@ function runApp(initial_state) {
         clientRender(initial_state);
     } catch (error) {
         console.error(error);
-        serverApiRecordEvent('client_error', error);
+        // serverApiRecordEvent('client_error', error);
     }
 }
 

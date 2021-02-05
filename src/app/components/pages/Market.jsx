@@ -47,6 +47,10 @@ class Market extends React.Component {
         };
     }
 
+    componentWillMount() {
+        this.props.setRouteTag();
+    }
+
     componentWillReceiveProps(np) {
         if (!this.props.ticker && np.ticker) {
             const { lowest_ask, highest_bid } = np.ticker;
@@ -187,7 +191,7 @@ class Market extends React.Component {
 
     percentDiff = (marketPrice, userPrice) => {
         marketPrice = parseFloat(marketPrice);
-        return 100 * (userPrice - marketPrice) / marketPrice;
+        return (100 * (userPrice - marketPrice)) / marketPrice;
     };
 
     validateBuySteem = () => {
@@ -467,9 +471,9 @@ class Market extends React.Component {
                                 <li>
                                     <b>{tt('market_jsx.spread')}</b>{' '}
                                     {(
-                                        200 *
-                                        (ticker.lowest_ask -
-                                            ticker.highest_bid) /
+                                        (200 *
+                                            (ticker.lowest_ask -
+                                                ticker.highest_bid)) /
                                         (ticker.highest_bid + ticker.lowest_ask)
                                     ).toFixed(3)}%
                                 </li>
@@ -534,9 +538,7 @@ class Market extends React.Component {
                                                 validateBuySteem();
                                             }}
                                         />
-                                        <span className="input-group-label uppercase">{`${
-                                            DEBT_TOKEN_SHORT
-                                        }/${LIQUID_TOKEN}`}</span>
+                                        <span className="input-group-label uppercase">{`${DEBT_TOKEN_SHORT}/${LIQUID_TOKEN}`}</span>
                                     </div>
                                 </div>
                             </div>
@@ -605,9 +607,7 @@ class Market extends React.Component {
                                                 validateBuySteem();
                                             }}
                                         />
-                                        <span className="input-group-label">{`${
-                                            DEBT_TOKEN_SHORT
-                                        } (${CURRENCY_SIGN})`}</span>
+                                        <span className="input-group-label">{`${DEBT_TOKEN_SHORT} (${CURRENCY_SIGN})`}</span>
                                     </div>
                                 </div>
                             </div>
@@ -738,9 +738,7 @@ class Market extends React.Component {
                                                 validateSellSteem();
                                             }}
                                         />
-                                        <span className="input-group-label uppercase">{`${
-                                            DEBT_TOKEN_SHORT
-                                        }/${LIQUID_TOKEN}`}</span>
+                                        <span className="input-group-label uppercase">{`${DEBT_TOKEN_SHORT}/${LIQUID_TOKEN}`}</span>
                                     </div>
                                 </div>
                             </div>
@@ -808,9 +806,7 @@ class Market extends React.Component {
                                                 validateSellSteem();
                                             }}
                                         />
-                                        <span className="input-group-label">{`${
-                                            DEBT_TOKEN_SHORT
-                                        } (${CURRENCY_SIGN})`}</span>
+                                        <span className="input-group-label">{`${DEBT_TOKEN_SHORT} (${CURRENCY_SIGN})`}</span>
                                     </div>
                                 </div>
                             </div>
@@ -1074,6 +1070,8 @@ module.exports = {
                     marketActions.toggleOpenOrdersSort({ column, dataType })
                 );
             },
+            setRouteTag: () =>
+                dispatch(appActions.setRouteTag({ routeTag: 'market' })),
         })
     )(Market),
 };

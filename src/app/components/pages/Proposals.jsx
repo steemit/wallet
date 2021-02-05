@@ -2,6 +2,7 @@ import React from 'react';
 import { connect } from 'react-redux';
 import { actions as proposalActions } from 'app/redux/ProposalSaga';
 import * as transactionActions from 'app/redux/TransactionReducer'; // TODO: Only import what we need.
+import * as appActions from 'app/redux/AppReducer';
 import { List } from 'immutable';
 import PropTypes from 'prop-types';
 
@@ -19,6 +20,7 @@ class Proposals extends React.Component {
         };
     }
     async componentWillMount() {
+        this.props.setRouteTag();
         await this.load();
     }
 
@@ -206,6 +208,8 @@ module.exports = {
                         );
                     });
                 },
+                setRouteTag: () =>
+                    dispatch(appActions.setRouteTag({ routeTag: 'proposals' })),
             };
         }
     )(Proposals),

@@ -1,4 +1,4 @@
-import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
+// import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 
 /**
  * Handles window error events by logging to overseer.
@@ -16,7 +16,7 @@ export default function frontendLogger(event) {
             window.location.href,
             process.env.VERSION
         );
-        serverApiRecordEvent('client_error', report);
+        // serverApiRecordEvent('client_error', report);
     }
 }
 
