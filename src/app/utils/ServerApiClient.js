@@ -195,6 +195,18 @@ export function userActionRecord(action, params) {
                 tron_addr: params.tron_addr,
             };
             break;
+        case 'account_witness_vote':
+            fields = {
+                username: params.username,
+                witness: params.witness,
+            };
+            break;
+        case 'account_witness_proxy':
+            fields = {
+                username: params.username,
+                proxy: params.proxy,
+            };
+            break;
     }
     api.call(
         'overseer.collect',

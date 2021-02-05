@@ -10,6 +10,7 @@ import { is, Set, List } from 'immutable';
 import * as globalActions from 'app/redux/GlobalReducer';
 import * as appActions from 'app/redux/AppReducer';
 import tt from 'counterpart';
+import { userActionRecord } from 'app/utils/ServerApiClient';
 
 const Long = ByteBuffer.Long;
 const { string, func, object } = PropTypes;
@@ -448,6 +449,10 @@ module.exports = {
         dispatch => {
             return {
                 accountWitnessVote: (username, witness, approve) => {
+                    userActionRecord('account_witness_vote', {
+                        username,
+                        witness,
+                    });
                     dispatch(
                         transactionActions.broadcastOperation({
                             type: 'account_witness_vote',
@@ -459,6 +464,10 @@ module.exports = {
                     );
                 },
                 accountWitnessProxy: (account, proxy, stateCallback) => {
+                    userActionRecord('account_witness_proxy', {
+                        username: account,
+                        proxy,
+                    });
                     dispatch(
                         transactionActions.broadcastOperation({
                             type: 'account_witness_proxy',
