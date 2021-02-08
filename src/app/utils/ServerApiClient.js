@@ -44,7 +44,7 @@ export function serverApiRecordEvent(type, val, rate_limit_ms = 5000) {
     // );
 }
 
-export function recordRouteTag(trackingId, tag, params) {
+export function recordRouteTag(trackingId, tag, params, isLogin = false) {
     if (!process.env.BROWSER || window.$STM_ServerBusy) return;
     let tags = {
         app: 'wallet',
@@ -61,6 +61,7 @@ export function recordRouteTag(trackingId, tag, params) {
             };
             break;
     }
+    tags['is_login'] = isLogin;
     api.call(
         'overseer.collect',
         [
