@@ -4,8 +4,17 @@ import tt from 'counterpart';
 import CloseButton from 'app/components/elements/CloseButton';
 import Icon from 'app/components/elements/Icon';
 import { Link } from 'react-router';
+import { connect } from 'react-redux';
+import * as appActions from 'app/redux/AppReducer';
 
-const SidePanel = ({ alignment, visible, hideSidePanel, username }) => {
+const SidePanel = ({
+    alignment,
+    visible,
+    hideSidePanel,
+    username,
+    user_preferences,
+    setUserPreferences,
+}) => {
     if (process.env.BROWSER) {
         visible && document.addEventListener('click', hideSidePanel);
         !visible && document.removeEventListener('click', hideSidePanel);
@@ -15,6 +24,13 @@ const SidePanel = ({ alignment, visible, hideSidePanel, username }) => {
         username === undefined
             ? 'show-for-small-only'
             : 'SidePanel__hide-signup';
+
+    const handleLanguageChange = event => {
+        const locale = event.target.value;
+        const userPreferences = { ...user_preferences, locale };
+        setUserPreferences(userPreferences);
+        hideSidePanel();
+    };
 
     const makeExternalLink = (i, ix, arr) => {
         const cn = ix === arr.length - 1 ? 'last' : null;
@@ -33,6 +49,28 @@ const SidePanel = ({ alignment, visible, hideSidePanel, username }) => {
 
     const makeInternalLink = (i, ix, arr) => {
         const cn = ix === arr.length - 1 ? 'last' : null;
+        if (i.key === 'switchLanguage') {
+            return (
+                <li key={ix} className={cn}>
+                    <select
+                        defaultValue={user_preferences.locale}
+                        onChange={e => handleLanguageChange(e)}
+                        onClick={e => e.nativeEvent.stopImmediatePropagation()}
+                        className="language"
+                    >
+                        <option value="en">English</option>
+                        <option value="es">Spanish Español</option>
+                        <option value="ru">Russian русский</option>
+                        <option value="fr">French français</option>
+                        <option value="it">Italian italiano</option>
+                        <option value="ko">Korean 한국어</option>
+                        <option value="ja">Japanese 日本語</option>
+                        <option value="pl">Polish</option>
+                        <option value="zh">Chinese 简体中文</option>
+                    </select>
+                </li>
+            );
+        }
         return (
             <li key={i.value} className={cn}>
                 <Link to={i.link}>{i.label}</Link>
@@ -46,6 +84,12 @@ const SidePanel = ({ alignment, visible, hideSidePanel, username }) => {
                 value: 'welcome',
                 label: tt('navigation.welcome'),
                 link: `/welcome`,
+            },
+            {
+                label: tt('g.choose_language'),
+                link: '/',
+                key: `switchLanguage`,
+                value: 'language',
             },
             {
                 value: 'faq',
@@ -181,12 +225,12 @@ const SidePanel = ({ alignment, visible, hideSidePanel, username }) => {
                         0,
                         sidePanelLinks.extras
                     )}
-                    {makeExternalLink(
+                    {makeInternalLink(
                         sidePanelLinks.extras[1],
                         1,
                         sidePanelLinks.extras
                     )}
-                    {makeInternalLink(
+                    {makeExternalLink(
                         sidePanelLinks.extras[2],
                         2,
                         sidePanelLinks.extras
@@ -228,4 +272,19 @@ SidePanel.defaultProps = {
     username: undefined,
 };
 
-export default SidePanel;
+export default connect(
+    // mapStateToProps
+    (state, ownProps) => {
+        const user_preferences = state.app.get('user_preferences').toJS();
+        return {
+            user_preferences,
+            ...ownProps,
+        };
+    },
+    // mapDispatchToProps
+    dispatch => ({
+        setUserPreferences: payload => {
+            dispatch(appActions.setUserPreferences(payload));
+        },
+    })
+)(SidePanel);

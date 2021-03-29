@@ -271,7 +271,7 @@ export default class UserProfile extends React.Component {
                                 {tt('g.wallet')}
                             </a>
                         </li>
-                        {isMyAccount ? (
+                        {/*isMyAccount ? (
                             <li>
                                 <Link
                                     to={`/@${accountname}/settings`}
@@ -280,7 +280,7 @@ export default class UserProfile extends React.Component {
                                     {tt('g.settings')}
                                 </Link>
                             </li>
-                        ) : null}
+                        ) : null*/}
                     </ul>
                 </div>
             </div>
