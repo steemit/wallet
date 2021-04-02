@@ -407,6 +407,7 @@ hitbtc-deposit
 hitbtc-pro
 hitbtc.com
 hitbtcexchange
+houbi-pro
 hterising
 huobbi-pro
 huobi-ppro
@@ -750,6 +751,7 @@ smratsteem
 smrtsteem
 ssmartsteem
 ssteemit2
+stcemit
 steampunks
 steeemit2
 steeimt
