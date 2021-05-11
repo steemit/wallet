@@ -12,10 +12,14 @@ import { api } from '@steemit/steem-js';
 import * as transactionActions from 'app/redux/TransactionReducer';
 import * as appActions from 'app/redux/AppReducer';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
+import CopyPassword from 'app/components/elements/CopyPassword';
+import Toast from 'app/components/elements/Toast';
 import { validate_account_name } from 'app/utils/ChainValidation';
 import { cleanReduxInput } from 'app/utils/ReduxForms';
 import { APP_NAME } from 'app/client_config';
 import { userActionRecord } from 'app/utils/ServerApiClient';
+import { CopyToClipboard } from 'react-copy-to-clipboard';
+import copy from 'app/assets/images/copy.png';
 
 const { string, oneOf } = PropTypes;
 
@@ -33,9 +37,12 @@ class ChangePassword extends React.Component {
             accountName: props.username,
             nameError: '',
             generated: false,
+            modalVisible: false,
+            showToast: false,
         };
         this.onNameChange = this.onNameChange.bind(this);
         this.generateWif = this.generateWif.bind(this);
+        this.copySuccess = this.copySuccess.bind(this);
     }
     componentWillMount() {
         this.props.setRouteTag();
@@ -47,7 +54,18 @@ class ChangePassword extends React.Component {
 
     generateWif(e) {
         newWif = 'P' + key_utils.get_random_key().toWif();
-        this.setState({ generated: true });
+        this.setState({ generated: true, modalVisible: true });
+        console.log('shengchengmima');
+    }
+    copySuccess() {
+        this.setState({
+            showToast: true,
+        });
+        setTimeout(() => {
+            this.setState({
+                showToast: false,
+            });
+        }, 2000);
     }
     validateAccountName(name) {
         let nameError = '';
@@ -115,7 +133,7 @@ class ChangePassword extends React.Component {
                 </div>
             );
         }
-        const { generated, loading, error } = this.state;
+        const { generated, loading, error, modalVisible } = this.state;
         const { username, authType, priorAuthKey /*enable2fa*/ } = this.props;
         const { handleSubmit, submitting, onClose } = this.props; // form stuff
         const {
@@ -226,13 +244,24 @@ class ChangePassword extends React.Component {
                     <label>
                         {tt('g.generated_password') + ' '}{' '}
                         <span className="secondary">({tt('g.new')})</span>
+                        {generated && (
+                            <span
+                                style={{ float: 'right' }}
+                                onClick={this.generateWif}
+                            >
+                                <a>{tt('copy_password.regenerate')}</a>
+                            </span>
+                        )}
                         <br />
                     </label>
                     {(generated && (
                         <span>
                             <div>
                                 {/* !! Do not put keys in a label, labels have an uppercase css style applied !! */}
-                                <div className="overflow-ellipsis">
+                                <div
+                                    className="overflow-ellipsis"
+                                    style={{ position: 'relative' }}
+                                >
                                     <code
                                         style={{
                                             display: 'block',
@@ -245,12 +274,26 @@ class ChangePassword extends React.Component {
                                         }}
                                     >
                                         {newWif}
+                                        <CopyToClipboard
+                                            text={newWif}
+                                            onCopy={this.copySuccess}
+                                        >
+                                            <img
+                                                src={copy}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 6,
+                                                    right: 6,
+                                                    cursor: 'pointer',
+                                                }}
+                                            />
+                                        </CopyToClipboard>
                                     </code>
                                 </div>
                             </div>
-                            <label className="ChangePassword__backup_text">
+                            {/*<label className="ChangePassword__backup_text">
                                 {tt('g.backup_password_by_storing_it')}.
-                            </label>
+                                </label>*/}
                         </span>
                     )) || (
                         <button
@@ -335,6 +378,15 @@ class ChangePassword extends React.Component {
                         </div>
                     )}
                 </form>
+                <CopyPassword
+                    visible={modalVisible}
+                    newWif={newWif}
+                    close={() => this.setState({ modalVisible: false })}
+                />
+                <Toast
+                    text={tt('copy_password.copy_success')}
+                    showToast={this.state.showToast}
+                />
             </span>
         );
         // {enable2fa && <p>
