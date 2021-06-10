@@ -55,7 +55,6 @@ class ChangePassword extends React.Component {
     generateWif(e) {
         newWif = 'P' + key_utils.get_random_key().toWif();
         this.setState({ generated: true, modalVisible: true });
-        console.log('shengchengmima');
     }
     copySuccess() {
         this.setState({
