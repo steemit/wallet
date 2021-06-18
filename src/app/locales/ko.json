@@ -667,7 +667,7 @@
         "this_memo_is_public": "모두에게 공개되는 메모입니다.",
         "convert_to_VESTING_TOKEN": "Convert to %(VESTING_TOKEN)s",
         "balance_subject_to_3_day_withdraw_waiting_period":
-            "3일간의 예치기간이 지나야 출금하실 수 있으며, ",
+            "3일간의 예치기간이 지나야 출금하실 수 있습니다.",
         "move_funds_to_another_account": "다른 Steem 계좌로 송금",
         "protect_funds_by_requiring_a_3_day_withdraw_waiting_period":
             "금고 보관 시 출금에 3일의 예치기간이 소요됩니다.",
