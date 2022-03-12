@@ -99,5 +99,6 @@
     "internal_api_token": "xxxx",
     "steem_whale": 10000,
     "sbd_whale": 500,
-    "trx_whale": 10000
+    "trx_whale": 10000,
+    "creator_info": ""
 }

@@ -4,7 +4,8 @@ import models from 'db/models';
 import config from 'config';
 import { esc, escAttrs } from 'db/models';
 import { getRemoteIp, rateLimitReq, checkCSRF } from 'server/utils/misc';
-import { broadcast } from '@steemit/steem-js';
+import { getCreatorInfo } from 'server/utils/recovery';
+import { api, broadcast } from '@steemit/steem-js';
 
 export default function useAccountRecoveryApi(app) {
     const router = koa_router();
@@ -120,12 +121,48 @@ export default function useAccountRecoveryApi(app) {
                 return;
             }
 
-            const recovery_account = config.get(
-                'requestAccountRecovery.recovery_account'
-            );
-            const signing_key = config.get(
-                'requestAccountRecovery.signing_key'
-            );
+            const accounts = yield api.getAccountsAsync([params.name]);
+            if (accounts.length !== 1) {
+                console.log(
+                    '-- /request_account_recovery --> no account found on chain',
+                    this.session.uid,
+                    params.name
+                );
+                this.body = JSON.stringify({ error: 'account_not_found' });
+                this.status = 503;
+                return;
+            }
+            const recovery_account_of_user = accounts[0].recovery_account;
+            const all_recovery_accounts = getCreatorInfo();
+            if (all_recovery_accounts === null) {
+                console.log(
+                    '-- /request_account_recovery --> not_config_recovery_accounts',
+                    this.session.uid,
+                    params.name
+                );
+                this.body = JSON.stringify({
+                    error: 'server_side_error_receovery_accounts',
+                });
+                this.status = 503;
+                return;
+            }
+            if (
+                Object.keys(all_recovery_accounts).indexOf(
+                    recovery_account_of_user
+                ) === -1
+            ) {
+                console.log(
+                    '-- /request_account_recovery --> not_find_available_recovery_account',
+                    this.session.uid,
+                    params.name
+                );
+                this.body = JSON.stringify({
+                    error: 'not_find_available_recovery_account',
+                });
+                this.status = 503;
+                return;
+            }
+
             const {
                 new_owner_authority,
                 old_owner_key,
@@ -133,9 +170,9 @@ export default function useAccountRecoveryApi(app) {
             } = params;
 
             yield requestAccountRecovery({
-                signing_key,
+                signing_key: all_recovery_accounts[recovery_account_of_user],
                 account_to_recover: params.name,
-                recovery_account,
+                recovery_account: recovery_account_of_user,
                 new_owner_authority,
             });
             console.log(

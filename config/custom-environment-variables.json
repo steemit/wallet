@@ -87,5 +87,6 @@
   "internal_api_token": "INTERNAL_API_TOKEN",
   "steem_whale": "STEEM_WHALE",
   "sbd_whale": "SBD_WHALE",
-  "trx_whale": "TRX_WHALE"
+  "trx_whale": "TRX_WHALE",
+  "creator_info": "CREATOR_INFO"
 }
