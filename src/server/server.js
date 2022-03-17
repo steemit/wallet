@@ -269,7 +269,10 @@ useGeneralApi(app);
 
 // helmet wants some things as bools and some as lists, makes config difficult.
 // our config uses strings, this splits them to lists on whitespace.
+console.log('SDC_HELMET_CONNECTSRC:', process.env.SDC_HELMET_CONNECTSRC);
+console.log('SDC_HELMET_SCRIPTSRC:', process.env.SDC_HELMET_SCRIPTSRC);
 if (env === 'production') {
+    console.log('current_directives:', config.get('helmet.directives'));
     const helmetConfig = {
         directives: convertEntriesToArrays(config.get('helmet.directives')),
         reportOnly: config.get('helmet.reportOnly'),
