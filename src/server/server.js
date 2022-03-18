@@ -51,7 +51,7 @@ const env = process.env.NODE_ENV || 'development';
 // cache of a thousand days
 const cacheOpts = { maxAge: 86400000, gzip: true, buffer: true };
 
-const tronRewardSwitch = config.get('tron_reward.switch');
+const tronRewardSwitch = config.get('tron_reward.switch').toLowerCase();
 
 // Serve static assets without fanfare
 app.use(
