@@ -4,7 +4,7 @@ import models from 'db/models';
 import config from 'config';
 import { esc, escAttrs } from 'db/models';
 import { getRemoteIp, rateLimitReq, checkCSRF } from 'server/utils/misc';
-import { broadcast } from '@steemit/steem-js';
+import { api, broadcast } from '@steemit/steem-js';
 
 export default function useAccountRecoveryApi(app) {
     const router = koa_router();
@@ -120,12 +120,6 @@ export default function useAccountRecoveryApi(app) {
                 return;
             }
 
-            const recovery_account = config.get(
-                'requestAccountRecovery.recovery_account'
-            );
-            const signing_key = config.get(
-                'requestAccountRecovery.signing_key'
-            );
             const {
                 new_owner_authority,
                 old_owner_key,
@@ -133,9 +127,7 @@ export default function useAccountRecoveryApi(app) {
             } = params;
 
             yield requestAccountRecovery({
-                signing_key,
                 account_to_recover: params.name,
-                recovery_account,
                 new_owner_authority,
             });
             console.log(
@@ -219,21 +211,15 @@ export default function useAccountRecoveryApi(app) {
     );
 }
 
-function* requestAccountRecovery({
-    recovery_account,
-    account_to_recover,
-    new_owner_authority,
-    signing_key,
-}) {
-    const operations = [
-        [
-            'request_account_recovery',
-            {
-                recovery_account,
-                account_to_recover,
-                new_owner_authority,
-            },
-        ],
-    ];
-    yield broadcast.sendAsync({ extensions: [], operations }, [signing_key]);
+function* requestAccountRecovery({ account_to_recover, new_owner_authority }) {
+    const payload = {
+        account_to_recover,
+        new_owner_authority,
+    };
+    yield api.signedCallAsync(
+        `kingdom.recovery_account`,
+        payload,
+        config.get('conveyor_username'),
+        config.get('conveyor_posting_wif')
+    );
 }

@@ -51,7 +51,7 @@ const env = process.env.NODE_ENV || 'development';
 // cache of a thousand days
 const cacheOpts = { maxAge: 86400000, gzip: true, buffer: true };
 
-const tronRewardSwitch = config.get('tron_reward.switch');
+const tronRewardSwitch = config.get('tron_reward.switch').toLowerCase();
 
 // Serve static assets without fanfare
 app.use(
@@ -269,7 +269,10 @@ useGeneralApi(app);
 
 // helmet wants some things as bools and some as lists, makes config difficult.
 // our config uses strings, this splits them to lists on whitespace.
+console.log('SDC_HELMET_CONNECTSRC:', process.env.SDC_HELMET_CONNECTSRC);
+console.log('SDC_HELMET_SCRIPTSRC:', process.env.SDC_HELMET_SCRIPTSRC);
 if (env === 'production') {
+    console.log('current_directives:', config.get('helmet.directives'));
     const helmetConfig = {
         directives: convertEntriesToArrays(config.get('helmet.directives')),
         reportOnly: config.get('helmet.reportOnly'),
