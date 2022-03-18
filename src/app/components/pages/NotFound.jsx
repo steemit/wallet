@@ -1,13 +1,12 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import SvgImage from 'app/components/elements/SvgImage';
 import { Link } from 'react-router';
 import Icon from 'app/components/elements/Icon';
 import * as appActions from 'app/redux/AppReducer';
 
 class NotFound extends React.Component {
     componentWillMount() {
-        this.props.setRouteTag();
+        this.props.setRouteTag && this.props.setRouteTag();
     }
     render() {
         return (
@@ -67,9 +66,7 @@ class NotFound extends React.Component {
 module.exports = {
     path: '*',
     component: connect(
-        (state, ownProps) => {
-            return {};
-        },
+        (state, ownProps) => ({}),
         dispatch => {
             return {
                 setRouteTag: () =>
@@ -77,4 +74,5 @@ module.exports = {
             };
         }
     )(NotFound),
+    serverRenderComponent: NotFound,
 };
