@@ -19,6 +19,10 @@ const clearPendingClaimTronReward = function*(username) {
     if (user && user.getDataValue('pending_claim_tron_reward') > 0) {
         const pendingClaimTronReward =
             user.getDataValue('pending_claim_tron_reward') / 1e6;
+        log('[DEBUG_TRX_REWARD]', {
+            pendingClaimTronReward,
+            vestsPerTrx,
+        });
         // transaction
         t1 = process.uptime() * 1000;
         yield models.sequelize.transaction().then(transaction => {
