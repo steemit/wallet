@@ -83,5 +83,6 @@ module.exports = (sequelize, DataTypes) => {
             underscored: true,
         }
     );
+    tronReward.getCachePrefix = () => 'tron_reward_pending_';
     return tronReward;
 };
