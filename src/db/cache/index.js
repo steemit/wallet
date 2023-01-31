@@ -367,6 +367,32 @@ function* getPendingClaimReward(model, username) {
     }
 }
 
+function* clearPendingRewardCache(model, username) {
+    if (env !== 'production') {
+        log('clearPendingRewardCache', { msg: 'none_production' });
+        return false;
+    }
+
+    if (!username) {
+        log('clearPendingRewardCache', { msg: 'username is empty.' });
+        return false;
+    }
+
+    const keyPrefix = model.getCachePrefix();
+    const cacheKey = `${keyPrefix}${username}`;
+
+    let t1, t2, t3;
+    try {
+        if (env === 'production') {
+            yield delAsync(cacheKey);
+        }
+        return true;
+    } catch (e) {
+        log('clearPendingRewardCache', { msg: e.message, cacheKey });
+        return false;
+    }
+}
+
 module.exports = {
     getRecordCache,
     updateRecordCache,
@@ -376,4 +402,5 @@ module.exports = {
     updateRecordCache2,
     clearRecordCache2,
     getPendingClaimReward,
+    clearPendingRewardCache,
 };
