@@ -16,25 +16,27 @@ const clearPendingClaimTronReward = function*(username) {
     });
     t2 = process.uptime() * 1000;
     log('[timer] clearPendingClaimTronReward findOne', { t: t2 - t1 });
-    if (user) {
-        t1 = process.uptime() * 1000;
-        yield models.TronReward.update(
-            {
-                tron_addr: user.tron_addr,
-            },
-            {
-                where: {
-                    username,
-                    tron_addr: null,
-                    reward_type: 0,
-                },
-            }
-        );
-        t2 = process.uptime() * 1000;
-        // clear redis cache
-        yield clearPendingRewardCache(models.TronReward, username);
-        log('[timer] clearPendingClaimTronReward transaction:', { t: t2 - t1 });
+    if (!user) {
+        log('user not exist in clearPendingClaimTronReward.');
+        return;
     }
+    t1 = process.uptime() * 1000;
+    yield models.TronReward.update(
+        {
+            tron_addr: user.tron_addr,
+        },
+        {
+            where: {
+                username,
+                tron_addr: null,
+                reward_type: 0,
+            },
+        }
+    );
+    t2 = process.uptime() * 1000;
+    // clear redis cache
+    yield clearPendingRewardCache(models.TronReward, username);
+    log('[timer] clearPendingClaimTronReward transaction:', { t: t2 - t1 });
 };
 
 const insertUserData = function*(data) {

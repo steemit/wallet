@@ -298,8 +298,9 @@ export default function useTronRewardApi(app) {
 
         // when update tron_addr, check if pending_claim_tron_reward empty
         if (data.tron_addr) {
+            log('get in clearPendingClaimTronReward process');
             try {
-                clearPendingClaimTronReward(tronUser.username);
+                yield clearPendingClaimTronReward(tronUser.username);
             } catch (e) {
                 this.body = JSON.stringify({
                     error: e.message,
