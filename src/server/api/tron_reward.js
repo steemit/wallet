@@ -7,6 +7,7 @@ import config from 'config';
 import {
     clearRecordCache2,
     getRecordCache2,
+    getPendingClaimReward,
     updateRecordCache2,
 } from 'db/cache';
 import models from 'db/models';
@@ -110,10 +111,27 @@ export default function useTronRewardApi(app) {
             }
         }
 
+        let pending_trx;
+
+        try {
+            const vestsPerTrx = config.get('tron_reward.vests_per_trx');
+            const pendingReward = yield getPendingClaimReward(
+                models.TronReward,
+                username
+            );
+            pending_trx = pendingReward / 1000000 / vestsPerTrx;
+        } catch (e) {
+            this.body = JSON.stringify({ error: e.message });
+            log('[timer] get /tron_user all', {
+                t: process.uptime() * 1000 - t1,
+            });
+            return;
+        }
+
         const result = {
             username: tronUser.username,
             tron_addr: tronUser.tron_addr,
-            pending_claim_tron_reward: tronUser.pending_claim_tron_reward,
+            pending_claim_tron_reward: `${pending_trx.toFixed(6)} TRX`,
             tip_count: tronUser.tip_count,
         };
 
@@ -280,8 +298,9 @@ export default function useTronRewardApi(app) {
 
         // when update tron_addr, check if pending_claim_tron_reward empty
         if (data.tron_addr) {
+            log('get in clearPendingClaimTronReward process');
             try {
-                clearPendingClaimTronReward(tronUser.username);
+                yield clearPendingClaimTronReward(tronUser.username);
             } catch (e) {
                 this.body = JSON.stringify({
                     error: e.message,

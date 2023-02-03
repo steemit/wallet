@@ -302,6 +302,98 @@ function* clearRecordCache2(model, conditions = {}) {
     }
 }
 
+function* getPendingClaimReward(model, username) {
+    if (!model) {
+        return null;
+    }
+    if (!username) {
+        return null;
+    }
+
+    const keyPrefix = model.getCachePrefix();
+    const cacheKey = `${keyPrefix}${username}`;
+
+    let vestsTotal = 0,
+        t1,
+        t2,
+        t3;
+    try {
+        t1 = process.uptime();
+        vestsTotal =
+            env === 'production'
+                ? yield getAsync(cacheKey)
+                : log('getPendingClaimReward', { msg: 'none_production' });
+        t2 = process.uptime();
+        log('[timer] tron_user getPendingClaimReward redis getAsync', {
+            t: (t2 - t1) * 1000,
+        });
+        if (!vestsTotal) {
+            // not hit cache
+            log('getPendingClaimReward', {
+                msg: 'not_hit_cache',
+                cacheKey,
+            });
+            const dbOptions = {
+                where: {
+                    tron_addr: null,
+                    reward_type: 0,
+                    username,
+                },
+            };
+            t1 = process.uptime();
+            vestsTotal = yield model.sum('reward_vests', dbOptions);
+            if (!vestsTotal) vestsTotal = 0;
+            t2 = process.uptime();
+            log('[timer] tron_user getPendingClaimReward db execute', {
+                t: (t2 - t1) * 1000,
+                vestsTotal,
+            });
+            if (env === 'production') {
+                t1 = process.uptime();
+                yield setAsync(cacheKey, vestsTotal);
+                t2 = process.uptime();
+                yield expireAsync([cacheKey, EXPIRED_TIME]);
+                t3 = process.uptime();
+                log(
+                    '[timer] tron_user getPendingClaimReward redis setAsync, expireAsync:',
+                    { t1: (t2 - t1) * 1000, t2: (t3 - t2) * 1000 }
+                );
+            }
+            return vestsTotal;
+        }
+        return vestsTotal;
+    } catch (e) {
+        log('getPendingClaimReward', { msg: e.message, cacheKey });
+        return null;
+    }
+}
+
+function* clearPendingRewardCache(model, username) {
+    if (env !== 'production') {
+        log('clearPendingRewardCache', { msg: 'none_production' });
+        return false;
+    }
+
+    if (!username) {
+        log('clearPendingRewardCache', { msg: 'username is empty.' });
+        return false;
+    }
+
+    const keyPrefix = model.getCachePrefix();
+    const cacheKey = `${keyPrefix}${username}`;
+
+    let t1, t2, t3;
+    try {
+        if (env === 'production') {
+            yield delAsync(cacheKey);
+        }
+        return true;
+    } catch (e) {
+        log('clearPendingRewardCache', { msg: e.message, cacheKey });
+        return false;
+    }
+}
+
 module.exports = {
     getRecordCache,
     updateRecordCache,
@@ -310,4 +402,6 @@ module.exports = {
     getRecordCache2,
     updateRecordCache2,
     clearRecordCache2,
+    getPendingClaimReward,
+    clearPendingRewardCache,
 };
