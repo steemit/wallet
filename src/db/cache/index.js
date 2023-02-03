@@ -342,6 +342,7 @@ function* getPendingClaimReward(model, username) {
             };
             t1 = process.uptime();
             vestsTotal = yield model.sum('reward_vests', dbOptions);
+            if (!vestsTotal) vestsTotal = 0;
             t2 = process.uptime();
             log('[timer] tron_user getPendingClaimReward db execute', {
                 t: (t2 - t1) * 1000,
