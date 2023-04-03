@@ -26,6 +26,7 @@ export const defaultState = Map({
     user_preferences: Map({
         locale: null,
         nightmode: false,
+        selectedRpc: '',
     }),
     featureFlags: Map({}),
     modalLoading: false,

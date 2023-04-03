@@ -14,14 +14,15 @@
             "imgSrc": "* data:",
             "objectSrc": "'none'",
             "pluginTypes": "application/pdf",
-            "scriptSrc": "'self' www.google-analytics.com staticfiles.steemit.com localhost:8080",
+            "scriptSrc":
+                "'self' www.google-analytics.com staticfiles.steemit.com localhost:8080",
             "styleSrc": "'self' 'unsafe-inline' fonts.googleapis.com",
             "reportUri": "/api/v1/csp_violation"
         },
         "reportOnly": false,
         "setAllHeaders": true
     },
-    "img_proxy_prefix": "https://steemitdevimages.com/",
+    "img_proxy_prefix": "https://steemitimages.com/",
     "ipfs_prefix": false,
     "mixpanel": false,
     "newrelic": false,
@@ -72,6 +73,38 @@
     "upload_image": false,
     "steemd_connection_client": "https://api.steemit.com",
     "steemd_connection_server": "https://api.steemit.com",
+    "rpc_list": [
+        "https://api.steemit.com",
+        "https://api.steemitdev.com",
+        // "https://api.upvu.org",
+        // "https://api.supporter.dev",
+        "https://api.steem.fans",
+        "https://steem.61bts.com",
+        // "https://steemyy.com/node/",
+        "https://api.steemyy.com",
+        // "https://api.dlike.io",
+        "https://cn.steems.top",
+        // "https://api.steem-fanbase.com",
+        // "https://fullsteem.3dkrender.com",
+        "https://api.steems.top",
+        // "https://api.steemzzang.com",
+        // "https://api.symbionts.io",
+        // "https://steemd.steemworld.org",
+        "https://api.wherein.io",
+        // "https://api.steememory.com",
+        // "https://api.cotina.org",
+        "https://justyy.azurewebsites.net/api/steem",
+        // "https://steemapi.3dkrender.com",
+        "https://api.justyy.com",
+        // "https://api.protoss20.com",
+        "https://steemapi.boylikegirl.club",
+        // "https://api.pennsif.net",
+        // "https://rpc.amarbangla.net",
+        "https://api.steem.buzz"
+        // "https://steem.senior.workers.dev",
+        // "https://api.campingclub.me",
+        // "https://api.blokfield.io"
+    ],
     "steemd_use_appbase": false,
     "chain_id":
         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -80,21 +113,22 @@
     "conveyor_username": false,
     "social_url": "https://steemit.com",
     "tron_reward": {
-      "switch": "on",
-      "vests_per_trx": 10000,
-      "unbind_tip_limit": 5
+        "switch": "on",
+        "vests_per_trx": 10000,
+        "unbind_tip_limit": 5
     },
     "redis_url": "redis://127.0.0.1:6379",
     "redis_env": "develop",
-    "tron_create_key": "ade06c9d42d42c7e24bf93dcbb0a481193a6869400ddee21855d4cf585eaad8a",
+    "tron_create_key":
+        "ade06c9d42d42c7e24bf93dcbb0a481193a6869400ddee21855d4cf585eaad8a",
     "tron_create_node": "https://api.shasta.trongrid.io",
-    "tron_create_address":"xxxxx",
-    "white_list":"steemit.com localhost steemit-sdc 127.0.0.1",
+    "tron_create_address": "xxxxx",
+    "white_list": "steemit.com localhost steemit-sdc 127.0.0.1",
     "steem_market_endpoint": "http://34.196.9.171",
     "steem_market_token": "xxxx",
     "steem_market_cache": {
-      "ttl": 7200,
-      "key": "steem-market"
+        "ttl": 7200,
+        "key": "steem-market"
     },
     "internal_api_token": "xxxx",
     "steem_whale": 10000,

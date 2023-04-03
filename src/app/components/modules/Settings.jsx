@@ -2,9 +2,43 @@ import React from 'react';
 import { connect } from 'react-redux';
 import tt from 'counterpart';
 import * as appActions from 'app/redux/AppReducer';
-import o2j from 'shared/clash/object2json';
+import * as steem from '@steemit/steem-js';
 
 class Settings extends React.Component {
+    constructor() {
+        super();
+    }
+
+    validateUrlFormat(url) {
+        if (!url) return false;
+        if (!/^https?:\/\//.test(url)) return false;
+        return true;
+    }
+
+    handleSelectRPCNode = event => {
+        const selectedUrl = event.target.value;
+
+        if (this.validateUrlFormat(selectedUrl) === false) {
+            this.setState({
+                rpcError: tt('settings_jsx.invalid_url'),
+            });
+            return;
+        }
+
+        this.props.setUserPreferences({
+            ...this.props.user_preferences,
+            selectedRpc: selectedUrl,
+        });
+
+        // Set RPC Node
+        localStorage.setItem('steemSelectedRpc', selectedUrl);
+
+        // Set at the same time as selection
+        steem.api.setOptions({
+            url: selectedUrl,
+        });
+    };
+
     handleLanguageChange = event => {
         const locale = event.target.value;
         const userPreferences = { ...this.props.user_preferences, locale };
@@ -15,6 +49,33 @@ class Settings extends React.Component {
         const { user_preferences } = this.props;
         return (
             <div className="Settings">
+                <div className="row">
+                    <div className="small-12 medium-4 large-4 columns">
+                        <br />
+                        <br />
+                        <h4>{tt('settings_jsx.rpc_title')}</h4>
+
+                        <label>
+                            {tt('settings_jsx.rpc_select')}
+
+                            <select
+                                defaultValue={
+                                    user_preferences.selectedRpc ||
+                                    global.$STM_Config.steemd_connection_client
+                                }
+                                onChange={this.handleSelectRPCNode}
+                            >
+                                {$STM_Config.steemd_rpc_list.map(rpc => (
+                                    <option key={rpc} value={rpc}>
+                                        {rpc}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <br />
+                        <br />
+                    </div>
+                </div>
                 <div className="row">
                     <div className="small-12 medium-6 large-4 columns">
                         <h4>{tt('settings_jsx.preferences')}</h4>
