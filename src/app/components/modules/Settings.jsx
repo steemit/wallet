@@ -5,8 +5,12 @@ import * as appActions from 'app/redux/AppReducer';
 import * as steem from '@steemit/steem-js';
 
 class Settings extends React.Component {
-    constructor() {
+    constructor(props) {
         super();
+
+        this.rpcNode =
+            (props.user_preferences && props.user_preferences.selectedRpc) ||
+            $STM_Config.steemd_connection_client;
     }
 
     validateUrlFormat(url) {
@@ -30,7 +34,7 @@ class Settings extends React.Component {
             selectedRpc: selectedUrl,
         });
 
-        // Set RPC Node
+        // Store RPC Node in localStorage
         localStorage.setItem('steemSelectedRpc', selectedUrl);
 
         // Set at the same time as selection
@@ -56,21 +60,24 @@ class Settings extends React.Component {
                         <h4>{tt('settings_jsx.rpc_title')}</h4>
 
                         <label>
-                            {tt('settings_jsx.rpc_select')}
-
-                            <select
-                                defaultValue={
-                                    user_preferences.selectedRpc ||
-                                    global.$STM_Config.steemd_connection_client
-                                }
-                                onChange={this.handleSelectRPCNode}
-                            >
-                                {$STM_Config.steemd_rpc_list.map(rpc => (
-                                    <option key={rpc} value={rpc}>
-                                        {rpc}
-                                    </option>
-                                ))}
-                            </select>
+                            {tt('settings_jsx.rpc_select')} {this.rpcNode}
+                        </label>
+                        <select
+                            defaultValue={this.rpcNode}
+                            onChange={this.handleSelectRPCNode}
+                        >
+                            {$STM_Config.steemd_rpc_list.map(rpc => (
+                                <option key={rpc} value={rpc}>
+                                    {rpc}
+                                </option>
+                            ))}
+                        </select>
+                        <label>
+                            {tt('settings_jsx.selected_rpc', {
+                                rpc:
+                                    this.props.user_preferences.selectedRpc ||
+                                    this.rpcNode,
+                            })}
                         </label>
                         <br />
                         <br />
