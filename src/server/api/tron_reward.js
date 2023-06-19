@@ -174,7 +174,11 @@ export default function useTronRewardApi(app) {
                     models.TronUser,
                     models.escAttrs(conditions)
                 );
-                if (tronUser != null && tronUser.tron_addr != '') {
+                if (
+                    tronUser != null &&
+                    tronUser.tron_addr != null &&
+                    tronUser.tron_addr != ''
+                ) {
                     this.body = JSON.stringify({
                         error: 'need_active_or_owner_key',
                     });
