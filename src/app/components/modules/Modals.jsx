@@ -165,7 +165,8 @@ class Modals extends React.Component {
             if (e && e.preventDefault) e.preventDefault();
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location = 'https://poloniex.com/exchange#trx_steem';
+            new_window.location =
+                'https://poloniex.com/trade/STEEM_TRX/?type=spot';
         };
 
         return (

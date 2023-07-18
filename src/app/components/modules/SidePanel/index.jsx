@@ -131,7 +131,7 @@ const SidePanel = ({
             {
                 value: 'poloniex',
                 label: 'Poloniex',
-                link: 'https://poloniex.com/exchange#trx_steem',
+                link: 'https://poloniex.com/trade/STEEM_TRX/?type=spot',
             },
         ],
         external: [

@@ -80,7 +80,8 @@ class UserWallet extends React.Component {
             // const name = this.props.currentUser.get('username');
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location = 'https://poloniex.com/exchange#usdt_trx';
+            new_window.location =
+                'https://poloniex.com/trade/TRX_USDT/?type=spot';
         };
         this.onShowTronLink = e => {
             if (e && e.preventDefault) e.preventDefault();
