@@ -58,7 +58,8 @@ class UserWallet extends React.Component {
             // const name = this.props.currentUser.get('username');
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location = 'https://poloniex.com/exchange#trx_steem';
+            new_window.location =
+                'https://poloniex.com/trade/STEEM_TRX/?type=spot';
         };
         this.onShowSteemTradeTop = e => {
             if (e && e.preventDefault) e.preventDefault();
@@ -69,7 +70,8 @@ class UserWallet extends React.Component {
             // const name = this.props.currentUser.get('username');
             const new_window = window.open();
             new_window.opener = null;
-            new_window.location = 'https://poloniex.com/exchange#trx_steem';
+            new_window.location =
+                'https://poloniex.com/trade/STEEM_TRX/?type=spot';
         };
         this.onShowTrxTrade = e => {
             if (e && e.preventDefault) e.preventDefault();
