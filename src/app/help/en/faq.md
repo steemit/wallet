@@ -696,6 +696,12 @@ Most users will have a small amount of Steem Power delegated to them by the Stee
 
 Delegated Steem Power shows up in a user's wallet below their actual Steem Power balance in parentheses.
 
+Once delegated, the influence is instantly transferred to the delegatee (the person receiving the delegation). But once revoked or cancelled, the delegation or Steem Power will take exactly 5 days to return to the account of the original delegator. In these 5 days, nor the delegator or delegatee can use the Steem Power being returned. Only after 5 days, the original delegator will be able to use his Power again.
+
+Users can update their delegations to other users without having to cancel or revoke it. If, for example, account1 has already delegated 1000 Steem Power to account2, and later account1 wanted to update his delegation to 2000 Steem Power. Then account1 can delegate 2000 Steem Power to account2 without having to cancel his prior delegation of 1000 Steem Power. Likewise, account1 can delegate 1000 Steem Power to account2 if he wants to lower his delegation from 2000 to 1000 Steem Power to account2.
+
+Delegation also requires RC (Resource Credits). Users wishing to delegate must ensure that there is enough RC left in their account to cover the cost of the transaction on the Steem blockchain.
+
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="What_determines_the_price_of_STEEM">What determines the price of STEEM?</span>
 

@@ -53,6 +53,12 @@ const HIDE_BIND_EXIST_TRON_ADDR = 'user/HIDE_BIND_EXIST_TRON_ADDR';
 // Saga-related
 export const LOAD_SAVINGS_WITHDRAW = 'user/LOAD_SAVINGS_WITHDRAW';
 export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
+export const GET_VESTING_DELEGATIONS = 'user/GET_VESTING_DELEGATIONS';
+export const VESTING_DELEGATIONS_LOADING = 'user/VESTING_DELEGATIONS_LOADING';
+export const SET_VESTING_DELEGATIONS = 'user/SET_VESTING_DELEGATIONS';
+export const GET_EXPIRING_VESTING_DELEGATIONS = 'user/GET_EXPIRING_VESTING_DELEGATIONS';
+export const SET_EXPIRING_VESTING_DELEGATIONS = 'user/SET_EXPIRING_VESTING_DELEGATIONS'
+export const EXPIRING_VESTING_DELEGATIONS_LOADING = 'user/EXPIRING_VESTING_DELEGATIONS_LOADING'
 export const CHECK_TRON = 'user/CHECK_TRON';
 export const UPDATE_TRON_ADDR = 'user/UPDATE_TRON_ADDR';
 export const RESET_ERROR = 'user/RESET_ERROR';
@@ -74,6 +80,8 @@ const defaultState = fromJS({
     locale: DEFAULT_LANGUAGE,
     show_side_panel: false,
     maybeLoggedIn: false,
+    vestingDelegations: null,
+    expiringVestingDelegations: null,
     tron_account_check_error: null,
     to_tron_addr: null,
     tron_balance: 0,
@@ -131,6 +139,18 @@ export default function reducer(state = defaultState, action) {
         case SAVE_LOGIN:
             // Use only for low security keys (like posting only keys)
             return state;
+
+        case SET_VESTING_DELEGATIONS:
+            return state.set('vestingDelegations', payload);
+
+        case VESTING_DELEGATIONS_LOADING:
+            return state.set('vestingDelegationsLoading', payload);
+
+        case SET_EXPIRING_VESTING_DELEGATIONS:
+            return state.set('expiringVestingDelegations', payload);
+
+        case EXPIRING_VESTING_DELEGATIONS_LOADING:
+            return state.set('expiringVestingDelegationsLoading', payload);
 
         case REMOVE_HIGH_SECURITY_KEYS: {
             if (!state.hasIn(['current', 'private_keys'])) return state;
@@ -538,6 +558,44 @@ export const hideSidePanel = () => {
         type: HIDE_SIDE_PANEL,
     };
 };
+
+/* Outing */
+
+export const getVestingDelegations = (payload) => {
+    return {
+        type: GET_VESTING_DELEGATIONS,
+        payload,
+    };
+};
+
+export const setVestingDelegations = (payload) => ({
+    type: SET_VESTING_DELEGATIONS,
+    payload,
+});
+
+export const vestingDelegationsLoading = (payload) => ({
+    type: VESTING_DELEGATIONS_LOADING,
+    payload,
+});
+
+/* Expiring */
+
+export const getExpiringVestingDelegations = (payload) => {
+    return {
+        type: GET_EXPIRING_VESTING_DELEGATIONS,
+        payload,
+    };
+};
+
+export const setExpiringVestingDelegations = (payload) => ({
+    type: SET_EXPIRING_VESTING_DELEGATIONS,
+    payload,
+});
+
+export const expiringVestingDelegationsLoading = (payload) => ({
+    type: EXPIRING_VESTING_DELEGATIONS_LOADING,
+    payload,
+});
 
 export const setTronAccountCheckError = payload => ({
     type: SET_TRON_ACCOUNT_CHECK_ERROR,

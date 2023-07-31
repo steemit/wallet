@@ -5,16 +5,22 @@ import tt from 'counterpart';
 export default ({ accountname, isMyAccount, showTab }) => {
     return (
         <ul className="WalletSubMenu menu">
-            {(isMyAccount || showTab == 'balance') && (
-                <li>
-                    <Link
-                        to={`/@${accountname}/transfers`}
-                        activeClassName="active"
-                    >
-                        {tt('g.balances')}
-                    </Link>
-                </li>
-            )}
+            <li>
+                <Link
+                    to={`/@${accountname}/transfers`}
+                    activeClassName="active"
+                >
+                    {tt('g.balances')}
+                </Link>
+            </li>
+            <li>
+                <Link
+                    to={`/@${accountname}/delegations`}
+                    activeClassName="active"
+                >
+                    {tt('g.delegations')}
+                </Link>
+            </li>
             {isMyAccount || showTab == 'permissions' ? (
                 <li>
                     <Link
