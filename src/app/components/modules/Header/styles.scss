@@ -3,7 +3,7 @@
   backface-visibility: hidden;
   top: 0;
   left: 0;
-  width: 100%;
+  width: 100vw;
   z-index: 100;
   box-shadow: 0 2px 4px 0 rgba(0,0,0,0.05);
   @include themify($themes) {
@@ -119,6 +119,7 @@ span.Header__hamburger.toggle-menu {
     }
     @include MQ(M) {
         margin-left: 0.75rem;
+        margin-right: 0.75rem;
     }
     cursor: pointer;
     &::after {

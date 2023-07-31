@@ -1,0 +1,45 @@
+.input-box input {
+    width: 100%;
+    font-family: "Poppins", sans-serif;
+    font-size: 1rem;
+    border: 1px solid #7e7d7d;
+    outline: none;
+    padding: 0.25rem 0.5rem 0.5rem 0;
+    border-radius: 5px;
+    padding: 1.5rem .5rem;
+}
+
+.input-box{
+    position: relative;
+    margin-left: inherit;
+}
+
+.input-box input:focus{
+    border: 1px solid #06D6A9;
+}
+
+.input-box label {
+    transform: translateX(10px) translateY(-3rem);
+    left: 0;
+    padding: 1rem;
+    padding-top: 0.5rem;
+    pointer-events: none;
+    font-size: 1rem;
+    color: #7e7d7d;
+    transition: 0.5s;
+    margin-right: 15px;
+    max-width: fit-content;
+}
+
+.input-box input:focus ~ label,
+.input-box .focus ~ label{
+    transform: translateX(10px) translateY(-3.95rem);
+    font-size: .75rem;
+    padding: .45rem;
+    padding-top: .1rem;
+    padding-bottom: .1rem;
+    background-color: #06D6A9;
+    font-weight: bold;
+    color: #FFFFFF;
+    border-radius: 5px;
+}

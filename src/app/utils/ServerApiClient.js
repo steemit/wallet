@@ -184,6 +184,21 @@ export function userActionRecord(action, params) {
                 amount: params.amount,
             };
             break;
+        case 'delegate_vesting_shares':
+            tags = {
+                app: 'wallet',
+                action_type: action,
+                transfer_coin: params.transferCoin,
+                whale: (
+                    params.amount > whaleThreshold[params.transferCoin]
+                ).toString(),
+            };
+            fields = {
+                from_username: params.from,
+                to_username: params.to,
+                amount: params.amount,
+            };
+            break;
         case 'create_tron_addr':
         case 'change_new_tron_addr':
         case 'link_user_tron_addr':

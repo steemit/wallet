@@ -17,6 +17,8 @@ import * as globalActions from 'app/redux/GlobalReducer';
 import * as appActions from 'app/redux/AppReducer';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import ConfirmTransfer from 'app/components/elements/ConfirmTransfer';
+import ConfirmDelegationTransfer from 'app/components/elements/ConfirmDelegationTransfer';
+import { FormattedHTMLMessage } from 'app/Translator';
 import runTests, { browserTests } from 'app/utils/BrowserTests';
 import { recordAdsView, userActionRecord } from 'app/utils/ServerApiClient';
 import {
@@ -34,8 +36,11 @@ class TransferForm extends Component {
         // redux
         currentUser: PropTypes.object.isRequired,
         toVesting: PropTypes.bool.isRequired,
+        toDelegate: PropTypes.bool.isRequired,
         currentAccount: PropTypes.object.isRequired,
         following: PropTypes.object.isRequired,
+        totalVestingFund: PropTypes.number.isRequired,
+        totalVestingShares: PropTypes.number.isRequired,
     };
 
     static defaultProps = {
@@ -211,10 +216,11 @@ class TransferForm extends Component {
             return parseFloat(amount) > parseFloat(balance);
             // return parseFloat(balance) == 0.00 ? true: parseFloat(amount) > parseFloat(balance);
         };
-        const { toVesting } = props;
+        const { toVesting, toDelegate } = props;
         const fields = toVesting ? ['to', 'amount'] : ['to', 'amount', 'asset'];
         if (
             !toVesting &&
+            !toDelegate &&
             transferType !== 'Transfer to Savings' &&
             transferType !== 'Savings Withdraw'
         ) {
@@ -280,10 +286,15 @@ class TransferForm extends Component {
 
     balanceValue() {
         const { transferType } = this.props.initialValues;
-        const { currentAccount } = this.props;
+        const {
+            currentAccount,
+            toDelegate,
+            totalVestingShares,
+            totalVestingFund,
+        } = this.props;
         const { asset } = this.state;
         const isWithdraw = transferType && transferType === 'Savings Withdraw';
-        return !asset || asset.value === 'STEEM'
+        let balanceValue =!asset || asset.value === 'STEEM'
             ? isWithdraw
                 ? currentAccount.get('savings_balance')
                 : currentAccount.get('balance')
@@ -294,6 +305,26 @@ class TransferForm extends Component {
                 : asset.value === 'TRX'
                     ? Math.floor(this.props.tronBalance * 1000) / 1000 + ' TRX'
                     : null;
+        if (toDelegate) {
+            balanceValue = currentAccount.get('savings_balance');
+            const vestingShares = parseFloat(
+                currentAccount.get('vesting_shares')
+            );
+            const toWithdraw = parseFloat(currentAccount.get('to_withdraw'));
+            const withdrawn = parseFloat(currentAccount.get('withdrawn'));
+            const delegatedVestingShares = parseFloat(
+                currentAccount.get('delegated_vesting_shares')
+            );
+            // Available Vests Calculation.
+            const avail =
+                vestingShares -
+                (toWithdraw - withdrawn) / 1e6 -
+                delegatedVestingShares;
+            // Representation of available Vests as STEEM.
+            const vestSteem = totalVestingFund * (avail / totalVestingShares);
+            balanceValue = `${vestSteem.toFixed(3)} Steem Power`;
+        }
+        return balanceValue;
     }
 
     assetBalanceClick = e => {
@@ -328,6 +359,9 @@ class TransferForm extends Component {
             'Savings Withdraw': tt(
                 'transfer_jsx.withdraw_funds_after_the_required_3_day_waiting_period'
             ),
+            // 'Delegate to Account': tt(
+            //     'transfer_jsx.'
+            // ),
             'Transfer to TRON Account': tt(
                 'transfer_jsx.move_funds_to_another_tron_account',
                 { APP_NAME }
@@ -342,8 +376,11 @@ class TransferForm extends Component {
         const {
             currentUser,
             toVesting,
+            toDelegate,
             transferToSelf,
             dispatchSubmit,
+            totalVestingFund,
+            totalVestingShares,
             tronAccountCheckError,
             tronTransferSubmit,
             trackingId,
@@ -477,7 +514,10 @@ class TransferForm extends Component {
                             errorCallback: this.errorCallback,
                             currentUser,
                             toVesting,
+                            toDelegate,
                             transferType,
+                            totalVestingShares,
+                            totalVestingFund,
                         });
                     }
                 })}
@@ -501,7 +541,12 @@ class TransferForm extends Component {
                     <div>
                         <div className="row">
                             <div className="column small-12">
-                                {transferTips[transferType]}
+                                {toDelegate
+                                    ? (<FormattedHTMLMessage
+                                        className="secondary"
+                                        id="transfer_jsx.delegate_vesting"
+                                        />)
+                                    : transferTips[transferType]}
                             </div>
                         </div>
                         <br />
@@ -668,7 +713,7 @@ class TransferForm extends Component {
                         >
                             <input
                                 type="text"
-                                placeholder={tt('g.amount')}
+                                placeholder={tt(toDelegate ? 'g.delegation_placeholder' : 'g.amount')}
                                 {...amount.props}
                                 ref="amount"
                                 autoComplete="off"
@@ -677,7 +722,7 @@ class TransferForm extends Component {
                                 spellCheck="false"
                                 disabled={loading}
                             />
-                            {asset && (
+                            {asset && asset.value !== 'VESTS' && (
                                 <span
                                     className="input-group-label"
                                     style={{ paddingLeft: 0, paddingRight: 0 }}
@@ -704,6 +749,28 @@ class TransferForm extends Component {
                                         {this.state.tronTransfer && (
                                             <option value="TRX">TRX</option>
                                         )}
+                                    </select>
+                                </span>
+                            )}
+                            {asset && asset.value === 'VESTS' && (
+                                <span
+                                    className="input-group-label"
+                                    style={{ paddingLeft: 0, paddingRight: 0 }}
+                                >
+                                    <select
+                                        {...asset.props}
+                                        placeholder={tt('transfer_jsx.asset')}
+                                        disabled={
+                                            loading || toDelegate
+                                        }
+                                        style={{
+                                            minWidth: '5rem',
+                                            height: 'inherit',
+                                            backgroundColor: 'transparent',
+                                            border: 'none',
+                                        }}
+                                    >
+                                        <option value="STEEM">Steem Power</option>
                                     </select>
                                 </span>
                             )}
@@ -1001,8 +1068,33 @@ const TxLink = ({ txId, trackingId }) => (
 export default connect(
     // mapStateToProps
     (state, ownProps) => {
+        const totalVestingShares = state.global.getIn([
+            'props',
+            'total_vesting_shares',
+        ])
+            ? parseFloat(
+                  state.global
+                      .getIn(['props', 'total_vesting_shares'])
+                      .split(' ')[0]
+              )
+            : 0;
+
+        const totalVestingFund = state.global.getIn([
+            'props',
+            'total_vesting_fund_steem',
+        ])
+            ? parseFloat(
+                  state.global
+                      .getIn(['props', 'total_vesting_fund_steem'])
+                      .split(' ')[0]
+              )
+            : 0;
         const initialValues = state.user.get('transfer_defaults', Map()).toJS();
         const toVesting = initialValues.asset === 'VESTS';
+        const toDelegate = initialValues.asset === 'DELEGATE_VESTS';
+        if (toDelegate) {
+            initialValues.asset = 'VESTS';
+        }
         const currentUser = state.user.getIn(['current']);
         const currentAccount = state.global.getIn([
             'accounts',
@@ -1043,6 +1135,7 @@ export default connect(
             currentUser,
             currentAccount,
             toVesting,
+            toDelegate,
             transferToSelf,
             initialValues,
             following: state.global.getIn([
@@ -1051,6 +1144,8 @@ export default connect(
                 currentUser.get('username'),
                 'blog_result',
             ]),
+            totalVestingFund,
+            totalVestingShares,
             tronAddr,
             tronBalance,
             toTronAddr,
@@ -1072,12 +1167,15 @@ export default connect(
             memo,
             transferType,
             toVesting,
+            toDelegate,
             currentUser,
             errorCallback,
+            totalVestingFund,
+            totalVestingShares,
         }) => {
             if (
                 !toVesting &&
-                !/Transfer to Account|Transfer to Savings|Savings Withdraw/.test(
+                !/Transfer to Account|Transfer to Savings|Delegate to Account|Savings Withdraw/.test(
                     transferType
                 )
             )
@@ -1086,20 +1184,26 @@ export default connect(
                 );
 
             const username = currentUser.get('username');
-            const successCallback = () => {
-                const transType = toVesting
-                    ? 'transfer_to_vesting'
-                    : transferType === 'Transfer to Account'
-                        ? 'transfer'
-                        : transferType === 'Transfer to Savings'
-                            ? 'transfer_to_savings'
-                            : transferType === 'Savings Withdraw'
-                                ? 'transfer_from_savings'
+            const transactionType = toVesting
+                ? 'transfer_to_vesting'
+                : transferType === 'Transfer to Account'
+                    ? 'transfer'
+                    : transferType === 'Transfer to Savings'
+                        ? 'transfer_to_savings'
+                        : transferType === 'Savings Withdraw'
+                            ? 'transfer_from_savings'
+                            : transferType === 'Delegate to Account'
+                                ? 'delegate_vesting_shares'
                                 : null;
-                if (transType !== null) {
-                    const transferCoin = toVesting ? 'STEEM' : asset;
-                    userActionRecord(transType, {
-                        transferCoin,
+            const asset2 = toVesting
+                ? 'STEEM'
+                : toDelegate
+                    ? 'VESTS'
+                    : asset;
+            const successCallback = () => {
+                if (transactionType !== null) {
+                    userActionRecord(transactionType, {
+                        transferCoin: asset2,
                         amount,
                         from: username,
                         to,
@@ -1114,29 +1218,39 @@ export default connect(
                 }
                 dispatch(userActions.hideTransfer());
             };
-            const asset2 = toVesting ? 'STEEM' : asset;
-            const operation = {
+            let operation = {
                 from: username,
                 to,
                 amount: parseFloat(amount, 10).toFixed(3) + ' ' + asset2,
                 memo: toVesting ? undefined : memo ? memo : '',
             };
-            const confirm = () => <ConfirmTransfer operation={operation} />;
+            let confirm = () => <ConfirmTransfer operation={operation} />;
             if (transferType === 'Savings Withdraw')
                 operation.request_id = Math.floor(
                     (Date.now() / 1000) % 4294967295
                 );
+            if (toDelegate) {
+                // Convert amount in steem to vests...
+                const amountSteemAsVests =
+                    (amount * totalVestingShares) / totalVestingFund;
+                operation = {
+                    delegator: username,
+                    delegatee: to,
+                    vesting_shares:
+                        parseFloat(amountSteemAsVests, 10).toFixed(6) +
+                        ' ' +
+                        asset2,
+                };
+                confirm = () => (
+                    <ConfirmDelegationTransfer
+                        operation={operation}
+                        amount={amount}
+                    />
+                );
+            }
             dispatch(
                 transactionActions.broadcastOperation({
-                    type: toVesting
-                        ? 'transfer_to_vesting'
-                        : transferType === 'Transfer to Account'
-                            ? 'transfer'
-                            : transferType === 'Transfer to Savings'
-                                ? 'transfer_to_savings'
-                                : transferType === 'Savings Withdraw'
-                                    ? 'transfer_from_savings'
-                                    : null,
+                    type: transactionType,
                     operation,
                     successCallback,
                     errorCallback,

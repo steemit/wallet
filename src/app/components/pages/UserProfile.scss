@@ -44,12 +44,23 @@
       margin-right: auto;
       display: flex;
       flex-flow: row wrap;
+      justify-content: space-between;
+      gap: 2rem;
       width: 100%;
       // Override default svg vertical alignment
       .Icon > svg, .Icon span.icon {
           vertical-align: middle!important;
       }
   }
+}
+
+div.UserProfile__top-menu > :nth-child(1) {
+    max-width: max-content;
+    margin-left: .5rem;
+}
+
+div.UserProfile__top-menu > :nth-child(2) {
+    margin-right: .5rem;
 }
 
 .UserProfile__section-title {

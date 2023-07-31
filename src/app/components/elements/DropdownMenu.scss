@@ -17,6 +17,7 @@
     opacity: 0;
     position: absolute;
     top: 100%;
+    right: 0;
     padding: 2px;
 
     @include themify($themes) {
@@ -60,5 +61,11 @@
     .VerticalMenu {
       left: -50%;
     }
+  }
+}
+
+@media (max-width: 374px)  {
+  .DropdownMenu > .VerticalMenu {
+      max-width: 200px;
   }
 }
