@@ -1,3 +1,4 @@
+/* eslint-disable linebreak-style */
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
@@ -100,6 +101,26 @@ class ConfirmTransactionForm extends Component {
         );
     }
 }
+
+// List of operations that have a translation for a commit message
+const operationsList = [
+    'delegate_vesting_shares'
+]
+
+// Select the message depending on the operation
+const selectMessage = (confirmBroadcastOperation, type) => {
+    let message = type
+    // operation: delegate_vesting_shares
+    if (type === operationsList[0]) {
+        const vesting_shares = confirmBroadcastOperation.getIn(['operation', 'vesting_shares']);
+        console.log(vesting_shares, "vesting_shares");
+        message = parseFloat(vesting_shares.split(' ')) > 0
+            ? `confirm${type.split('_').join('')}_jsx.delegation`
+            : `confirm${type.split('_').join('')}_jsx.revoke`;
+    }
+    return message
+}
+
 const typeName = confirmBroadcastOperation => {
     const title = confirmBroadcastOperation.getIn([
         'operation',
@@ -108,6 +129,13 @@ const typeName = confirmBroadcastOperation => {
     ]);
     if (title) return title;
     const type = confirmBroadcastOperation.get('type');
+    if (operationsList.includes(type)) {
+        try {
+            return tt(selectMessage(confirmBroadcastOperation, type))
+        } catch (error) {
+            console.log(error);
+        }
+    }
     return tt('confirmtransactionform_jsx.confirm', {
         transactionType: type
             .split('_')

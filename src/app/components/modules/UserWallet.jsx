@@ -505,6 +505,15 @@ class UserWallet extends React.Component {
         ];
         const power_menu = [
             {
+                value: tt('userwallet_jsx.delegate'),
+                link: '#',
+                onClick: showTransfer.bind(
+                    this,
+                    'DELEGATE_VESTS',
+                    'Delegate to Account'
+                ),
+            },
+            {
                 value: tt('userwallet_jsx.power_down'),
                 link: '#',
                 onClick: powerDown.bind(this, false),
@@ -824,6 +833,13 @@ class UserWallet extends React.Component {
                                 params={{ value: spApr.toFixed(2) }}
                             />
                         )}{' '}
+                        {delegated_steem === 0 ? (
+                            <span className="secondary">
+                                {tt(
+                                    'tips_js.your_steem_power_is_not_currently_delegated'
+                                )}
+                            </span>
+                        ) : null}{' '}
                     </div>
                     <div className="column small-12 medium-4">
                         {isMyAccount ? (

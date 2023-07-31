@@ -1,0 +1,10 @@
+export const ASC = 'asc'
+export const DESC = 'desc'
+export const DELEGATEE = 'delegatee'
+export const DATE = 'date'
+export const AMOUNT = 'amount'
+export const PAGE_LIMIT = 100
+export const API_URL = 'https://api.steemit.com'
+export const API_LIMIT = 1000
+export const LEFT_PAGE = 'LEFT'
+export const RIGHT_PAGE = 'RIGHT'

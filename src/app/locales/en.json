@@ -7,6 +7,8 @@
         "ask": "Ask",
         "balance": "Balance: %(balanceValue)s",
         "balances": "Balances",
+        "delegations": "Delegations",
+        "delegation_placeholder": "Set to 0 to revoke your delegation",
         "bid": "Bid",
         "blog": "Blog",
         "browse": "Browse",
@@ -654,6 +656,8 @@
             "Converted %(VESTING_TOKEN)s can be sent to yourself or someone else but can not transfer again without converting back to %(LIQUID_TOKEN)s.",
         "part_of_your_steem_power_is_currently_delegated":
             "Part of %(user_name)s's STEEM POWER is currently delegated. Delegation is donated for influence or to help new users perform actions on Steemit. Your delegation amount can fluctuate.",
+        "your_steem_power_is_not_currently_delegated":
+            "Influence can also be delegated to other users via delegating your Steem Power. Returning your Steem Power takes exactly 5 days in which neither you nor the delegatee can use it.",
         "steem_power_apr":
             "STEEM POWER increases at an APR of approximately %(value)s&#37;, subject to blockchain variance. <a href=\"/faq.html#How_many_new_tokens_are_generated_by_the_blockchain\">See FAQ for details</a>."
     },
@@ -896,6 +900,7 @@
             "Protect funds by requiring a 3 day withdraw waiting period.",
         "withdraw_funds_after_the_required_3_day_waiting_period":
             "Withdraw funds after the required 3 day waiting period.",
+        "delegate_vesting" : "<a href=\"/faq.html#What_is_delegated_STEEM_Power\">Visit the FAQ for more details on delegations</a>.",
         "from": "From",
         "to": "To",
         "asset_currently_collecting":
@@ -911,6 +916,25 @@
         "confirm_tron_transfer": "Confirm transfer",
         "sign_complete_transfer": "Sign to complete transfer"
     },
+    "outgoingdelegations_jsx": {
+        "title": "Outgoing Delegations",
+        "delegatee": "Delegatee",
+        "amount_delegated": "Amount Delegated",
+        "start_date": "Start Date",
+        "revoke_title": "Revoke Delegation",
+        "revoke": "Revoke",
+        "no_delegations": "No Delegations Found.",
+        "load_accounts": "Loaded accounts:",
+        "filters": {
+            "search_delegatee": "Find a Delegatee"
+        }
+    },
+    "expiringdelegations_jsx": {
+        "title": "Expiring Delegations",
+        "amount_returned": "Amount Returned",
+        "end_date": "Expiration Time",
+        "no_delegations": "No Delegations Found."
+    },
     "userwallet_jsx": {
         "transfer": "Transfer",
         "conversion_complete_tip": "Will complete on %(date)s",
@@ -918,6 +942,7 @@
         "transfer_to_savings": "Transfer to Savings",
         "power_up": "Power Up",
         "power_down": "Power Down",
+        "delegate": "Delegate",
         "market": "Market",
         "convert_to_LIQUID_TOKEN": "Convert to %(LIQUID_TOKEN)s",
         "withdraw_LIQUID_TOKEN": "Withdraw %(LIQUID_TOKEN)s",
@@ -1007,6 +1032,10 @@
         "privacy_policy": "Privacy Policy",
         "continue": "Continue",
         "cancel": "Cancel"
+    },
+    "confirmdelegatevestingshares_jsx" :{
+        "delegation": "Confirm the Delegation",
+        "revoke": "Confirm the Revoke Operation"
     },
     "confirmtransactionform_jsx": {
         "confirm": "Confirm %(transactionType)s"

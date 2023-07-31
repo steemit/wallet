@@ -68,6 +68,8 @@
     margin-left: 20px;
 }
 .WalletSubMenu {
+    display: flex;
+    flex-wrap: wrap;
     > li > a {
         transition: 0.2s all ease-in-out;
         padding: 1em 1em 1em 0;
@@ -112,6 +114,7 @@
 .UserWallet__balance.tron {
   .tron-addr {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     .show-qrcode {
       width: 40%;

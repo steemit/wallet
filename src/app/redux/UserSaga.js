@@ -54,6 +54,8 @@ export const userWatches = [
     takeLatest(userActions.USERNAME_PASSWORD_LOGIN, usernamePasswordLogin),
     takeLatest(userActions.SAVE_LOGIN, saveLogin_localStorage),
     takeLatest(userActions.LOGOUT, logout),
+    takeLatest(userActions.GET_VESTING_DELEGATIONS, getVestingDelegationsSaga),
+    takeLatest(userActions.GET_EXPIRING_VESTING_DELEGATIONS, getExpiringVestingDelegationsSaga),
     takeLatest(userActions.LOGIN_ERROR, loginError),
     takeLatest(userActions.LOAD_SAVINGS_WITHDRAW, loadSavingsWithdraw),
     takeLatest(userActions.CHECK_TRON, checkTron),
@@ -82,10 +84,48 @@ export const userWatches = [
 
 const highSecurityPages = [
     /\/market/,
-    /\/@.+\/(transfers|permissions|password|communities)/,
+    /\/@.+\/(transfers|permissions|password|communities|delegations)/,
     /\/~witnesses/,
     /\/proposals/,
 ];
+
+function* getVestingDelegationsSaga(action) {
+    try {
+        yield call(
+            [api, api.getVestingDelegations],
+            action.payload.account,
+            '',
+            1000,
+            action.payload.successCallback
+        );
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+function* getExpiringVestingDelegationsSaga(action) {
+    try {
+        let result = yield call(fetch, 'https://api.steemit.com', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'database_api.find_vesting_delegation_expirations',
+                params: {
+                account: action.payload.account
+                },
+                id: 1
+            })
+        });
+        result = yield result.json();
+        if (action.payload.successCallback) result = action.payload.successCallback(result.result.delegations);
+        // yield call(action.payload.successCallback, result.result.delegations);
+    } catch (error) {
+        console.log(error);
+    }
+  }
 
 function* checkTron({ payload: { from, to, type } }) {
     if (to === null) {

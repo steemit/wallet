@@ -13,6 +13,7 @@ import Icon from 'app/components/elements/Icon';
 import UserKeys from 'app/components/elements/UserKeys';
 import PasswordReset from 'app/components/elements/PasswordReset';
 import CreateCommunity from 'app/components/elements/CreateCommunity';
+import Delegations from 'app/components/modules/Delegations';
 import UserWallet from 'app/components/modules/UserWallet';
 import Settings from 'app/components/modules/Settings';
 import CurationRewards from 'app/components/modules/CurationRewards';
@@ -140,7 +141,22 @@ export default class UserProfile extends React.Component {
                     />
                 </div>
             );
-        } else if (section === 'curation-rewards') {
+        }
+        else if (section === 'delegations') {
+            walletClass = 'active';
+            tab_content = (
+                <div>
+                    <Delegations
+                        account={accountImm}
+                        showTransfer={this.props.showTransfer}
+                        showPowerdown={this.props.showPowerdown}
+                        currentUser={currentUser}
+                        withdrawVesting={this.props.withdrawVesting}
+                    />
+                </div>
+            );
+        }
+        else if (section === 'curation-rewards') {
             rewardsClass = 'active';
             tab_content = <CurationRewards account={account} />;
         } else if (section === 'author-rewards') {
