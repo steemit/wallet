@@ -64,6 +64,12 @@
   }
 }
 
+@media (max-width: 639px)  {
+  .DropdownMenu > .VerticalMenu {
+      right: auto;
+  }
+}
+
 @media (max-width: 374px)  {
   .DropdownMenu > .VerticalMenu {
       max-width: 200px;
