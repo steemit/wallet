@@ -1128,5 +1128,13 @@
             "Data is invalid. Please check if you are using the correct private key.",
         "need_active_or_owner_key":
             "This operation requires logging in with your Active or Owner key or Master password."
+    },
+    "copy_password": {
+        "back_up": "Back up password",
+        "back_up_success": "I've copied the password. Continue.",
+        "back_up_tips":
+            "Please copy and save this master password for future login.Please note: Steemit does not keep records of anyone's password. Lost passwords cannot be retrieved. Please save your password properly.",
+        "regenerate": "Regenerate",
+        "copy_success": "Copied successfully"
     }
 }

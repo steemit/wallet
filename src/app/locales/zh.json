@@ -903,5 +903,13 @@
         "data_is_invalid": "数据异常.请确认你使用的私钥是正确的。",
         "need_active_or_owner_key":
             "此操作需要使用您的活跃密钥或拥有者密钥或主密码登陆。"
+    },
+    "copy_password": {
+        "back_up": "备份密码",
+        "back_up_success": "我已复制密码，继续",
+        "back_up_tips":
+            "请复制并保存此主密码，便于稍后登录您的账户。注意：Steemit不保存用户任何密码，因此一旦丢失，无法找回，请务必安全保存！",
+        "regenerate": "重新生成",
+        "copy_success": "复制成功"
     }
 }
