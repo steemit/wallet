@@ -10,9 +10,18 @@ import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import Pagination from 'app/components/elements/OutgoingDelegationsTables/Pagination';
 import SmallTable from 'app/components/elements/OutgoingDelegationsTables/SmallTable';
 import Table from 'app/components/elements/OutgoingDelegationsTables/Table';
-import { ASC, DESC, DELEGATEE, DATE, AMOUNT, PAGE_LIMIT, API_URL, API_LIMIT } from 'app/components/elements/OutgoingDelegationsTables/constants'
+import {
+    ASC,
+    DESC,
+    DELEGATEE,
+    DATE,
+    AMOUNT,
+    PAGE_LIMIT,
+    API_URL,
+    API_LIMIT,
+} from 'app/components/elements/OutgoingDelegationsTables/constants';
 
-const fetchData = async (params) => {
+const fetchData = async params => {
     const requestData = {
         jsonrpc: '2.0',
         method: 'condenser_api.get_vesting_delegations',
@@ -40,8 +49,11 @@ const fetchData = async (params) => {
 class OutgoingDelegations extends React.Component {
     constructor() {
         super();
-        this.shouldComponentUpdate = shouldComponentUpdate(this, 'OutgoingDelegations');
-        this.isComponentMounted = false
+        this.shouldComponentUpdate = shouldComponentUpdate(
+            this,
+            'OutgoingDelegations'
+        );
+        this.isComponentMounted = false;
         this.state = {
             sortBy: '',
             sort: DESC,
@@ -62,16 +74,21 @@ class OutgoingDelegations extends React.Component {
         props.vestingDelegationsLoading(true);
         props.getVestingDelegations(props.account.get('name'), (err, res) => {
             if (res.length === 1000) {
-                this.setState({ indefiniteLoading: true })
+                this.setState({ indefiniteLoading: true });
                 // Initialize the timeout with 250 milliseconds
-                this.getVestingDelegationsRecursive(res, 250)
-                    .then((finalResult) => {
-                        this.setState({ count: finalResult.length, auxiliaryData: finalResult, indefiniteLoading: false });
-                        this.updateVestingDelegations(finalResult)
-                    });
+                this.getVestingDelegationsRecursive(res, 250).then(
+                    finalResult => {
+                        this.setState({
+                            count: finalResult.length,
+                            auxiliaryData: finalResult,
+                            indefiniteLoading: false,
+                        });
+                        this.updateVestingDelegations(finalResult);
+                    }
+                );
             } else {
-                this.setState({ auxiliaryData: res })
-                this.sortData(DELEGATEE, res)
+                this.setState({ auxiliaryData: res });
+                this.sortData(DELEGATEE, res);
             }
         });
     }
@@ -80,7 +97,7 @@ class OutgoingDelegations extends React.Component {
         window.removeEventListener('resize', this.handleResize);
         this.isComponentMounted = false;
         if (this.timeoutId) {
-        clearTimeout(this.timeoutId);
+            clearTimeout(this.timeoutId);
         }
     }
 
@@ -88,131 +105,147 @@ class OutgoingDelegations extends React.Component {
         const { sortBy, sort } = this.state;
         const { vestingDelegations, vestingDelegationsLoading } = this.props;
         vestingDelegationsLoading(true);
-        let data = baseData ? baseData : vestingDelegations
-        const sortMethod = (sortBy !== field)
-            ? ASC
-            : sort === ASC
-                ? DESC
-                : ASC
+        let data = baseData ? baseData : vestingDelegations;
+        const sortMethod = sortBy !== field ? ASC : sort === ASC ? DESC : ASC;
         switch (field) {
             case AMOUNT:
-                data = sortMethod === ASC
-                    ? data.sort((a, b) => parseFloat(a.vesting_shares) - parseFloat(b.vesting_shares))
-                    : data.sort((a, b) => parseFloat(b.vesting_shares) - parseFloat(a.vesting_shares))
+                data =
+                    sortMethod === ASC
+                        ? data.sort(
+                              (a, b) =>
+                                  parseFloat(a.vesting_shares) -
+                                  parseFloat(b.vesting_shares)
+                          )
+                        : data.sort(
+                              (a, b) =>
+                                  parseFloat(b.vesting_shares) -
+                                  parseFloat(a.vesting_shares)
+                          );
                 break;
             case DELEGATEE:
-                data = sortMethod === ASC
-                    ? data.sort((a, b) => {
-                        const delegateeA = a.delegatee.toLowerCase();
-                        const delegateeB = b.delegatee.toLowerCase();
-                        if (delegateeA < delegateeB) {
-                            return -1;
-                        }
-                        if (delegateeA > delegateeB) {
-                            return 1;
-                        }
-                        return 0;
-                    })
-                    : data.sort((a, b) => {
-                        const delegateeA = a.delegatee.toLowerCase();
-                        const delegateeB = b.delegatee.toLowerCase();
-                        if (delegateeA < delegateeB) {
-                            return 1;
-                        }
-                        if (delegateeA > delegateeB) {
-                            return -1;
-                        }
-                        return 0;
-                    })
+                data =
+                    sortMethod === ASC
+                        ? data.sort((a, b) => {
+                              const delegateeA = a.delegatee.toLowerCase();
+                              const delegateeB = b.delegatee.toLowerCase();
+                              if (delegateeA < delegateeB) {
+                                  return -1;
+                              }
+                              if (delegateeA > delegateeB) {
+                                  return 1;
+                              }
+                              return 0;
+                          })
+                        : data.sort((a, b) => {
+                              const delegateeA = a.delegatee.toLowerCase();
+                              const delegateeB = b.delegatee.toLowerCase();
+                              if (delegateeA < delegateeB) {
+                                  return 1;
+                              }
+                              if (delegateeA > delegateeB) {
+                                  return -1;
+                              }
+                              return 0;
+                          });
                 break;
             case DATE:
-                data = sortMethod === ASC
-                    ? data.sort((a, b) => {
-                        const dateA = new Date(a.min_delegation_time).getTime();
-                        const dateB = new Date(b.min_delegation_time).getTime();
-                        return dateA > dateB ? 1 : -1
-                    })
-                    : data.sort((a, b) => {
-                        const dateA = new Date(a.min_delegation_time).getTime();
-                        const dateB = new Date(b.min_delegation_time).getTime();
-                        return dateA > dateB ? -1 : 1
-                    })
+                data =
+                    sortMethod === ASC
+                        ? data.sort((a, b) => {
+                              const dateA = new Date(
+                                  a.min_delegation_time
+                              ).getTime();
+                              const dateB = new Date(
+                                  b.min_delegation_time
+                              ).getTime();
+                              return dateA > dateB ? 1 : -1;
+                          })
+                        : data.sort((a, b) => {
+                              const dateA = new Date(
+                                  a.min_delegation_time
+                              ).getTime();
+                              const dateB = new Date(
+                                  b.min_delegation_time
+                              ).getTime();
+                              return dateA > dateB ? -1 : 1;
+                          });
                 break;
             default:
                 break;
         }
-        this.setState({ sortBy: field, sort: sortMethod, currentPage: 1 })
+        this.setState({ sortBy: field, sort: sortMethod, currentPage: 1 });
         this.updateVestingDelegations(data);
-    }
+    };
 
     handleResize = () => {
         this.setState({ isSmallScreen: window.innerWidth <= 425 });
     };
 
-    updateVestingDelegations = (res) => {
-        const {
-            setVestingDelegations,
-            vestingDelegationsLoading,
-        } = this.props;
+    updateVestingDelegations = res => {
+        const { setVestingDelegations, vestingDelegationsLoading } = this.props;
         setVestingDelegations(res);
         vestingDelegationsLoading(false);
-    }
+    };
 
-    handleFindAccounts = (e) => {
+    handleFindAccounts = e => {
         const { value } = e.target;
         const { vestingDelegationsLoading } = this.props;
         const { auxiliaryData, currentPage } = this.state;
         const currentValue = value.replace(/\s/g, '');
         this.setState({ delegatee: currentValue, sortBy: '', sort: DESC });
         vestingDelegationsLoading(true);
-        let data = auxiliaryData
-        data = data.filter(item => item.delegatee.includes(currentValue.toLowerCase()))
+        let data = auxiliaryData;
+        data = data.filter(item =>
+            item.delegatee.includes(currentValue.toLowerCase())
+        );
         if (currentPage !== 1) {
-            this.setState({ currentPage: 1 })
+            this.setState({ currentPage: 1 });
         }
-        this.updateVestingDelegations(data)
-    }
+        this.updateVestingDelegations(data);
+    };
 
     onPageChanged = dt => {
-        this.setState({ currentPage: dt.currentPage })
-    }
+        this.setState({ currentPage: dt.currentPage });
+    };
 
-    getVestingDelegationsRecursive = (result, timeout) => {
-        const delegatee = result[result.length - 1].delegatee;
-        return fetchData(['steem', delegatee, API_LIMIT])
-            .then((res) => {
-                try {
-                    if (res.length > 1 && this.isComponentMounted) {
-                        result = result.concat(res.slice(1));
-                        if (res.length < API_LIMIT) {
-                            return result;
-                        }
-                        // Pause before making the next recursive call
-                        return new Promise((resolve) => this.timeoutId = setTimeout(resolve, timeout)).then(() => {
-                            if (this.isComponentMounted) {
-                                this.setState({ count: result.length });
-                                // Increment the timeout for the next recursive call
-                                const newTimeout = timeout + 250 > 3000 ? 1000 : timeout + 250;
-                                return this.getVestingDelegationsRecursive(result, newTimeout);
-                            }
-                            return result;
-                        });
-                    }
+    getVestingDelegationsRecursive = async (result, timeout) => {
+        try {
+            const delegatee = result[result.length - 1].delegatee;
+            const res = await fetchData(['steem', delegatee, API_LIMIT]);
+            if (res.length > 1 && this.isComponentMounted) {
+                result = result.concat(res.slice(1));
+                if (res.length < API_LIMIT) {
                     return result;
-                } catch (error) {
-                    console.log(error)
                 }
-            });
+                await new Promise(resolve => setTimeout(resolve, timeout));
+
+                if (this.isComponentMounted) {
+                    this.setState({ count: result.length });
+                    const newTimeout =
+                        timeout + 250 > 3000 ? 1000 : timeout + 250;
+                    return this.getVestingDelegationsRecursive(
+                        result,
+                        newTimeout
+                    );
+                }
+            }
+            return result;
+        } catch (error) {
+            console.log(error);
+            return result;
+        }
     };
 
     render() {
-        const { delegatee,
+        const {
+            delegatee,
             sortBy,
             sort,
             isSmallScreen,
             currentPage,
             indefiniteLoading,
-            count } = this.state;
+            count,
+        } = this.state;
 
         const {
             account,
@@ -227,15 +260,20 @@ class OutgoingDelegations extends React.Component {
             vestingDelegationsLoading,
         } = this.props;
 
-        const offset = (currentPage - 1) * PAGE_LIMIT
+        const offset = (currentPage - 1) * PAGE_LIMIT;
 
-        const updateClipboard = (value) => {
-            if (window.location.protocol === "https:") {
-                navigator.clipboard.writeText(value).then(() => { console.log(value) }, () => console.error('error.'));
+        const updateClipboard = value => {
+            if (window.location.protocol === 'https:') {
+                navigator.clipboard.writeText(value).then(
+                    () => {
+                        console.log(value);
+                    },
+                    () => console.error('error.')
+                );
             }
-        }
+        };
 
-        const convertVestsToSteem = (vests) => {
+        const convertVestsToSteem = vests => {
             return ((vests * totalVestingFund) / totalVestingShares).toFixed(3);
         };
 
@@ -247,7 +285,7 @@ class OutgoingDelegations extends React.Component {
         // do not render if state appears to contain only lite account info
         if (!account.has('vesting_shares')) return null;
 
-        const showTransferHandler = (d) => {
+        const showTransferHandler = d => {
             const accountName = account.get('name');
 
             const refetchCB = () => {
@@ -265,80 +303,105 @@ class OutgoingDelegations extends React.Component {
                 <div className="row filter-menu">
                     <div className="input-box">
                         <input
-                            className={delegatee ? "focus" : ""}
+                            className={delegatee ? 'focus' : ''}
                             type="text"
                             id="delegatee"
                             name="delegatee"
                             value={delegatee}
                             onChange={this.handleFindAccounts}
                         />
-                        <label htmlFor="delegatee" >
-                            {tt('outgoingdelegations_jsx.filters.search_delegatee')}
+                        <label htmlFor="delegatee">
+                            {tt(
+                                'outgoingdelegations_jsx.filters.search_delegatee'
+                            )}
                         </label>
                     </div>
                 </div>
                 <div className="OutgoingDelegations__table-container">
-                    {vestingDelegationsPending
-                        ? (
-                            <table>
-                                <tbody>
-                                    <tr>
-                                        <td style={{ textAlign: 'center' }}>
-                                            <LoadingIndicator type="circle" />
-                                            {indefiniteLoading
-                                                ? (<span>
-                                                    {`${tt('outgoingdelegations_jsx.load_accounts')} ${count}`}
-                                                </span>)
-                                                : <div />
-                                            }
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        )
-                        : vestingDelegations
-                            ? (<div>
-                                {isSmallScreen
-                                    ? (<SmallTable
-                                        sortData={this.sortData}
-                                        vestingDelegations={vestingDelegations.length > PAGE_LIMIT ? vestingDelegations.slice(offset, offset + PAGE_LIMIT) : vestingDelegations}
-                                        sortBy={sortBy}
-                                        sort={sort}
-                                        isMyAccount={isMyAccount}
-                                        convertVestsToSteem={convertVestsToSteem}
-                                        updateClipboard={updateClipboard}
-                                        showTransferHandler={showTransferHandler}
-                                        total={vestingDelegations.length}
-                                    />)
-                                    : (<Table
-                                        sortData={this.sortData}
-                                        vestingDelegations={vestingDelegations.length > PAGE_LIMIT ? vestingDelegations.slice(offset, offset + PAGE_LIMIT) : vestingDelegations}
-                                        sortBy={sortBy}
-                                        sort={sort}
-                                        isMyAccount={isMyAccount}
-                                        convertVestsToSteem={convertVestsToSteem}
-                                        updateClipboard={updateClipboard}
-                                        showTransferHandler={showTransferHandler}
-                                        total={vestingDelegations.length}
-                                    />)
-                                }
-                                {vestingDelegations.length > PAGE_LIMIT ?
-                                    <Pagination totalRecords={vestingDelegations.length} pageLimit={PAGE_LIMIT} pageNeighbours={1} onPageChanged={this.onPageChanged} />
-                                    : <div />
-                                }
-                            </div>)
-                            : (
-                                <table>
-                                    <tbody>
-                                        <tr>
-                                            <td style={{ textAlign: 'center' }}>
-                                                {tt('outgoingdelegations_jsx.no_delegations')}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            )
-                    }
+                    {vestingDelegationsPending ? (
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td style={{ textAlign: 'center' }}>
+                                        <LoadingIndicator type="circle" />
+                                        {indefiniteLoading ? (
+                                            <span>
+                                                {`${tt(
+                                                    'outgoingdelegations_jsx.load_accounts'
+                                                )} ${count}`}
+                                            </span>
+                                        ) : (
+                                            <div />
+                                        )}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    ) : vestingDelegations ? (
+                        <div>
+                            {isSmallScreen ? (
+                                <SmallTable
+                                    sortData={this.sortData}
+                                    vestingDelegations={
+                                        vestingDelegations.length > PAGE_LIMIT
+                                            ? vestingDelegations.slice(
+                                                  offset,
+                                                  offset + PAGE_LIMIT
+                                              )
+                                            : vestingDelegations
+                                    }
+                                    sortBy={sortBy}
+                                    sort={sort}
+                                    isMyAccount={isMyAccount}
+                                    convertVestsToSteem={convertVestsToSteem}
+                                    updateClipboard={updateClipboard}
+                                    showTransferHandler={showTransferHandler}
+                                    total={vestingDelegations.length}
+                                />
+                            ) : (
+                                <Table
+                                    sortData={this.sortData}
+                                    vestingDelegations={
+                                        vestingDelegations.length > PAGE_LIMIT
+                                            ? vestingDelegations.slice(
+                                                  offset,
+                                                  offset + PAGE_LIMIT
+                                              )
+                                            : vestingDelegations
+                                    }
+                                    sortBy={sortBy}
+                                    sort={sort}
+                                    isMyAccount={isMyAccount}
+                                    convertVestsToSteem={convertVestsToSteem}
+                                    updateClipboard={updateClipboard}
+                                    showTransferHandler={showTransferHandler}
+                                    total={vestingDelegations.length}
+                                />
+                            )}
+                            {vestingDelegations.length > PAGE_LIMIT ? (
+                                <Pagination
+                                    totalRecords={vestingDelegations.length}
+                                    pageLimit={PAGE_LIMIT}
+                                    pageNeighbours={1}
+                                    onPageChanged={this.onPageChanged}
+                                />
+                            ) : (
+                                <div />
+                            )}
+                        </div>
+                    ) : (
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td style={{ textAlign: 'center' }}>
+                                        {tt(
+                                            'outgoingdelegations_jsx.no_delegations'
+                                        )}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             </div>
         );
@@ -357,10 +420,10 @@ export default connect(
             'total_vesting_shares',
         ])
             ? parseFloat(
-                state.global
-                    .getIn(['props', 'total_vesting_shares'])
-                    .split(' ')[0]
-            )
+                  state.global
+                      .getIn(['props', 'total_vesting_shares'])
+                      .split(' ')[0]
+              )
             : 0;
 
         const totalVestingFund = state.global.getIn([
@@ -368,10 +431,10 @@ export default connect(
             'total_vesting_fund_steem',
         ])
             ? parseFloat(
-                state.global
-                    .getIn(['props', 'total_vesting_fund_steem'])
-                    .split(' ')[0]
-            )
+                  state.global
+                      .getIn(['props', 'total_vesting_fund_steem'])
+                      .split(' ')[0]
+              )
             : 0;
         return {
             ...ownProps,
@@ -382,16 +445,16 @@ export default connect(
         };
     },
     // mapDispatchToProps
-    (dispatch) => ({
+    dispatch => ({
         getVestingDelegations: (account, successCallback) => {
             dispatch(
                 userActions.getVestingDelegations({ account, successCallback })
             );
         },
-        setVestingDelegations: (payload) => {
+        setVestingDelegations: payload => {
             dispatch(userActions.setVestingDelegations(payload));
         },
-        vestingDelegationsLoading: (payload) => {
+        vestingDelegationsLoading: payload => {
             dispatch(userActions.vestingDelegationsLoading(payload));
         },
         revokeDelegation: (username, to, refetchDelegations) => {
