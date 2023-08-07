@@ -289,11 +289,23 @@ class OutgoingDelegations extends React.Component {
             const accountName = account.get('name');
 
             const refetchCB = () => {
-                vestingDelegationsLoading(true);
-                getVestingDelegations(accountName, (err, res) => {
-                    setVestingDelegations(res);
-                    vestingDelegationsLoading(false);
-                });
+                try {
+                    const { auxiliaryData, currentPage } = this.state;
+                    vestingDelegationsLoading(true);
+                    const data = auxiliaryData.filter(
+                        item => item.delegatee !== d
+                    );
+                    if (
+                        currentPage !== 1 &&
+                        d === auxiliaryData[auxiliaryData.length - 1].delegatee
+                    ) {
+                        this.setState({ currentPage: currentPage - 1 });
+                    }
+                    this.setState({ auxiliaryData: data });
+                    this.updateVestingDelegations(data);
+                } catch (error) {
+                    console.log(error);
+                }
             };
             revokeDelegation(accountName, d, refetchCB);
         };
