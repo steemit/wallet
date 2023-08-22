@@ -40,6 +40,12 @@ async function appRender(ctx, locales = false, resolvedAssets = false) {
                 );
             }
         }
+
+        // remove this block code, if we need zh language package.
+        if (userPreferences.locale == 'zh') {
+            userPreferences.locale = undefined;
+        }
+
         if (!userPreferences.locale) {
             let locale = ctx.getLocaleFromHeader();
             if (locale) locale = locale.substring(0, 2);
