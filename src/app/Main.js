@@ -4,7 +4,7 @@ import 'whatwg-fetch';
 import store from 'store';
 import { VIEW_MODE_WHISTLE, PARAM_VIEW_MODE } from 'shared/constants';
 import './assets/stylesheets/app.scss';
-import plugins from 'app/utils/JsPlugins';
+// import plugins from 'app/utils/JsPlugins';
 import Iso from 'iso';
 import { clientRender } from 'shared/UniversalRender';
 import ConsoleExports from './utils/ConsoleExports';
@@ -40,7 +40,7 @@ function runApp(initial_state) {
     steem.config.set('address_prefix', config.address_prefix);
     steem.config.set('chain_id', config.chain_id);
     window.$STM_Config = config;
-    plugins(config);
+    // plugins(config);
     if (initial_state.offchain.serverBusy) {
         window.$STM_ServerBusy = true;
     }

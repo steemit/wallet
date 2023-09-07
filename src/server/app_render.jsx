@@ -111,6 +111,7 @@ async function appRender(ctx, locales = false, resolvedAssets = false) {
             assets,
             title,
             meta,
+            googleAnalyticsId: config.google_analytics_id,
         };
         ctx.status = statusCode;
         ctx.body =
