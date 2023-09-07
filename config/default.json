@@ -14,7 +14,7 @@
             "imgSrc": "* data:",
             "objectSrc": "'none'",
             "pluginTypes": "application/pdf",
-            "scriptSrc": "'self' www.google-analytics.com staticfiles.steemit.com localhost:8080",
+            "scriptSrc": "'self' www.googletagmanager.com www.google-analytics.com staticfiles.steemit.com localhost:8080",
             "styleSrc": "'self' 'unsafe-inline' fonts.googleapis.com",
             "reportUri": "/api/v1/csp_violation"
         },
