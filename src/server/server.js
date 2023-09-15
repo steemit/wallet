@@ -137,10 +137,26 @@ csrf(app);
 koaLocale(app);
 
 function convertEntriesToArrays(obj) {
-    return Object.keys(obj).reduce((result, key) => {
+    const conf = Object.keys(obj).reduce((result, key) => {
         result[key] = obj[key].split(/\s+/);
         return result;
     }, {});
+    console.log('convertEntriesToArrays:', JSON.stringify(conf));
+    // remove connect-src and plugin-types
+    delete conf.pluginTypes;
+    // add nonce support
+    const nonceCb = (req, res) => {
+        return `'nonce-${req.cspNonce}'`;
+    };
+    if (!conf.scriptSrc) {
+        conf.scriptSrc = [];
+    }
+    conf.scriptSrc.push(nonceCb);
+    if (!conf.defaultSrc) {
+        conf.defaultSrc = [];
+    }
+    conf.defaultSrc.push(nonceCb);
+    return conf;
 }
 
 const steemMarket = new SteemMarket();
@@ -216,6 +232,15 @@ if (env === 'production') {
     app.use(koa_logger());
 }
 
+// Sets the `script-src` directive to
+// "'self' 'nonce-e33ccde670f149c1789b1e1e113b0916'"
+// (or similar)
+app.use(function*(next) {
+    this.session.cspNonce = secureRandom.randomBuffer(16).toString('hex');
+    this.req.cspNonce = this.session.cspNonce;
+    yield next;
+});
+
 app.use(
     helmet({
         hsts: false,
@@ -272,7 +297,6 @@ useGeneralApi(app);
 console.log('SDC_HELMET_CONNECTSRC:', process.env.SDC_HELMET_CONNECTSRC);
 console.log('SDC_HELMET_SCRIPTSRC:', process.env.SDC_HELMET_SCRIPTSRC);
 if (env === 'production') {
-    console.log('current_directives:', config.get('helmet.directives'));
     const helmetConfig = {
         directives: convertEntriesToArrays(config.get('helmet.directives')),
         reportOnly: config.get('helmet.reportOnly'),
@@ -282,7 +306,6 @@ if (env === 'production') {
     if (helmetConfig.directives.reportUri === '-') {
         delete helmetConfig.directives.reportUri;
     }
-
     app.use(helmet.contentSecurityPolicy(helmetConfig));
 }
 
