@@ -111,7 +111,8 @@ async function appRender(ctx, locales = false, resolvedAssets = false) {
             assets,
             title,
             meta,
-            googleAnalyticsId: config.google_analytics_id,
+            google_analytics_id: config.google_analytics_id,
+            csp_nonce: ctx.session.cspNonce,
         };
         ctx.status = statusCode;
         ctx.body =

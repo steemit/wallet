@@ -7,26 +7,29 @@ export default function ServerHTML({
     locale,
     title,
     meta,
-    googleAnalyticsId,
+    google_analytics_id,
+    csp_nonce,
 }) {
     let page_title = title;
     return (
         <html lang="en">
             <head>
-                {googleAnalyticsId && (
+                {google_analytics_id && (
                     <script
+                        nonce={csp_nonce}
                         async
-                        src={`https://www.googletagmanager.com/gtag/js?id=${googleAnalyticsId}`}
+                        src={`https://www.googletagmanager.com/gtag/js?id=${google_analytics_id}`}
                     />
                 )}
-                {googleAnalyticsId && (
+                {google_analytics_id && (
                     <script
+                        nonce={csp_nonce}
                         dangerouslySetInnerHTML={{
                             __html: `
                                 window.dataLayer = window.dataLayer || [];
                                 function gtag(){dataLayer.push(arguments);}
                                 gtag('js', new Date());
-                                gtag('config', '${googleAnalyticsId}');
+                                gtag('config', '${google_analytics_id}');
                             `,
                         }}
                     />
@@ -193,7 +196,7 @@ export default function ServerHTML({
             <body>
                 <div id="content" dangerouslySetInnerHTML={{ __html: body }} />
                 {assets.script.map((href, idx) => (
-                    <script key={idx} src={href} />
+                    <script nonce={csp_nonce} key={idx} src={href} />
                 ))}
             </body>
         </html>
