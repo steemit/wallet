@@ -24,9 +24,15 @@ class ExpiringDelegations extends React.Component {
     componentWillMount() {
         const { props } = this;
         props.expiringVestingDelegationsLoading(true);
-        props.getExpiringVestingDelegations(props.account.get('name'), (res, err) => {
+        props.getExpiringVestingDelegations(props.account.get('name'), (err, res) => {
             // Sort by the first field by default
-            this.sortData(DATE, res)
+            if (res){
+                this.sortData(DATE, res.delegations)
+            }
+            else{
+                console.log(err);
+                this.sortData(DATE, [])
+            }
         });
     }
 

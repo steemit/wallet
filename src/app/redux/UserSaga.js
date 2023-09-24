@@ -104,24 +104,18 @@ function* getVestingDelegationsSaga(action) {
 }
 
 function* getExpiringVestingDelegationsSaga(action) {
-    try {
-        let result = yield call(fetch, 'https://api.steemit.com', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                jsonrpc: '2.0',
-                method: 'database_api.find_vesting_delegation_expirations',
+     try {
+        yield call(
+            [api, api.send],
+            'database_api',
+            {
+                method: 'find_vesting_delegation_expirations',
                 params: {
-                account: action.payload.account
+                    account: action.payload.account,
                 },
-                id: 1
-            })
-        });
-        result = yield result.json();
-        if (action.payload.successCallback) result = action.payload.successCallback(result.result.delegations);
-        // yield call(action.payload.successCallback, result.result.delegations);
+            },
+            action.payload.successCallback
+        );
     } catch (error) {
         console.log(error);
     }
