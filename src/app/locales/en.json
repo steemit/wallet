@@ -885,6 +885,7 @@
         "amount_is_in_form": "Amount is in the form 99999.999",
         "insufficient_funds": "Insufficient funds",
         "use_only_3_digits_of_precison": "Use only 3 digits of precison",
+        "minimum_required_delegation_amount": "The minimum required delegation amount is 1.000 SP",
         "use_only_6_digits_of_precision": "Use only 6 digits of precision",
         "send_to_account": "Send to account",
         "asset": "Asset",

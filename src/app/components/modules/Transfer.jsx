@@ -256,7 +256,11 @@ class TransferForm extends Component {
                                     ? tt(
                                           'transfer_jsx.use_only_3_digits_of_precison'
                                       )
-                                    : null,
+                                    : (toDelegate && (values.amount < 1 && values.amount > 0))
+                                        ? tt(
+                                            'transfer_jsx.minimum_required_delegation_amount'
+                                        )
+                                        : null,
                 asset: props.toVesting
                     ? null
                     : !values.asset
