@@ -200,11 +200,11 @@ class TransferForm extends Component {
             const isWithdraw =
                 transferType && transferType === 'Savings Withdraw';
             const balanceValue =
-                !asset || asset === 'STEEM'
+                !asset || asset === 'TESTS'
                     ? isWithdraw
                         ? currentAccount.get('savings_balance')
                         : currentAccount.get('balance')
-                    : asset === 'SBD'
+                    : asset === 'TBD'
                         ? isWithdraw
                             ? currentAccount.get('savings_sbd_balance')
                             : currentAccount.get('sbd_balance')
@@ -298,11 +298,11 @@ class TransferForm extends Component {
         } = this.props;
         const { asset } = this.state;
         const isWithdraw = transferType && transferType === 'Savings Withdraw';
-        let balanceValue =!asset || asset.value === 'STEEM'
+        let balanceValue =!asset || asset.value === 'TESTS'
             ? isWithdraw
                 ? currentAccount.get('savings_balance')
                 : currentAccount.get('balance')
-            : asset.value === 'SBD'
+            : asset.value === 'TBD'
                 ? isWithdraw
                     ? currentAccount.get('savings_sbd_balance')
                     : currentAccount.get('sbd_balance')
@@ -745,10 +745,10 @@ class TransferForm extends Component {
                                         }}
                                     >
                                         {!this.state.tronTransfer && (
-                                            <option value="STEEM">STEEM</option>
+                                            <option value="TESTS">TESTS</option>
                                         )}
                                         {!this.state.tronTransfer && (
-                                            <option value="SBD">SBD</option>
+                                            <option value="TBD">TBD</option>
                                         )}
                                         {this.state.tronTransfer && (
                                             <option value="TRX">TRX</option>
