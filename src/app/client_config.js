@@ -11,7 +11,7 @@ export const APP_URL = 'https://steemit.com';
 export const APP_DOMAIN = 'steemit.com';
 export const LIQUID_TOKEN = 'Steem';
 // sometimes it's impossible to use html tags to style coin name, hence usage of _UPPERCASE modifier
-export const LIQUID_TOKEN_UPPERCASE = 'STEEM';
+export const LIQUID_TOKEN_UPPERCASE = 'TESTS';
 export const VESTING_TOKEN = 'STEEM POWER';
 export const INVEST_TOKEN_UPPERCASE = 'STEEM POWER';
 export const INVEST_TOKEN_SHORT = 'SP';
@@ -25,10 +25,10 @@ export const PRIVACY_POLICY_URL = 'https://' + APP_DOMAIN + '/privacy.html';
 export const WHITEPAPER_URL = 'https://steem.io/SteemWhitePaper.pdf';
 
 // these are dealing with asset types, not displaying to client, rather sending data over websocket
-export const LIQUID_TICKER = 'STEEM';
+export const LIQUID_TICKER = 'TESTS';
 export const VEST_TICKER = 'VESTS';
-export const DEBT_TICKER = 'SBD';
-export const DEBT_TOKEN_SHORT = 'SBD';
+export const DEBT_TICKER = 'TBD';
+export const DEBT_TOKEN_SHORT = 'TBD';
 export const TRON_TOKEN = 'TRX';
 
 // application settings
