@@ -774,7 +774,7 @@ class TransferForm extends Component {
                                             border: 'none',
                                         }}
                                     >
-                                        <option value="STEEM">Steem Power</option>
+                                        <option value="TESTS">Steem Power</option>
                                     </select>
                                 </span>
                             )}
@@ -1200,7 +1200,7 @@ export default connect(
                                 ? 'delegate_vesting_shares'
                                 : null;
             const asset2 = toVesting
-                ? 'STEEM'
+                ? 'TESTS'
                 : toDelegate
                     ? 'VESTS'
                     : asset;
