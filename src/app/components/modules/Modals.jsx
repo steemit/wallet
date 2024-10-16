@@ -7,7 +7,6 @@ import { connect } from 'react-redux';
 import CloseButton from 'app/components/elements/CloseButton';
 import Reveal from 'app/components/elements/Reveal';
 import { NotificationStack } from 'react-notification';
-import { OrderedSet } from 'immutable';
 import tt from 'counterpart';
 import * as userActions from 'app/redux/UserReducer';
 import * as appActions from 'app/redux/AppReducer';
@@ -19,12 +18,6 @@ import SignUp from 'app/components/modules/SignUp';
 import Powerdown from 'app/components/modules/Powerdown';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import TermsAgree from 'app/components/modules/TermsAgree';
-import TronVote from 'app/components/modules/TronVote';
-import UpdateTronAccountOne from 'app/components/modules/UpdateTronAccountOne';
-import UpdateTronAccountTwo from 'app/components/modules/UpdateTronAccountTwo';
-import TronCreateOne from 'app/components/modules/TronCreateOne';
-import TronCreateTwo from 'app/components/modules/TronCreateTwo';
-import BindExistTronAddr from 'app/components/modules/BindExistTronAddr';
 
 class Modals extends React.Component {
     static defaultProps = {
@@ -36,28 +29,17 @@ class Modals extends React.Component {
         show_bandwidth_error_modal: false,
         show_powerdown_modal: false,
         show_transfer_modal: false,
-        show_tron_transfer_modal: false,
         show_confirm_modal: false,
         show_login_modal: false,
         show_post_advanced_settings_modal: '',
         show_vote_modal: false,
-        show_tron_update_modal: false,
-        show_tron_update_success_modal: false,
-        show_tron_create_modal: false,
-        show_tron_create_success_modal: false,
-        show_bind_exist_tron_addr_modal: false,
         loading: false,
     };
     static propTypes = {
-        show_tron_create_modal: PropTypes.bool,
-        show_tron_create_success_modal: PropTypes.bool,
-        show_tron_update_modal: PropTypes.bool,
-        show_tron_update_success_modal: PropTypes.bool,
         show_vote_modal: PropTypes.bool,
         show_login_modal: PropTypes.bool,
         show_confirm_modal: PropTypes.bool,
         show_transfer_modal: PropTypes.bool,
-        show_tron_transfer_modal: PropTypes.bool,
         show_powerdown_modal: PropTypes.bool,
         show_bandwidth_error_modal: PropTypes.bool,
         show_signup_modal: PropTypes.bool,
@@ -67,18 +49,12 @@ class Modals extends React.Component {
         hideConfirm: PropTypes.func.isRequired,
         hideSignUp: PropTypes.func.isRequired,
         hideTransfer: PropTypes.func.isRequired,
-        hideTronTransfer: PropTypes.func.isRequired,
         hidePowerdown: PropTypes.func.isRequired,
         hideBandwidthError: PropTypes.func.isRequired,
         hideVote: PropTypes.func.isRequired,
-        hideTronUpdate: PropTypes.func.isRequired,
-        hideTronUpdateSuccess: PropTypes.func.isRequired,
-        hideTronCreate: PropTypes.func.isRequired,
-        hideTronCreateSuccess: PropTypes.func.isRequired,
         notifications: PropTypes.object,
         show_terms_modal: PropTypes.bool,
         removeNotification: PropTypes.func,
-        show_bind_exist_tron_addr_modal: PropTypes.bool,
         loading: PropTypes.bool,
     };
 
@@ -87,55 +63,18 @@ class Modals extends React.Component {
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'Modals');
     }
 
-    onHideTronCreate = e => {
-        if (e) e.preventDefault();
-        if (this.props.loading === false) {
-            this.props.hideTronCreate();
-        }
-    };
-    onHideTronCreateSuccess = e => {
-        if (e) e.preventDefault();
-        if (this.props.loading === false) {
-            this.props.hideTronCreateSuccess();
-        }
-    };
-    onHideTronUpdate = e => {
-        if (e) e.preventDefault();
-        if (this.props.loading === false) {
-            this.props.hideTronUpdate();
-        }
-    };
-    onHideTronUpdateSuccess = e => {
-        if (e) e.preventDefault();
-        if (this.props.loading === false) {
-            this.props.hideTronUpdateSuccess();
-        }
-    };
-    onHideTronTransfer = e => {
-        if (e) e.preventDefault();
-        if (this.props.loading === false) {
-            this.props.hideTronTransfer();
-        }
-    };
-
     render() {
         const {
-            show_tron_create_modal,
-            show_tron_create_success_modal,
-            show_tron_update_modal,
-            show_tron_update_success_modal,
             show_vote_modal,
             show_login_modal,
             show_confirm_modal,
             show_transfer_modal,
-            show_tron_transfer_modal,
             show_powerdown_modal,
             show_signup_modal,
             show_bandwidth_error_modal,
             show_post_advanced_settings_modal,
             hideLogin,
             hideTransfer,
-            hideTronTransfer,
             hidePowerdown,
             hideConfirm,
             hideSignUp,
@@ -145,13 +84,7 @@ class Modals extends React.Component {
             hideBandwidthError,
             username,
             hideVote,
-            hideTronUpdate,
-            hideTronUpdateSuccess,
-            hideTronCreate,
-            hideTronCreateSuccess,
             loading,
-            show_bind_exist_tron_addr_modal,
-            hideBindExistTronAddr,
         } = this.props;
 
         const notifications_array = notifications
@@ -171,47 +104,9 @@ class Modals extends React.Component {
 
         return (
             <div>
-                {show_tron_create_modal && (
-                    <Reveal
-                        onHide={this.onHideTronCreate}
-                        show={show_tron_create_modal}
-                    >
-                        <CloseButton onClick={this.onHideTronCreate} />
-                        <TronCreateOne />
-                    </Reveal>
-                )}
-                {show_tron_create_success_modal && (
-                    <Reveal
-                        onHide={this.onHideTronCreateSuccess}
-                        show={show_tron_create_success_modal}
-                    >
-                        <CloseButton onClick={this.onHideTronCreateSuccess} />
-                        <TronCreateTwo />
-                    </Reveal>
-                )}
-
-                {show_tron_update_modal && (
-                    <Reveal
-                        onHide={this.onHideTronUpdate}
-                        show={show_tron_update_modal}
-                    >
-                        <CloseButton onClick={this.onHideTronUpdate} />
-                        <UpdateTronAccountOne />
-                    </Reveal>
-                )}
-                {show_tron_update_success_modal && (
-                    <Reveal
-                        onHide={this.onHideTronUpdateSuccess}
-                        show={show_tron_update_success_modal}
-                    >
-                        <CloseButton onClick={this.onHideTronUpdateSuccess} />
-                        <UpdateTronAccountTwo />
-                    </Reveal>
-                )}
                 {show_vote_modal && (
                     <Reveal onHide={hideVote} show={show_vote_modal}>
                         <CloseButton onClick={hideVote} />
-                        <TronVote />
                     </Reveal>
                 )}
                 {show_login_modal && (
@@ -229,24 +124,6 @@ class Modals extends React.Component {
                 {show_transfer_modal && (
                     <Reveal onHide={hideTransfer} show={show_transfer_modal}>
                         <CloseButton onClick={hideTransfer} />
-                        <Transfer />
-                    </Reveal>
-                )}
-                {show_bind_exist_tron_addr_modal && (
-                    <Reveal
-                        onHide={hideBindExistTronAddr}
-                        show={show_bind_exist_tron_addr_modal}
-                    >
-                        <CloseButton onClick={hideBindExistTronAddr} />
-                        <BindExistTronAddr />
-                    </Reveal>
-                )}
-                {show_tron_transfer_modal && (
-                    <Reveal
-                        onHide={this.onHideTronTransfer}
-                        show={show_tron_transfer_modal}
-                    >
-                        <CloseButton onClick={this.onHideTronTransfer} />
                         <Transfer />
                     </Reveal>
                 )}
@@ -319,20 +196,9 @@ export default connect(
             show_login_modal: state.user.get('show_login_modal'),
             show_confirm_modal: state.transaction.get('show_confirm_modal'),
             show_transfer_modal: state.user.get('show_transfer_modal'),
-            show_tron_transfer_modal: state.user.get(
-                'show_tron_transfer_modal'
-            ),
             show_powerdown_modal: state.user.get('show_powerdown_modal'),
             show_signup_modal: state.user.get('show_signup_modal'),
             show_vote_modal: state.user.get('show_vote_modal'),
-            show_tron_update_modal: state.user.get('show_tron_update_modal'),
-            show_tron_update_success_modal: state.user.get(
-                'show_tron_update_success_modal'
-            ),
-            show_tron_create_modal: state.user.get('show_tron_create_modal'),
-            show_tron_create_success_modal: state.user.get(
-                'show_tron_create_success_modal'
-            ),
             notifications: state.app.get('notifications'),
             show_terms_modal:
                 state.user.get('show_terms_modal') &&
@@ -347,25 +213,10 @@ export default connect(
             show_post_advanced_settings_modal: state.user.get(
                 'show_post_advanced_settings_modal'
             ),
-            show_bind_exist_tron_addr_modal: state.user.get(
-                'show_bind_exist_tron_addr_modal'
-            ),
             loading: state.app.get('modalLoading'),
         };
     },
     dispatch => ({
-        hideTronCreate: () => {
-            dispatch(userActions.hideTronCreate());
-        },
-        hideTronCreateSuccess: () => {
-            dispatch(userActions.hideTronCreateSuccess());
-        },
-        hideTronUpdate: () => {
-            dispatch(userActions.hideTronUpdate());
-        },
-        hideTronUpdateSuccess: () => {
-            dispatch(userActions.hideTronUpdateSuccess());
-        },
         hideVote: e => {
             if (e) e.preventDefault();
             dispatch(userActions.hideVote());
@@ -381,12 +232,6 @@ export default connect(
         hideTransfer: e => {
             if (e) e.preventDefault();
             dispatch(userActions.hideTransfer());
-        },
-        hideTronTransfer: () => {
-            dispatch(userActions.hideTronTransfer());
-        },
-        hideBindExistTronAddr: () => {
-            dispatch(userActions.hideBindExistTronAddr());
         },
         hidePowerdown: e => {
             if (e) e.preventDefault();

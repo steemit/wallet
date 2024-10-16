@@ -199,18 +199,6 @@ export function userActionRecord(action, params) {
                 amount: params.amount,
             };
             break;
-        case 'create_tron_addr':
-        case 'change_new_tron_addr':
-        case 'link_user_tron_addr':
-            tags = {
-                app: 'wallet',
-                action_type: action,
-            };
-            fields = {
-                username: params.username,
-                tron_addr: params.tron_addr,
-            };
-            break;
         case 'account_witness_vote':
             fields = {
                 username: params.username,
@@ -297,69 +285,4 @@ export function acceptTos() {
         body: JSON.stringify({ csrf: window.$STM_csrf }),
     });
     return fetch('/api/v1/acceptTos', request);
-}
-
-export function checkTronUser(data, type = 'steem') {
-    let queryString = '';
-    if (type === 'steem') {
-        queryString = `/api/v1/tron/tron_user?username=${data}`;
-    } else {
-        queryString = `/api/v1/tron/tron_user?tron_addr=${data}`;
-    }
-    return fetch(queryString)
-        .then(res => {
-            return res.json();
-        })
-        .then(res => {
-            if (res.error) throw new Error(res.error);
-            return res.result;
-        });
-}
-
-/**
- * data required {
- *      username (required)
- *      auth_type
- *      tron_addr
- *      is_bind_exist_addr
- *      tip_count
- * }
- * privKey required
- */
-export function updateTronUser(data, privKey) {
-    const r = signData(data, privKey);
-    const request = Object.assign({}, request_base, {
-        body: JSON.stringify(r),
-    });
-    return fetch('/api/v1/tron/tron_user', request).then(res => {
-        return res.json();
-    });
-}
-
-export function createTronAccount() {
-    const queryString = '/api/v1/tron/create_account';
-    return fetch(queryString).then(res => {
-        return res.json();
-    });
-}
-
-export function getTronAccount(tron_address) {
-    const queryString = '/api/v1/tron/get_account?tron_address=' + tron_address;
-    return fetch(queryString).then(res => {
-        return res.json();
-    });
-}
-
-export function getTronConfig() {
-    const queryString = '/api/v1/tron/get_config';
-    return fetch(queryString);
-}
-
-export function claimPendingTrxReward(username) {
-    const request = Object.assign({}, request_base, {
-        body: JSON.stringify({ username }),
-    });
-    return fetch('/api/v1/tron/claim_pending_trx_reward', request).then(res => {
-        return res.json();
-    });
 }

@@ -225,38 +225,3 @@ export function pricePerSteem(state) {
     }
     return undefined;
 }
-
-export function pricePerTRX(state) {
-    if (
-        !state.app.has('steemMarket') ||
-        !state.app.get('steemMarket').has('tron') ||
-        state.app.get('steemMarket').length == 0
-    )
-        return 0.02; // default price
-    const trx_price = state.app
-        .get('steemMarket')
-        .get('tron')
-        .get('timepoints')
-        .get(0)
-        .get('price_usd'); // real-time price
-    return trx_price ? parseFloat(trx_price) : 0.02; // default price
-}
-
-export function totalPendingClaimTron(pending, vests, vestsPerTrx) {
-    if (
-        pending !== undefined &&
-        vests !== undefined &&
-        vestsPerTrx !== undefined
-    ) {
-        const spWorthTron =
-            parseFloat(vests.split(' ')[0]) > 0
-                ? (
-                      parseFloat(vests.split(' ')[0]) / parseFloat(vestsPerTrx)
-                  ).toFixed(6)
-                : '0';
-        const total =
-            parseFloat(pending.split(' ')[0]) + parseFloat(spWorthTron);
-        return total > 0 ? `${total.toFixed(3)} TRX` : null;
-    }
-    return null;
-}

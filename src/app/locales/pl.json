@@ -685,13 +685,7 @@
         "transfers_are_temporary_disabled": "Transfery tymczasowo wyłączone.",
         "history": "HISTORIA",
         "redeem_rewards": "Odbierz nagrody (transfer do salda)",
-        "buy_steem_or_steem_power": "Kup STEEM",
-        "trx_description":
-            "TRX łączy cały system TRON ECO, który można wysłać w dowolne miejsce w dowolnym czasie. Możesz otrzymać przyzwoitą nagrodę głosując i zamrażając trx na system TRON ECO. Liczba TRX nagrody jest oparta na procentach x SP nagrody.",
-        "create_trx_description":
-            "Nie masz konta TRX? po prostu kliknij prawym przyciskiem myszy przycisk tworzenia konta TRX, gdzie można otrzymać nagrodę TRX.",
-        "create_trx_button": "UTWÓRZ KONTO TRON",
-        "update_trx_account": "zaktualizuj konto TRON"
+        "buy_steem_or_steem_power": "Kup STEEM"
     },
     "powerdown_jsx": {
         "power_down": "Zmniejsz moc",

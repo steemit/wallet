@@ -25,9 +25,7 @@ import favicon from 'koa-favicon';
 import staticCache from 'koa-static-cache';
 import useRedirects from './redirects';
 import useGeneralApi from './api/general';
-import useTronRewardApi from './api/tron_reward';
 import useAccountRecoveryApi from './api/account_recovery';
-import tronAccount from './api/tronAccount';
 import useEnterAndConfirmEmailPages from './sign_up_pages/enter_confirm_email';
 import useEnterAndConfirmMobilePages from './sign_up_pages/enter_confirm_mobile';
 import isBot from 'koa-isbot';
@@ -50,8 +48,6 @@ app.name = 'Steemit app';
 const env = process.env.NODE_ENV || 'development';
 // cache of a thousand days
 const cacheOpts = { maxAge: 86400000, gzip: true, buffer: true };
-
-const tronRewardSwitch = config.get('tron_reward.switch').toLowerCase();
 
 // Serve static assets without fanfare
 app.use(
@@ -293,10 +289,7 @@ useEnterAndConfirmEmailPages(app);
 useEnterAndConfirmMobilePages(app);
 
 useAccountRecoveryApi(app);
-if (tronRewardSwitch === 'on') {
-    useTronRewardApi(app);
-    tronAccount(app);
-}
+
 useGeneralApi(app);
 
 // helmet wants some things as bools and some as lists, makes config difficult.

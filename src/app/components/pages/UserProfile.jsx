@@ -133,7 +133,6 @@ export default class UserProfile extends React.Component {
                     <UserWallet
                         account={accountImm}
                         showTransfer={this.props.showTransfer}
-                        showTronTransfer={this.props.showTronTransfer}
                         showPowerdown={this.props.showPowerdown}
                         showVote={this.props.showVote}
                         currentUser={currentUser}
@@ -141,8 +140,7 @@ export default class UserProfile extends React.Component {
                     />
                 </div>
             );
-        }
-        else if (section === 'delegations') {
+        } else if (section === 'delegations') {
             walletClass = 'active';
             tab_content = (
                 <div>
@@ -155,8 +153,7 @@ export default class UserProfile extends React.Component {
                     />
                 </div>
             );
-        }
-        else if (section === 'curation-rewards') {
+        } else if (section === 'curation-rewards') {
             rewardsClass = 'active';
             tab_content = <CurationRewards account={account} />;
         } else if (section === 'author-rewards') {
@@ -400,9 +397,6 @@ module.exports = {
             showTransfer: transferDefaults => {
                 dispatch(userActions.setTransferDefaults(transferDefaults));
                 dispatch(userActions.showTransfer());
-            },
-            showTronTransfer: transferDefaults => {
-                dispatch(userActions.showTronTransfer(transferDefaults));
             },
             clearPowerdownDefaults: () => {
                 dispatch(userActions.clearPowerdownDefaults());

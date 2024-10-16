@@ -719,13 +719,7 @@
         "transfers_are_temporary_disabled": "Переводы временно преостановлены.",
         "history": "ИСТОРИЯ",
         "redeem_rewards": "Получить вознаграждение",
-        "buy_steem_or_steem_power": "Купить STEEM",
-        "trx_description":
-            "TRX соединяет всю систему TRON ECO, которую можно отправить куда угодно в любое время. Вы можете получить достойное вознаграждение, проголосовав и заморозив trx для системы TRON ECO. Количество TRX вознаграждения основано на x проценте вознаграждения SP.",
-        "create_trx_description":
-            "Нет TRX аккаунта? просто щелкните правой кнопкой мыши кнопку создания учетной записи TRX, где можно получить вознаграждение TRX.",
-        "create_trx_button": "СОЗДАТЬ ТРОННЫЙ СЧЕТ",
-        "update_trx_account": "обновить аккаунт TRON"
+        "buy_steem_or_steem_power": "Купить STEEM"
     },
     "powerdown_jsx": {
         "power_down": "Уменьшить силу голоса (power down)",

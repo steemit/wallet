@@ -699,13 +699,7 @@
             "현재 일시적인 이유로 송금이 불가능합니다.",
         "history": "거래 내역",
         "redeem_rewards": "내 지갑으로 입금하기",
-        "buy_steem_or_steem_power": "STEEM 구입",
-        "trx_description":
-            "TRX는 모든 TRON ECO 시스템을 연결하여 언제 어디서나 전송할 수 있습니다. TRON ECO 시스템에 대한 투표 및 동결 trx를 통해 적절한 보상을받을 수 있습니다. 보상 횟수 TRX는 보상 SP의 x 백분율을 기준으로합니다.",
-        "create_trx_description":
-            "TRX 계정이 없으십니까? TRX 보상을받을 수있는 TRX 계정 생성 버튼을 오른쪽 클릭하세요..",
-        "create_trx_button": "트론 계정 생성",
-        "update_trx_account": "TRON 계정 업데이트"
+        "buy_steem_or_steem_power": "STEEM 구입"
     },
     "powerdown_jsx": {
         "power_down": "파워 다운",

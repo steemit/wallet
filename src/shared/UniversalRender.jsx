@@ -281,17 +281,6 @@ export async function serverRender(
             };
         }
 
-        const accountname = matches ? matches[1] : null;
-        if (accountname) {
-            // TODO: ssr getTronInfo
-            // requestTimer.startTimer('getTronInfo_ms');
-            // const tronAccount = await getTronInfo(accountname);
-            // requestTimer.stopTimer('getTronInfo_ms');
-            // Object.keys(tronAccount).forEach(k => {
-            //     onchain.accounts[accountname][k] = tronAccount[k];
-            // });
-        }
-
         server_store = createStore(rootReducer, {
             app: initialState.app,
             global: onchain,
