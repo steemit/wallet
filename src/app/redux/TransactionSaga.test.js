@@ -12,7 +12,6 @@ import {
     transactionWatches,
     broadcastOperation,
     updateAuthorities,
-    tronTransfer,
 } from './TransactionSaga';
 import { DEBT_TICKER } from 'app/client_config';
 
@@ -57,7 +56,6 @@ describe('TransactionSaga', () => {
                     updateAuthorities
                 ),
                 takeEvery(transactionActions.RECOVER_ACCOUNT, recoverAccount),
-                takeEvery(transactionActions.TRON_TRANSFER, tronTransfer),
             ]);
         });
     });

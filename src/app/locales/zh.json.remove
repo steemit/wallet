@@ -220,9 +220,7 @@
             "zero": "没有回复",
             "one": "%(count)s回复",
             "other": "%(count)s个回复"
-        },
-        "input_tron_private_key": "请输入TRON账户私钥",
-        "input_tron_address": "请输入TRON账户地址"
+        }
     },
     "navigation": {
         "about": "关于",
@@ -461,29 +459,10 @@
         "the_memo_key_is_used_to_create_and_read_memos":
             "Memo Key用于创建和读取备注。",
         "userkeys_info_1":
-            "密码或密钥使用时间越长，安全隐患就越高。 因此 Steem 采用等级制密钥系统来保证您的账户安全。 您将分别获得 Steem 与TRON的密钥，对应不同权限。 例如，“发帖密钥”是一种常用密钥，用于一些安全要求较低的社交操作权限。 而“活跃密钥”用于钱包相关的操作权限，需要您更谨慎保管。",
+            "密码或密钥使用时间越长，安全隐患就越高。 因此 Steem 采用等级制密钥系统来保证您的账户安全。 您将分别获得 Steem 的密钥，对应不同权限。 例如，“发帖密钥”是一种常用密钥，用于一些安全要求较低的社交操作权限。 而“活跃密钥”用于钱包相关的操作权限，需要您更谨慎保管。",
         "userkeys_info_2":
-            "请记录下方您的 Steem 和TRON密钥。 建议使用密码管理软件（如 1Password 和 LastPass），或用离线的安全手段保存密码（如记录在纸上或 U 盘文件中）。",
+            "请记录下方您的 Steem 密钥。 建议使用密码管理软件（如 1Password 和 LastPass），或用离线的安全手段保存密码（如记录在纸上或 U 盘文件中）。",
         "leare_more": "了解更多",
-        "tron_account": {
-            "title": "TRON账户",
-            "desc1":
-                "TRON账户地址用于接受 TRX 奖励。 TRX 奖励根据您可以赎回的 SP 数，按个数等比例发放。",
-            "desc2":
-                "TRON账户地址也是TRON账户的公钥， 用于转账。 您进行代币转账的接收地址就是公钥。",
-            "desc3":
-                "私钥对应您TRON账户的最高权限， 用于您在TRON的交易签名，例如代币转账，冻结代币和投票。",
-            "address": "TRON账户地址",
-            "tron_key": "TRON账户私钥",
-            "tron_key_tip":
-                "请在带有TRON账户公私钥的PDF中查看。如果你正在使用的是已有TRON账户，请使用相应账户的私钥。",
-            "tron_account_permissions": "TRON 私钥权限",
-            "tron_account_permissions1": "您的 TRON 私钥可用于：",
-            "tron_account_permissions2": "代币转账",
-            "tron_account_permissions3": "冻结和解冻 TRX",
-            "tron_account_permissions4": "为TRON超级代表（SR）投票",
-            "tron_account_permissions5": "探索TRON生态"
-        },
         "Reveal": "显示",
         "posting_key": {
             "title": "发帖密钥",
@@ -751,8 +730,6 @@
         "balance_subject_to_3_day_withdraw_waiting_period":
             "余额取决于3天的提款等待期，",
         "move_funds_to_another_account": "将资金转移给另一个Steem的用户。",
-        "move_funds_to_another_tron_account":
-            "将资金转移给另一个Steem或TRON账户。",
         "protect_funds_by_requiring_a_3_day_withdraw_waiting_period":
             "通过设置3天的提款等待期来保护资金。",
         "withdraw_funds_after_the_required_3_day_waiting_period":
@@ -789,41 +766,8 @@
         "history": "历史",
         "redeem_rewards": "赎回奖励(转移至余额)",
         "buy_steem_or_steem_power": "购买STEEM",
-        "trx_description":
-            "TRX链接了整个TRON生态系统，可以在任何时候发送给任何地方。通过冻结和投票参与TRON生态建设，获得可观收益。TRX奖励根据你可以赎回的SP，按个数等比例发放。",
-        "trx_description1":
-            "TRX链接了整个TRON生态系统，可以在任何时候发送给任何地方。",
-        "trx_description2": "通过冻结和投票参与TRON生态建设，获得可观收益。",
-        "trx_description3": "TRX奖励根据你可以赎回的SP，按个数等比例发放。",
-        "trx_description3_1": "发放过程可能需要几分钟。",
-        "trx_description4": "建议",
-        "trx_description5": "下载TronLink钱包",
-        "trx_description6": "，导入你的TRON账户来管理TRX资产。",
-        "trx_description7":
-            "此TRON账户仅用于领取TRX奖励，不建议向此账户转账或用于存储资产。",
-        "create_trx_description":
-            "还未创建TRON账户，请点击右侧“创建TRON账号”按钮创建并领取TRX奖励。",
-        "create_trx_button": "创建TRON账户",
-        "update_trx_button": "变更TRON账户",
         "just_mortgage": " 去JUST抵押",
-        "create_trx_failed": "创建波场账户失败!",
-        "bind_exist_tron_addr": "绑定已有TRON账户",
-        "bind_exist_tron_addr_description_1":
-            "绑定已有TRON账户前请确认以下信息，以避免不必要的经济损失。",
-        "bind_exist_tron_addr_description_2":
-            "已经安全保存了正在使用的TRON账户的私钥，",
-        "bind_exist_tron_addr_description_3":
-            "或已经将正在使用的TRON账户导入至其他支持TRON账户的钱包中，",
-        "bind_exist_tron_addr_description_4":
-            "或已经将正在使用的TRON账户中的资产转移到您的其他TRON账户中。",
-        "bind_exist_tron_addr_description_5":
-            "绑定已有TRON账户之后得到的TRX奖励将发放至绑定后的TRON账户。",
-        "bind_exist_tron_addr_description_6": "是否确认绑定已有TRON账户？",
-        "enter_the_tron_account_addr_you_wish_to_link":
-            "输入要绑定的TRON账户地址",
-        "incorrect_account_format": "地址格式错误",
-        "sign_to_link": "签名并绑定",
-        "successfully_linked": "绑定成功"
+        "incorrect_account_format": "地址格式错误"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
@@ -843,65 +787,5 @@
         "ownership_changed_on": "所有权变更",
         "deadline_for_recovery_is": "恢复的截止日期是",
         "i_understand_dont_show_again": "我明白，不要再显示"
-    },
-    "tron_jsx": {
-        "content0":
-            "使用TRX为SR节点投票，参与TRON生态的建设，你将预计享受超过8%%的年化收益率。",
-        "content1": "投票前需要先将TRX进行冻结获得投票权。",
-        "content2": "具体操作步骤如下：",
-        "step1": "Step1: 点击\"去投票\"进入Tronscan投票页面",
-        "step2": "Step2: 点击\"链接钱包\"，选择\"导入账户登录\"",
-        "step3": "Step3: 输入TRON账户私钥后点击\"登陆\"",
-        "step4": "Step4: 点击\"投票\"按钮并跟随引导进行操作",
-        "vote_button": "去投票",
-        "step": "步骤",
-        "tron_tx_history": "TRON账号交易历史 >",
-        "update_tron_account": "变更TRON账户",
-        "update_tron_content":
-            "更新TRON账户前请确认以下信息，以避免不必要的经济损失。",
-        "update_tron_content1": "已经安全保存了此TRON账户的私钥，",
-        "update_tron_content2":
-            "或已经将此TRON账户导入至其他支持TRON账户的钱包中，",
-        "update_tron_content3":
-            "或已经将此TRON账户中的资产转移到您的其他TRON账户中。",
-        "update_tron_content4":
-            "更新TRON账户之后得到的TRX奖励将发放至更新后的TRON账户。",
-        "update_tron_content5":
-            "是否同意更新TRON账户并下载带有更新后TRON账户公私钥的PDF？",
-        "update_tron_content6":
-            "此操作需要使用您的活跃密钥或拥有者密钥或主密码登陆。",
-        "update_button": "变更并下载",
-        "update_success": "更新成功",
-        "update_success_content": "已经成功更新TRON账户。",
-        "update_success_content3": "若下载失败，",
-        "update_success_click": "点此下载",
-        "update_success_content2":
-            "请小心保管，丢失无法找回。不要与任何人共享此文件。",
-        "safe_save_button": "已安全保存PDF",
-        "create_tron_account": "创建TRON账户领取奖励",
-        "create_tron_account_content":
-            "Steemit 将为您发放额外的TRX奖励，此账户用来接收奖励。",
-        "create_tron_account_content1": "系统会自动为您免费创建TRON账户。",
-        "create_tron_account_content2":
-            "是否同意创建TRON账户并下载带有TRON账户公私钥的PDF？",
-        "create_tron_agree": "同意",
-        "create_tron_success": "创建成功",
-        "create_tron_success_content": "已经成功创建TRON账户。",
-        "create_tron_success_content2": "若下载失败，",
-        "create_tron_success_content3": "带有TRON账户公私钥的PDF。",
-        "qr_code": "二维码",
-        "copy": "复制",
-        "switch_to_tron_account": "切换为TRON账户",
-        "switch_to_steem_account": "切换为Steem账户",
-        "unbind_tron_addr": "此用户未开通TRON账户",
-        "username_not_exist": "账户不存在",
-        "cannot_transfer_to_yourself": "不能转给自己",
-        "private_key_does_not_match_address_in_transaction": "私钥错误",
-        "transaction_send_success": "转账请求发送成功"
-    },
-    "tron_err_msg": {
-        "data_is_invalid": "数据异常.请确认你使用的私钥是正确的。",
-        "need_active_or_owner_key":
-            "此操作需要使用您的活跃密钥或拥有者密钥或主密码登陆。"
     }
 }

@@ -15,7 +15,6 @@ import QRCode from 'react-qr';
 import tt from 'counterpart';
 import shouldComponentUpdate from 'app/utils/shouldComponentUpdate';
 import Keys from 'app/components/elements/Keys';
-import * as userActions from 'app/redux/UserReducer';
 import * as globalActions from 'app/redux/GlobalReducer';
 
 const keyTypes = ['Posting', 'Active', 'Owner', 'Memo'];
@@ -42,7 +41,6 @@ class UserKeys extends Component {
             };
         });
         this.changeTab = this.changeTab.bind(this);
-        this.onCreateTronAccount = this.onCreateTronAccount.bind(this);
     }
     componentWillUpdate(nextProps, nextState) {
         const { wifShown, setWifShown } = nextProps;
@@ -62,20 +60,13 @@ class UserKeys extends Component {
         });
     }
 
-    onCreateTronAccount = e => {
-        e.target.blur();
-        this.props.showTronCreate();
-    };
-
     render() {
         const {
-            props: { account, isMyAccount, currentUsername },
+            props: { account },
             state: { activeTab },
         } = this;
         const { onKey } = this;
         let idx = 0;
-        const hasTronAddr = account.has('tron_addr');
-        const tronAddr = account.get('tron_addr');
 
         // do not render if account is not loaded or available
         if (!account) return null;
@@ -165,7 +156,7 @@ class UserKeys extends Component {
                             className={`${activeTab == 1 ? 'active' : ''}`}
                             onClick={() => this.changeTab(1)}
                         >
-                            {tt('userkeys_jsx.tron_account.title')}
+                            {tt('userkeys_jsx.posting_key.title')}
                         </a>
                     </li>
                     <li>
@@ -174,7 +165,7 @@ class UserKeys extends Component {
                             className={`${activeTab == 2 ? 'active' : ''}`}
                             onClick={() => this.changeTab(2)}
                         >
-                            {tt('userkeys_jsx.posting_key.title')}
+                            {tt('userkeys_jsx.active_key.title')}
                         </a>
                     </li>
                     <li>
@@ -183,7 +174,7 @@ class UserKeys extends Component {
                             className={`${activeTab == 3 ? 'active' : ''}`}
                             onClick={() => this.changeTab(3)}
                         >
-                            {tt('userkeys_jsx.active_key.title')}
+                            {tt('userkeys_jsx.owner_key.title')}
                         </a>
                     </li>
                     <li>
@@ -192,7 +183,7 @@ class UserKeys extends Component {
                             className={`${activeTab == 4 ? 'active' : ''}`}
                             onClick={() => this.changeTab(4)}
                         >
-                            {tt('userkeys_jsx.owner_key.title')}
+                            {tt('userkeys_jsx.memo_key.title')}
                         </a>
                     </li>
                     <li>
@@ -201,177 +192,12 @@ class UserKeys extends Component {
                             className={`${activeTab == 5 ? 'active' : ''}`}
                             onClick={() => this.changeTab(5)}
                         >
-                            {tt('userkeys_jsx.memo_key.title')}
-                        </a>
-                    </li>
-                    <li>
-                        <a
-                            href="javascript:;"
-                            className={`${activeTab == 6 ? 'active' : ''}`}
-                            onClick={() => this.changeTab(6)}
-                        >
                             {tt('userkeys_jsx.public_key.title')}
                         </a>
                     </li>
                 </ul>
                 <div>
                     {activeTab == 1 && (
-                        <div className="key">
-                            <div className="key__content-container">
-                                <div className="key__col">
-                                    <p className="key__description">
-                                        {tt('userkeys_jsx.tron_account.desc1')}
-                                    </p>
-                                    <p className="key__description">
-                                        {tt('userkeys_jsx.tron_account.desc2')}
-                                    </p>
-                                    <p className="key__description">
-                                        {tt('userkeys_jsx.tron_account.desc3')}
-                                    </p>
-                                    {hasTronAddr &&
-                                        tronAddr && (
-                                            <div>
-                                                <div className="ShowKey">
-                                                    <div className="row key__private">
-                                                        <div className="key__private-title">
-                                                            <h5>
-                                                                {tt(
-                                                                    'userkeys_jsx.tron_account.address'
-                                                                )}
-                                                            </h5>
-                                                        </div>
-
-                                                        <div className="key__private-container">
-                                                            <div className="key__private-input">
-                                                                <input
-                                                                    className="key__input"
-                                                                    type="text"
-                                                                    value={
-                                                                        tronAddr
-                                                                    }
-                                                                    readOnly
-                                                                />
-                                                            </div>
-                                                            <div className="key__reveal">
-                                                                <QRCode
-                                                                    text={
-                                                                        tronAddr
-                                                                    }
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <h5
-                                                    style={{
-                                                        marginTop: '20px',
-                                                    }}
-                                                >
-                                                    {tt(
-                                                        'userkeys_jsx.tron_account.tron_key'
-                                                    )}
-                                                </h5>
-                                                <p
-                                                    style={{
-                                                        paddingLeft: '10px',
-                                                        fontSize: '0.875rem',
-                                                        fontWeight: 500,
-                                                    }}
-                                                >
-                                                    {tt(
-                                                        'userkeys_jsx.tron_account.tron_key_tip'
-                                                    )}
-                                                </p>
-                                            </div>
-                                        )}
-                                    {isMyAccount &&
-                                        hasTronAddr &&
-                                        !tronAddr && (
-                                            <div>
-                                                <div
-                                                    style={{
-                                                        width: '50%',
-                                                    }}
-                                                >
-                                                    <button
-                                                        className="UserWallet__tron button hollow"
-                                                        style={{
-                                                            width: '70%',
-                                                            height: 'auto',
-                                                        }}
-                                                        onClick={
-                                                            this
-                                                                .onCreateTronAccount
-                                                        }
-                                                    >
-                                                        {tt(
-                                                            'userwallet_jsx.create_trx_button'
-                                                        )}
-                                                    </button>
-                                                </div>
-                                                <div
-                                                    style={{
-                                                        width: '50%',
-                                                        marginTop: '10px',
-                                                    }}
-                                                >
-                                                    <button
-                                                        className="UserWallet__tron button hollow"
-                                                        style={{
-                                                            width: '70%',
-                                                            height: 'auto',
-                                                        }}
-                                                        onClick={
-                                                            this.props
-                                                                .showBindExistTronAddr
-                                                        }
-                                                    >
-                                                        {tt(
-                                                            'userwallet_jsx.bind_exist_tron_addr'
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                </div>
-                                <div className="key__col permissions">
-                                    <h5 className="permissions__h5">
-                                        {tt(
-                                            'userkeys_jsx.tron_account.tron_account_permissions'
-                                        )}
-                                    </h5>
-                                    <p className="permissions__p">
-                                        {tt(
-                                            'userkeys_jsx.tron_account.tron_account_permissions1'
-                                        )}
-                                    </p>
-                                    <ul className="permissions__list">
-                                        <li className="permissions__li">
-                                            {tt(
-                                                'userkeys_jsx.tron_account.tron_account_permissions2'
-                                            )}
-                                        </li>
-                                        <li className="permissions__li">
-                                            {tt(
-                                                'userkeys_jsx.tron_account.tron_account_permissions3'
-                                            )}
-                                        </li>
-                                        <li className="permissions__li">
-                                            {tt(
-                                                'userkeys_jsx.tron_account.tron_account_permissions4'
-                                            )}
-                                        </li>
-                                        <li className="permissions__li">
-                                            {tt(
-                                                'userkeys_jsx.tron_account.tron_account_permissions5'
-                                            )}
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    {activeTab == 2 && (
                         <div className="key">
                             <div className="key__title-container">
                                 <h3>Posting Key</h3>
@@ -441,7 +267,7 @@ class UserKeys extends Component {
                         </div>
                     )}
 
-                    {activeTab == 3 && (
+                    {activeTab == 2 && (
                         <div className="key">
                             <div className="key__title-container">
                                 <h3>Active Key</h3>
@@ -521,7 +347,7 @@ class UserKeys extends Component {
                             </div>
                         </div>
                     )}
-                    {activeTab == 4 && (
+                    {activeTab == 3 && (
                         <div className="key">
                             <div className="key__title-container">
                                 <h3>Owner Key</h3>
@@ -573,7 +399,7 @@ class UserKeys extends Component {
                         </div>
                     )}
 
-                    {activeTab == 5 && (
+                    {activeTab == 4 && (
                         <div className="key">
                             <div className="key__title-container">
                                 <h3>Memo Key</h3>
@@ -620,7 +446,7 @@ class UserKeys extends Component {
                         </div>
                     )}
 
-                    {activeTab == 6 && (
+                    {activeTab == 5 && (
                         <div className="key">
                             <div className="key__col">
                                 <p className="public-keys__description">
@@ -662,14 +488,6 @@ export default connect(
     dispatch => ({
         setWifShown: shown => {
             dispatch(globalActions.receiveState({ UserKeys_wifShown: shown }));
-        },
-        showTronCreate: e => {
-            if (e) e.preventDefault();
-            dispatch(userActions.showTronCreate());
-        },
-        showBindExistTronAddr: e => {
-            if (e) e.preventDefault();
-            dispatch(userActions.showBindExistTronAddr());
         },
     })
 )(UserKeys);

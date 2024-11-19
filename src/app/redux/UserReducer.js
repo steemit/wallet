@@ -12,8 +12,6 @@ const REMOVE_HIGH_SECURITY_KEYS = 'user/REMOVE_HIGH_SECURITY_KEYS';
 const CHANGE_LANGUAGE = 'user/CHANGE_LANGUAGE';
 const SHOW_TRANSFER = 'user/SHOW_TRANSFER';
 const HIDE_TRANSFER = 'user/HIDE_TRANSFER';
-const SHOW_TRON_TRANSFER = 'user/SHOW_TRON_TRANSFER';
-const HIDE_TRON_TRANSFER = 'user/HIDE_TRON_TRANSFER';
 const SHOW_POWERDOWN = 'user/SHOW_POWERDOWN';
 const HIDE_POWERDOWN = 'user/HIDE_POWERDOWN';
 const SET_TRANSFER_DEFAULTS = 'user/SET_TRANSFER_DEFAULTS';
@@ -38,32 +36,20 @@ const SHOW_SIDE_PANEL = 'user/SHOW_SIDE_PANEL';
 const HIDE_SIDE_PANEL = 'user/HIDE_SIDE_PANEL';
 const SHOW_VOTE = 'user/SHOW_VOTE';
 const HIDE_VOTE = 'user/HIDE_VOTE';
-const SHOW_TRON_UPDATE = 'user/SHOW_TRON_UPDATE';
-const HIDE_TRON_UPDATE = 'user/HIDE_TRON_UPDATE';
-const SHOW_TRON_UPDATE_SUCCESS = 'user/SHOW_TRON_UPDATE_SUCCESS';
-const HIDE_TRON_UPDATE_SUCCESS = 'user/HIDE_TRON_UPDATE_SUCCESS';
-const SHOW_TRON_CREATE = 'user/SHOW_TRON_CREATE';
-export const HIDE_TRON_CREATE = 'user/HIDE_TRON_CREATE';
-const SHOW_TRON_CREATE_SUCCESS = 'user/SHOW_TRON_CREATE_SUCCESS';
-const HIDE_TRON_CREATE_SUCCESS = 'user/HIDE_TRON_CREATE_SUCCESS';
-const SET_TRON_ACCOUNT_CHECK_ERROR = 'user/SET_TRON_ACCOUNT_CHECK_ERROR';
-const SET_TO_TRON_ADDR = 'user/SET_TO_TRON_ADDR';
-const SHOW_BIND_EXIST_TRON_ADDR = 'user/SHOW_BIND_EXIST_TRON_ADDR';
-const HIDE_BIND_EXIST_TRON_ADDR = 'user/HIDE_BIND_EXIST_TRON_ADDR';
 // Saga-related
 export const LOAD_SAVINGS_WITHDRAW = 'user/LOAD_SAVINGS_WITHDRAW';
 export const UPLOAD_IMAGE = 'user/UPLOAD_IMAGE';
 export const GET_VESTING_DELEGATIONS = 'user/GET_VESTING_DELEGATIONS';
 export const VESTING_DELEGATIONS_LOADING = 'user/VESTING_DELEGATIONS_LOADING';
 export const SET_VESTING_DELEGATIONS = 'user/SET_VESTING_DELEGATIONS';
-export const GET_EXPIRING_VESTING_DELEGATIONS = 'user/GET_EXPIRING_VESTING_DELEGATIONS';
-export const SET_EXPIRING_VESTING_DELEGATIONS = 'user/SET_EXPIRING_VESTING_DELEGATIONS'
-export const EXPIRING_VESTING_DELEGATIONS_LOADING = 'user/EXPIRING_VESTING_DELEGATIONS_LOADING'
-export const CHECK_TRON = 'user/CHECK_TRON';
-export const UPDATE_TRON_ADDR = 'user/UPDATE_TRON_ADDR';
+export const GET_EXPIRING_VESTING_DELEGATIONS =
+    'user/GET_EXPIRING_VESTING_DELEGATIONS';
+export const SET_EXPIRING_VESTING_DELEGATIONS =
+    'user/SET_EXPIRING_VESTING_DELEGATIONS';
+export const EXPIRING_VESTING_DELEGATIONS_LOADING =
+    'user/EXPIRING_VESTING_DELEGATIONS_LOADING';
 export const RESET_ERROR = 'user/RESET_ERROR';
 export const CLAIM_PENDING_TRX = 'user/CLAIM_PENDING_TRX';
-export const LOAD_TRON_INFO_AGAIN = 'user/LOAD_TRON_INFO_AGAIN';
 
 const defaultState = fromJS({
     current: null,
@@ -72,20 +58,12 @@ const defaultState = fromJS({
     show_signup_modal: false,
     show_post_advanced_settings_modal: '', // formId,
     show_vote_modal: false,
-    show_tron_update_modal: false,
-    show_tron_update_success_modal: false,
-    show_tron_create_modal: false,
-    show_tron_create_success_modal: false,
     pub_keys_used: null,
     locale: DEFAULT_LANGUAGE,
     show_side_panel: false,
     maybeLoggedIn: false,
     vestingDelegations: null,
     expiringVestingDelegations: null,
-    tron_account_check_error: null,
-    to_tron_addr: null,
-    tron_balance: 0,
-    show_bind_exist_tron_addr_modal: false,
 });
 
 export default function reducer(state = defaultState, action) {
@@ -189,12 +167,6 @@ export default function reducer(state = defaultState, action) {
         case HIDE_TRANSFER:
             return state.set('show_transfer_modal', false);
 
-        case SHOW_TRON_TRANSFER:
-            return state.set('show_tron_transfer_modal', true);
-
-        case HIDE_TRON_TRANSFER:
-            return state.set('show_tron_transfer_modal', false);
-
         case SHOW_POWERDOWN:
             return state.set('show_powerdown_modal', true);
 
@@ -217,10 +189,6 @@ export default function reducer(state = defaultState, action) {
             return state; // saga
 
         case LOAD_SAVINGS_WITHDRAW:
-            return state; // saga
-        case CHECK_TRON:
-            return state; // saga
-        case UPDATE_TRON_ADDR:
             return state; // saga
         case SET_USER:
             if (payload.vesting_shares)
@@ -299,37 +267,6 @@ export default function reducer(state = defaultState, action) {
             return state.set('show_vote_modal', true);
         case HIDE_VOTE:
             return state.set('show_vote_modal', false);
-        case SHOW_TRON_UPDATE:
-            return state.set('show_tron_update_modal', true);
-        case HIDE_TRON_UPDATE:
-            return state.set('show_tron_update_modal', false);
-        case SHOW_TRON_UPDATE_SUCCESS:
-            return state.set('show_tron_update_success_modal', true);
-        case HIDE_TRON_UPDATE_SUCCESS:
-            return state.set('show_tron_update_success_modal', false);
-        case SHOW_TRON_CREATE:
-            return state.set('show_tron_create_modal', true);
-        case HIDE_TRON_CREATE:
-            return state.set('show_tron_create_modal', false);
-        case SHOW_TRON_CREATE_SUCCESS:
-            return state.set('show_tron_create_success_modal', true);
-        case HIDE_TRON_CREATE_SUCCESS:
-            return state.set('show_tron_create_success_modal', false);
-        case SET_TRON_ACCOUNT_CHECK_ERROR:
-            return state.set(
-                'tron_account_check_error',
-                payload ? payload : null
-            );
-        case SET_TO_TRON_ADDR:
-            return state.set('to_tron_addr', payload ? payload : null);
-        case CLAIM_PENDING_TRX:
-            return state; // saga
-        case SHOW_BIND_EXIST_TRON_ADDR:
-            return state.set('show_bind_exist_tron_addr_modal', true);
-        case HIDE_BIND_EXIST_TRON_ADDR:
-            return state.set('show_bind_exist_tron_addr_modal', false);
-        case LOAD_TRON_INFO_AGAIN:
-            return state; // saga
         default:
             return state;
     }
@@ -353,43 +290,6 @@ export const showVote = payload => ({
 
 export const hideVote = payload => ({
     type: HIDE_VOTE,
-    payload,
-});
-
-export const showTronUpdate = payload => ({
-    type: SHOW_TRON_UPDATE,
-    payload,
-});
-
-export const hideTronUpdate = payload => ({
-    type: HIDE_TRON_UPDATE,
-    payload,
-});
-
-export const showTronUpdateSuccess = payload => ({
-    type: SHOW_TRON_UPDATE_SUCCESS,
-    payload,
-});
-export const hideTronUpdateSuccess = payload => ({
-    type: HIDE_TRON_UPDATE_SUCCESS,
-    payload,
-});
-
-export const showTronCreate = payload => ({
-    type: SHOW_TRON_CREATE,
-    payload,
-});
-export const hideTronCreate = payload => ({
-    type: HIDE_TRON_CREATE,
-    payload,
-});
-
-export const showTronCreateSuccess = payload => ({
-    type: SHOW_TRON_CREATE_SUCCESS,
-    payload,
-});
-export const hideTronCreateSuccess = payload => ({
-    type: HIDE_TRON_CREATE_SUCCESS,
     payload,
 });
 
@@ -427,15 +327,6 @@ export const showTransfer = payload => ({
 
 export const hideTransfer = payload => ({
     type: HIDE_TRANSFER,
-    payload,
-});
-export const showTronTransfer = payload => ({
-    type: SHOW_TRON_TRANSFER,
-    payload,
-});
-
-export const hideTronTransfer = payload => ({
-    type: HIDE_TRON_TRANSFER,
     payload,
 });
 
@@ -539,16 +430,6 @@ export const loadSavingsWithdraw = payload => ({
     payload,
 });
 
-export const checkTron = payload => ({
-    type: CHECK_TRON,
-    payload,
-});
-
-export const updateTronAddr = payload => ({
-    type: UPDATE_TRON_ADDR,
-    payload,
-});
-
 export const showSidePanel = () => ({
     type: SHOW_SIDE_PANEL,
 });
@@ -561,68 +442,38 @@ export const hideSidePanel = () => {
 
 /* Outing */
 
-export const getVestingDelegations = (payload) => {
+export const getVestingDelegations = payload => {
     return {
         type: GET_VESTING_DELEGATIONS,
         payload,
     };
 };
 
-export const setVestingDelegations = (payload) => ({
+export const setVestingDelegations = payload => ({
     type: SET_VESTING_DELEGATIONS,
     payload,
 });
 
-export const vestingDelegationsLoading = (payload) => ({
+export const vestingDelegationsLoading = payload => ({
     type: VESTING_DELEGATIONS_LOADING,
     payload,
 });
 
 /* Expiring */
 
-export const getExpiringVestingDelegations = (payload) => {
+export const getExpiringVestingDelegations = payload => {
     return {
         type: GET_EXPIRING_VESTING_DELEGATIONS,
         payload,
     };
 };
 
-export const setExpiringVestingDelegations = (payload) => ({
+export const setExpiringVestingDelegations = payload => ({
     type: SET_EXPIRING_VESTING_DELEGATIONS,
     payload,
 });
 
-export const expiringVestingDelegationsLoading = (payload) => ({
+export const expiringVestingDelegationsLoading = payload => ({
     type: EXPIRING_VESTING_DELEGATIONS_LOADING,
-    payload,
-});
-
-export const setTronAccountCheckError = payload => ({
-    type: SET_TRON_ACCOUNT_CHECK_ERROR,
-    payload,
-});
-
-export const setToTronAddr = payload => ({
-    type: SET_TO_TRON_ADDR,
-    payload,
-});
-
-export const claimPendingTrx = payload => ({
-    type: CLAIM_PENDING_TRX,
-    payload,
-});
-
-export const showBindExistTronAddr = payload => ({
-    type: SHOW_BIND_EXIST_TRON_ADDR,
-    payload,
-});
-
-export const hideBindExistTronAddr = payload => ({
-    type: HIDE_BIND_EXIST_TRON_ADDR,
-    payload,
-});
-
-export const loadTronInfoAgain = payload => ({
-    type: LOAD_TRON_INFO_AGAIN,
     payload,
 });

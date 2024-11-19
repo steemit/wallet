@@ -10,10 +10,8 @@ import {
 import { api } from '@steemit/steem-js';
 import { loadFollows } from 'app/redux/FollowSaga';
 import * as userActions from 'app/redux/UserReducer';
-import { checkTronUser } from 'app/utils/ServerApiClient';
 import { fromJS, Map, Set } from 'immutable';
 import { getStateAsync } from 'app/utils/steemApi';
-import { getTronAccount } from 'app/utils/tronApi';
 import * as globalActions from './GlobalReducer';
 import * as appActions from './AppReducer';
 import constants from './constants';
@@ -71,36 +69,7 @@ export function* fetchState(location_change_action) {
     yield put(appActions.fetchDataBegin());
     try {
         const state = yield call(getStateAsync, url);
-        // get tron information by steem username
-        // and merge into account
-        if (username) {
-            const tronAccount = yield call(checkTronUser, username);
-            Object.keys(tronAccount).forEach(k => {
-                state.accounts[username][k] = tronAccount[k];
-            });
-            // get tron balance and merge into account
-            state.accounts[username]['tron_balance'] = 0;
-            if (tronAccount.tron_addr) {
-                const tronNetworkAccount = yield call(
-                    getTronAccount,
-                    tronAccount.tron_addr
-                );
-                if (
-                    Object.keys(tronNetworkAccount).length > 0 &&
-                    tronNetworkAccount.balance !== undefined
-                ) {
-                    state.accounts[username]['tron_balance'] =
-                        tronNetworkAccount.balance / 1e6;
-                }
-            }
-        }
         yield put(globalActions.receiveState(state));
-        // unlock tron account create tip
-        yield put(
-            userActions.setUser({
-                tip_count_lock: false,
-            })
-        );
         // If a user's transfer page is being loaded, fetch related account data.
         yield call(getTransferUsers, pathname);
     } catch (error) {

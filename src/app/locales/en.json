@@ -258,10 +258,7 @@
             "warning":
                 "Legitimate users, including employees of Steemit Inc., will never ask you for a private key or master password.",
             "checkbox": "I understand"
-        },
-        "input_tron_private_key":
-            "Please enter the private key of your TRON account.",
-        "input_tron_address": "Please enter the TRON account address"
+        }
     },
     "navigation": {
         "about": "About Steemit, Inc.",
@@ -538,30 +535,11 @@
         "the_memo_key_is_used_to_create_and_read_memos":
             "This key can be used to send and view encrypted memos on the Steem blockchain.",
         "userkeys_info_1":
-            "Any password or key is more likely to get compromised the more it is used. That's why Steem uses a hierarchical key system to keep you safe. You are issued with Steem and TRON keys which have different permissions. For example, the Posting Key (which is intended to be used frequently) has a limited set of permissions for social actions that require less security. You'll need to be more careful with your Active Key since it has permissions to perform wallet related actions.",
+            "Any password or key is more likely to get compromised the more it is used. That's why Steem uses a hierarchical key system to keep you safe. You are issued with Steem keys which have different permissions. For example, the Posting Key (which is intended to be used frequently) has a limited set of permissions for social actions that require less security. You'll need to be more careful with your Active Key since it has permissions to perform wallet related actions.",
         "userkeys_info_2":
-            "Please take note of your Steem and TRON Keys listed below. Ideally, use a Password Manager (like 1Password or LastPass) or store an offline copy safely (on a piece of paper or on a file on a USB drive).",
+            "Please take note of your Steem Keys listed below. Ideally, use a Password Manager (like 1Password or LastPass) or store an offline copy safely (on a piece of paper or on a file on a USB drive).",
         "leare_more": "Learn more",
         "Reveal": "Reveal",
-        "tron_account": {
-            "title": "TRON Account",
-            "desc1":
-                "TRON account address is used for receiving TRX rewards. TRX rewards are given in proportion to the number of SP you can redeem.",
-            "desc2":
-                "TRON account address is also the TRON account public key. It is used for transfers. The public key is the address you send the tokens to.",
-            "desc3":
-                "The private key has the highest authority on your TRON account. It is used for signing transactions of TRON, such as transferring tokens, freezing and voting.",
-            "address": "TRON Account Address",
-            "tron_key": "TRON Account Private Key",
-            "tron_key_tip":
-                "Please check in the PDF containing public and private keys of the TRON account. If you are using an existing TRON account, please use the private key of the account.",
-            "tron_account_permissions": "TRON Private Key Permissions",
-            "tron_account_permissions1": "Use your TRON Private key to:",
-            "tron_account_permissions2": "Transfer tokens",
-            "tron_account_permissions3": "Freeze and unfreeze TRX",
-            "tron_account_permissions4": "Vote for TRON SRs",
-            "tron_account_permissions5": "Explore TRON ecology"
-        },
         "posting_key": {
             "title": "Posting Key",
             "desc1":
@@ -851,7 +829,6 @@
             "Please do not include what appears to be a private key or password.",
         "memo_is_privatekey": "Do not use private keys in memos.",
         "memo_is_password": "Do not use passwords in memos.",
-        "user_no_tron_account": "This user does not have a TRON account",
         "unknow_recipient": "Unknown recipient"
     },
     "settings_jsx": {
@@ -885,7 +862,8 @@
         "amount_is_in_form": "Amount is in the form 99999.999",
         "insufficient_funds": "Insufficient funds",
         "use_only_3_digits_of_precison": "Use only 3 digits of precison",
-        "minimum_required_delegation_amount": "The minimum required delegation amount is 1.000 SP",
+        "minimum_required_delegation_amount":
+            "The minimum required delegation amount is 1.000 SP",
         "use_only_6_digits_of_precision": "Use only 6 digits of precision",
         "send_to_account": "Send to account",
         "asset": "Asset",
@@ -895,13 +873,12 @@
         "balance_subject_to_3_day_withdraw_waiting_period":
             "Balances subject to 3 day withdraw waiting period.",
         "move_funds_to_another_account": "Move funds to another Steem account.",
-        "move_funds_to_another_tron_account":
-            "Transfer funds to another Steem or TRON account.",
         "protect_funds_by_requiring_a_3_day_withdraw_waiting_period":
             "Protect funds by requiring a 3 day withdraw waiting period.",
         "withdraw_funds_after_the_required_3_day_waiting_period":
             "Withdraw funds after the required 3 day waiting period.",
-        "delegate_vesting" : "<a href=\"/faq.html#What_is_delegated_STEEM_Power\">Visit the FAQ for more details on delegations</a>.",
+        "delegate_vesting":
+            "<a href=\"/faq.html#What_is_delegated_STEEM_Power\">Visit the FAQ for more details on delegations</a>.",
         "from": "From",
         "to": "To",
         "asset_currently_collecting":
@@ -960,47 +937,8 @@
         "history": "HISTORY",
         "redeem_rewards": "Redeem Rewards (Transfer to Balance)",
         "buy_steem_or_steem_power": "Buy STEEM",
-        "trx_description":
-            "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere. You can gain promising return by freezing your tokens and voting for SR to advance the TRON ecosystem. TRX rewards will be distributed in proportion to the number of SP you can redeem.",
-
-        "trx_description1":
-            "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere.",
-        "trx_description2":
-            "You can gain promising return by freezing your tokens and voting for SR to advance the TRON ecosystem.",
-        "trx_description3":
-            "TRX rewards will be distributed in proportion to the number of SP you can redeem.",
-        "trx_description3_1":
-            "The distribution process may take several minutes.",
-        "trx_description4": "",
-        "trx_description5": "Download TronLink wallet",
-        "trx_description6":
-            " and import your TRON account to manage TRX assets.",
-        "trx_description7":
-            "This TRON account is only used to receive TRX rewards and it is not recommended to transfer assets to this account or to store assets.",
-        "create_trx_description":
-            "You must have a TRON account first. Please click \"Create A TRON Account\" on the right side to claim TRX rewards.",
-        "create_trx_button": "Create TRON account",
-        "update_trx_button": "CREATE NEW TRON ACCOUNT",
         "just_mortgage": "Staking by JUST",
-        "create_trx_failed": "Create Tron Account Failed!",
-        "bind_exist_tron_addr": "Link an existing TRON account",
-        "bind_exist_tron_addr_description_1":
-            "In case of any loss, before linking an existing TRON account, please ensure:",
-        "bind_exist_tron_addr_description_2":
-            "You have securely stored the private key of the current TRON account, or",
-        "bind_exist_tron_addr_description_3":
-            "you have imported this account into other wallets that support TRON accounts, or",
-        "bind_exist_tron_addr_description_4":
-            "you have transferred assets in this account to your other TRON accounts.",
-        "bind_exist_tron_addr_description_5":
-            "After linking an existing TRON account, the TRX rewards will be distributed to the linked account.",
-        "bind_exist_tron_addr_description_6":
-            "Are you sure to link your existing TRON account?",
-        "enter_the_tron_account_addr_you_wish_to_link":
-            "Enter the TRON account address you wish to link",
-        "incorrect_account_format": "Incorrect account format",
-        "sign_to_link": "Sign to link",
-        "successfully_linked": "Successfully linked"
+        "incorrect_account_format": "Incorrect account format"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
@@ -1034,7 +972,7 @@
         "continue": "Continue",
         "cancel": "Cancel"
     },
-    "confirmdelegatevestingshares_jsx" :{
+    "confirmdelegatevestingshares_jsx": {
         "delegation": "Confirm the Delegation",
         "revoke": "Confirm the Revoke Operation"
     },
@@ -1089,74 +1027,5 @@
         },
         "confirm_remove_proposal_description":
             "Proposal removal is permanent and the fee paid for creating the proposal is not refundable."
-    },
-    "tron_jsx": {
-        "content0":
-            "Vote with TRX for SR nodes to contribute to the TRON ecosystem and you’re expected to earn over 8%% APY.",
-        "content1":
-            "You need to freeze TRX first to get the voting right before casting your vote.",
-        "content2": "Here are the steps:",
-        "step1": "Step1: click \"Voting\" to access Tronscan voting page",
-        "step2":
-            "Step2: click \"Link wallet\", and then select \"Import account to log in\".",
-        "step3":
-            "Step3: enter the private key of your TRON account and click \"Login\".",
-        "step4":
-            "Step4: click the \"Vote\" button and follow the instructions.",
-        "vote_button": "Vote Now",
-        "step": "Steps",
-        "tron_tx_history": "TRON account transaction history >",
-        "update_tron_account": "Create new TRON account",
-        "update_tron_content":
-            "Please confirm the information below before updating your TRON account to avoid unnecessary asset loss.",
-        "update_tron_content1":
-            "The private key for this TRON account has been saved,",
-        "update_tron_content2":
-            "or this TRON account has been imported to other TRON-supporting wallets,",
-        "update_tron_content3":
-            "or assets in this TRON account has been transfered to your other TRON accounts.",
-        "update_tron_content4":
-            "After updating your TRON account, your TRX rewards will be distributed to your updated TRON account.",
-        "update_tron_content5":
-            "Do you agree to update your TRON account and download the PDF containing the public and private keys of the updated TRON account？",
-        "update_tron_content6":
-            "This operation requires logging in with your Active or Owner key or Master password.",
-        "update_button": "create and download",
-        "update_success": "Updated successfully",
-        "update_success_content": "Your TRON account has been updated.",
-        "update_success_content3": "If the file wasn't downloaded,",
-        "update_success_click": "click here",
-        "update_success_content2":
-            "Please keep it safe, otherwise we cannot recover it for you.Please do not share the file with anyone else.",
-        "safe_save_button": "PDF securely saved",
-        "create_tron_account": "Create a TRON account and claim rewards",
-        "create_tron_account_content":
-            "Steemit will distribute extra TRX to you as rewards. This account is for receiving such rewards.",
-        "create_tron_account_content1":
-            "The system will automatically create a TRON account for you for free.",
-        "create_tron_account_content2":
-            "Do you agree to create a TRON account and download the PDF with your TRON public and private keys?",
-        "create_tron_agree": "Agree",
-        "create_tron_success": "Your account has been created",
-        "create_tron_success_content": "You have created a TRON account.",
-        "create_tron_success_content2": "If the file wasn't downloaded, ",
-        "create_tron_success_content3":
-            " to download the PDF with your TRON public and private keys.",
-        "qr_code": "QR code",
-        "copy": "copy",
-        "switch_to_tron_account": "Switch to TRON account",
-        "switch_to_steem_account": "Switch to Steem account",
-        "unbind_tron_addr": "This user does not have a TRON account",
-        "username_not_exist": "Account not found",
-        "cannot_transfer_to_yourself": "Cannot transfer to yourself",
-        "private_key_does_not_match_address_in_transaction":
-            "Private key does not match address in transaction",
-        "transaction_send_success": "Transaction has been sent successfully."
-    },
-    "tron_err_msg": {
-        "data_is_invalid":
-            "Data is invalid. Please check if you are using the correct private key.",
-        "need_active_or_owner_key":
-            "This operation requires logging in with your Active or Owner key or Master password."
     }
 }

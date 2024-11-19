@@ -9,13 +9,7 @@ import tt from 'counterpart';
 class Keys extends Component {
     static propTypes = {
         account: PropTypes.object.isRequired, // immutable Map
-        authType: PropTypes.oneOf([
-            'posting',
-            'active',
-            'owner',
-            'memo',
-            'tron',
-        ]),
+        authType: PropTypes.oneOf(['posting', 'active', 'owner', 'memo']),
     };
 
     shouldComponentUpdate(nextProps, nextState) {

@@ -2,10 +2,6 @@
     @extend .e-btn-hollow;
 }
 
-.UserWallet__tron {
-    @extend .e-btn-hollow;
-}
-
 .UserWallet__balance {
     padding-bottom: 1rem;
     padding-top: 1rem;
@@ -21,9 +17,6 @@
 .UserWallet__buysp {
     margin-right: 0 !important;
     margin-top: 1rem;
-}
-.UserWallet__tron {
-    margin-right: 0 !important;
 }
 .buttonSmall{
     font-size: 10px;
@@ -109,27 +102,4 @@
     .Wallet_dropdown {
         left: 10px !important;
     }
-}
-
-.UserWallet__balance.tron {
-  .tron-addr {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    .show-qrcode {
-      width: 40%;
-    }
-    button {
-      margin-right: 10px !important;
-    }
-  }
-  .qrcode {
-    position: absolute;
-    left: 90px;
-    top: -36%;
-    z-index: 1;
-  }
-  .LoadingIndicator {
-    float: right;
-  }
 }

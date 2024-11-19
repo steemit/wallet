@@ -54,18 +54,9 @@ class TransferForm extends Component {
             advanced: !transferToSelf,
             transferTo: false,
             autocompleteUsers: [],
-            switchTron: false,
-            switchSteem: true,
-            tronTransfer: initialValues.asset == 'TRX',
-            hide_tron_address: '',
-            tronTransferStepOne: false,
-            tronTransferStepTwo: false,
-            tronPrivateKey: '',
             show_transfer_button: false,
-            tronLoading: false,
         };
         this.initForm(props);
-        this.tronValidationLock = undefined;
     }
 
     componentDidMount() {
@@ -79,19 +70,6 @@ class TransferForm extends Component {
 
         this.buildTransferAutocomplete();
     }
-
-    componentWillUnmount() {
-        this.clearToTronInfo();
-    }
-
-    // covert tron address into the one only showing first and last 6 digit
-    covertTronAddress = tronAddr => {
-        if (!tronAddr) return;
-        return `${tronAddr.substring(0, 6)}${String().padStart(
-            6,
-            '.'
-        )}${tronAddr.slice(-6)}`;
-    };
 
     buildTransferAutocomplete() {
         // Get names for the recent account transfers
@@ -164,35 +142,6 @@ class TransferForm extends Component {
         this.setState({ advanced: !this.state.advanced });
     };
 
-    tronValidation = (from, to) => {
-        if (this.state.tronTransfer) {
-            if (this.state.switchSteem) {
-                const text = validate_account_name(to);
-                if (text !== null) return text;
-                if (this.tronValidationLock) {
-                    clearTimeout(this.tronValidationLock);
-                    this.props.unlockTransferAsyncValidation();
-                }
-                // lock async validations
-                this.props.lockTransferAsyncValidation();
-                this.tronValidationLock = setTimeout(() => {
-                    this.props.checkTron(from, to, 'steem');
-                }, 800);
-                return null;
-            } else if (this.state.switchTron) {
-                if (to.length !== 34) {
-                    return tt('transfer_jsx.invalid_tron_address');
-                }
-                if (from === to) {
-                    return tt('tron_jsx.cannot_transfer_to_yourself');
-                }
-                this.props.setToTronAddr(to);
-                return null;
-            }
-        }
-        return null;
-    };
-
     initForm(props) {
         const { transferType } = props.initialValues;
         const insufficientFunds = (asset, amount) => {
@@ -208,9 +157,7 @@ class TransferForm extends Component {
                         ? isWithdraw
                             ? currentAccount.get('savings_sbd_balance')
                             : currentAccount.get('sbd_balance')
-                        : asset === 'TRX'
-                            ? this.props.tronBalance + ' TRX'
-                            : null;
+                        : null;
             if (!balanceValue) return false;
             const balance = balanceValue.split(' ')[0];
             return parseFloat(amount) > parseFloat(balance);
@@ -234,33 +181,23 @@ class TransferForm extends Component {
             validation: values => ({
                 to: !values.to
                     ? tt('g.required')
-                    : this.state.tronTransfer
-                        ? this.tronValidation(props.tronAddr, values.to)
-                        : validate_account_name_with_memo(
-                              values.to,
-                              values.memo
-                          ),
+                    : validate_account_name_with_memo(values.to, values.memo),
                 amount: !values.amount
                     ? tt('g.required')
                     : !/^\d+(\.\d+)?$/.test(values.amount)
                         ? tt('transfer_jsx.amount_is_in_form')
                         : insufficientFunds(values.asset, values.amount)
                             ? tt('transfer_jsx.insufficient_funds')
-                            : this.state.tronTransfer
-                                ? countDecimals(values.amount) > 6
+                            : countDecimals(values.amount) > 3
+                                ? tt(
+                                      'transfer_jsx.use_only_3_digits_of_precison'
+                                  )
+                                : toDelegate &&
+                                  (values.amount < 1 && values.amount > 0)
                                     ? tt(
-                                          'transfer_jsx.use_only_6_digits_of_precision'
+                                          'transfer_jsx.minimum_required_delegation_amount'
                                       )
-                                    : null
-                                : countDecimals(values.amount) > 3
-                                    ? tt(
-                                          'transfer_jsx.use_only_3_digits_of_precison'
-                                      )
-                                    : (toDelegate && (values.amount < 1 && values.amount > 0))
-                                        ? tt(
-                                            'transfer_jsx.minimum_required_delegation_amount'
-                                        )
-                                        : null,
+                                    : null,
                 asset: props.toVesting
                     ? null
                     : !values.asset
@@ -298,17 +235,19 @@ class TransferForm extends Component {
         } = this.props;
         const { asset } = this.state;
         const isWithdraw = transferType && transferType === 'Savings Withdraw';
-        let balanceValue =!asset || asset.value === 'STEEM'
-            ? isWithdraw
-                ? currentAccount.get('savings_balance')
-                : currentAccount.get('balance')
-            : asset.value === 'SBD'
+        let balanceValue =
+            !asset || asset.value === 'STEEM'
                 ? isWithdraw
-                    ? currentAccount.get('savings_sbd_balance')
-                    : currentAccount.get('sbd_balance')
-                : asset.value === 'TRX'
-                    ? Math.floor(this.props.tronBalance * 1000) / 1000 + ' TRX'
-                    : null;
+                    ? currentAccount.get('savings_balance')
+                    : currentAccount.get('balance')
+                : asset.value === 'SBD'
+                    ? isWithdraw
+                        ? currentAccount.get('savings_sbd_balance')
+                        : currentAccount.get('sbd_balance')
+                    : asset.value === 'TRX'
+                        ? Math.floor(this.props.tronBalance * 1000) / 1000 +
+                          ' TRX'
+                        : null;
         if (toDelegate) {
             balanceValue = currentAccount.get('savings_balance');
             const vestingShares = parseFloat(
@@ -338,13 +277,7 @@ class TransferForm extends Component {
     };
 
     onChangeTo = async value => {
-        if (this.state.tronTransfer) {
-            // tron transfer
-            this.state.to.props.onChange(value);
-        } else {
-            // origin steem, sbd, etc. trnasfer
-            this.state.to.props.onChange(value);
-        }
+        this.state.to.props.onChange(value);
     };
 
     clearToTronInfo = () => {
@@ -366,17 +299,13 @@ class TransferForm extends Component {
             // 'Delegate to Account': tt(
             //     'transfer_jsx.'
             // ),
-            'Transfer to TRON Account': tt(
-                'transfer_jsx.move_funds_to_another_tron_account',
-                { APP_NAME }
-            ),
         };
         const powerTip3 = tt(
             'tips_js.converted_VESTING_TOKEN_can_be_sent_to_yourself_but_can_not_transfer_again',
             { LIQUID_TOKEN, VESTING_TOKEN }
         );
         const { to, amount, asset, memo } = this.state;
-        const { loading, trxError, advanced } = this.state;
+        const { loading, advanced } = this.state;
         const {
             currentUser,
             toVesting,
@@ -386,7 +315,6 @@ class TransferForm extends Component {
             totalVestingFund,
             totalVestingShares,
             tronAccountCheckError,
-            tronTransferSubmit,
             trackingId,
             transferAsyncValidationLock,
         } = this.props;
@@ -395,135 +323,21 @@ class TransferForm extends Component {
         // const isMemoPrivate = memo && /^#/.test(memo.value); -- private memos are not supported yet
         const isMemoPrivate = false;
 
-        const tron_final_form = (
-            // sign_complete_transfer
-            <div>
-                <div className="row">
-                    <div className="column small-12">
-                        {tt('transfer_jsx.sign_complete_transfer')}
-                    </div>
-                </div>
-                <br />
-                <div className="row">
-                    <div className="column small-12">
-                        <div
-                            className="input-group"
-                            style={{ marginBottom: '1.25rem' }}
-                        >
-                            <span className="input-group-label">@</span>
-                            <input
-                                className="input-group-field bold"
-                                type="text"
-                                disabled
-                                value={currentUser.get('username')}
-                            />
-                            <span className="tron_address">
-                                {' '}
-                                {this.covertTronAddress(
-                                    this.state.tron_address
-                                )}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div className="row">
-                    <div className="column small-12">
-                        <input
-                            type="password"
-                            placeholder={tt('g.input_tron_private_key')}
-                            autoComplete="on"
-                            autoCorrect="off"
-                            autoCapitalize="off"
-                            spellCheck="false"
-                            onChange={e => {
-                                this.setState({
-                                    tronPrivateKey: e.target.value,
-                                    show_transfer_button: true,
-                                    tronLoading: false,
-                                });
-                                this.clearError();
-                            }}
-                        />
-                    </div>
-                </div>
-                <div className="row">
-                    <div className="column">
-                        <br /> <br />
-                        {this.state.tronLoading && (
-                            <span>
-                                <LoadingIndicator type="circle" />
-                                <br />
-                            </span>
-                        )}
-                        {trxError && <div className="error">{trxError}</div>}
-                        <button
-                            className="button"
-                            onClick={() => {
-                                this.setState({
-                                    tronTransferStepTwo: true,
-                                    tronPrivateKey: '',
-                                    tronLoading: true,
-                                });
-
-                                tronTransferSubmit({
-                                    currentUser,
-                                    from: this.props.tronAddr,
-                                    to: this.props.toTronAddr,
-                                    amount: amount.value,
-                                    memo: memo.value,
-                                    privateKey: this.state.tronPrivateKey,
-                                    errorCallback: this.errorCallback,
-                                    trackingId,
-                                });
-                            }}
-                            disabled={
-                                !this.state.show_transfer_button ||
-                                this.state.tronLoading
-                            }
-                        >
-                            {tt('g.transfer')}
-                        </button>
-                        {!this.state.tronLoading && (
-                            <button
-                                type="button hollow"
-                                className="button hollow"
-                                style={{ float: 'right' }}
-                                onClick={() => {
-                                    this.setState({
-                                        tronTransferStepTwo: false,
-                                        tronTransferStepOne: true,
-                                    });
-                                }}
-                            >
-                                {tt('g.cancel')}
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
         const form = (
             <form
                 onSubmit={handleSubmit(({ data }) => {
-                    if (this.state.tronTransfer) {
-                        // tron transfer
-                        this.setState({
-                            tronTransferStepOne: true,
-                        });
-                    } else {
-                        // steem transfer
-                        this.setState({ loading: true });
-                        dispatchSubmit({
-                            ...data,
-                            errorCallback: this.errorCallback,
-                            currentUser,
-                            toVesting,
-                            toDelegate,
-                            transferType,
-                            totalVestingShares,
-                            totalVestingFund,
-                        });
-                    }
+                    // steem transfer
+                    this.setState({ loading: true });
+                    dispatchSubmit({
+                        ...data,
+                        errorCallback: this.errorCallback,
+                        currentUser,
+                        toVesting,
+                        toDelegate,
+                        transferType,
+                        totalVestingShares,
+                        totalVestingFund,
+                    });
                 })}
                 onChange={this.clearError}
             >
@@ -545,12 +359,14 @@ class TransferForm extends Component {
                     <div>
                         <div className="row">
                             <div className="column small-12">
-                                {toDelegate
-                                    ? (<FormattedHTMLMessage
+                                {toDelegate ? (
+                                    <FormattedHTMLMessage
                                         className="secondary"
                                         id="transfer_jsx.delegate_vesting"
-                                        />)
-                                    : transferTips[transferType]}
+                                    />
+                                ) : (
+                                    transferTips[transferType]
+                                )}
                             </div>
                         </div>
                         <br />
@@ -573,14 +389,6 @@ class TransferForm extends Component {
                                 disabled
                                 value={currentUser.get('username')}
                             />
-                            {this.state.tronTransfer && (
-                                <span className="tron_address">
-                                    {' '}
-                                    {this.covertTronAddress(
-                                        this.props.tronAddr
-                                    )}
-                                </span>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -598,9 +406,6 @@ class TransferForm extends Component {
                                 className="input-group"
                                 style={{ marginBottom: '1.25rem' }}
                             >
-                                {this.state.switchSteem && (
-                                    <span className="input-group-label">@</span>
-                                )}
                                 <Autocomplete
                                     wrapperStyle={{
                                         display: 'inline-block',
@@ -626,12 +431,7 @@ class TransferForm extends Component {
                                     )}
                                     ref={el => (this.to = el)}
                                     getItemValue={item => item.username}
-                                    items={
-                                        this.state.tronTransfer &&
-                                        this.state.switchSteem
-                                            ? this.state.autocompleteUsers
-                                            : []
-                                    }
+                                    items={this.state.autocompleteUsers}
                                     shouldItemRender={
                                         this.matchAutocompleteUser
                                     }
@@ -653,55 +453,8 @@ class TransferForm extends Component {
                                         await this.onChangeTo(val);
                                     }}
                                 />
-                                {this.state.tronTransfer &&
-                                    this.state.switchSteem && (
-                                        <div className="tron_address">
-                                            {this.covertTronAddress(
-                                                this.props.toTronAddr
-                                            )}
-                                        </div>
-                                    )}
                             </div>
-                            {this.state.tronTransfer &&
-                                this.state.switchSteem && (
-                                    <button
-                                        className="switch"
-                                        onClick={e => {
-                                            this.setState({
-                                                switchTron: true,
-                                                switchSteem: false,
-                                            });
-                                            this.onChangeTo('');
-                                            this.clearToTronInfo();
-                                        }}
-                                    >
-                                        {tt('tron_jsx.switch_to_tron_account')}
-                                    </button>
-                                )}
-                            {this.state.tronTransfer &&
-                                this.state.switchTron && (
-                                    <button
-                                        className="switch"
-                                        onClick={e => {
-                                            this.setState({
-                                                switchTron: false,
-                                                switchSteem: true,
-                                            });
-                                            this.onChangeTo('');
-                                            this.clearToTronInfo();
-                                        }}
-                                    >
-                                        {tt('tron_jsx.switch_to_steem_account')}
-                                    </button>
-                                )}
-                            {to.touched &&
-                            (to.error || tronAccountCheckError) ? (
-                                <div className="error">
-                                    {to.error || tronAccountCheckError}&nbsp;
-                                </div>
-                            ) : (
-                                <p>{toVesting && powerTip3}</p>
-                            )}
+                            {to.touched && <p>{toVesting && powerTip3}</p>}
                         </div>
                     </div>
                 )}
@@ -717,7 +470,11 @@ class TransferForm extends Component {
                         >
                             <input
                                 type="text"
-                                placeholder={tt(toDelegate ? 'g.delegation_placeholder' : 'g.amount')}
+                                placeholder={tt(
+                                    toDelegate
+                                        ? 'g.delegation_placeholder'
+                                        : 'g.amount'
+                                )}
                                 {...amount.props}
                                 ref="amount"
                                 autoComplete="off"
@@ -726,58 +483,61 @@ class TransferForm extends Component {
                                 spellCheck="false"
                                 disabled={loading}
                             />
-                            {asset && asset.value !== 'VESTS' && (
-                                <span
-                                    className="input-group-label"
-                                    style={{ paddingLeft: 0, paddingRight: 0 }}
-                                >
-                                    <select
-                                        {...asset.props}
-                                        placeholder={tt('transfer_jsx.asset')}
-                                        disabled={
-                                            loading || this.state.tronTransfer
-                                        }
+                            {asset &&
+                                asset.value !== 'VESTS' && (
+                                    <span
+                                        className="input-group-label"
                                         style={{
-                                            minWidth: '5rem',
-                                            height: 'inherit',
-                                            backgroundColor: 'transparent',
-                                            border: 'none',
+                                            paddingLeft: 0,
+                                            paddingRight: 0,
                                         }}
                                     >
-                                        {!this.state.tronTransfer && (
+                                        <select
+                                            {...asset.props}
+                                            placeholder={tt(
+                                                'transfer_jsx.asset'
+                                            )}
+                                            disabled={loading}
+                                            style={{
+                                                minWidth: '5rem',
+                                                height: 'inherit',
+                                                backgroundColor: 'transparent',
+                                                border: 'none',
+                                            }}
+                                        >
                                             <option value="STEEM">STEEM</option>
-                                        )}
-                                        {!this.state.tronTransfer && (
                                             <option value="SBD">SBD</option>
-                                        )}
-                                        {this.state.tronTransfer && (
-                                            <option value="TRX">TRX</option>
-                                        )}
-                                    </select>
-                                </span>
-                            )}
-                            {asset && asset.value === 'VESTS' && (
-                                <span
-                                    className="input-group-label"
-                                    style={{ paddingLeft: 0, paddingRight: 0 }}
-                                >
-                                    <select
-                                        {...asset.props}
-                                        placeholder={tt('transfer_jsx.asset')}
-                                        disabled={
-                                            loading || toDelegate
-                                        }
+                                        </select>
+                                    </span>
+                                )}
+                            {asset &&
+                                asset.value === 'VESTS' && (
+                                    <span
+                                        className="input-group-label"
                                         style={{
-                                            minWidth: '5rem',
-                                            height: 'inherit',
-                                            backgroundColor: 'transparent',
-                                            border: 'none',
+                                            paddingLeft: 0,
+                                            paddingRight: 0,
                                         }}
                                     >
-                                        <option value="STEEM">Steem Power</option>
-                                    </select>
-                                </span>
-                            )}
+                                        <select
+                                            {...asset.props}
+                                            placeholder={tt(
+                                                'transfer_jsx.asset'
+                                            )}
+                                            disabled={loading || toDelegate}
+                                            style={{
+                                                minWidth: '5rem',
+                                                height: 'inherit',
+                                                backgroundColor: 'transparent',
+                                                border: 'none',
+                                            }}
+                                        >
+                                            <option value="STEEM">
+                                                Steem Power
+                                            </option>
+                                        </select>
+                                    </span>
+                                )}
                         </div>
                         <div style={{ marginBottom: '0.6rem' }}>
                             <AssetBalance
@@ -835,34 +595,17 @@ class TransferForm extends Component {
                     <div className="column">
                         {loading && (
                             <span>
-                                {this.state.tronTransferStepOne ? (
-                                    <button
-                                        className="button"
-                                        onClick={() =>
-                                            this.setState({
-                                                tronTransferStepTwo: true,
-                                            })
-                                        }
-                                    >
-                                        {tt('g.ok')}
-                                    </button>
-                                ) : (
-                                    <LoadingIndicator type="circle" />
-                                )}
+                                <LoadingIndicator type="circle" />
                                 <br />
                             </span>
                         )}
                         {!loading && (
                             <span>
-                                {trxError && (
-                                    <div className="error">{trxError}</div>
-                                )}
                                 <button
                                     type="submit"
                                     disabled={
                                         submitting ||
                                         !valid ||
-                                        tronAccountCheckError !== null ||
                                         transferAsyncValidationLock > 0
                                     }
                                     className="button"
@@ -890,145 +633,18 @@ class TransferForm extends Component {
             </form>
         );
 
-        const ConfirmTronTransfer = (
-            <div className="info">
-                <div key={`transaction-group-${0}`} className="input-group">
-                    <span
-                        key={`transaction-label-${0}`}
-                        className="input-group-label"
-                    >
-                        from
-                    </span>
-                    <input
-                        className="input-group-field"
-                        type="text"
-                        required
-                        value={currentUser.get('username')}
-                        disabled={true}
-                        key={`transaction-input-${0}`}
-                    />
-                    <span className="tron_address">
-                        {' '}
-                        {this.covertTronAddress(this.props.tronAddr)}
-                    </span>
-                </div>
-                <div key={`transaction-group-${1}`} className="input-group">
-                    <span
-                        key={`transaction-label-${1}`}
-                        className="input-group-label"
-                    >
-                        to
-                    </span>
-                    <input
-                        className="input-group-field"
-                        type="text"
-                        required
-                        value={
-                            this.state.switchSteem
-                                ? to.value
-                                : this.covertTronAddress(to.value)
-                        }
-                        disabled={true}
-                        key={`transaction-input-${1}`}
-                    />
-                    {this.state.switchSteem && (
-                        <span className="tron_address">
-                            {this.covertTronAddress(this.props.toTronAddr)}
-                        </span>
-                    )}
-                </div>
-                <div key={`transaction-group-${2}`} className="input-group">
-                    <span
-                        key={`transaction-label-${2}`}
-                        className="input-group-label"
-                    >
-                        amount
-                    </span>
-                    <input
-                        className="input-group-field"
-                        type="text"
-                        required
-                        value={
-                            (amount && amount.value ? amount.value : 0) +
-                            '  TRX'
-                        }
-                        disabled={true}
-                        key={`transaction-input-${2}`}
-                    />
-                </div>
-                <div key={`transaction-group-${3}`} className="input-group">
-                    <span
-                        key={`transaction-label-${3}`}
-                        className="input-group-label"
-                    >
-                        memo
-                    </span>
-                    <input
-                        className="input-group-field"
-                        type="text"
-                        required
-                        value={memo && memo.value ? memo.value : ''}
-                        disabled={true}
-                        key={`transaction-input-${3}`}
-                    />
-                </div>
-            </div>
-        );
-        const tron_confirm_modal = (
-            <div>
-                <br />
-                {ConfirmTronTransfer}
-                <br />
-                <button
-                    className="button"
-                    onClick={() =>
-                        this.setState({
-                            tronTransferStepTwo: true,
-                            tronTransferStepOne: false,
-                        })
-                    }
-                >
-                    {tt('g.ok')}
-                </button>
-                <button
-                    type="button hollow"
-                    className="button hollow"
-                    style={{ float: 'right' }}
-                    onClick={() => {
-                        this.setState({
-                            tronTransferStepTwo: false,
-                            tronTransferStepOne: false,
-                        });
-                    }}
-                >
-                    {tt('g.cancel')}
-                </button>
-            </div>
-        );
         return (
             <div>
                 <div className="row">
-                    {this.state.tronTransferStepOne ? (
-                        <h3 className="column">
-                            {tt('transfer_jsx.confirm_tron_transfer')}
-                        </h3>
-                    ) : (
-                        <h3 className="column">
-                            {toVesting
-                                ? tt('transfer_jsx.convert_to_VESTING_TOKEN', {
-                                      VESTING_TOKEN,
-                                  })
-                                : this.state.tronTransfer
-                                    ? 'Transfer to Account'
-                                    : transferType}
-                        </h3>
-                    )}
+                    <h3 className="column">
+                        {toVesting
+                            ? tt('transfer_jsx.convert_to_VESTING_TOKEN', {
+                                  VESTING_TOKEN,
+                              })
+                            : transferType}
+                    </h3>
                 </div>
-                {this.state.tronTransferStepOne
-                    ? tron_confirm_modal
-                    : this.state.tronTransferStepTwo
-                        ? tron_final_form
-                        : form}
+                {form}
             </div>
         );
     }
@@ -1041,32 +657,6 @@ const AssetBalance = ({ onClick, balanceValue }) => (
     >
         {tt('g.balance', { balanceValue })}
     </a>
-);
-
-const TxLink = ({ txId, trackingId }) => (
-    <div>
-        <span>{tt('tron_jsx.transaction_send_success')}</span>
-        <a
-            onClick={() => {
-                const new_window = window.open();
-                const tron_host = $STM_Config.tron_host
-                    ? $STM_Config.tron_host.toString()
-                    : 'tronscan.org';
-                if (tron_host && tron_host.includes('shasta')) {
-                    new_window.location = `https://shasta.tronscan.org/#/transaction/${txId}`;
-                } else {
-                    new_window.location = `https://tronscan.org/#/transaction/${txId}`;
-                }
-                recordAdsView({
-                    trackingId,
-                    adTag: 'TronHistory',
-                });
-            }}
-            style={{ paddingLeft: '10px' }}
-        >
-            {txId}
-        </a>
-    </div>
 );
 
 export default connect(
@@ -1118,21 +708,6 @@ export default connect(
 
         if (initialValues.to !== currentUser.get('username'))
             transferToSelf = false; // don't hide the to field
-        const tronAddr =
-            currentUser && currentUser.has('tron_addr')
-                ? currentUser.get('tron_addr')
-                : '';
-        const tronBalance =
-            currentUser && currentUser.has('tron_balance')
-                ? currentUser.get('tron_balance')
-                : 0;
-        const toTronAddr = state.user.get('to_tron_addr');
-        const tronAccountCheckError = state.user.has('tron_account_check_error')
-            ? state.user.get('tron_account_check_error')
-            : null;
-        if (initialValues.asset == 'TRX') {
-            initialValues.transferType = 'Transfer to TRON Account';
-        }
         return {
             ...ownProps,
             trackingId: state.app.getIn(['trackingId'], null),
@@ -1150,10 +725,6 @@ export default connect(
             ]),
             totalVestingFund,
             totalVestingShares,
-            tronAddr,
-            tronBalance,
-            toTronAddr,
-            tronAccountCheckError,
             transferAsyncValidationLock: state.app.has(
                 'transferAsyncValidationLock'
             )
@@ -1199,11 +770,7 @@ export default connect(
                             : transferType === 'Delegate to Account'
                                 ? 'delegate_vesting_shares'
                                 : null;
-            const asset2 = toVesting
-                ? 'STEEM'
-                : toDelegate
-                    ? 'VESTS'
-                    : asset;
+            const asset2 = toVesting ? 'STEEM' : toDelegate ? 'VESTS' : asset;
             const successCallback = () => {
                 if (transactionType !== null) {
                     userActionRecord(transactionType, {
@@ -1261,71 +828,6 @@ export default connect(
                     confirm,
                 })
             );
-        },
-        tronTransferSubmit: ({
-            currentUser,
-            from,
-            to,
-            amount,
-            memo,
-            privateKey,
-            errorCallback,
-            trackingId,
-        }) => {
-            console.log('Tron Transfer:', from, to, amount, memo);
-            const username = currentUser.get('username');
-            const successCallback = result => {
-                if (result.result !== true) {
-                    console.error('tron transfer failed:', result);
-                    errorCallback(result.code);
-                    return;
-                }
-                // refresh transfer history
-                dispatch(
-                    globalActions.getState({ url: `@${username}/transfers` })
-                );
-                dispatch(userActions.hideTransfer());
-                console.log(
-                    `success finish tron transfer from ${from} to ${to}`,
-                    result
-                );
-                userActionRecord('transfer', {
-                    transferCoin: 'trx',
-                    amount,
-                    from,
-                    to,
-                });
-                dispatch(
-                    appActions.addNotification({
-                        key: 'chpwd_' + Date.now(),
-                        message: (
-                            <TxLink
-                                txId={result.txid}
-                                trackingId={trackingId}
-                            />
-                        ),
-                        dismissAfter: 5000,
-                    })
-                );
-            };
-            dispatch(
-                transactionActions.tronTransfer({
-                    from,
-                    to,
-                    amount,
-                    memo,
-                    privateKey,
-                    successCallback,
-                    errorCallback,
-                })
-            );
-        },
-        checkTron: (from, to, type) => {
-            dispatch(userActions.checkTron({ from, to, type }));
-        },
-        setToTronAddr: tronAddr => {
-            // this method is for the tron transfer when user uses tron address as the 'to' address.
-            dispatch(userActions.setToTronAddr(tronAddr));
         },
         lockTransferAsyncValidation: () =>
             dispatch(appActions.lockTransferAsyncValidation()),

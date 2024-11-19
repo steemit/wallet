@@ -26,14 +26,12 @@ import * as proposalActions from 'app/redux/ProposalReducer';
 import { DEBT_TICKER } from 'app/client_config';
 // import { serverApiRecordEvent } from 'app/utils/ServerApiClient';
 import { isLoggedInWithKeychain } from 'app/utils/SteemKeychain';
-import { transferTrxTo } from 'app/utils/tronApi';
 import diff_match_patch from 'diff-match-patch';
 
 export const transactionWatches = [
     takeEvery(transactionActions.BROADCAST_OPERATION, broadcastOperation),
     takeEvery(transactionActions.UPDATE_AUTHORITIES, updateAuthorities),
     takeEvery(transactionActions.RECOVER_ACCOUNT, recoverAccount),
-    takeEvery(transactionActions.TRON_TRANSFER, tronTransfer),
 ];
 
 const hook = {
@@ -45,34 +43,6 @@ const hook = {
     accepted_withdraw_vesting,
 };
 
-export function* tronTransfer({ payload }) {
-    if (payload.to == undefined) {
-        payload.errorCallback(tt('g.input_tron_address'));
-        return;
-    }
-
-    if (payload.privateKey == undefined) {
-        payload.errorCallback(tt('g.input_tron_private_key'));
-        return;
-    }
-    try {
-        const result = yield transferTrxTo(
-            payload.from,
-            payload.to,
-            payload.amount,
-            payload.memo,
-            payload.privateKey
-        );
-        payload.successCallback(result);
-    } catch (err) {
-        console.error('tron transfer error:', err);
-        if (err) {
-            payload.errorCallback(
-                tt(`tron_jsx.${err.replace(/\s+/g, '_').toLowerCase()}`)
-            );
-        }
-    }
-}
 export function* preBroadcast_transfer({ operation }) {
     let memoStr = operation.memo;
     if (memoStr) {

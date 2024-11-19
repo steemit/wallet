@@ -29,7 +29,6 @@ export const LIQUID_TICKER = 'STEEM';
 export const VEST_TICKER = 'VESTS';
 export const DEBT_TICKER = 'SBD';
 export const DEBT_TOKEN_SHORT = 'SBD';
-export const TRON_TOKEN = 'TRX';
 
 // application settings
 export const DEFAULT_LANGUAGE = 'en'; // used on application internationalization bootstrap
@@ -51,6 +50,3 @@ export const SITE_DESCRIPTION =
 
 // various
 export const SUPPORT_EMAIL = 'support@' + APP_DOMAIN;
-
-// tron host
-export const TRON_HOST = 'https://api.shasta.trongrid.io';

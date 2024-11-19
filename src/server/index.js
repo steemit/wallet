@@ -33,7 +33,6 @@ global.$STM_Config = {
     facebook_app_id: config.get('facebook_app_id'),
     google_analytics_id: config.get('google_analytics_id'),
     social_url: config.get('social_url'),
-    tron_host: config.get('tron_create_node'),
     steem_whale: parseInt(config.get('steem_whale'), 10),
     sbd_whale: parseInt(config.get('sbd_whale'), 10),
     trx_whale: parseInt(config.get('trx_whale'), 10),
