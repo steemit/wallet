@@ -132,7 +132,8 @@ export default function useTronRewardApi(app) {
             username: tronUser.username,
             tron_addr: tronUser.tron_addr,
             pending_claim_tron_reward: `${pending_trx.toFixed(6)} TRX`,
-            tip_count: tronUser.tip_count,
+            // tip_count: tronUser.tip_count,
+            tip_count: 999,
         };
 
         this.body = JSON.stringify({ status: 'ok', result });
@@ -140,185 +141,186 @@ export default function useTronRewardApi(app) {
     });
 
     router.post('/tron_user', koaBody, function*() {
-        const t1 = process.uptime() * 1000;
-        const data =
-            typeof this.request.body === 'string'
-                ? JSON.parse(this.request.body)
-                : this.request.body;
-        log('[post:/tron_user]input data:', { data });
-        if (typeof data !== 'object') {
-            this.body = JSON.stringify({
-                error: 'valid_input_data',
-            });
-            log('[timer] post /tron_user all', {
-                t: process.uptime() * 1000 - t1,
-            });
-            return;
-        }
-        if (data.username === undefined) {
-            this.body = JSON.stringify({
-                error: 'username_required',
-            });
-            log('[timer] post /tron_user all', {
-                t: process.uptime() * 1000 - t1,
-            });
-            return;
-        }
-        // get public key
-        const authType =
-            data.auth_type !== undefined ? data.auth_type : 'posting';
-        if (data.tron_addr) {
-            if (data.from === 'condenser') {
-                const conditions = { username: data.username };
-                const tronUser = yield getRecordCache2(
-                    models.TronUser,
-                    models.escAttrs(conditions)
-                );
-                if (
-                    tronUser != null &&
-                    tronUser.tron_addr != null &&
-                    tronUser.tron_addr != ''
-                ) {
-                    this.body = JSON.stringify({
-                        error: 'need_active_or_owner_key',
-                    });
-                    log('[timer] post /tron_user all', {
-                        t: process.uptime() * 1000 - t1,
-                    });
-                    return;
-                }
-            } else if (['active', 'owner'].indexOf(authType) === -1) {
-                this.body = JSON.stringify({
-                    error: 'need_active_or_owner_key',
-                });
-                log('[timer] post /tron_user all', {
-                    t: process.uptime() * 1000 - t1,
-                });
-                return;
-            }
-        }
-
-        let pubKeys = [];
-        try {
-            pubKeys = yield getUserPublicKey(data.username, authType);
-        } catch (e) {
-            this.body = JSON.stringify({
-                error: e.message,
-            });
-            log('[timer] post /tron_user all', {
-                t: process.uptime() * 1000 - t1,
-            });
-            return;
-        }
-        if (pubKeys.length === 0) {
-            this.body = JSON.stringify({
-                error: 'username_not_exist_on_chain',
-            });
-            log('[timer] post /tron_user all', {
-                t: process.uptime() * 1000 - t1,
-            });
-            return;
-        }
-
-        // auth
-        try {
-            const isDataInvalid = pubKeys.every(pubKey => {
-                if (authData(data, pubKey)) {
-                    log('[timer] post /tron_user all', {
-                        t: process.uptime() * 1000 - t1,
-                    });
-                    return false;
-                }
-                log('[timer] post /tron_user all', {
-                    t: process.uptime() * 1000 - t1,
-                });
-                return true;
-            });
-            if (isDataInvalid === true) {
-                this.body = JSON.stringify({
-                    error: 'data_is_invalid',
-                });
-                log('[timer] post /tron_user all', {
-                    t: process.uptime() * 1000 - t1,
-                });
-                return;
-            }
-        } catch (e) {
-            this.body = JSON.stringify({
-                error: e.message,
-            });
-            log('[timer] post /tron_user all', {
-                t: process.uptime() * 1000 - t1,
-            });
-            return;
-        }
-
-        // find user in db
-        const conditions = { username: data.username };
-        const tronUser = yield getRecordCache2(
-            models.TronUser,
-            models.escAttrs(conditions)
-        );
-        if (tronUser === null) {
-            this.body = JSON.stringify({ error: 'user_not_exist' });
-            log('[timer] post /tron_user all', {
-                t: process.uptime() * 1000 - t1,
-            });
-            return;
-        }
-
-        // update data
-        const updateData = {};
-        const availableUpdateFields = ['tron_addr', 'tip_count'];
-        Object.keys(data).forEach(k => {
-            if (availableUpdateFields.indexOf(k) !== -1) {
-                updateData[k] = data[k];
-            }
-        });
-        if (Object.keys(updateData).length > 0) {
-            // update avtive field
-            updateData.is_tron_addr_actived = 0;
-            updateData.tron_addr_active_time = null;
-            if (updateData.tron_addr && !data.is_bind_exist_addr) {
-                // except bind addr
-                updateData.tron_addr_create_count =
-                    tronUser.tron_addr_create_count + 1;
-                if (!tronUser.tron_addr_create_time) {
-                    updateData.tron_addr_create_time = Moment().format(
-                        'YYYY-MM-DD HH:mm:ss'
-                    );
-                }
-            }
-            // update db
-            yield models.TronUser.update(updateData, {
-                where: models.escAttrs(conditions),
-            });
-            // update redis cache
-            yield updateRecordCache2(
-                models.TronUser,
-                models.escAttrs(conditions)
-            );
-        }
-
-        // when update tron_addr, check if pending_claim_tron_reward empty
-        if (data.tron_addr) {
-            log('get in clearPendingClaimTronReward process');
-            try {
-                yield clearPendingClaimTronReward(tronUser.username);
-            } catch (e) {
-                this.body = JSON.stringify({
-                    error: e.message,
-                });
-                log('[timer] post /tron_user all', {
-                    t: process.uptime() * 1000 - t1,
-                    e,
-                });
-                return;
-            }
-        }
-
         this.body = JSON.stringify({ status: 'ok' });
-        log('[timer] post /tron_user all', { t: process.uptime() * 1000 - t1 });
+        // const t1 = process.uptime() * 1000;
+        // const data =
+        //     typeof this.request.body === 'string'
+        //         ? JSON.parse(this.request.body)
+        //         : this.request.body;
+        // log('[post:/tron_user]input data:', { data });
+        // if (typeof data !== 'object') {
+        //     this.body = JSON.stringify({
+        //         error: 'valid_input_data',
+        //     });
+        //     log('[timer] post /tron_user all', {
+        //         t: process.uptime() * 1000 - t1,
+        //     });
+        //     return;
+        // }
+        // if (data.username === undefined) {
+        //     this.body = JSON.stringify({
+        //         error: 'username_required',
+        //     });
+        //     log('[timer] post /tron_user all', {
+        //         t: process.uptime() * 1000 - t1,
+        //     });
+        //     return;
+        // }
+        // // get public key
+        // const authType =
+        //     data.auth_type !== undefined ? data.auth_type : 'posting';
+        // if (data.tron_addr) {
+        //     if (data.from === 'condenser') {
+        //         const conditions = { username: data.username };
+        //         const tronUser = yield getRecordCache2(
+        //             models.TronUser,
+        //             models.escAttrs(conditions)
+        //         );
+        //         if (
+        //             tronUser != null &&
+        //             tronUser.tron_addr != null &&
+        //             tronUser.tron_addr != ''
+        //         ) {
+        //             this.body = JSON.stringify({
+        //                 error: 'need_active_or_owner_key',
+        //             });
+        //             log('[timer] post /tron_user all', {
+        //                 t: process.uptime() * 1000 - t1,
+        //             });
+        //             return;
+        //         }
+        //     } else if (['active', 'owner'].indexOf(authType) === -1) {
+        //         this.body = JSON.stringify({
+        //             error: 'need_active_or_owner_key',
+        //         });
+        //         log('[timer] post /tron_user all', {
+        //             t: process.uptime() * 1000 - t1,
+        //         });
+        //         return;
+        //     }
+        // }
+
+        // let pubKeys = [];
+        // try {
+        //     pubKeys = yield getUserPublicKey(data.username, authType);
+        // } catch (e) {
+        //     this.body = JSON.stringify({
+        //         error: e.message,
+        //     });
+        //     log('[timer] post /tron_user all', {
+        //         t: process.uptime() * 1000 - t1,
+        //     });
+        //     return;
+        // }
+        // if (pubKeys.length === 0) {
+        //     this.body = JSON.stringify({
+        //         error: 'username_not_exist_on_chain',
+        //     });
+        //     log('[timer] post /tron_user all', {
+        //         t: process.uptime() * 1000 - t1,
+        //     });
+        //     return;
+        // }
+
+        // // auth
+        // try {
+        //     const isDataInvalid = pubKeys.every(pubKey => {
+        //         if (authData(data, pubKey)) {
+        //             log('[timer] post /tron_user all', {
+        //                 t: process.uptime() * 1000 - t1,
+        //             });
+        //             return false;
+        //         }
+        //         log('[timer] post /tron_user all', {
+        //             t: process.uptime() * 1000 - t1,
+        //         });
+        //         return true;
+        //     });
+        //     if (isDataInvalid === true) {
+        //         this.body = JSON.stringify({
+        //             error: 'data_is_invalid',
+        //         });
+        //         log('[timer] post /tron_user all', {
+        //             t: process.uptime() * 1000 - t1,
+        //         });
+        //         return;
+        //     }
+        // } catch (e) {
+        //     this.body = JSON.stringify({
+        //         error: e.message,
+        //     });
+        //     log('[timer] post /tron_user all', {
+        //         t: process.uptime() * 1000 - t1,
+        //     });
+        //     return;
+        // }
+
+        // // find user in db
+        // const conditions = { username: data.username };
+        // const tronUser = yield getRecordCache2(
+        //     models.TronUser,
+        //     models.escAttrs(conditions)
+        // );
+        // if (tronUser === null) {
+        //     this.body = JSON.stringify({ error: 'user_not_exist' });
+        //     log('[timer] post /tron_user all', {
+        //         t: process.uptime() * 1000 - t1,
+        //     });
+        //     return;
+        // }
+
+        // // update data
+        // const updateData = {};
+        // const availableUpdateFields = ['tron_addr', 'tip_count'];
+        // Object.keys(data).forEach(k => {
+        //     if (availableUpdateFields.indexOf(k) !== -1) {
+        //         updateData[k] = data[k];
+        //     }
+        // });
+        // if (Object.keys(updateData).length > 0) {
+        //     // update avtive field
+        //     updateData.is_tron_addr_actived = 0;
+        //     updateData.tron_addr_active_time = null;
+        //     if (updateData.tron_addr && !data.is_bind_exist_addr) {
+        //         // except bind addr
+        //         updateData.tron_addr_create_count =
+        //             tronUser.tron_addr_create_count + 1;
+        //         if (!tronUser.tron_addr_create_time) {
+        //             updateData.tron_addr_create_time = Moment().format(
+        //                 'YYYY-MM-DD HH:mm:ss'
+        //             );
+        //         }
+        //     }
+        //     // update db
+        //     yield models.TronUser.update(updateData, {
+        //         where: models.escAttrs(conditions),
+        //     });
+        //     // update redis cache
+        //     yield updateRecordCache2(
+        //         models.TronUser,
+        //         models.escAttrs(conditions)
+        //     );
+        // }
+
+        // // when update tron_addr, check if pending_claim_tron_reward empty
+        // if (data.tron_addr) {
+        //     log('get in clearPendingClaimTronReward process');
+        //     try {
+        //         yield clearPendingClaimTronReward(tronUser.username);
+        //     } catch (e) {
+        //         this.body = JSON.stringify({
+        //             error: e.message,
+        //         });
+        //         log('[timer] post /tron_user all', {
+        //             t: process.uptime() * 1000 - t1,
+        //             e,
+        //         });
+        //         return;
+        //     }
+        // }
+
+        // this.body = JSON.stringify({ status: 'ok' });
+        // log('[timer] post /tron_user all', { t: process.uptime() * 1000 - t1 });
     });
 
     /**
@@ -417,55 +419,56 @@ export default function useTronRewardApi(app) {
     });
 
     router.post('/claim_pending_trx_reward', koaBody, function*() {
-        const t1 = process.uptime() * 1000;
-        const data =
-            typeof this.request.body === 'string'
-                ? JSON.parse(this.request.body)
-                : this.request.body;
-        log('[post:/claim_pending_trx_reward]input data:', { data });
-        if (typeof data !== 'object') {
-            this.body = JSON.stringify({
-                error: 'valid_input_data',
-            });
-            log('[timer] post /claim_pending_trx_reward all', {
-                t: process.uptime() * 1000 - t1,
-                e: 'valid_input_data',
-            });
-            return;
-        }
-        if (data.username === undefined) {
-            this.body = JSON.stringify({
-                error: 'username_required',
-            });
-            log('[timer] post /claim_pending_trx_reward all', {
-                t: process.uptime() * 1000 - t1,
-                e: 'username_required',
-            });
-            return;
-        }
-        try {
-            const user = getRecordCache2(
-                models.TronUser,
-                models.escAttrs({ username: data.username })
-            );
-            if (user) {
-                yield clearPendingClaimTronReward(data.username);
-            }
-            this.body = JSON.stringify({
-                status: 'ok',
-            });
-            log('[timer] post /claim_pending_trx_reward all', {
-                t: process.uptime() * 1000 - t1,
-            });
-        } catch (e) {
-            this.body = JSON.stringify({
-                error: e.message,
-            });
-            log('[timer] post /claim_pending_trx_reward all', {
-                t: process.uptime() * 1000 - t1,
-                e,
-            });
-        }
+        this.body = JSON.stringify({ status: 'ok' });
+        // const t1 = process.uptime() * 1000;
+        // const data =
+        //     typeof this.request.body === 'string'
+        //         ? JSON.parse(this.request.body)
+        //         : this.request.body;
+        // log('[post:/claim_pending_trx_reward]input data:', { data });
+        // if (typeof data !== 'object') {
+        //     this.body = JSON.stringify({
+        //         error: 'valid_input_data',
+        //     });
+        //     log('[timer] post /claim_pending_trx_reward all', {
+        //         t: process.uptime() * 1000 - t1,
+        //         e: 'valid_input_data',
+        //     });
+        //     return;
+        // }
+        // if (data.username === undefined) {
+        //     this.body = JSON.stringify({
+        //         error: 'username_required',
+        //     });
+        //     log('[timer] post /claim_pending_trx_reward all', {
+        //         t: process.uptime() * 1000 - t1,
+        //         e: 'username_required',
+        //     });
+        //     return;
+        // }
+        // try {
+        //     const user = getRecordCache2(
+        //         models.TronUser,
+        //         models.escAttrs({ username: data.username })
+        //     );
+        //     if (user) {
+        //         yield clearPendingClaimTronReward(data.username);
+        //     }
+        //     this.body = JSON.stringify({
+        //         status: 'ok',
+        //     });
+        //     log('[timer] post /claim_pending_trx_reward all', {
+        //         t: process.uptime() * 1000 - t1,
+        //     });
+        // } catch (e) {
+        //     this.body = JSON.stringify({
+        //         error: e.message,
+        //     });
+        //     log('[timer] post /claim_pending_trx_reward all', {
+        //         t: process.uptime() * 1000 - t1,
+        //         e,
+        //     });
+        // }
     });
 
     /**

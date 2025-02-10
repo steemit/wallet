@@ -700,7 +700,7 @@
         "redeem_rewards": "Liquidar recompensas (Transferir al saldo)",
         "buy_steem_or_steem_power": "Compra STEEM",
         "trx_description":
-            "TRX conecta todo el sistema TRON ECO, que puede enviarse a cualquier lugar en cualquier momento. Puede recibir una recompensa decente votando y congelando trx para el sistema TRON ECO. El número de recompensa TRX se basa en el porcentaje x de la recompensa SP.",
+            "TRX conecta todo el sistema TRON ECO, que puede enviarse a cualquier lugar en cualquier momento. Puede recibir una recompensa decente votando y congelando trx para el sistema TRON ECO.",
         "create_trx_description":
             "¿No tienes cuenta TRX? simplemente haga clic derecho creando el botón de la cuenta TRX donde se puede recibir una recompensa TRX.",
         "create_trx_button": "CREAR CUENTA TRON",

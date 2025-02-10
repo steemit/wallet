@@ -702,7 +702,7 @@
         "redeem_rewards": "報酬の請求 (残高に送る)",
         "buy_steem_or_steem_power": "STEEMを購入する",
         "trx_description":
-            "TRXはすべてのTRON ECOシステムを接続し、いつでもどこでも送信できます。 TRON ECOシステムのtrxに投票して凍結することで、まともな報酬を受け取ることができます。報酬TRXの数は、報酬SPのxパーセントに基づいています.",
+            "TRXはすべてのTRON ECOシステムを接続し、いつでもどこでも送信できます。 TRON ECOシステムのtrxに投票して凍結することで、まともな報酬を受け取ることができます。",
         "create_trx_description":
             "TRXアカウントをお持ちではありませんか？ TRX報酬を受け取ることができるTRXアカウント作成ボタンを右クリックするだけです.",
         "create_trx_button": "TRONアカウントを作成する",

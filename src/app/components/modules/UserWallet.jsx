@@ -95,6 +95,17 @@ class UserWallet extends React.Component {
             new_window.opener = null;
             new_window.location = 'https://www.tronlink.org/';
         };
+        this.onShowTrc20SbdContractPage = e => {
+            if (e && e.preventDefault) e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'ToTrc20SbdContractPage',
+            });
+            const new_window = window.open();
+            new_window.opener = null;
+            new_window.location =
+                'https://tronscan.org/#/token20/TVS99x1fauqSToPNBxBAX6oW3xQGUR5GHT';
+        };
         this.onShowTradeSBD = e => {
             e.preventDefault();
             recordAdsView({
@@ -160,7 +171,8 @@ class UserWallet extends React.Component {
     componentWillMount = () => {};
 
     handleClaimRewards = account => {
-        const { currentUserTronAddr, claimPendingTrx } = this.props;
+        // const { currentUserTronAddr, claimPendingTrx } = this.props;
+        const { currentUserTronAddr } = this.props;
         if (currentUserTronAddr === '') {
             this.props.showTronCreate();
         }
@@ -169,7 +181,7 @@ class UserWallet extends React.Component {
             currentUserTronAddr !== '' &&
             account.get('pending_claim_tron_reward')
         ) {
-            claimPendingTrx(account.get('username'));
+            // claimPendingTrx(account.get('username'));
             isClaiming = true;
         }
         if (parseFloat(account.get('reward_vesting_steem').split(' ')[0]) > 0) {
@@ -554,14 +566,15 @@ class UserWallet extends React.Component {
         );
         const trx_menu = [
             {
-                value: tt('g.transfer'),
+                value: `${tt('g.transfer')} (Coming Soon)`,
                 link: '#',
+                onClick: () => {},
                 // todo  replace with TRX function
-                onClick: showTronTransfer.bind(
-                    this,
-                    'TRX',
-                    'Transfer to Account'
-                ),
+                // onClick: showTronTransfer.bind(
+                //     this,
+                //     'TRX',
+                //     'Transfer to Account'
+                // ),
             },
             {
                 value: tt('g.tronVote'),
@@ -626,7 +639,10 @@ class UserWallet extends React.Component {
         const powerdown_balance_str = numberWithCommas(
             powerdown_steem.toFixed(3)
         );
-        const sbd_balance_str = numberWithCommas('$' + sbd_balance.toFixed(3)); // formatDecimal(account.sbd_balance, 3)
+        const sbd_balance_str = numberWithCommas(
+            sbd_balance.toFixed(3) + ' SBD'
+        ); // formatDecimal(account.sbd_balance, 3)
+        const sbd_trc20_balance_str = '0.000 TRC20.SBD (Coming Soon)';
         const sbd_orders_balance_str = numberWithCommas(
             '$' + sbdOrders.toFixed(3)
         );
@@ -667,6 +683,9 @@ class UserWallet extends React.Component {
         const sbdMessage = (
             <span>{tt('userwallet_jsx.tradeable_tokens_transferred')}</span>
         );
+        const sbdTrc20Message = (
+            <span>{tt('userwallet_jsx.trc20_sbd_token_description')}</span>
+        );
 
         const reward_steem =
             parseFloat(account.get('reward_steem_balance').split(' ')[0]) > 0
@@ -680,16 +699,10 @@ class UserWallet extends React.Component {
             parseFloat(account.get('reward_vesting_steem').split(' ')[0]) > 0
                 ? account.get('reward_vesting_steem').replace('STEEM', 'SP')
                 : null;
-        const reward_tron = totalPendingClaimTron(
-            account.get('pending_claim_tron_reward'),
-            account.get('reward_vesting_balance'),
-            vestsPerTrx
-        );
         const rewards = [];
         if (reward_steem) rewards.push(reward_steem);
         if (reward_sbd) rewards.push(reward_sbd);
         if (reward_sp) rewards.push(reward_sp);
-        if (reward_tron) rewards.push(reward_tron);
         let rewards_str;
         switch (rewards.length) {
             case 4:
@@ -869,7 +882,7 @@ class UserWallet extends React.Component {
                 </div>
                 <div className="UserWallet__balance row">
                     <div className="column small-12 medium-8">
-                        STEEM DOLLARS
+                        STEEM DIGITAL
                         <div className="secondary">{sbdMessage}</div>
                     </div>
                     <div className="column small-12 medium-4">
@@ -902,6 +915,26 @@ class UserWallet extends React.Component {
                     </div>
                 </div>
                 <div className="UserWallet__balance row zebra">
+                    <div className="column small-12 medium-8">
+                        STEEM DIGITAL (on TRON)
+                        <div className="secondary">{sbdTrc20Message}</div>
+                        <div className="secondary">
+                            <a
+                                style={{
+                                    color: '#1FBF8F',
+                                    fontWeight: 500,
+                                }}
+                                onClick={this.onShowTrc20SbdContractPage}
+                            >
+                                {tt('userwallet_jsx.trc20_sbd_contract_page')}
+                            </a>
+                        </div>
+                    </div>
+                    <div className="column small-12 medium-4">
+                        {sbd_trc20_balance_str}
+                    </div>
+                </div>
+                <div className="UserWallet__balance row">
                     <div className="column small-12 medium-8">
                         {tt('userwallet_jsx.savings')}
                         <div className="secondary">
@@ -936,7 +969,7 @@ class UserWallet extends React.Component {
                         )}
                     </div>
                 </div>
-                <div className="UserWallet__balance row tron">
+                <div className="UserWallet__balance row zebra tron">
                     <div className="column small-12 medium-8">
                         TRX
                         <div className="secondary tron-addr">
@@ -1072,13 +1105,13 @@ class UserWallet extends React.Component {
                                                 marginTop: 0,
                                                 width: '50%',
                                             }}
-                                            onClick={onCreateTronAccount.bind(
-                                                this
-                                            )}
+                                            // onClick={onCreateTronAccount.bind(
+                                            //     this
+                                            // )}
                                         >
-                                            {tt(
+                                            {`${tt(
                                                 'userwallet_jsx.create_trx_button'
-                                            )}
+                                            )} (Coming Soon)`}
                                         </button>
                                     )}
                             </div>
@@ -1095,13 +1128,13 @@ class UserWallet extends React.Component {
                                                 marginTop: 0,
                                                 width: '50%',
                                             }}
-                                            onClick={onUpdateTronAccount.bind(
-                                                this
-                                            )}
+                                            // onClick={onUpdateTronAccount.bind(
+                                            //     this
+                                            // )}
                                         >
-                                            {tt(
+                                            {`${tt(
                                                 'userwallet_jsx.update_trx_button'
-                                            )}
+                                            )} (Coming Soon)`}
                                         </button>
                                     )}
                             </div>
@@ -1120,13 +1153,13 @@ class UserWallet extends React.Component {
                                                 marginTop: 0,
                                                 width: '50%',
                                             }}
-                                            onClick={
-                                                this.props.showBindExistTronAddr
-                                            }
+                                            // onClick={
+                                            //     this.props.showBindExistTronAddr
+                                            // }
                                         >
-                                            {tt(
+                                            {`${tt(
                                                 'userwallet_jsx.bind_exist_tron_addr'
-                                            )}
+                                            )} (Coming Soon)`}
                                         </button>
                                     )}
                             </div>
@@ -1134,7 +1167,7 @@ class UserWallet extends React.Component {
                     </div>
                 </div>
 
-                <div className="UserWallet__balance row zebra">
+                <div className="UserWallet__balance row">
                     <div className="column small-12 medium-8">
                         {tt('userwallet_jsx.estimated_account_value')}
                         <div className="secondary">
@@ -1145,7 +1178,7 @@ class UserWallet extends React.Component {
                         {estimate_output}
                     </div>
                 </div>
-                <div className="UserWallet__balance row">
+                <div className="UserWallet__balance row zebra">
                     <div className="column small-12">
                         {powerdown_steem != 0 && (
                             <span>
@@ -1235,14 +1268,16 @@ export default connect(
             currentUser && currentUser.has('tron_addr')
                 ? currentUser.get('tron_addr')
                 : '';
-        const currentUserTipCount =
-            currentUser && currentUser.has('tip_count')
-                ? currentUser.get('tip_count')
-                : 999;
-        const currentUserTipCountLock =
-            currentUser && currentUser.has('tip_count_lock')
-                ? currentUser.get('tip_count_lock')
-                : false;
+        const currentUserTipCount = 999;
+        // const currentUserTipCount =
+        //     currentUser && currentUser.has('tip_count')
+        //         ? currentUser.get('tip_count')
+        //         : 999;
+        const currentUserTipCountLock = false;
+        // const currentUserTipCountLock =
+        //     currentUser && currentUser.has('tip_count_lock')
+        //         ? currentUser.get('tip_count_lock')
+        //         : false;
         const vestsPerTrx = state.app.get('vests_per_trx');
         return {
             ...ownProps,

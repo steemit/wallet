@@ -468,7 +468,7 @@
         "tron_account": {
             "title": "TRON账户",
             "desc1":
-                "TRON账户地址用于接受 TRX 奖励。 TRX 奖励根据您可以赎回的 SP 数，按个数等比例发放。",
+                "",
             "desc2":
                 "TRON账户地址也是TRON账户的公钥， 用于转账。 您进行代币转账的接收地址就是公钥。",
             "desc3":
@@ -476,7 +476,7 @@
             "address": "TRON账户地址",
             "tron_key": "TRON账户私钥",
             "tron_key_tip":
-                "请在带有TRON账户公私钥的PDF中查看。如果你正在使用的是已有TRON账户，请使用相应账户的私钥。",
+                "即将上线",
             "tron_account_permissions": "TRON 私钥权限",
             "tron_account_permissions1": "您的 TRON 私钥可用于：",
             "tron_account_permissions2": "代币转账",
@@ -790,19 +790,19 @@
         "redeem_rewards": "赎回奖励(转移至余额)",
         "buy_steem_or_steem_power": "购买STEEM",
         "trx_description":
-            "TRX链接了整个TRON生态系统，可以在任何时候发送给任何地方。通过冻结和投票参与TRON生态建设，获得可观收益。TRX奖励根据你可以赎回的SP，按个数等比例发放。",
+            "TRX链接了整个TRON生态系统，可以在任何时候发送给任何地方。通过冻结和投票参与TRON生态建设，获得可观收益。",
         "trx_description1":
             "TRX链接了整个TRON生态系统，可以在任何时候发送给任何地方。",
         "trx_description2": "通过冻结和投票参与TRON生态建设，获得可观收益。",
-        "trx_description3": "TRX奖励根据你可以赎回的SP，按个数等比例发放。",
-        "trx_description3_1": "发放过程可能需要几分钟。",
+        "trx_description3": "",
+        "trx_description3_1": "",
         "trx_description4": "建议",
         "trx_description5": "下载TronLink钱包",
         "trx_description6": "，导入你的TRON账户来管理TRX资产。",
         "trx_description7":
-            "此TRON账户仅用于领取TRX奖励，不建议向此账户转账或用于存储资产。",
+            "",
         "create_trx_description":
-            "还未创建TRON账户，请点击右侧“创建TRON账号”按钮创建并领取TRX奖励。",
+            "还未创建TRON账户，请点击右侧“创建TRON账号”按钮创建。",
         "create_trx_button": "创建TRON账户",
         "update_trx_button": "变更TRON账户",
         "just_mortgage": " 去JUST抵押",
@@ -865,7 +865,7 @@
         "update_tron_content3":
             "或已经将此TRON账户中的资产转移到您的其他TRON账户中。",
         "update_tron_content4":
-            "更新TRON账户之后得到的TRX奖励将发放至更新后的TRON账户。",
+            "",
         "update_tron_content5":
             "是否同意更新TRON账户并下载带有更新后TRON账户公私钥的PDF？",
         "update_tron_content6":
@@ -878,9 +878,9 @@
         "update_success_content2":
             "请小心保管，丢失无法找回。不要与任何人共享此文件。",
         "safe_save_button": "已安全保存PDF",
-        "create_tron_account": "创建TRON账户领取奖励",
+        "create_tron_account": "创建TRON账户",
         "create_tron_account_content":
-            "Steemit 将为您发放额外的TRX奖励，此账户用来接收奖励。",
+            "",
         "create_tron_account_content1": "系统会自动为您免费创建TRON账户。",
         "create_tron_account_content2":
             "是否同意创建TRON账户并下载带有TRON账户公私钥的PDF？",

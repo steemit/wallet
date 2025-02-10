@@ -299,14 +299,14 @@ class UserKeys extends Component {
                                                             width: '70%',
                                                             height: 'auto',
                                                         }}
-                                                        onClick={
-                                                            this
-                                                                .onCreateTronAccount
-                                                        }
+                                                        // onClick={
+                                                        //     this
+                                                        //         .onCreateTronAccount
+                                                        // }
                                                     >
-                                                        {tt(
+                                                        {`${tt(
                                                             'userwallet_jsx.create_trx_button'
-                                                        )}
+                                                        )} (Coming Soon)`}
                                                     </button>
                                                 </div>
                                                 <div
@@ -321,14 +321,14 @@ class UserKeys extends Component {
                                                             width: '70%',
                                                             height: 'auto',
                                                         }}
-                                                        onClick={
-                                                            this.props
-                                                                .showBindExistTronAddr
-                                                        }
+                                                        // onClick={
+                                                        //     this.props
+                                                        //         .showBindExistTronAddr
+                                                        // }
                                                     >
-                                                        {tt(
+                                                        {`${tt(
                                                             'userwallet_jsx.bind_exist_tron_addr'
-                                                        )}
+                                                        )} (Coming Soon)`}
                                                     </button>
                                                 </div>
                                             </div>

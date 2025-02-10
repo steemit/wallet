@@ -545,16 +545,14 @@
         "Reveal": "Reveal",
         "tron_account": {
             "title": "TRON Account",
-            "desc1":
-                "TRON account address is used for receiving TRX rewards. TRX rewards are given in proportion to the number of SP you can redeem.",
+            "desc1": "",
             "desc2":
                 "TRON account address is also the TRON account public key. It is used for transfers. The public key is the address you send the tokens to.",
             "desc3":
                 "The private key has the highest authority on your TRON account. It is used for signing transactions of TRON, such as transferring tokens, freezing and voting.",
             "address": "TRON Account Address",
             "tron_key": "TRON Account Private Key",
-            "tron_key_tip":
-                "Please check in the PDF containing public and private keys of the TRON account. If you are using an existing TRON account, please use the private key of the account.",
+            "tron_key_tip": "Coming Soon.",
             "tron_account_permissions": "TRON Private Key Permissions",
             "tron_account_permissions1": "Use your TRON Private key to:",
             "tron_account_permissions2": "Transfer tokens",
@@ -885,7 +883,8 @@
         "amount_is_in_form": "Amount is in the form 99999.999",
         "insufficient_funds": "Insufficient funds",
         "use_only_3_digits_of_precison": "Use only 3 digits of precison",
-        "minimum_required_delegation_amount": "The minimum required delegation amount is 1.000 SP",
+        "minimum_required_delegation_amount":
+            "The minimum required delegation amount is 1.000 SP",
         "use_only_6_digits_of_precision": "Use only 6 digits of precision",
         "send_to_account": "Send to account",
         "asset": "Asset",
@@ -901,7 +900,8 @@
             "Protect funds by requiring a 3 day withdraw waiting period.",
         "withdraw_funds_after_the_required_3_day_waiting_period":
             "Withdraw funds after the required 3 day waiting period.",
-        "delegate_vesting" : "<a href=\"/faq.html#What_is_delegated_STEEM_Power\">Visit the FAQ for more details on delegations</a>.",
+        "delegate_vesting":
+            "<a href=\"/faq.html#What_is_delegated_STEEM_Power\">Visit the FAQ for more details on delegations</a>.",
         "from": "From",
         "to": "To",
         "asset_currently_collecting":
@@ -952,6 +952,8 @@
             "Tokens worth about $1.00 of %(LIQUID_TICKER)s, currently collecting %(sbdInterest)s%% APR.",
         "tradeable_tokens_transferred":
             "Tradeable tokens that may be transferred anywhere at anytime.",
+        "trc20_sbd_token_description":
+            "Steem Digital is the core token powering Steemit’s AI-driven platform, leveraging AI Agents to enhance user experiences and foster innovation.",
         "savings": "SAVINGS",
         "estimated_account_value": "Estimated Account Value",
         "next_power_down_is_scheduled_to_happen":
@@ -961,16 +963,14 @@
         "redeem_rewards": "Redeem Rewards (Transfer to Balance)",
         "buy_steem_or_steem_power": "Buy STEEM",
         "trx_description":
-            "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere. You can gain promising return by freezing your tokens and voting for SR to advance the TRON ecosystem. TRX rewards will be distributed in proportion to the number of SP you can redeem.",
+            "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere. You can gain promising return by freezing your tokens and voting for SR to advance the TRON ecosystem.",
 
         "trx_description1":
             "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere.",
         "trx_description2":
             "You can gain promising return by freezing your tokens and voting for SR to advance the TRON ecosystem.",
-        "trx_description3":
-            "TRX rewards will be distributed in proportion to the number of SP you can redeem.",
-        "trx_description3_1":
-            "The distribution process may take several minutes.",
+        "trx_description3": "",
+        "trx_description3_1": "",
         "trx_description4": "",
         "trx_description5": "Download TronLink wallet",
         "trx_description6":
@@ -978,7 +978,7 @@
         "trx_description7":
             "This TRON account is only used to receive TRX rewards and it is not recommended to transfer assets to this account or to store assets.",
         "create_trx_description":
-            "You must have a TRON account first. Please click \"Create A TRON Account\" on the right side to claim TRX rewards.",
+            "You must have a TRON account first. Please click \"Create A TRON Account\" on the right side.",
         "create_trx_button": "Create TRON account",
         "update_trx_button": "CREATE NEW TRON ACCOUNT",
         "just_mortgage": "Staking by JUST",
@@ -992,15 +992,15 @@
             "you have imported this account into other wallets that support TRON accounts, or",
         "bind_exist_tron_addr_description_4":
             "you have transferred assets in this account to your other TRON accounts.",
-        "bind_exist_tron_addr_description_5":
-            "After linking an existing TRON account, the TRX rewards will be distributed to the linked account.",
+        "bind_exist_tron_addr_description_5": "",
         "bind_exist_tron_addr_description_6":
             "Are you sure to link your existing TRON account?",
         "enter_the_tron_account_addr_you_wish_to_link":
             "Enter the TRON account address you wish to link",
         "incorrect_account_format": "Incorrect account format",
         "sign_to_link": "Sign to link",
-        "successfully_linked": "Successfully linked"
+        "successfully_linked": "Successfully linked",
+        "trc20_sbd_contract_page": "TRC20 SBD Contract Page"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
@@ -1034,7 +1034,7 @@
         "continue": "Continue",
         "cancel": "Cancel"
     },
-    "confirmdelegatevestingshares_jsx" :{
+    "confirmdelegatevestingshares_jsx": {
         "delegation": "Confirm the Delegation",
         "revoke": "Confirm the Revoke Operation"
     },
@@ -1115,8 +1115,7 @@
             "or this TRON account has been imported to other TRON-supporting wallets,",
         "update_tron_content3":
             "or assets in this TRON account has been transfered to your other TRON accounts.",
-        "update_tron_content4":
-            "After updating your TRON account, your TRX rewards will be distributed to your updated TRON account.",
+        "update_tron_content4": "",
         "update_tron_content5":
             "Do you agree to update your TRON account and download the PDF containing the public and private keys of the updated TRON account？",
         "update_tron_content6":
@@ -1129,9 +1128,8 @@
         "update_success_content2":
             "Please keep it safe, otherwise we cannot recover it for you.Please do not share the file with anyone else.",
         "safe_save_button": "PDF securely saved",
-        "create_tron_account": "Create a TRON account and claim rewards",
-        "create_tron_account_content":
-            "Steemit will distribute extra TRX to you as rewards. This account is for receiving such rewards.",
+        "create_tron_account": "Create a TRON account",
+        "create_tron_account_content": "",
         "create_tron_account_content1":
             "The system will automatically create a TRON account for you for free.",
         "create_tron_account_content2":
