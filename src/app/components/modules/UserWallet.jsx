@@ -95,6 +95,27 @@ class UserWallet extends React.Component {
             new_window.opener = null;
             new_window.location = 'https://www.tronlink.org/';
         };
+        this.onShowTronBalance = (tronAddr, e) => {
+            if (e && e.preventDefault) e.preventDefault();
+            if (!tronAddr) return;
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'ToTronBalance',
+            });
+            const new_window = window.open();
+            new_window.opener = null;
+            new_window.location = `https://tronscan.io/#/address/${tronAddr}`;
+        };
+        this.onShowTrxPage = e => {
+            if (e && e.preventDefault) e.preventDefault();
+            recordAdsView({
+                trackingId: this.props.trackingId,
+                adTag: 'ToTrxPage',
+            });
+            const new_window = window.open();
+            new_window.opener = null;
+            new_window.location = 'https://tronscan.org/#/token/0/transfers';
+        };
         this.onShowTrc20SbdContractPage = e => {
             if (e && e.preventDefault) e.preventDefault();
             recordAdsView({
@@ -236,7 +257,7 @@ class UserWallet extends React.Component {
     };
 
     render() {
-        const { onShowTRXTransaction, onShowJUST } = this;
+        const { onShowTRXTransaction, onShowTronBalance } = this;
         const {
             // convertToSteem,
             price_per_steem,
@@ -564,32 +585,32 @@ class UserWallet extends React.Component {
                 </span>
             </div>
         );
-        const trx_menu = [
-            {
-                value: `${tt('g.transfer')} (Coming Soon)`,
-                link: '#',
-                onClick: () => {},
-                // todo  replace with TRX function
-                // onClick: showTronTransfer.bind(
-                //     this,
-                //     'TRX',
-                //     'Transfer to Account'
-                // ),
-            },
-            {
-                value: tt('g.tronVote'),
-                link: '#',
-                label: tronVoteEl,
-                onClick: e => {
-                    e.preventDefault();
-                    recordAdsView({
-                        trackingId: this.props.trackingId,
-                        adTag: 'TronVote',
-                    });
-                    this.props.showVote();
-                },
-            },
-        ];
+        // const trx_menu = [
+        //     {
+        //         value: `${tt('g.transfer')} (Coming Soon)`,
+        //         link: '#',
+        //         onClick: () => {},
+        //         // todo  replace with TRX function
+        //         // onClick: showTronTransfer.bind(
+        //         //     this,
+        //         //     'TRX',
+        //         //     'Transfer to Account'
+        //         // ),
+        //     },
+        //     {
+        //         value: tt('g.tronVote'),
+        //         link: '#',
+        //         label: tronVoteEl,
+        //         onClick: e => {
+        //             e.preventDefault();
+        //             recordAdsView({
+        //                 trackingId: this.props.trackingId,
+        //                 adTag: 'TronVote',
+        //             });
+        //             this.props.showVote();
+        //         },
+        //     },
+        // ];
         if (isMyAccount) {
             steem_menu.push({
                 value: tt('g.trade'),
@@ -613,11 +634,11 @@ class UserWallet extends React.Component {
                 link: '#',
                 onClick: this.onShowTradeSBD,
             });
-            trx_menu.push({
-                value: tt('g.trade'),
-                link: '#',
-                onClick: this.onShowTrxTrade,
-            });
+            // trx_menu.push({
+            //     value: tt('g.trade'),
+            //     link: '#',
+            //     onClick: this.onShowTrxTrade,
+            // });
         }
 
         if (divesting) {
@@ -679,10 +700,10 @@ class UserWallet extends React.Component {
             },
         ];
         // set dynamic secondary wallet values
-        const sbdInterest = this.props.sbd_interest / 100;
-        const sbdMessage = (
-            <span>{tt('userwallet_jsx.tradeable_tokens_transferred')}</span>
-        );
+        // const sbdInterest = this.props.sbd_interest / 100;
+        // const sbdMessage = (
+        //     <span>{tt('userwallet_jsx.tradeable_tokens_transferred')}</span>
+        // );
         const sbdTrc20Message = (
             <span>{tt('userwallet_jsx.trc20_sbd_token_description')}</span>
         );
@@ -882,8 +903,8 @@ class UserWallet extends React.Component {
                 </div>
                 <div className="UserWallet__balance row">
                     <div className="column small-12 medium-8">
-                        STEEM DIGITAL
-                        <div className="secondary">{sbdMessage}</div>
+                        STEEM DIGITAL (on STEEM)
+                        <div className="secondary">{sbdTrc20Message}</div>
                     </div>
                     <div className="column small-12 medium-4">
                         {isMyAccount ? (
@@ -914,175 +935,106 @@ class UserWallet extends React.Component {
                         {conversions}
                     </div>
                 </div>
-                <div className="UserWallet__balance row zebra">
+                <div className="UserWallet__balance row zebra tron">
                     <div className="column small-12 medium-8">
                         STEEM DIGITAL (on TRON)
                         <div className="secondary">{sbdTrc20Message}</div>
-                        <div className="secondary">
-                            <a
-                                style={{
-                                    color: '#1FBF8F',
-                                    fontWeight: 500,
-                                }}
-                                onClick={this.onShowTrc20SbdContractPage}
-                            >
-                                {tt('userwallet_jsx.trc20_sbd_contract_page')}
-                            </a>
-                        </div>
-                    </div>
-                    <div className="column small-12 medium-4">
-                        {sbd_trc20_balance_str}
-                    </div>
-                </div>
-                <div className="UserWallet__balance row">
-                    <div className="column small-12 medium-8">
-                        {tt('userwallet_jsx.savings')}
-                        <div className="secondary">
-                            <span>
-                                {tt(
-                                    'transfer_jsx.balance_subject_to_3_day_withdraw_waiting_period'
-                                )}
-                            </span>
-                        </div>
-                    </div>
-                    <div className="column small-12 medium-4">
-                        {isMyAccount ? (
-                            <DropdownMenu
-                                className="Wallet_dropdown"
-                                items={savings_menu}
-                                el="li"
-                                selected={savings_balance_str}
-                            />
-                        ) : (
-                            savings_balance_str
-                        )}
-                        <br />
-                        {isMyAccount ? (
-                            <DropdownMenu
-                                className="Wallet_dropdown"
-                                items={savings_sbd_menu}
-                                el="li"
-                                selected={savings_sbd_balance_str}
-                            />
-                        ) : (
-                            savings_sbd_balance_str
-                        )}
-                    </div>
-                </div>
-                <div className="UserWallet__balance row zebra tron">
-                    <div className="column small-12 medium-8">
-                        TRX
-                        <div className="secondary tron-addr">
+                        {!tronAddr && isMyAccount ? (
                             <div
-                                className="tron-addr-item"
-                                style={{ paddingRight: '1em' }}
+                                className="secondary tron-addr"
+                                style={{ marginTop: '1.2em' }}
                             >
-                                {!tronAddr
-                                    ? isMyAccount
-                                        ? tt(
-                                              'userwallet_jsx.create_trx_description'
-                                          )
-                                        : null
-                                    : tronAddr}
-                            </div>
-                            {tronAddr && (
-                                <div className="tron-addr-item">
-                                    <CopyToClipboard
-                                        text={tronAddr}
-                                        onCopy={() =>
-                                            notify(tt('explorepost_jsx.copied'))
-                                        }
-                                    >
-                                        <button
-                                            className="UserWallet__tron button buttonSmall hollow"
-                                            onClick={e => e.target.blur()}
-                                        >
-                                            {tt('tron_jsx.copy')}
-                                        </button>
-                                    </CopyToClipboard>
-                                </div>
-                            )}
-                            {tronAddr && (
                                 <div
-                                    className={`tron-addr-item ${showQR &&
-                                        'show-qrcode'}`}
-                                    style={{ position: 'relative' }}
+                                    className="tron-addr-item"
+                                    style={{ paddingRight: '1em' }}
                                 >
-                                    <button
-                                        className="UserWallet__tron button buttonSmall hollow"
-                                        onClick={e => {
-                                            e.target.blur();
-                                            this.setState({
-                                                showQR: !showQR,
-                                            });
-                                        }}
-                                    >
-                                        {tt('tron_jsx.qr_code')}{' '}
-                                    </button>
-                                    {showQR && (
-                                        <div className="qrcode">
-                                            <QRCode
-                                                text={tronAddr}
-                                                onClick={() =>
-                                                    this.setState({
-                                                        showQR: !this.state
-                                                            .showQR,
-                                                    })
-                                                }
-                                            />
-                                        </div>
+                                    {tt(
+                                        'userwallet_jsx.create_trx_description'
                                     )}
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        ) : null}
+                        {tronAddr ? (
+                            <div
+                                className="secondary tron-addr"
+                                style={{ marginTop: '1.2em' }}
+                            >
+                                <div className="tron-addr-item">
+                                    {tt('userwallet_jsx.trx_description1')}
+                                </div>
+                                <div
+                                    className="tron-addr-item"
+                                    style={{ paddingRight: '1em' }}
+                                >
+                                    {tronAddr} (
+                                    <a
+                                        style={{
+                                            color: '#1FBF8F',
+                                            fontWeight: 500,
+                                            padding: '0 5px',
+                                        }}
+                                        onClick={onShowTronBalance.bind(
+                                            this,
+                                            tronAddr
+                                        )}
+                                    >
+                                        {`${trx_balance_str} TRX`}
+                                    </a>{' '}
+                                    )
+                                </div>
+                            </div>
+                        ) : null}
                         <div
                             className="secondary"
                             style={{ marginTop: '1.2em' }}
                         >
-                            <span style={{ display: 'block' }}>
-                                {tt('userwallet_jsx.trx_description1')}
-                            </span>
-                            <span style={{ display: 'block' }}>
-                                {tt('userwallet_jsx.trx_description2')}
-                            </span>
-                            <span style={{ display: 'block' }}>
-                                {tt('userwallet_jsx.trx_description3')}
-                            </span>
-                            <span style={{ display: 'block', fontWeight: 900 }}>
-                                {tt('userwallet_jsx.trx_description3_1')}
-                            </span>
-                            <span style={{ display: 'block', fontWeight: 500 }}>
-                                {tt('userwallet_jsx.trx_description7')}
-                            </span>
-                            <span style={{ display: 'block', fontWeight: 500 }}>
-                                {tt('userwallet_jsx.trx_description4')}
-                                <a
-                                    style={{
-                                        color: '#1FBF8F',
-                                        fontWeight: 500,
-                                    }}
-                                    onClick={this.onShowTronLink}
-                                >
-                                    {tt('userwallet_jsx.trx_description5')}
-                                </a>
-                                {tt('userwallet_jsx.trx_description6')}
-                            </span>
+                            {tt('userwallet_jsx.trc20_descp_1')}
+                            <a
+                                style={{
+                                    color: '#1FBF8F',
+                                    fontWeight: 500,
+                                    padding: '0 5px',
+                                }}
+                                onClick={this.onShowTronLink}
+                            >
+                                {tt('userwallet_jsx.trc20_descp_2')}
+                            </a>
+                            {tt('userwallet_jsx.trc20_descp_3')}
+                            <a
+                                style={{
+                                    color: '#1FBF8F',
+                                    fontWeight: 500,
+                                    padding: '0 5px',
+                                }}
+                                onClick={this.onShowTrxPage}
+                            >
+                                {tt('g.trx')}
+                            </a>
+                            {tt('g.and')}
+                            <a
+                                style={{
+                                    color: '#1FBF8F',
+                                    fontWeight: 500,
+                                    padding: '0 5px',
+                                }}
+                                onClick={this.onShowTrc20SbdContractPage}
+                            >
+                                {tt('g.trc20_sbd')}
+                            </a>
+                            {tt('userwallet_jsx.trc20_descp_5')}
                         </div>
                     </div>
                     <div className="column small-12 medium-4">
-                        {hasTronAddr && tronAddr && isMyAccount ? (
-                            <DropdownMenu
-                                className="Wallet_dropdown"
-                                items={trx_menu}
-                                el="li"
-                                selected={trx_balance_str + ' TRX'}
-                            />
-                        ) : (
-                            trx_balance_str + ' TRX'
-                        )}
-                        <div className="columns shrink">
-                            {!hasTronAddr && <LoadingIndicator type="circle" />}
-                        </div>
+                        <a
+                            style={{
+                                color: '#1FBF8F',
+                                fontWeight: 500,
+                                padding: '0 5px',
+                            }}
+                            onClick={onShowTronBalance.bind(this, tronAddr)}
+                        >
+                            {sbd_trc20_balance_str}
+                        </a>
                         <div
                             style={{
                                 display: 'flex',
@@ -1166,8 +1118,42 @@ class UserWallet extends React.Component {
                         </div>
                     </div>
                 </div>
-
                 <div className="UserWallet__balance row">
+                    <div className="column small-12 medium-8">
+                        {tt('userwallet_jsx.savings')}
+                        <div className="secondary">
+                            <span>
+                                {tt(
+                                    'transfer_jsx.balance_subject_to_3_day_withdraw_waiting_period'
+                                )}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="column small-12 medium-4">
+                        {isMyAccount ? (
+                            <DropdownMenu
+                                className="Wallet_dropdown"
+                                items={savings_menu}
+                                el="li"
+                                selected={savings_balance_str}
+                            />
+                        ) : (
+                            savings_balance_str
+                        )}
+                        <br />
+                        {isMyAccount ? (
+                            <DropdownMenu
+                                className="Wallet_dropdown"
+                                items={savings_sbd_menu}
+                                el="li"
+                                selected={savings_sbd_balance_str}
+                            />
+                        ) : (
+                            savings_sbd_balance_str
+                        )}
+                    </div>
+                </div>
+                <div className="UserWallet__balance row zebra">
                     <div className="column small-12 medium-8">
                         {tt('userwallet_jsx.estimated_account_value')}
                         <div className="secondary">
@@ -1178,7 +1164,7 @@ class UserWallet extends React.Component {
                         {estimate_output}
                     </div>
                 </div>
-                <div className="UserWallet__balance row zebra">
+                <div className="UserWallet__balance row">
                     <div className="column small-12">
                         {powerdown_steem != 0 && (
                             <span>

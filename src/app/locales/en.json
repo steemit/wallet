@@ -261,7 +261,9 @@
         },
         "input_tron_private_key":
             "Please enter the private key of your TRON account.",
-        "input_tron_address": "Please enter the TRON account address"
+        "input_tron_address": "Please enter the TRON account address",
+        "trx": "TRX",
+        "trc20_sbd": "TRC20 SBD"
     },
     "navigation": {
         "about": "About Steemit, Inc.",
@@ -966,7 +968,7 @@
             "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere. You can gain promising return by freezing your tokens and voting for SR to advance the TRON ecosystem.",
 
         "trx_description1":
-            "TRX connects the entire TRON ecosystem. You can send TRX anytime, anywhere.",
+            "Following account is used to receive all TRON network tokens, such as TRC20 SBD, TRX, etc.",
         "trx_description2":
             "You can gain promising return by freezing your tokens and voting for SR to advance the TRON ecosystem.",
         "trx_description3": "",
@@ -977,6 +979,11 @@
             " and import your TRON account to manage TRX assets.",
         "trx_description7":
             "This TRON account is only used to receive TRX rewards and it is not recommended to transfer assets to this account or to store assets.",
+        "trc20_descp_1": "Download",
+        "trc20_descp_2": "TronLink wallet",
+        "trc20_descp_3": "and manage",
+        "trc20_descp_4": "TRC20 SBD",
+        "trc20_descp_5": "asset",
         "create_trx_description":
             "You must have a TRON account first. Please click \"Create A TRON Account\" on the right side.",
         "create_trx_button": "Create TRON account",
