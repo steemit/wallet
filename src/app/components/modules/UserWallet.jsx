@@ -350,37 +350,46 @@ class UserWallet extends React.Component {
         }
 
         /// transfer log
-        let idx = 0;
-        const transfer_log = account
-            .get('transfer_history')
-            .map(item => {
-                const data = item.getIn([1, 'op', 1]);
-                const type = item.getIn([1, 'op', 0]);
+        let transfer_log = null;
+        // only render on client side
+        if (typeof window !== 'undefined') {
+            let idx = 0;
+            try {
+                transfer_log = account
+                    .get('transfer_history')
+                    .map(item => {
+                        const data = item.getIn([1, 'op', 1]);
+                        const type = item.getIn([1, 'op', 0]);
 
-                // Filter out rewards
-                if (
-                    type === 'curation_reward' ||
-                    type === 'author_reward' ||
-                    type === 'comment_benefactor_reward'
-                ) {
-                    return null;
-                }
+                        // Filter out rewards
+                        if (
+                            type === 'curation_reward' ||
+                            type === 'author_reward' ||
+                            type === 'comment_benefactor_reward'
+                        ) {
+                            return null;
+                        }
 
-                if (
-                    data.sbd_payout === '0.000 SBD' &&
-                    data.vesting_payout === '0.000000 VESTS'
-                )
-                    return null;
-                return (
-                    <TransferHistoryRow
-                        key={idx++}
-                        op={item.toJS()}
-                        context={account.get('name')}
-                    />
-                );
-            })
-            .filter(el => !!el)
-            .reverse();
+                        if (
+                            data.sbd_payout === '0.000 SBD' &&
+                            data.vesting_payout === '0.000000 VESTS'
+                        )
+                            return null;
+                        return (
+                            <TransferHistoryRow
+                                key={idx++}
+                                op={item.toJS()}
+                                context={account.get('name')}
+                            />
+                        );
+                    })
+                    .filter(el => !!el)
+                    .reverse();
+            } catch (e) {
+                console.error(e);
+                transfer_log = null;
+            }
+        }
 
         const steem_menu = [
             {
@@ -819,27 +828,29 @@ class UserWallet extends React.Component {
 
                 {isMyAccount && <SavingsWithdrawHistory />}
 
-                <div className="row">
-                    <div className="column small-12">
-                        <h4>{tt('userwallet_jsx.history')}</h4>
-                        <div className="secondary">
-                            <span>
-                                {tt(
-                                    'transfer_jsx.beware_of_spam_and_phishing_links'
-                                )}
-                            </span>
-                            &nbsp;
-                            <span>
-                                {tt(
-                                    'transfer_jsx.transactions_make_take_a_few_minutes'
-                                )}
-                            </span>
+                {transfer_log && (
+                    <div className="row">
+                        <div className="column small-12">
+                            <h4>{tt('userwallet_jsx.history')}</h4>
+                            <div className="secondary">
+                                <span>
+                                    {tt(
+                                        'transfer_jsx.beware_of_spam_and_phishing_links'
+                                    )}
+                                </span>
+                                &nbsp;
+                                <span>
+                                    {tt(
+                                        'transfer_jsx.transactions_make_take_a_few_minutes'
+                                    )}
+                                </span>
+                            </div>
+                            <table>
+                                <tbody>{transfer_log}</tbody>
+                            </table>
                         </div>
-                        <table>
-                            <tbody>{transfer_log}</tbody>
-                        </table>
                     </div>
-                </div>
+                )}
             </div>
         );
     }
