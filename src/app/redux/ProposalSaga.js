@@ -85,14 +85,13 @@ export function* listProposals({
                 return p.proposal.id;
             });
     }
-    const mungedProposals = proposals.map(p => {
-        if (proposalVotesIds.indexOf(p.proposal_id) != -1) {
-            p.upVoted = true;
-        } else {
-            p.upVoted = false;
-        }
-        return p;
-    });
+
+    // Use hashset to perform O(1) lookups
+    const votedSet = new Set(proposalVotesIds);
+    const mungedProposals = proposals.map(p => ({
+        ...p,
+        upVoted: votedSet.has(p.proposal_id)
+    }));
 
     yield put(proposalActions.receiveListProposals({ mungedProposals }));
     if (resolve && mungedProposals) {
