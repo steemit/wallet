@@ -1,5 +1,5 @@
 .Markdown {
-  font-family: 'Source Serif Pro', serif;
+  font-family:  "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 120%;
 
   line-height: 150%;
@@ -150,12 +150,12 @@
   blockquote {
     @include themify($themes) {
       border-left: themed('borderDark');
-    }       
+    }
   }
   blockquote > p {
     @include themify($themes) {
       color: themed('textColorSecondary');
-    }    
+    }
   }
 }
 
