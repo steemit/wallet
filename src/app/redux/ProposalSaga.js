@@ -28,9 +28,8 @@ export function* listProposals({
     status,
     resolve,
     reject,
+    start,
 }) {
-    const start = [-1, 0];
-
     const proposals = yield call(
         [api, api.listProposalsAsync],
         start,
@@ -45,52 +44,57 @@ export function* listProposals({
     });
 
     let proposalVotesIds = [];
-
+    let proposalVotes = [];
     if (voter_id) {
-        let proposalVotes = yield proposalIds.map(function*(pId) {
-            let votes = [];
-            let nextVotes = [];
-            let lastVoter = '';
-            let beyondThisProposal = false;
-            const maxVotes = 100;
-            // ¯\_(ツ)_/¯
-            while (true) {
-                nextVotes = yield call(
-                    [api, api.listProposalVotesAsync],
-                    [pId, lastVoter],
-                    maxVotes,
-                    'by_proposal_voter',
-                    'ascending',
-                    'all'
-                );
-                votes = votes.concat(nextVotes);
-                lastVoter = nextVotes[nextVotes.length - 1].voter;
-                if (nextVotes.length < maxVotes) return votes;
-                beyondThisProposal = false;
-                nextVotes.map(d => {
-                    if (d.proposal.proposal_id != pId)
-                        beyondThisProposal = true;
-                });
-                if (beyondThisProposal) return votes;
-            }
-        });
-
-        proposalVotes = proposalVotes.reduce((a, b) => a.concat(b), []);
-
-        proposalVotesIds = proposalVotes
-            .filter(d => {
-                return d.voter == voter_id;
-            })
-            .map(p => {
-                return p.proposal.id;
+        try {
+            proposalVotes = yield proposalIds.map(function*(pId) {
+                let votes = [];
+                let nextVotes = [];
+                let lastVoter = '';
+                const maxVotes = 500;
+                // ¯\_(ツ)_/¯
+                while (true) {
+                    nextVotes = yield call(
+                        [api, api.listProposalVotesAsync],
+                        [pId, lastVoter],
+                        maxVotes,
+                        'by_proposal_voter',
+                        'ascending',
+                        'all'
+                    );
+                    votes = votes.concat(nextVotes);
+                    lastVoter = nextVotes.at(-1).voter;
+                    if (nextVotes.length < maxVotes) return votes;
+                    if (nextVotes && nextVotes.length >= 2) {
+                        const firstProposalId =
+                            nextVotes[0].proposal.proposal_id;
+                        const lastProposalId = nextVotes.at(-1).proposal
+                            .proposal_id;
+                        if (firstProposalId !== pId || lastProposalId !== pId) {
+                            return votes;
+                        }
+                    }
+                }
             });
+            proposalVotes = proposalVotes.reduce((a, b) => a.concat(b), []);
+
+            proposalVotesIds = proposalVotes
+                .filter(d => {
+                    return d.voter == voter_id;
+                })
+                .map(p => {
+                    return p.proposal.id;
+                });
+        } catch (error) {
+            console.log('ProposalSaga->listProposalVotesAsync::error', error);
+        }
     }
 
     // Use hashset to perform O(1) lookups
     const votedSet = new Set(proposalVotesIds);
     const mungedProposals = proposals.map(p => ({
         ...p,
-        upVoted: votedSet.has(p.proposal_id)
+        upVoted: votedSet.has(p.proposal_id),
     }));
 
     yield put(proposalActions.receiveListProposals({ mungedProposals }));

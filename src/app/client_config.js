@@ -36,7 +36,8 @@ export const DEFAULT_CURRENCY = 'USD';
 export const ALLOWED_CURRENCIES = ['USD'];
 export const FRACTION_DIGITS = 2; // default amount of decimal digits
 export const FRACTION_DIGITS_MARKET = 3; // accurate amount of deciaml digits (example: used in market)
-
+export const REFUND_ACCOUNTS = ['steem.dao'];
+export const BURN_ACCOUNTS = ['null'];
 // meta info
 export const TWITTER_HANDLE = '@steemit';
 export const SHARE_IMAGE =
