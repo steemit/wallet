@@ -1,0 +1,10 @@
+export const ASC = 'asc';
+export const DESC = 'desc';
+export const LEFT_PAGE = 'LEFT';
+export const RIGHT_PAGE = 'RIGHT';
+export const ACCOUNT = 'account';
+export const OWN_SP = 'own_sp';
+export const PROXY_SP = 'proxy_sp';
+export const TOTAL_SP = 'total_sp';
+export const INFLUENCE = 'influence';
+export const PAGE_LIMIT = 1000;

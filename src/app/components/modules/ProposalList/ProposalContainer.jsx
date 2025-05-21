@@ -5,7 +5,6 @@ import Proposal from './Proposal';
 
 class ProposalContainer extends React.Component {
     constructor(props) {
-        // console.log('ProposalContainer.jsx::constructor()', props);
         super(props);
         this.state = {
             isVoting: false,
@@ -15,6 +14,7 @@ class ProposalContainer extends React.Component {
             // needed from global state object to calculate vests to sp
             total_vesting_shares: props.total_vesting_shares,
             total_vesting_fund_steem: props.total_vesting_fund_steem,
+            triggerModal: props.triggerModal,
         };
         this.id = this.props.proposal.id;
     }
@@ -22,6 +22,16 @@ class ProposalContainer extends React.Component {
     async componentWillMount() {
         // await console.log('ProposalContainer.jsx::componentWillMount()');
     }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.proposal.upVoted !== this.props.proposal.upVoted) {
+            this.updateIsUpVotedFromProps();
+        }
+    }
+
+    updateIsUpVotedFromProps = () => {
+        this.setState({ isUpVoted: this.props.proposal.upVoted });
+    };
 
     onVote = () => {
         this.setState({
@@ -65,16 +75,22 @@ class ProposalContainer extends React.Component {
             proposal,
             total_vesting_shares,
             total_vesting_fund_steem,
+            getNewId,
         } = this.props;
-        // console.log('ProposalContainer.jsx::render()', this.props);
 
         return (
             <Proposal
+                getNewId={getNewId}
+                triggerModal={this.state.triggerModal}
                 {...proposal}
                 onVote={this.onVote}
                 {...this.state}
                 total_vesting_shares={total_vesting_shares}
                 total_vesting_fund_steem={total_vesting_fund_steem}
+                currentUser={this.props.currentUser}
+                isUpVoted={this.state.isUpVoted}
+                removeProposalById={this.props.removeProposalById}
+                paid_proposals={this.props.paid_proposals}
             />
         );
     }

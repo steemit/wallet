@@ -176,6 +176,16 @@
 - <a href="#How_can_I_vote_for_witnesses">How can I vote for witnesses?</a>
 - <a href="#How_many_witnesses_can_I_vote_for">How many witnesses can I vote for?</a>
 
+### <span id="Table_of_Contents_Proposals">Steem Proposal System (SPS)</span>
+- <a href="#What_is_the_Steem_Proposal_System">What is the Steem Proposal System (SPS)?</a>
+- <a href="#Where_do_the_Steem_DAOs_funds_come_from">Where do the Steem DAO’s funds come from?</a>
+- <a href="#How_to_create_or_cancel_a_proposal">How to create or cancel a proposal?</a>
+- <a href="#How_are_proposals_evaluated_and_funded">How are proposals evaluated and funded?</a>
+- <a href="#How_many_proposals_can_a_user_vote_for">How many proposals can a user vote for?</a>
+- <a href="#What_is_the_role_of_Return_Proposal">What is the role of "Return/Refund Proposal(s)"?</a>
+- <a href="#Can_a_proposal_be_modified_after_submission">Can a proposal be modified after submission?</a>
+- <a href="#Where_can_community_members_view_active_proposals">Where can community members view active proposals?</a>
+
 ### <span id="Table_of_Contents_Miscellaneous">Miscellaneous</span>
 - <a href="#What_third_party_tools_are_there_for_Steemit">What third-party tools are there for Steemit?</a>
 - <a href="#Is_there_an_official_Steemit_Facebook_page">Is there an official Steemit Facebook page?</a>
@@ -227,7 +237,7 @@ You can earn digital tokens on Steemit by:
 
 **Voting and curating** - If you discover a post and upvote it before it becomes popular, you can earn a curation reward. The reward amount will depend on the amount of Steem Power you have.
 
-**Purchasing** - Users can purchase STEEM or Steem Dollar tokens directly through their Steemit wallet using bitcoin, Ether, or BitShares tokens. They are also available from other markets and exchanges including [Binance](https://www.binance.com/), [Bithumb](https://www.bithumb.com/), [BitShares](https://wallet.bitshares.org/), [Bittrex](https://bittrex.com), [Changelly](https://changelly.com), [GOBADA](https://www.gobaba.com/), [HitBTC](https://hitbtc.com/), [Huobi](https://www.huobi.pro/), [LocalBitcoinCash](https://www.localbitcoincash.org/), [Poloniex](https://poloniex.com), [Shapeshift.io](https://shapeshift.io), [UpBit](https://upbit.com/), and [Yensesa](https://yensesa.com).
+**Purchasing** - Users can purchase STEEM or Steem Dollar tokens directly through their Steemit wallet using bitcoin, Ether, or BitShares tokens. They are also available from other markets and exchanges including [Binance](https://www.binance.com/en/trade/STEEM_USDT), [UpBit](https://upbit.com/exchange?code=CRIX.UPBIT.KRW-STEEM), [Bithumb](https://www.bithumb.com/react/trade/order/STEEM-KRW), [HTX](https://www.htx.com/trade/steem_usdt/), [Poloniex](https://poloniex.com/zh-CN/trade/STEEM_TRX), [MEXC](https://www.mexc.com/exchange/STEEM_USDT), [Gate.io](https://www.gate.io/zh/trade/STEEM_USDT), [Bingx](https://bingx.com/en/spot/STEEMUSDT/).
 
 **Vesting** - STEEM tokens that are powered up to Steem Power will earn a small amount of new tokens for holding.
 
@@ -1240,6 +1250,51 @@ Visit https://steemit.com/~witnesses.
 ## <span id="How_many_witnesses_can_I_vote_for">How many witnesses can I vote for?</span>
 
 Each account can vote for up to 30 witnesses.
+
+<a href="#Table_of_Contents_Developers">^</a>
+# Steem Proposal System (SPS)
+
+## <span id="What_is_the_Steem_Proposal_System">What is the Steem Proposal System (SPS)?</span>
+
+Introduced with Hardfork 21 on August 27, 2019, the Steem Proposal System (SPS) is the on-chain mechanism through which community members can request ongoing funding for projects, developments, or services that benefit the Steem ecosystem.
+
+<a href="#Table_of_Contents_Proposals">^</a>
+## <span id="Where_do_the_Steem_DAOs_funds_come_from">Where do the Steem DAO’s funds come from?</span>
+
+The SPS (DAO) is funded by 10% of the annual token inflation. These funds are held in the dedicated account <a href="https://steemitwallet.com/@steem.dao/transfers">@steem.dao</a> and distributed daily to approved proposals based on community voting.  Read more: <a href="#How_are_the_new_tokens_distributed">How are the new tokens distributed?</a>
+
+<a href="#Table_of_Contents_Proposals">^</a>
+## <span id="How_to_create_or_cancel_a_proposal">How to create or cancel a proposal?</span>
+
+To submit a proposal to the Steem DAO, community members must complete the official form available through the <a href="https://steemitwallet.com/proposals">Steemit Wallet</a> interface. Required fields include the proposal title, daily requested amount in SBD, start and end dates, a valid proposal permlink (linking to a post that outlines the proposal), the creator’s username, and the intended receiver’s username.
+
+Proposal creation is subject to a submission fee. The exact amount is defined by the blockchain protocol and is displayed during the proposal creation process. Once submitted, the proposal becomes active and open for voting by Steem Power holders.
+
+<a href="#Table_of_Contents_Proposals">^</a>
+## <span id="How_are_proposals_evaluated_and_funded">How are proposals evaluated and funded?</span>
+
+Steem Power holders may vote for or against each proposal. Proposals that receive more support than the designated return proposal qualify for daily disbursements from the DAO, subject to the available daily budget. This budget is capped at 1% of the total balance held in the SPS fund and is distributed in descending order of vote weight until exhausted.
+
+<a href="#Table_of_Contents_Proposals">^</a>
+## <span id="How_many_proposals_can_a_user_vote_for">How many proposals can a user vote for?</span>
+
+There is no limit to the number of proposals a user can vote for. Users are free to support or oppose as many proposals as they wish.
+
+<a href="#Table_of_Contents_Proposals">^</a>
+## <span id="What_is_the_role_of_Return_Proposal">What is the role of "Return/Refund Proposal(s)"?</span>
+
+The return proposal serves to safeguard DAO funds by ensuring that only proposals with sufficient community support receive funding. If no proposal exceeds the vote level of the return proposal, the corresponding portion of the daily budget remains unspent. Deciding which community proposal to support is typically the result of collective consensus within the community.
+
+<a href="#Table_of_Contents_Proposals">^</a>
+## <span id="Can_a_proposal_be_modified_after_submission">Can a proposal be modified after submission?</span>
+
+No. Once submitted to the DAO, a proposal cannot be edited or updated. It can only be cancelled by its creator.
+
+<a href="#Table_of_Contents_Proposals">^</a>
+## <span id="Where_can_community_members_view_active_proposals">Where can community members view active proposals?</span>
+
+Active and votable proposals can be viewed on the official <a href="https://steemitwallet.com/proposals">Steemit Wallet</a> interface.
+
 
 <a href="#Table_of_Contents_Witnesses">^</a>
 # Miscellaneous

@@ -355,6 +355,99 @@
         "you_are_viewing_a_single_comments_thread_from":
             "You are viewing a single comment's thread from"
     },
+    "proposals": {
+        "burn": "burn",
+        "burn_title":
+            "The requested funds are intended to be removed from the circulating supply",
+        "by": "by",
+        "create": "CREATE A PROPOSAL",
+        "daily": "Daily",
+        "days": "days",
+        "for": "for",
+        "funded": "funded",
+        "funded_title":
+            "The proposal is currently receiving full or partial funding from the DAO",
+        "no_proposal_matching":
+            "It's probably because there are not any matching your criteria.",
+        "order": "Order by",
+        "refund": "refund",
+        "refund_title":
+            "The requested funds are intended to be returned to the DAO",
+        "sorry_cannot_display":
+            "Sorry, I can't show you any proposals right now.",
+        "status": "Status",
+        "title": "Proposals",
+        "dao_treasury": "DAO Treasury",
+        "daily_budget": "Daily Budget",
+        "wait_for_proposal_load":
+            "The proposals are now being loaded, it will be worth the wait!",
+        "load_more": "Load more...",
+        "loading": "Loading more...",
+        "remove": "Remove",
+        "proposal_id": "Proposal ID",
+        "proposal_confirm_id": "Confirm ID",
+        "remove_faq_message":
+            "<a href=\"/faq.html#What_is_the_Steem_Proposal_System\">This action is irreversible. See the FAQ before proceeding.</a>.",
+        "remove_proposal": "Remove Proposal",
+        "status_options": {
+            "all": "All",
+            "active": "Active",
+            "inactive": "Inactive",
+            "expired": "Expired",
+            "votable": "Votable"
+        },
+        "order_options": {
+            "creator": "Creator",
+            "start_date": "Start Date",
+            "end_date": "End Date",
+            "total_votes": "Total Votes"
+        },
+        "create_proposal": {
+            "header": "Create a Steem Proposal",
+            "proposal_title": "The title of the proposal",
+            "daily_amount": "Daily requested amount in SBD",
+            "start_date": "Start Date",
+            "end_date": "End Date",
+            "permlink": "Proposal Permlink",
+            "permlink_note":
+                "i.e: https://steemit.com/steem/@symbionts/make-steem-great-again",
+            "permlink_placeholder": "Permlink",
+            "proposal_fee":
+                "creator pays the %(treasuryFee)s SBD submission fee",
+            "proposal_creator": "Proposal Creator",
+            "proposal_creator_note":
+                "The account that will create the proposal and pay the fee",
+            "proposal_creator_placeholder": "Creator username",
+            "proposal_receiver": "Proposal Receiver",
+            "proposal_receiver_note":
+                "The account that will receive funding from the DAO",
+            "proposal_receiver_placeholder": "Receiver username",
+            "creation_fee": "Proposal creation fee",
+            "submit": "Submit to Steem DAO"
+        },
+        "empty_state": {
+            "no_results_title":
+                "Sorry, I can't show you any proposals right now.",
+            "no_results_subtitle":
+                "It's probably because there are not any matching your criteria.",
+            "loading_title": "Loading",
+            "loading_subtitle": "It's worth the wait. ;)"
+        },
+        "voters": {
+            "account": "Account",
+            "own_sp": "Own SP",
+            "proxy_sp": "Proxy SP",
+            "total_sp": "Total SP",
+            "influence": "Influence",
+            "header_proposal_msg":
+                "This proposal received %(total_votes)s direct votes with a combined weight of %(total_sp_votes)s SP.",
+            "highlighted_proxy_no_influence":
+                "Votes that have no influence due to using a proxy account.",
+            "highlighted_proxy_influence_only":
+                "Votes that only have influence through their proxy account.",
+            "proxied_to": "Proxied to "
+        }
+    },
     "market_jsx": {
         "action": "Action",
         "date_created": "Date Created",
@@ -1026,6 +1119,6 @@
             "subject": "Subject"
         },
         "confirm_remove_proposal_description":
-            "Proposal removal is permanent and the fee paid for creating the proposal is not refundable."
+            "Proposal removal is irreversible, and the fee paid to create the proposal is non-refundable"
     }
 }
