@@ -1,73 +1,126 @@
-# Welcome to your Lovable project
+# SteemWallet - Blockchain Wallet Application
 
-## Project info
+![Project Banner](https://via.placeholder.com/1200x400?text=SteemWallet+Banner) <!-- Replace with actual banner image -->
 
-**URL**: https://lovable.dev/projects/f0be2e85-a307-4117-982d-cb0056803814
+## 📌 Project Repository
 
-## How can I edit this code?
+**GitHub URL**: [https://github.com/blazeapps007/steemWallet](https://github.com/blazeapps007/steemWallet)
 
-There are several ways of editing your application.
+## 🌟 Project Overview
 
-**Use Lovable**
+SteemWallet is a secure, open-source cryptocurrency wallet tailored for the Steem blockchain. It offers a modern and intuitive interface for users to manage their STEEM tokens, perform transactions, and interact with the blockchain seamlessly.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/f0be2e85-a307-4117-982d-cb0056803814) and start prompting.
+### Core Technologies
 
-Changes made via Lovable will be committed automatically to this repo.
+* ⚡ **Vite** - Fast and optimized frontend tooling
+* 🚀 **React 18** - Component-based UI framework
+* 💻 **TypeScript** - Strongly typed JavaScript
+* 🎨 **shadcn/ui** - Modern, accessible UI components
+* 🖌️ **Tailwind CSS** - Utility-first CSS styling
 
-**Use your preferred IDE**
+## ✨ Key Features
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+* 🔐 Secure Steem account integration and key management
+* 💸 Fast and reliable STEEM token transfers
+* 📊 Real-time account balance and transaction tracking
+* 🔗 Direct interaction with the Steem blockchain
+* 📱 Fully responsive UI for all device sizes
+* 🌙 Dark mode and light mode support
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 🛠️ Development Setup
 
-Follow these steps:
+### Prerequisites
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+* Node.js v18+ ([Download](https://nodejs.org/))
+* npm v9+ or Yarn
+* Git
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Installation
 
-# Step 3: Install the necessary dependencies.
-npm i
+```bash
+# Clone the repository
+git clone https://github.com/blazeapps007/steemWallet.git
+cd steemWallet
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### 📜 Available Scripts
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+| Command           | Description                            |
+| ----------------- | -------------------------------------- |
+| `npm run dev`     | Starts development server at localhost |
+| `npm run build`   | Builds production-ready application    |
+| `npm run lint`    | Runs ESLint for code quality           |
+| `npm run preview` | Previews the production build locally  |
 
-**Use GitHub Codespaces**
+## 🚀 Deployment
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Deploy your application to any of the following platforms with ease:
 
-## What technologies are used for this project?
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://www.netlify.com/)
 
-This project is built with:
+Supported Platforms:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+* Vercel
+* Netlify
+* GitHub Pages
+* AWS Amplify
+* Firebase Hosting
 
-## How can I deploy this project?
+## 🤝 Contributing
 
-Simply open [Lovable](https://lovable.dev/projects/f0be2e85-a307-4117-982d-cb0056803814) and click on Share -> Publish.
+We love contributions from the community! To contribute:
 
-## Can I connect a custom domain to my Lovable project?
+1. Fork the repository
+2. Create a new branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-Yes, you can!
+For major changes, please open an issue first to discuss your ideas.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 📄 License
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+**Custom Non-Commercial License**
+
+### Usage Rights
+
+* ✅ Free to use
+* ✅ Free to modify
+* ✅ Free to distribute for non-commercial purposes
+* ✅ Free for personal and educational use
+
+### Restrictions
+
+* ❌ Commercial use prohibited
+* ❌ Cannot be used in paid products/services
+* ❌ Cannot receive funding or commercial benefit from this code
+* ❌ No redistribution in commercial applications
+
+**Summary**: This software is free to use for personal and non-commercial purposes only. For any form of commercial usage, explicit written permission is required.
+
+
+
+
+
+---
+
+SteemWallet Non-Commercial License (SW-NCL)
+Version 1.0 – June 2025
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to use, copy, modify, and distribute the Software for personal, academic, or non-commercial purposes only.
+
+Commercial use, including but not limited to selling, sublicensing, or incorporating this software into paid products or services, Secure and Receive Funding  is strictly prohibited without prior written permission from the copyright holder.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND.
+
+For commercial use inquiries, contact: your-email@example.com
+
+
+© 2023 SteemWallet Project. All rights reserved for commercial use.

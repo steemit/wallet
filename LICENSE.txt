@@ -1,0 +1,10 @@
+SteemWallet Non-Commercial License (SW-NCL)
+Version 1.0 – June 2025
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to use, copy, modify, and distribute the Software for personal, academic, or non-commercial purposes only.
+
+Commercial use, including but not limited to selling, sublicensing, or incorporating this software into paid products or services, is strictly prohibited without prior written permission from the copyright holder.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND.
+
+For commercial use inquiries, contact: your-email@example.com
