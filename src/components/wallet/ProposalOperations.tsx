@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,19 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import * as dsteem from 'dsteem';
 import { steemOperations } from '@/services/steemOperations';
 
-interface Proposal {
-  id: number;
-  title: string;
-  creator: string;
-  daily_pay: string;
-  status: string;
-  voted?: boolean;
-}
-
 const ProposalOperations = () => {
   const [proposalIds, setProposalIds] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [userVotes, setUserVotes] = useState<number[]>([]);
   
   const { toast } = useToast();
@@ -30,37 +20,6 @@ const ProposalOperations = () => {
   // Check if user is logged in
   const isLoggedIn = localStorage.getItem('steem_username');
   const username = localStorage.getItem('steem_username');
-
-  // Mock proposal data - in real app, this would come from the blockchain
-  useEffect(() => {
-    const mockProposals: Proposal[] = [
-      {
-        id: 1,
-        title: "Improve Steem Documentation",
-        creator: "dev-team",
-        daily_pay: "50.000 SBD",
-        status: "Active",
-        voted: userVotes.includes(1)
-      },
-      {
-        id: 2,
-        title: "Community Development Fund",
-        creator: "community",
-        daily_pay: "100.000 SBD",
-        status: "Active",
-        voted: userVotes.includes(2)
-      },
-      {
-        id: 3,
-        title: "Security Audit Initiative",
-        creator: "security-team",
-        daily_pay: "75.000 SBD",
-        status: "Active",
-        voted: userVotes.includes(3)
-      }
-    ];
-    setProposals(mockProposals);
-  }, [userVotes]);
 
   const handleVoteProposal = async (proposalId: number, approve: boolean) => {
     if (!isLoggedIn) {
@@ -271,7 +230,7 @@ const ProposalOperations = () => {
             <div>
               <CardTitle className="text-gray-800">Proposal Voting</CardTitle>
               <CardDescription className="text-gray-600">
-                Vote on multiple proposals by ID
+                Vote on proposals by ID - fetch proposal data from the blockchain
                 {!isLoggedIn && <span className="text-blue-600"> (Login required)</span>}
               </CardDescription>
             </div>
@@ -288,7 +247,7 @@ const ProposalOperations = () => {
               className="bg-white border-gray-300"
               disabled={!isLoggedIn}
             />
-            <p className="text-sm text-gray-500">Enter proposal IDs separated by commas</p>
+            <p className="text-sm text-gray-500">Enter proposal IDs separated by commas to vote on blockchain proposals</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -333,58 +292,15 @@ const ProposalOperations = () => {
         </CardContent>
       </Card>
 
-      {/* Active Proposals */}
+      {/* Proposal Information */}
       <Card className="bg-white border border-gray-200 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-gray-800">Active Proposals</CardTitle>
+          <CardTitle className="text-gray-800">Proposal Information</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {proposals.map((proposal) => (
-              <div key={proposal.id} className="p-4 rounded-lg border border-gray-200">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h4 className="font-medium text-gray-800">#{proposal.id} {proposal.title}</h4>
-                    <p className="text-sm text-gray-500">by @{proposal.creator}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={userVotes.includes(proposal.id) ? "default" : "outline"}>
-                      {userVotes.includes(proposal.id) ? "Voted" : "Not Voted"}
-                    </Badge>
-                    <Badge variant="secondary">{proposal.status}</Badge>
-                  </div>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Daily Pay: {proposal.daily_pay}</span>
-                  <div className="flex gap-2">
-                    {userVotes.includes(proposal.id) ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleVoteProposal(proposal.id, false)}
-                        disabled={!isLoggedIn || isProcessing}
-                        className="border-red-600 text-red-600 hover:bg-red-50"
-                      >
-                        <X className="w-3 h-3 mr-1" />
-                        Unvote
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => handleVoteProposal(proposal.id, true)}
-                        disabled={!isLoggedIn || isProcessing}
-                        style={{ backgroundColor: isLoggedIn ? '#07d7a9' : '#6b7280' }}
-                        className="text-white"
-                      >
-                        <Vote className="w-3 h-3 mr-1" />
-                        Vote
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="text-center py-8">
+            <p className="text-gray-500">Enter proposal IDs above to vote</p>
+            <p className="text-sm text-gray-400 mt-2">Proposal data will be fetched from the Steem blockchain</p>
           </div>
         </CardContent>
       </Card>

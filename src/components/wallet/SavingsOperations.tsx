@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,13 +8,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSteemAccount } from "@/hooks/useSteemAccount";
 
-const SavingsOperations = () => {
+interface SavingsOperationsProps {
+  loggedInUser?: string | null;
+}
+
+const SavingsOperations = ({ loggedInUser }: SavingsOperationsProps) => {
   const [transferAmount, setTransferAmount] = useState("");
   const [transferCurrency, setTransferCurrency] = useState("STEEM");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawCurrency, setWithdrawCurrency] = useState("STEEM");
   const { toast } = useToast();
+
+  // Get actual account data
+  const { data: accountData } = useSteemAccount(loggedInUser || '');
+
+  // Parse actual savings amounts from account data
+  const savingsSteem = accountData ? parseFloat(accountData.savings_balance.split(' ')[0]) : 0;
+  const savingsSbd = accountData ? parseFloat(accountData.savings_sbd_balance.split(' ')[0]) : 0;
+  const availableSteem = accountData ? parseFloat(accountData.balance.split(' ')[0]) : 0;
+  const availableSbd = accountData ? parseFloat(accountData.sbd_balance.split(' ')[0]) : 0;
 
   const handleTransferToSavings = () => {
     if (!transferAmount) return;
@@ -46,12 +61,12 @@ const SavingsOperations = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-4 rounded-lg" style={{ backgroundColor: '#f5f4f5' }}>
               <h3 className="font-medium text-gray-800 mb-2">STEEM Savings</h3>
-              <p className="text-2xl font-bold" style={{ color: '#07d7a9' }}>500.000</p>
+              <p className="text-2xl font-bold" style={{ color: '#07d7a9' }}>{savingsSteem.toFixed(3)}</p>
               <p className="text-sm text-gray-500">Secured STEEM</p>
             </div>
             <div className="p-4 rounded-lg" style={{ backgroundColor: '#f5f4f5' }}>
               <h3 className="font-medium text-gray-800 mb-2">SBD Savings</h3>
-              <p className="text-2xl font-bold" style={{ color: '#07d7a9' }}>200.000</p>
+              <p className="text-2xl font-bold" style={{ color: '#07d7a9' }}>{savingsSbd.toFixed(3)}</p>
               <p className="text-sm text-gray-500">Secured SBD</p>
             </div>
           </div>
@@ -103,7 +118,7 @@ const SavingsOperations = () => {
               </div>
 
               <p className="text-sm text-gray-500">
-                Available: {transferCurrency === "STEEM" ? "1,250.000 STEEM" : "425.750 SBD"}
+                Available: {transferCurrency === "STEEM" ? `${availableSteem.toFixed(3)} STEEM` : `${availableSbd.toFixed(3)} SBD`}
               </p>
               
               <div className="p-4 rounded-lg border" style={{ backgroundColor: '#f0f9ff', borderColor: '#07d7a9' }}>
@@ -164,7 +179,7 @@ const SavingsOperations = () => {
               </div>
 
               <p className="text-sm text-gray-500">
-                Available: {withdrawCurrency === "STEEM" ? "500.000 STEEM" : "200.000 SBD"} in savings
+                Available: {withdrawCurrency === "STEEM" ? `${savingsSteem.toFixed(3)} STEEM` : `${savingsSbd.toFixed(3)} SBD`} in savings
               </p>
 
               <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">

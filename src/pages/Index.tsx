@@ -187,16 +187,6 @@ const Index = () => {
 
             {/* Main Content */}
             <div className="flex-1">
-              <div className="flex items-center justify-between mb-6">
-                <WalletNavigation
-                  activeTab={activeTab}
-                  onTabChange={setActiveTab}
-                  viewMode={viewMode}
-                  onViewModeChange={handleViewModeChange}
-                  isListView={true}
-                />
-              </div>
-
               {renderTabContent()}
             </div>
           </div>
