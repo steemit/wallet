@@ -94,16 +94,38 @@ const WalletNavigation = ({
                 Account
               </button>
             </nav>
+            
+            {/* View Mode Toggle in Sidebar */}
+            <div className="mt-4 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={isGridMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => onViewModeChange("grid")}
+                  className="flex-1"
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={isListMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => onViewModeChange("list")}
+                  className="flex-1"
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Mobile Tabs with View Mode Toggle
+  // Mobile/Grid View Navigation
   return (
     <div className="flex items-center justify-between mb-6 gap-4">
-      <div className={isListView ? "lg:hidden flex-1" : "flex-1 min-w-0"}>
+      <div className="flex-1 min-w-0">
         <MobileTabs value={activeTab} onValueChange={onTabChange}>
           <MobileTabsList>
             <MobileTabsTrigger value="overview">Wallet</MobileTabsTrigger>
@@ -118,7 +140,7 @@ const WalletNavigation = ({
       
       {/* View Mode Toggle - Hidden on Mobile */}
       {!isMobile && (
-        <div className={`flex items-center gap-2 ${isListView ? "lg:ml-auto" : "flex-shrink-0"}`}>
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Button
             variant={isGridMode ? "default" : "outline"}
             size="sm"
