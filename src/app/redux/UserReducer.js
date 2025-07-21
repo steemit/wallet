@@ -14,10 +14,14 @@ const SHOW_TRANSFER = 'user/SHOW_TRANSFER';
 const HIDE_TRANSFER = 'user/HIDE_TRANSFER';
 const SHOW_POWERDOWN = 'user/SHOW_POWERDOWN';
 const HIDE_POWERDOWN = 'user/HIDE_POWERDOWN';
+const SHOW_ADVANCED = 'user/SHOW_ADVANCED';
+const HIDE_ADVANCED = 'user/HIDE_ADVANCED';
 const SET_TRANSFER_DEFAULTS = 'user/SET_TRANSFER_DEFAULTS';
 const CLEAR_TRANSFER_DEFAULTS = 'user/CLEAR_TRANSFER_DEFAULTS';
 const SET_POWERDOWN_DEFAULTS = 'user/SET_POWERDOWN_DEFAULTS';
 const CLEAR_POWERDOWN_DEFAULTS = 'user/CLEAR_POWERDOWN_DEFAULTS';
+const SET_ADVANCED_DEFAULTS = 'user/SET_ADVANCED_DEFAULTS';
+const CLEAR_ADVANCED_DEFAULTS = 'user/CLEAR_ADVANCED_DEFAULTS';
 export const USERNAME_PASSWORD_LOGIN = 'user/USERNAME_PASSWORD_LOGIN';
 export const SET_USERNAME = 'user/SET_USERNAME';
 export const SET_USER = 'user/SET_USER';
@@ -48,6 +52,8 @@ export const SET_EXPIRING_VESTING_DELEGATIONS =
     'user/SET_EXPIRING_VESTING_DELEGATIONS';
 export const EXPIRING_VESTING_DELEGATIONS_LOADING =
     'user/EXPIRING_VESTING_DELEGATIONS_LOADING';
+export const GET_WITHDRAW_ROUTES = 'user/GET_WITHDRAW_ROUTES';
+export const SET_WITHDRAW_ROUTES = 'user/SET_WITHDRAW_ROUTES';
 export const RESET_ERROR = 'user/RESET_ERROR';
 export const CLAIM_PENDING_TRX = 'user/CLAIM_PENDING_TRX';
 
@@ -55,6 +61,8 @@ const defaultState = fromJS({
     current: null,
     show_login_modal: false,
     show_transfer_modal: false,
+    show_powerdown_modal: false,
+    show_advanced_modal: false,
     show_signup_modal: false,
     show_post_advanced_settings_modal: '', // formId,
     show_vote_modal: false,
@@ -64,6 +72,7 @@ const defaultState = fromJS({
     maybeLoggedIn: false,
     vestingDelegations: null,
     expiringVestingDelegations: null,
+    withdraw_routes: null,
 });
 
 export default function reducer(state = defaultState, action) {
@@ -130,6 +139,9 @@ export default function reducer(state = defaultState, action) {
         case EXPIRING_VESTING_DELEGATIONS_LOADING:
             return state.set('expiringVestingDelegationsLoading', payload);
 
+        case SET_WITHDRAW_ROUTES:
+            return state.set('withdraw_routes', fromJS(payload));
+
         case REMOVE_HIGH_SECURITY_KEYS: {
             if (!state.hasIn(['current', 'private_keys'])) return state;
             let empty = false;
@@ -173,6 +185,12 @@ export default function reducer(state = defaultState, action) {
         case HIDE_POWERDOWN:
             return state.set('show_powerdown_modal', false);
 
+        case SHOW_ADVANCED:
+            return state.set('show_advanced_modal', true);
+
+        case HIDE_ADVANCED:
+            return state.set('show_advanced_modal', false);
+
         case SET_TRANSFER_DEFAULTS:
             return state.set('transfer_defaults', fromJS(payload));
 
@@ -184,6 +202,11 @@ export default function reducer(state = defaultState, action) {
 
         case CLEAR_POWERDOWN_DEFAULTS:
             return state.remove('powerdown_defaults');
+        case SET_ADVANCED_DEFAULTS:
+            return state.set('advanced_defaults', fromJS(payload));
+
+        case CLEAR_ADVANCED_DEFAULTS:
+            return state.remove('advanced_defaults');
 
         case USERNAME_PASSWORD_LOGIN:
             return state; // saga
@@ -339,6 +362,15 @@ export const hidePowerdown = payload => ({
     type: HIDE_POWERDOWN,
     payload,
 });
+export const showAdvanced = payload => ({
+    type: SHOW_ADVANCED,
+    payload,
+});
+
+export const hideAdvanced = payload => ({
+    type: HIDE_ADVANCED,
+    payload,
+});
 
 export const setTransferDefaults = payload => ({
     type: SET_TRANSFER_DEFAULTS,
@@ -357,6 +389,16 @@ export const setPowerdownDefaults = payload => ({
 
 export const clearPowerdownDefaults = payload => ({
     type: CLEAR_POWERDOWN_DEFAULTS,
+    payload,
+});
+
+export const setAdvancedDefaults = payload => ({
+    type: SET_ADVANCED_DEFAULTS,
+    payload,
+});
+
+export const clearAdvancedDefaults = payload => ({
+    type: CLEAR_ADVANCED_DEFAULTS,
     payload,
 });
 
@@ -475,5 +517,15 @@ export const setExpiringVestingDelegations = payload => ({
 
 export const expiringVestingDelegationsLoading = payload => ({
     type: EXPIRING_VESTING_DELEGATIONS_LOADING,
+    payload,
+});
+
+export const getWithdrawRoutes = payload => ({
+    type: GET_WITHDRAW_ROUTES,
+    payload,
+});
+
+export const setWithdrawRoutes = payload => ({
+    type: SET_WITHDRAW_ROUTES,
     payload,
 });

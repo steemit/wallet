@@ -10,7 +10,7 @@
 /* eslint-disable import/prefer-default-export */
 /* eslint-disable no-unused-vars */
 import { fromJS, Set, List } from 'immutable';
-import { call, put, select, fork, takeLatest } from 'redux-saga/effects';
+import { call, put, select, fork, takeLatest, takeEvery } from 'redux-saga/effects';
 import { api } from '@steemit/steem-js';
 import { PrivateKey, Signature, hash } from '@steemit/steem-js/lib/auth/ecc';
 
@@ -36,7 +36,6 @@ import {
 import { loadFollows } from 'app/redux/FollowSaga';
 import { translate } from 'app/Translator';
 import tt from 'counterpart';
-import { takeEvery } from 'redux-saga';
 
 export const userWatches = [
     takeLatest('@@router/LOCATION_CHANGE', removeHighSecurityKeys), // keep first to remove keys early when a page change happens
@@ -52,6 +51,7 @@ export const userWatches = [
         userActions.GET_EXPIRING_VESTING_DELEGATIONS,
         getExpiringVestingDelegationsSaga
     ),
+    takeLatest(userActions.GET_WITHDRAW_ROUTES, getWithdrawRoutes),
     takeLatest(userActions.LOGIN_ERROR, loginError),
     takeLatest(userActions.LOAD_SAVINGS_WITHDRAW, loadSavingsWithdraw),
     takeLatest(userActions.ACCEPT_TERMS, function*() {
@@ -72,6 +72,16 @@ export const userWatches = [
         }
     },
 ];
+
+export function* getWithdrawRoutes(action) {
+    const { account } = action.payload;
+    try {
+        const routes = yield call([api, api.callAsync], 'condenser_api.get_withdraw_routes', [account, 'outgoing']);
+        yield put(userActions.setWithdrawRoutes(routes));
+    } catch (error) {
+        console.error('Error fetching withdraw routes:', error);
+    }
+}
 
 const highSecurityPages = [
     /\/market/,

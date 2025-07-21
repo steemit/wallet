@@ -246,6 +246,14 @@ class UserWallet extends React.Component {
             }
         };
 
+        const showAdvanced = (e) => {
+            e.preventDefault();
+            const name = account.get('name');
+            this.props.showAdvanced({
+                account: name,
+            });
+        };
+
         // Sum savings withrawals
         let savings_pending = 0,
             savings_sbd_pending = 0;
@@ -434,6 +442,11 @@ class UserWallet extends React.Component {
                 value: tt('userwallet_jsx.power_down'),
                 link: '#',
                 onClick: powerDown.bind(this, false),
+            },
+            {
+                value: tt('userwallet_jsx.advanced_routes'),
+                link: '#',
+                onClick: showAdvanced,
             },
         ];
         const dollar_menu = [

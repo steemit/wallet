@@ -33,6 +33,7 @@ import userIllegalContent from 'app/utils/userIllegalContent';
 import proxifyImageUrl from 'app/utils/ProxifyUrl';
 import SanitizedLink from 'app/components/elements/SanitizedLink';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
+import RouteSettings from 'app/components/elements/RouteSettings';
 
 export default class UserProfile extends React.Component {
     constructor() {
@@ -49,6 +50,11 @@ export default class UserProfile extends React.Component {
         this.redirect();
     }
 
+    componentDidMount() {
+        const { accountname, getWithdrawRoutes } = this.props;
+        getWithdrawRoutes(accountname);
+    }
+
     shouldComponentUpdate(np, ns) {
         return (
             np.currentUser !== this.props.currentUser ||
@@ -57,7 +63,9 @@ export default class UserProfile extends React.Component {
             np.globalStatus !== this.props.globalStatus ||
             np.loading !== this.props.loading ||
             np.location.pathname !== this.props.location.pathname ||
-            ns.showResteem !== this.state.showResteem
+            ns.showResteem !== this.state.showResteem ||
+            np.show_advanced_modal !== this.props.show_advanced_modal ||
+            np.show_powerdown_modal !== this.props.show_powerdown_modal
         );
     }
 
@@ -93,6 +101,7 @@ export default class UserProfile extends React.Component {
                 accountname,
                 isMyAccount,
                 socialUrl,
+                show_advanced_modal,
                 routeParams: { section },
             },
             onPrint,
@@ -134,6 +143,7 @@ export default class UserProfile extends React.Component {
                         account={accountImm}
                         showTransfer={this.props.showTransfer}
                         showPowerdown={this.props.showPowerdown}
+                        showAdvanced={this.props.showAdvanced}
                         showVote={this.props.showVote}
                         currentUser={currentUser}
                         withdrawVesting={this.props.withdrawVesting}
@@ -357,6 +367,7 @@ export default class UserProfile extends React.Component {
                 </div>
                 {/* <div>{printLink}</div> */}
                 <div>{tab_content}</div>
+                {show_advanced_modal && <RouteSettings />}
             </div>
         );
     }
@@ -382,9 +393,14 @@ module.exports = {
                 accountname,
                 isMyAccount,
                 socialUrl,
+                show_advanced_modal: state.user.get('show_advanced_modal'),
+                show_powerdown_modal: state.user.get('show_powerdown_modal'),
             };
         },
         dispatch => ({
+            getWithdrawRoutes: (account) => {
+                dispatch(userActions.getWithdrawRoutes({ account }));
+            },
             showVote: () => {
                 dispatch(userActions.showVote());
             },
@@ -402,9 +418,12 @@ module.exports = {
                 dispatch(userActions.clearPowerdownDefaults());
             },
             showPowerdown: powerdownDefaults => {
-                console.log('power down defaults:', powerdownDefaults);
                 dispatch(userActions.setPowerdownDefaults(powerdownDefaults));
                 dispatch(userActions.showPowerdown());
+            },
+            showAdvanced: advancedDefaults => {
+                dispatch(userActions.setAdvancedDefaults(advancedDefaults));
+                dispatch(userActions.showAdvanced());
             },
             withdrawVesting: ({
                 account,
