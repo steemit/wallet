@@ -33,6 +33,7 @@
         "community_create": "CREATE A COMMUNITY",
         "community_description": "About",
         "confirm": "Confirm",
+        "continue": "Continue",
         "convert": "Convert",
         "date": "Date",
         "delete": "Delete",
@@ -1014,6 +1015,8 @@
         "power_up": "Power Up",
         "power_down": "Power Down",
         "delegate": "Delegate",
+        "advanced_routes": "Advanced Routes",
+        "route_settings": "Route Settings",
         "market": "Market",
         "convert_to_LIQUID_TOKEN": "Convert to %(LIQUID_TOKEN)s",
         "withdraw_LIQUID_TOKEN": "Withdraw %(LIQUID_TOKEN)s",
@@ -1031,7 +1034,8 @@
         "redeem_rewards": "Redeem Rewards (Transfer to Balance)",
         "buy_steem_or_steem_power": "Buy STEEM",
         "just_mortgage": "Staking by JUST",
-        "incorrect_account_format": "Incorrect account format"
+        "incorrect_account_format": "Incorrect account format",
+        "confirm_route_setup": "Are you sure you want to set up %(percent)s%% of your Steem Power withdrawal to go to @%(account)s?"
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
