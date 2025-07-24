@@ -37,8 +37,12 @@ import * as appActions from 'app/redux/AppReducer';
 import { recordAdsView, userActionRecord } from 'app/utils/ServerApiClient';
 import QRCode from 'react-qr';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
+import ConversionsModal from 'app/components/elements/ConversionsModal';
+import ChangeRecoveryAccount from 'app/components/modules/ChangeRecoveryAccount';
+import { fetchData } from 'app/utils/steemApi';
 
 const assetPrecision = 1000;
+const DAYS_TO_HIDE = 5;
 
 class UserWallet extends React.Component {
     constructor() {
@@ -46,6 +50,13 @@ class UserWallet extends React.Component {
         this.state = {
             claimInProgress: false,
             showQR: false,
+            hasClicked: false,
+            timestamp: null,
+            showChangeRecoveryModal: false,
+            showConversionsModal: false,
+            conversions: [],
+            conversionValue: 0,
+            sbdPrice: 0,
         };
         this.onShowSteemTrade = e => {
             if (e && e.preventDefault) e.preventDefault();
@@ -112,6 +123,152 @@ class UserWallet extends React.Component {
 
     componentWillMount = () => {};
 
+    async componentDidMount() {
+        const { prices, updatePrices, account, currentUser } = this.props;
+        const lastUpdate = prices.get('lastUpdate');
+        const oneHour = 60 * 60 * 1000;
+        const now = Date.now();
+        if (!lastUpdate || now - lastUpdate > oneHour) {
+            updatePrices();
+        }
+        const isMyAccount = currentUser && currentUser.get('username') === account.get('name');
+        await this.loadInitialConversions();
+        if (account && currentUser && isMyAccount) {
+            try {
+                const userName = account.get('name');
+                const storageKey = `button_click_${userName}`;
+                const storedData = localStorage.getItem(storageKey);
+                if (storedData) {
+                    const recoveryInfo = account.get('account_recovery');
+                    const parsed = JSON.parse(storedData);
+                    const recoveryAccount = recoveryInfo ? recoveryInfo.get('recovery_account') : null;
+                    if (parsed.recovery_account !== recoveryAccount) {
+                        localStorage.removeItem(storageKey);
+                        return;
+                    }
+                    if (parsed.clicked && parsed.timestamp) {
+                        const timestampDate = new Date(parsed.timestamp);
+                        const diffTime = now - timestampDate;
+                        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                        if (diffDays <= DAYS_TO_HIDE) {
+                            this.setWarningState(parsed.timestamp);
+                        } else {
+                            localStorage.removeItem(storageKey);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("[componentDidMount] Error parsing localStorage data:", e);
+            }
+        }
+    }
+
+    async componentDidUpdate(prevProps) {
+        const { prices, updatePrices, account, currentUser } = this.props;
+        const lastUpdate = prices.get('lastUpdate');
+        const oneHour = 60 * 60 * 1000;
+        const now = Date.now();
+        if (
+            prices !== prevProps.prices && accountChanged &&
+            (!lastUpdate || now - lastUpdate > oneHour)
+        ) {
+            updatePrices();
+        }
+        const accountChanged = account !== prevProps.account;
+        let currentUserChange = false;
+        if (currentUser) {
+            const currentUsername = currentUser.get('username');
+            if (!prevProps.currentUser) {
+                currentUserChange = true;
+            } else {
+                const prevUsername = prevProps.currentUser.get('username');
+                if (currentUsername !== prevUsername) {
+                    currentUserChange = true;
+                }
+            }
+        }
+        const isMyAccount = currentUser && currentUser.get('username') === account.get('name');
+        const currentHistorySize = account.get('other_history', List()).size;
+        const prevHistorySize = prevProps.account.get('other_history', List()).size;
+        if (accountChanged) {
+            await this.loadInitialConversions();
+        } else if (!accountChanged && currentHistorySize !== prevHistorySize) {
+            await this.loadInitialConversions();
+        }
+        if (account && currentUserChange && currentUser && isMyAccount) {
+            try {
+                const userName = account.get('name');
+                const storageKey = `button_click_${userName}`;
+                const storedData = localStorage.getItem(storageKey);
+                if (storedData) {
+                    const recoveryInfo = account.get('account_recovery');
+                    const parsed = JSON.parse(storedData);
+                    const recoveryAccount = recoveryInfo ? recoveryInfo.get('recovery_account') : null;
+                    if (parsed.recovery_account !== recoveryAccount) {
+                        localStorage.removeItem(storageKey);
+                        return;
+                    }
+                    if (parsed.clicked && parsed.timestamp) {
+                        const timestampDate = new Date(parsed.timestamp);
+                        const diffTime = now - timestampDate;
+                        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                        if (diffDays <= DAYS_TO_HIDE) {
+                            this.setWarningState(parsed.timestamp);
+                        } else {
+                            localStorage.removeItem(storageKey);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("[componentDidUpdate] Error parsing localStorage data:", e);
+            }
+        }
+    }
+
+    async loadInitialConversions() {
+        try {
+            const account = this.props.account;
+            const accountName = account.get('name');
+            const currentTime = Date.now();
+            let conversionValue = 0;
+            const result = await fetchData('database_api.find_sbd_conversion_requests', { account: accountName }, 1);
+            const requests = result.requests || [];
+            const initialConversions = requests.reduce((out, request) => {
+                const rawTimestamp = request.conversion_date;
+                const timestamp = new Date(rawTimestamp.endsWith('Z') ? rawTimestamp : rawTimestamp + 'Z').getTime();
+                const finishTime = timestamp;
+                if (finishTime < currentTime) return out;
+                const amount = parseFloat(request.amount.amount) / (10 ** request.amount.precision);
+                conversionValue += amount;
+                out.push({
+                    id: request.id,
+                    amount,
+                    finishTime,
+                    owner: request.owner,
+                    requestid: request.requestid,
+                });
+                return out;
+            }, []);
+            this.setState({
+                conversions: initialConversions,
+                conversionValue,
+            });
+        } catch (e) {
+            console.warn("Error loading initial conversions:", e);
+        }
+    }
+
+    hideChangeRecoveryModal = (show = false) => {
+        this.setState({ showChangeRecoveryModal: show });
+    };
+
+    setWarningState = (timestamp) => {
+        this.setState({
+            hasClicked: true,
+            timestamp,
+          });
+    }
+
     handleClaimRewards = account => {
         let isClaiming = false;
         if (parseFloat(account.get('reward_vesting_steem').split(' ')[0]) > 0) {
@@ -165,17 +322,22 @@ class UserWallet extends React.Component {
         );
     };
 
+    onShowAllConversions = () => {
+        this.setState({ showConversionsModal: true });
+    };
+
     render() {
         const {
-            // convertToSteem,
+            convertToSteem,
             price_per_steem,
             savings_withdraws,
             account,
             currentUser,
             open_orders,
             notify,
+            prices,
         } = this.props;
-        const { showQR } = this.state;
+        const { showQR, hasClicked, showChangeRecoveryModal, conversionValue } = this.state;
         const gprops = this.props.gprops.toJS();
 
         // do not render if account is not loaded or available
@@ -258,44 +420,6 @@ class UserWallet extends React.Component {
             });
         }
 
-        // Sum conversions
-        let conversionValue = 0;
-        const currentTime = new Date().getTime();
-        const conversions = account
-            .get('other_history', List())
-            .reduce((out, item) => {
-                if (item.getIn([1, 'op', 0], '') !== 'convert') return out;
-
-                const timestamp = new Date(
-                    item.getIn([1, 'timestamp'])
-                ).getTime();
-                const finishTime = timestamp + 86400000 * 3.5; // add 3.5day conversion delay
-                if (finishTime < currentTime) return out;
-
-                const amount = parseFloat(
-                    item.getIn([1, 'op', 1, 'amount']).replace(' SBD', '')
-                );
-                conversionValue += amount;
-
-                return out.concat([
-                    <div key={item.get(0)}>
-                        <Tooltip
-                            t={tt('userwallet_jsx.conversion_complete_tip', {
-                                date: new Date(finishTime).toLocaleString(),
-                            })}
-                        >
-                            <span>
-                                (+{tt('userwallet_jsx.in_conversion', {
-                                    amount: numberWithCommas(
-                                        '$' + amount.toFixed(3)
-                                    ),
-                                })})
-                            </span>
-                        </Tooltip>
-                    </div>,
-                ]);
-            }, []);
-
         const balance_steem = parseFloat(account.get('balance').split(' ')[0]);
         const saving_balance_steem = parseFloat(savings_balance.split(' ')[0]);
         const divesting =
@@ -325,25 +449,37 @@ class UserWallet extends React.Component {
                       return o;
                   }, 0) / assetPrecision;
 
+        const conversionsTotal = this.props.conversionsSuccess
+            ? this.props.conversionsSuccess.reduce((sum, item) => {
+                const amount = parseFloat(item.get('amount').split(' ')[0]);
+                return sum + (isNaN(amount) ? 0 : amount);
+            }, 0)
+            : 0;
         // set displayed estimated value
         const total_sbd =
             sbd_balance +
             sbd_balance_savings +
             savings_sbd_pending +
             sbdOrders +
-            conversionValue;
+            conversionValue +
+            conversionsTotal;
+
         const total_steem =
             vesting_steem +
             balance_steem +
             saving_balance_steem +
             savings_pending +
             steemOrders;
-        const total_value =
-            '$' +
-            numberWithCommas(
-                (total_steem * price_per_steem + total_sbd).toFixed(2)
-            );
-        // format spacing on estimated value based on account state
+            const steemPrice = prices.get('steemPrice');
+            const sbdPrice = prices.get('sbdPrice');
+            let total_value = '$0.00';
+            if (steemPrice > 0 && sbdPrice > 0) {
+                const total_value_usd = (total_steem * steemPrice) + (total_sbd * sbdPrice);
+                total_value = '$' + numberWithCommas(total_value_usd.toFixed(2));
+            } else {
+                const total_value_usd = (total_steem * steemPrice) + total_sbd;
+                total_value = '$' + numberWithCommas(total_value_usd.toFixed(2));
+            }
         let estimate_output = <p>{total_value}</p>;
         if (isMyAccount) {
             estimate_output = <p>{total_value}&nbsp; &nbsp; &nbsp;</p>;
@@ -446,6 +582,13 @@ class UserWallet extends React.Component {
                 value: tt('userwallet_jsx.transfer_to_savings'),
                 link: '#',
                 onClick: showTransfer.bind(this, 'SBD', 'Transfer to Savings'),
+            },
+            {
+                value: tt('userwallet_jsx.convert_to_LIQUID_TOKEN', {
+                    LIQUID_TOKEN: typeof LIQUID_TOKEN === 'string' ? LIQUID_TOKEN.toUpperCase() : LIQUID_TOKEN,
+                }),
+                link: '#',
+                onClick: convertToSteem,
             },
             { value: tt('userwallet_jsx.market'), link: '/market' },
         ];
@@ -558,6 +701,90 @@ class UserWallet extends React.Component {
             default:
         }
 
+        const combinedConversions = [
+            ...(this.state.conversions || []).map(item => ({
+                id: item.id,
+                date: new Date(item.finishTime),
+                amount: item.amount,
+                requestid: item.requestid,
+            })),
+            ...(this.props.conversionsSuccess || [])
+                .filter(item => {
+                    const owner = item.get('owner');
+                    const requestid = item.get('requestid');
+                    if (owner !== account.get('name')) return false;
+                    const alreadyExists = this.state.conversions.some(conv => conv.requestid === requestid);
+                    return !alreadyExists;
+                })
+                .map(item => ({
+                    id: item.get('requestid'),
+                    date: new Date(item.get('timestamp') + 3.5 * 24 * 60 * 60 * 1000),
+                    amount: parseFloat(item.get('amount').split(' ')[0]) || 0,
+                    requestid: item.get('requestid'),
+                }))
+        ];
+
+        let recoveryWarningBox, accountToRecover, recoveryAccount;
+        try {
+            const recoveryInfo = account.get('account_recovery');
+            if (recoveryInfo && !hasClicked && currentUser && isMyAccount ) {
+                const effectiveDate = new Date(recoveryInfo.get('effective_on'));
+                const now = new Date();
+                const daysLeft = Math.ceil((effectiveDate - now) / (1000 * 60 * 60 * 24));
+                if (daysLeft > 0) {
+                    accountToRecover = recoveryInfo.get('account_to_recover');
+                    recoveryAccount = recoveryInfo.get('recovery_account');
+                    const warningMessage = tt('change_recovery_account.recovery_warning', {
+                        days: daysLeft,
+                        day_label: daysLeft === 1 ? 'day' : 'days',
+                        recovery_account: recoveryAccount,
+                    });
+                    recoveryWarningBox = (
+                        <div className="row">
+                            <div className="columns small-12">
+                                <div className="UserWallet__warningbox">
+                                    <span className="UserWallet__warningbox__text">
+                                        {warningMessage}
+                                    </span>
+                                    <div className="UserWallet__warningbox__buttons">
+                                        <button
+                                            className="button"
+                                            onClick={() => {
+                                                this.setState({showChangeRecoveryModal: true})
+                                            }}
+                                        >
+                                            {tt('change_recovery_account.take_action')}
+                                        </button>
+                                        <button
+                                            className="button"
+                                            onClick={() => {
+                                                const userName = account.get('name');
+                                                const storageKey = `button_click_${userName}`;
+                                                const dataToStore = {
+                                                  clicked: true,
+                                                  timestamp: new Date().toISOString(),
+                                                  recovery_account: recoveryAccount,
+                                                };
+                                                localStorage.setItem(storageKey, JSON.stringify(dataToStore));
+                                                this.setState({
+                                                  hasClicked: true,
+                                                  timestamp: dataToStore.timestamp,
+                                                });
+                                            }}
+                                        >
+                                            {tt('g.dismiss')}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+            }
+        } catch (error) {
+            console.warn('Error while processing account recovery info:', error);
+        }
+
         let claimbox;
         if (currentUser && rewards_str && isMyAccount) {
             claimbox = (
@@ -591,6 +818,15 @@ class UserWallet extends React.Component {
 
         return (
             <div className="UserWallet">
+                {(showChangeRecoveryModal && accountToRecover && recoveryAccount) && (
+                    <ChangeRecoveryAccount
+                        showChangeRecoveryModal={showChangeRecoveryModal}
+                        hideChangeRecoveryModal={e => {
+                            this.hideChangeRecoveryModal(false);
+                        }}
+                    />
+                )}
+                {recoveryWarningBox}
                 {claimbox}
                 <div className="row">
                     {/*<div>
@@ -714,7 +950,12 @@ class UserWallet extends React.Component {
                 <div className="UserWallet__balance row">
                     <div className="column small-12 medium-8">
                         STEEM DOLLARS
-                        <div className="secondary">{sbdMessage}</div>
+                        <div className="secondary">
+                            {sbdMessage}
+                            <FormattedHTMLMessage
+                                id="userwallet_jsx.convert_sbd_to_steem_info"
+                            />
+                        </div>
                     </div>
                     <div className="column small-12 medium-4">
                         {isMyAccount ? (
@@ -742,7 +983,39 @@ class UserWallet extends React.Component {
                                 </Link>
                             </div>
                         ) : null}
-                        {conversions}
+                        {combinedConversions.slice(0, 5).map(item => (
+                            <div key={item.id}>
+                                <Tooltip
+                                    t={tt('userwallet_jsx.conversion_complete_tip', {
+                                        date: item.date.toLocaleString(),
+                                    })}
+                                >
+                                    <span>
+                                        (+{tt('userwallet_jsx.in_conversion', {
+                                            amount: numberWithCommas('$' + item.amount.toFixed(3)),
+                                        })})
+                                    </span>
+                                </Tooltip>
+                            </div>
+                        ))}
+
+                        {combinedConversions.length > 5 && (
+                            <div
+                                onClick={this.onShowAllConversions}
+                                style={{
+                                    cursor: 'pointer',
+                                    color: '#1FBF8F',
+                                    marginTop: '8px',
+                                }}
+                            >
+                                View all pending conversions ({combinedConversions.length})
+                            </div>
+                        )}
+                        <ConversionsModal
+                            isOpen={this.state.showConversionsModal}
+                            onClose={() => this.setState({ showConversionsModal: false })}
+                            combinedConversions={combinedConversions}
+                        />
                     </div>
                 </div>
                 <div className="UserWallet__balance row zebra">
@@ -874,6 +1147,8 @@ export default connect(
             gprops,
             trackingId: state.app.getIn(['trackingId'], null),
             currentUser,
+            conversionsSuccess: state.transaction.get('conversions'),
+            prices: state.transaction.get('prices'),
         };
     },
     // mapDispatchToProps
@@ -904,12 +1179,12 @@ export default connect(
                 })
             );
         },
-        // convertToSteem: e => {
-        //     //post 2018-01-31 if no calls to this function exist may be safe to remove. Investigate use of ConvertToSteem.jsx
-        //     e.preventDefault();
-        //     const name = 'convertToSteem';
-        //     dispatch(globalActions.showDialog({ name }));
-        // },
+        convertToSteem: e => {
+            e.preventDefault();
+            const name = 'convertToSteem';
+            dispatch(globalActions.showDialog({ name }));
+        },
+        updatePrices: () => dispatch(transactionActions.updatePrices()),
         notify: message => {
             dispatch(
                 appActions.addNotification({
