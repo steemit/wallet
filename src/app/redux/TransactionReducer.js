@@ -13,6 +13,10 @@ const DELETE_ERROR = 'transaction/DELETE_ERROR';
 const DISMISS_ERROR = 'transaction/DISMISS_ERROR';
 const SET = 'transaction/SET';
 const REMOVE = 'transaction/REMOVE';
+export const ADD_CONVERSION = 'transaction/ADD_CONVERSION';
+export const RESET_CONVERSIONS = 'transaction/RESET_CONVERSIONS';
+export const UPDATE_PRICES = 'transaction/UPDATE_PRICES';
+export const SET_PRICES = 'transaction/SET_PRICES';
 // Saga-related
 export const RECOVER_ACCOUNT = 'transaction/RECOVER_ACCOUNT';
 const defaultState = fromJS({
@@ -20,6 +24,14 @@ const defaultState = fromJS({
     status: { key: '', error: false, busy: false },
     errors: {
         bandwidthError: false,
+    },
+    conversions: [],
+    prices: {
+        steemPrice: 0,
+        sbdPrice: 0,
+        lastUpdate: null,
+        error: false,
+        error_message: '',
     },
 });
 
@@ -180,7 +192,12 @@ export default function reducer(state = defaultState, action) {
             return state.removeIn(
                 Array.isArray(payload.key) ? payload.key : [payload.key]
             );
-
+        case ADD_CONVERSION:
+            return state.update('conversions', list => list.push(fromJS(action.payload)));
+        case RESET_CONVERSIONS:
+            return state.set('conversions', fromJS([]));
+        case SET_PRICES:
+            return state.set('prices', fromJS(payload));
         default:
             return state;
     }
@@ -234,5 +251,23 @@ export const remove = payload => ({
 
 export const recoverAccount = payload => ({
     type: RECOVER_ACCOUNT,
+    payload,
+});
+
+export const addConversion = (conversion) => ({
+    type: ADD_CONVERSION,
+    payload: conversion,
+});
+
+export const resetConversions = () => ({
+    type: RESET_CONVERSIONS,
+});
+
+export const updatePrices = () => ({
+    type: UPDATE_PRICES,
+});
+
+export const setPrices = payload => ({
+    type: SET_PRICES,
     payload,
 });

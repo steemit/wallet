@@ -50,6 +50,7 @@ export const EXPIRING_VESTING_DELEGATIONS_LOADING =
     'user/EXPIRING_VESTING_DELEGATIONS_LOADING';
 export const RESET_ERROR = 'user/RESET_ERROR';
 export const CLAIM_PENDING_TRX = 'user/CLAIM_PENDING_TRX';
+export const REFRESH_ACCOUNT_REQUEST = 'user/REFRESH_ACCOUNT_REQUEST';
 
 const defaultState = fromJS({
     current: null,
@@ -267,6 +268,8 @@ export default function reducer(state = defaultState, action) {
             return state.set('show_vote_modal', true);
         case HIDE_VOTE:
             return state.set('show_vote_modal', false);
+        case REFRESH_ACCOUNT_REQUEST:
+            return state;
         default:
             return state;
     }
@@ -476,4 +479,9 @@ export const setExpiringVestingDelegations = payload => ({
 export const expiringVestingDelegationsLoading = payload => ({
     type: EXPIRING_VESTING_DELEGATIONS_LOADING,
     payload,
+});
+
+export const refreshAccount = (username) => ({
+    type: REFRESH_ACCOUNT_REQUEST,
+    payload: { username },
 });

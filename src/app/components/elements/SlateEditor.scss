@@ -13,7 +13,7 @@
   hr.active  {box-shadow: 0 0 2px 1px #48C;}
 
   a:hover:after{
-    font-family: Arial;
+    font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
     border-radius: 3px;
     padding: 1px 3px;
     background: #eee;
@@ -108,7 +108,7 @@
 }
 
 .SlateEditor__menu-button {
-  font-family: 'Georgia', serif;
+  font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
   color: #FFF;
   cursor: pointer;
   display: inline-block;
@@ -142,7 +142,7 @@
 
 .SlateEditor__menu-button-sup > span > span ,
 .SlateEditor__menu-button-sub > span > span {
-  font-family: Arial;
+  font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 80%;
   vertical-align: 4%;
 }

@@ -65,68 +65,72 @@ class ProposalList extends React.Component {
         });
     }
 
-    async fetchConfig() {
-        try {
-            if (REFUND_ACCOUNTS.length > 0) {
-                const res = await api.getAccountsAsync(REFUND_ACCOUNTS);
-                if (res && res.length > 0 && res[0].sbd_balance) {
-                    const rawBalance = res[0].sbd_balance;
-                    const numericPart = rawBalance.split(' ')[0];
-                    this.setState({
-                        daoTreasury: numberWithCommas(numericPart),
-                        dailyBudget: numberWithCommas(
-                            `${(parseFloat(numericPart) / 100).toFixed(3)}`
-                        ),
-                    });
-                }
-            }
-        } catch (err) {
-            console.error('DEBUG_LOG: Error in fetchConfig:', err);
+    fetchConfig() {
+        if (REFUND_ACCOUNTS.length > 0) {
+            api.getAccountsAsync(REFUND_ACCOUNTS)
+                .then(res => {
+                    if (res && res.length > 0 && res[0].sbd_balance) {
+                        const rawBalance = res[0].sbd_balance;
+                        const numericPart = rawBalance.split(' ')[0];
+                        this.setState({
+                            daoTreasury: numberWithCommas(numericPart),
+                            dailyBudget: numberWithCommas(
+                                `${(parseFloat(numericPart) / 100).toFixed(3)}`
+                            ),
+                        });
+                    }
+                })
+                .catch(err => console.log(err));
         }
     }
 
-
-    async fetchProposals() {
-        try {
-            const proposals = await api.listProposalsAsync(
-                [-1, 0],
-                1000,
-                'by_total_votes',
-                'descending',
-                'active'
-            );
-
-            if (!Array.isArray(proposals)) {
-                console.log(
-                    'DEBUG_LOG: Error - Proposals is not an array',
-                    proposals
-                );
-                return;
-            }
-
-            const { dailyBudget } = this.state;
-            let budget = parseFloat(dailyBudget.replace(/,/g, ''));
-            const selectedProposalIds = [];
-
-            for (let proposal of proposals) {
-                const pay = parseFloat(
-                    proposal.daily_pay.replace(' SBD', '').replace(/,/g, '')
-                );
-                if (budget - pay >= 0) {
-                    budget -= pay;
-                    selectedProposalIds.push(proposal.id);
-                } else if (budget > 0) {
-                    selectedProposalIds.push(proposal.id);
-                    break;
-                } else {
-                    break;
+    fetchProposals() {
+        api.listProposalsAsync(
+            [-1, 0],
+            1000,
+            'by_total_votes',
+            'descending',
+            'active'
+        )
+            .then(proposals => {
+                try {
+                    if (!Array.isArray(proposals)) {
+                        console.log(
+                            'DEBUG_LOG: Error - Proposals is not an array',
+                            proposals
+                        ); // DEBUG_LOG
+                        return;
+                    }
+                    const { dailyBudget } = this.state;
+                    let budget = parseFloat(dailyBudget.replace(/,/g, ''));
+                    const selectedProposalIds = [];
+                    for (let i = 0; i < proposals.length; i++) {
+                        const proposal = proposals[i];
+                        const payStr = proposal.daily_pay
+                            .replace(' SBD', '')
+                            .replace(/,/g, '');
+                        const pay = parseFloat(payStr);
+                        if (proposal.daily_pay) {
+                            if (budget - pay >= 0) {
+                                budget -= pay;
+                                selectedProposalIds.push(proposal.id);
+                            } else if (budget > 0 && budget - pay < 0) {
+                                budget -= pay;
+                                selectedProposalIds.push(proposal.id);
+                                break;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    this.props.setPaidProposals(selectedProposalIds);
+                } catch (error) {
+                    console.error('DEBUG_LOG: Error in proposals:', error); // DEBUG_LOG
                 }
-            }
-
-            this.props.setPaidProposals(selectedProposalIds);
-        } catch (err) {
-            console.error('DEBUG_LOG: Error fetching proposals:', err);
-        }
+            })
+            .catch(err => {
+                console.error('DEBUG_LOG: Error fetching proposals:', err); // DEBUG_LOG
+            });
     }
 
     render() {
