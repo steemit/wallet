@@ -47,44 +47,25 @@ export function* listProposals({
     let proposalVotes = [];
     if (voter_id) {
         try {
-            proposalVotes = yield proposalIds.map(function*(pId) {
-                let votes = [];
-                let nextVotes = [];
-                let lastVoter = '';
-                const maxVotes = 500;
-                // ¯\_(ツ)_/¯
-                while (true) {
-                    nextVotes = yield call(
-                        [api, api.listProposalVotesAsync],
-                        [pId, lastVoter],
-                        maxVotes,
-                        'by_proposal_voter',
-                        'ascending',
-                        'all'
-                    );
-                    votes = votes.concat(nextVotes);
-                    lastVoter = nextVotes.at(-1).voter;
-                    if (nextVotes.length < maxVotes) return votes;
-                    if (nextVotes && nextVotes.length >= 2) {
-                        const firstProposalId =
-                            nextVotes[0].proposal.proposal_id;
-                        const lastProposalId = nextVotes.at(-1).proposal
-                            .proposal_id;
-                        if (firstProposalId !== pId || lastProposalId !== pId) {
-                            return votes;
-                        }
-                    }
+            const result = yield call(
+                [api, api.callAsync],
+                'database_api.list_proposal_votes',
+                {
+                    start: [voter_id],
+                    limit: 1000,
+                    order: 'by_voter_proposal',
+                    order_direction: 'ascending',
+                    status: 'all',
+                },
+            );
+            proposalVotes = (result && result.proposal_votes) || [];
+            for (let i = 0; i < proposalVotes.length; i++) {
+                const vote = proposalVotes[i];
+                if (vote.voter !== voter_id) {
+                    break;
                 }
-            });
-            proposalVotes = proposalVotes.reduce((a, b) => a.concat(b), []);
-
-            proposalVotesIds = proposalVotes
-                .filter(d => {
-                    return d.voter == voter_id;
-                })
-                .map(p => {
-                    return p.proposal.id;
-                });
+                proposalVotesIds.push(vote.proposal.id);
+            }
         } catch (error) {
             console.log('ProposalSaga->listProposalVotesAsync::error', error);
         }
