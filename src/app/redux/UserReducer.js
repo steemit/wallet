@@ -56,6 +56,7 @@ export const GET_WITHDRAW_ROUTES = 'user/GET_WITHDRAW_ROUTES';
 export const SET_WITHDRAW_ROUTES = 'user/SET_WITHDRAW_ROUTES';
 export const RESET_ERROR = 'user/RESET_ERROR';
 export const CLAIM_PENDING_TRX = 'user/CLAIM_PENDING_TRX';
+export const REFRESH_ACCOUNT_REQUEST = 'user/REFRESH_ACCOUNT_REQUEST';
 
 const defaultState = fromJS({
     current: null,
@@ -290,6 +291,8 @@ export default function reducer(state = defaultState, action) {
             return state.set('show_vote_modal', true);
         case HIDE_VOTE:
             return state.set('show_vote_modal', false);
+        case REFRESH_ACCOUNT_REQUEST:
+            return state;
         default:
             return state;
     }
@@ -528,4 +531,9 @@ export const getWithdrawRoutes = payload => ({
 export const setWithdrawRoutes = payload => ({
     type: SET_WITHDRAW_ROUTES,
     payload,
+});
+
+export const refreshAccount = (username) => ({
+    type: REFRESH_ACCOUNT_REQUEST,
+    payload: { username },
 });

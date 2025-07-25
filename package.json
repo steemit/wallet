@@ -63,6 +63,7 @@
         "file-loader": "0.11.2",
         "foundation-sites": "git+https://github.com/steemit/foundation-sites.git#e8e32c715bbc4c822b80b555345f61337269ca78",
         "fs": "^0.0.1-security",
+        "fuse.js": "^7.1.0",
         "git-rev-sync": "1.9.1",
         "highcharts": "6.1.0",
         "hjson": "^3.2.1",

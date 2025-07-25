@@ -43,6 +43,7 @@ class Proposals extends React.Component {
         this.fetchGlobalProps = this.fetchGlobalProps.bind(this);
         this.fetchDataForVests = this.fetchDataForVests.bind(this);
         this.setIsVotersDataLoading = this.setIsVotersDataLoading.bind(this);
+        this.getVotedProposals = this.getVotedProposals.bind(this);
     }
     async componentWillMount() {
         this.props.setRouteTag();
@@ -62,6 +63,9 @@ class Proposals extends React.Component {
         }
         if (prevState.voters_accounts !== this.state.voters_accounts) {
             this.setIsVotersDataLoading(!this.state.is_voters_data_loaded);
+        }
+        if (prevProps.currentUser !== this.props.currentUser) {
+            this.updateProposalVotes(this.props.currentUser);
         }
     }
 
@@ -234,6 +238,63 @@ class Proposals extends React.Component {
             .then(res => this.getVotersAccounts(res))
             .catch(err => console.log(err));
     }
+
+    async getVotedProposals({ accountName, proposalIdsSet }) {
+        const votedMap = {};
+
+        try {
+            const result = await new Promise((resolve, reject) => {
+                api.callAsync(
+                    'database_api.list_proposal_votes',
+                    {
+                        start: [accountName],
+                        limit: 1000,
+                        order: 'by_voter_proposal',
+                        order_direction: 'ascending',
+                        status: 'all',
+                    },
+                    (err, res) => {
+                        if (err) reject(err);
+                        else resolve(res);
+                    }
+                );
+            });
+
+            const votes = (result && result.proposal_votes) || [];
+            if (votes.length === 0 || votes[0].voter !== accountName) {
+                return votedMap;
+            }
+
+            for (const vote of votes) {
+                if (vote.voter !== accountName) break;
+                const proposalId = vote.proposal.proposal_id;
+                if (proposalIdsSet.has(proposalId)) {
+                    votedMap[proposalId] = true;
+                }
+            }
+
+            return votedMap;
+        } catch (err) {
+            console.error('Error al obtener propuestas votadas:', err);
+            return votedMap;
+        }
+    }
+
+    async updateProposalVotes(currentUser) {
+        if (typeof currentUser !== 'string' || currentUser.length <= 1) return;
+
+        const { proposals } = this.state;
+        const proposalIdsSet = new Set(proposals.map(p => p.id));
+        const votedMap = await this.getVotedProposals({ accountName: currentUser, proposalIdsSet });
+
+        const updatedProposals = proposals.map(p => ({
+            ...p,
+            upVoted: !!votedMap[p.id],
+        }));
+
+        this.setState({ proposals: updatedProposals });
+    }
+
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }

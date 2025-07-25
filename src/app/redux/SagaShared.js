@@ -45,6 +45,26 @@ export function* getAccount(username, force = false) {
         [account] = yield call([api, api.getAccountsAsync], [username]);
         if (account) {
             // merge and update account
+            try {
+                const recoveryData = yield call(
+                    [api, api.callAsync],
+                    'database_api.find_change_recovery_account_requests',
+                    { accounts: [username] }
+                );
+                if (
+                    recoveryData && recoveryData.requests && recoveryData.requests.length &&
+                    recoveryData.requests[0].account_to_recover === username
+                ) {
+                    const recoveryRequest = recoveryData.requests[0];
+                    if (Array.isArray(account) && account.length > 0) {
+                        account[0].account_recovery = recoveryRequest;
+                    } else if (account && typeof account === 'object') {
+                        account.account_recovery = recoveryRequest;
+                    }
+                }
+            } catch (err) {
+                console.warn('❌ Error fetching recovery request:', err);
+            }
             account = fromJS(account);
             yield put(globalActions.receiveAccount({ account }));
         }
