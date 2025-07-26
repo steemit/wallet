@@ -47,70 +47,79 @@ class UserWallet extends React.Component {
             claimInProgress: false,
             showQR: false,
         };
-        this.onShowSteemTrade = e => {
-            if (e && e.preventDefault) e.preventDefault();
-            recordAdsView({
-                trackingId: this.props.trackingId,
-                adTag: 'TradeSteemBtn',
-            });
-            // const name = this.props.currentUser.get('username');
-            const new_window = window.open();
-            new_window.opener = null;
-            new_window.location =
-                'https://poloniex.com/trade/STEEM_TRX/?type=spot';
-        };
-        this.onShowSteemTradeTop = e => {
-            if (e && e.preventDefault) e.preventDefault();
-            recordAdsView({
-                trackingId: this.props.trackingId,
-                adTag: 'TradeSteemTop',
-            });
-            // const name = this.props.currentUser.get('username');
-            const new_window = window.open();
-            new_window.opener = null;
-            new_window.location =
-                'https://poloniex.com/trade/STEEM_TRX/?type=spot';
-        };
-        this.onShowTrxTrade = e => {
-            if (e && e.preventDefault) e.preventDefault();
-            recordAdsView({
-                trackingId: this.props.trackingId,
-                adTag: 'TradeTrx',
-            });
-            // const name = this.props.currentUser.get('username');
-            const new_window = window.open();
-            new_window.opener = null;
-            new_window.location =
-                'https://poloniex.com/trade/TRX_USDT/?type=spot';
-        };
-        this.onShowTronLink = e => {
-            if (e && e.preventDefault) e.preventDefault();
-            recordAdsView({
-                trackingId: this.props.trackingId,
-                adTag: 'ToTronLink',
-            });
-            const new_window = window.open();
-            new_window.opener = null;
-            new_window.location = 'https://www.tronlink.org/';
-        };
-        this.onShowTradeSBD = e => {
-            e.preventDefault();
-            recordAdsView({
-                trackingId: this.props.trackingId,
-                adTag: 'TradeSBD',
-            });
-            const new_window = window.open();
-            new_window.opener = null;
-            new_window.location =
-                'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD';
-        };
-        this.showQR = e => {
-            this.setState({ showQR: true });
-        };
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
     }
 
-    componentWillMount = () => {};
+    componentDidMount() {
+        const { account, getWithdrawRoutes } = this.props;
+        if (account && getWithdrawRoutes) {
+            getWithdrawRoutes(account.get('name'));
+        }
+    }
+
+    // All event handlers are defined as class methods for performance and stable 'this' context.
+    onShowSteemTrade = e => {
+        if (e && e.preventDefault) e.preventDefault();
+        recordAdsView({
+            trackingId: this.props.trackingId,
+            adTag: 'TradeSteemBtn',
+        });
+        const new_window = window.open();
+        new_window.opener = null;
+        new_window.location =
+            'https://poloniex.com/trade/STEEM_TRX/?type=spot';
+    };
+
+    onShowSteemTradeTop = e => {
+        if (e && e.preventDefault) e.preventDefault();
+        recordAdsView({
+            trackingId: this.props.trackingId,
+            adTag: 'TradeSteemTop',
+        });
+        const new_window = window.open();
+        new_window.opener = null;
+        new_window.location =
+            'https://poloniex.com/trade/STEEM_TRX/?type=spot';
+    };
+
+    onShowTrxTrade = e => {
+        if (e && e.preventDefault) e.preventDefault();
+        recordAdsView({
+            trackingId: this.props.trackingId,
+            adTag: 'TradeTrx',
+        });
+        const new_window = window.open();
+        new_window.opener = null;
+        new_window.location =
+            'https://poloniex.com/trade/TRX_USDT/?type=spot';
+    };
+
+    onShowTronLink = e => {
+        if (e && e.preventDefault) e.preventDefault();
+        recordAdsView({
+            trackingId: this.props.trackingId,
+            adTag: 'ToTronLink',
+        });
+        const new_window = window.open();
+        new_window.opener = null;
+        new_window.location = 'https://www.tronlink.org/';
+    };
+
+    onShowTradeSBD = e => {
+        e.preventDefault();
+        recordAdsView({
+            trackingId: this.props.trackingId,
+            adTag: 'TradeSBD',
+        });
+        const new_window = window.open();
+        new_window.opener = null;
+        new_window.location =
+            'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD';
+    };
+
+    showQR = e => {
+        this.setState({ showQR: true });
+    };
 
     handleClaimRewards = account => {
         let isClaiming = false;
@@ -121,6 +130,14 @@ class UserWallet extends React.Component {
         if (isClaiming === true) {
             this.setState({ claimInProgress: true }); // disable the claim button
         }
+    };
+
+    showAdvanced = e => {
+        e.preventDefault();
+        const { account } = this.props;
+        this.props.showAdvanced({
+            account: account.get('name'),
+        });
     };
 
     getCurrentApr = gprops => {
@@ -174,6 +191,7 @@ class UserWallet extends React.Component {
             currentUser,
             open_orders,
             notify,
+            withdraw_routes,
         } = this.props;
         const { showQR } = this.state;
         const gprops = this.props.gprops.toJS();
@@ -246,14 +264,6 @@ class UserWallet extends React.Component {
             }
         };
 
-        const showAdvanced = (e) => {
-            e.preventDefault();
-            const name = account.get('name');
-            this.props.showAdvanced({
-                account: name,
-            });
-        };
-
         // Sum savings withrawals
         let savings_pending = 0,
             savings_sbd_pending = 0;
@@ -293,11 +303,13 @@ class UserWallet extends React.Component {
                             })}
                         >
                             <span>
-                                (+{tt('userwallet_jsx.in_conversion', {
+                                (+
+                                {tt('userwallet_jsx.in_conversion', {
                                     amount: numberWithCommas(
                                         '$' + amount.toFixed(3)
                                     ),
-                                })})
+                                })}
+                                )
                             </span>
                         </Tooltip>
                     </div>,
@@ -305,7 +317,9 @@ class UserWallet extends React.Component {
             }, []);
 
         const balance_steem = parseFloat(account.get('balance').split(' ')[0]);
-        const saving_balance_steem = parseFloat(savings_balance.split(' ')[0]);
+        const saving_balance_steem = parseFloat(
+            savings_balance.split(' ')[0]
+        );
         const divesting =
             parseFloat(account.get('vesting_withdraw_rate').split(' ')[0]) >
             0.0;
@@ -446,7 +460,7 @@ class UserWallet extends React.Component {
             {
                 value: tt('userwallet_jsx.advanced_routes'),
                 link: '#',
-                onClick: showAdvanced,
+                onClick: this.showAdvanced,
             },
         ];
         const dollar_menu = [
@@ -602,13 +616,26 @@ class UserWallet extends React.Component {
             console.error(e);
         }
 
+        let advancedRoutesNotification = null;
+        if (isMyAccount && withdraw_routes && withdraw_routes.size > 0) {
+            const message =
+                'Additional Routes Are configured for Receiving Vesting Payments, Please re-confirm on Advanced Routes Options.';
+
+            advancedRoutesNotification = (
+                <div className="UserWallet__balance row">
+                    <div className="column small-12">
+                        <div className="callout success">
+                            <p>{message}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         return (
             <div className="UserWallet">
                 {claimbox}
                 <div className="row">
-                    {/*<div>
-                        <LoadingIndicator type="circle" />
-                    </div>*/}
                     <div className="columns small-10 medium-12 medium-expand">
                         <WalletSubMenu
                             accountname={account.get('name')}
@@ -616,20 +643,18 @@ class UserWallet extends React.Component {
                             showTab="balance"
                         />
                     </div>
-                    {
-                        <div className="columns shrink">
-                            {isMyAccount && (
-                                <button
-                                    className="UserWallet__buysp button hollow"
-                                    onClick={this.onShowSteemTradeTop}
-                                >
-                                    {tt(
-                                        'userwallet_jsx.buy_steem_or_steem_power'
-                                    )}
-                                </button>
-                            )}
-                        </div>
-                    }
+                    <div className="columns shrink">
+                        {isMyAccount && (
+                            <button
+                                className="UserWallet__buysp button hollow"
+                                onClick={this.onShowSteemTradeTop}
+                            >
+                                {tt(
+                                    'userwallet_jsx.buy_steem_or_steem_power'
+                                )}
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className="UserWallet__balance row">
                     <div className="column small-12 medium-8">
@@ -805,6 +830,7 @@ class UserWallet extends React.Component {
                         {estimate_output}
                     </div>
                 </div>
+                {advancedRoutesNotification}
                 <div className="UserWallet__balance row zebra">
                     <div className="column small-12">
                         {powerdown_steem != 0 && (
@@ -878,6 +904,8 @@ export default connect(
         const sbd_interest = gprops.get('sbd_interest_rate');
         // This is current logined user.
         const currentUser = ownProps.currentUser;
+        const withdraw_routes = state.user.get('withdraw_routes');
+
         return {
             ...ownProps,
             open_orders: state.market.get('open_orders'),
@@ -887,6 +915,7 @@ export default connect(
             gprops,
             trackingId: state.app.getIn(['trackingId'], null),
             currentUser,
+            withdraw_routes,
         };
     },
     // mapDispatchToProps
