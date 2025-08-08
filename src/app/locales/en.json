@@ -708,13 +708,20 @@
             "After printing, write down your user name"
     },
     "converttosteem_jsx": {
+        "account": "Account",
+        "projected": "Projected",
+        "efficiency": "Efficiency",
+        "efficiency_projected": "In: %(inUSD)s USD | Out: %(outUSD)s USD",
+        "projected_LIQUID_TOKEN": "Projected %(LIQUID_TOKEN)s %(steem_amount)s",
+        "visit_faq_for_more_details":
+            "<a href=\"/faq.html#How_do_Steem_Dollar_to_STEEM_conversions_work\">Visit the FAQ for more details on SBD conversion.</a>",
         "your_existing_DEBT_TOKEN_are_liquid_and_transferable":
-            "Your existing %(DEBT_TOKEN)s are liquid and transferable. Instead you may wish to trade %(DEBT_TOKEN)s directly in this site under %(link)s or transfer to an external market.",
+            "%(DEBT_TOKEN)s (SBD) is liquid and transferable prior to conversion. As an alternative, it may be exchanged for STEEM through the Internal Market without delay and with reduced risk, enabling real-time trading based on current market rates. This option can offer greater immediacy and price certainty compared to the delayed and variable outcome of the conversion process. However, this is not always the case, as Internal Market conditions may vary depending on liquidity and available order depth.",
         "this_is_a_price_feed_conversion":
             "This is a price feed conversion. The 3.5 day delay is necessary to prevent abuse from gaming the price feed average.",
         "convert_to_LIQUID_TOKEN": "Convert to %(LIQUID_TOKEN)s",
         "DEBT_TOKEN_will_be_unavailable":
-            "This action will take place 3.5 days from now and can not be canceled. These %(DEBT_TOKEN)s will immediately become unavailable."
+            "The conversion process takes 3.5 days to complete and cannot be canceled once initiated. During this period, the specified %(DEBT_TOKEN)s (SBD) amount becomes immediately unavailable. The final amount of STEEM received is not fixed, as it is determined by the median witness price feed averaged over the entire 3.5-day window. As a result, conversions carry risk, particularly during periods of price volatility. Due to this, exercising due diligence before initiating a conversion is strongly advised."
     },
     "tips_js": {
         "liquid_token":
@@ -887,6 +894,8 @@
         "password_or_wif": "Password or WIF",
         "this_operation_requires_your_key_or_master_password":
             "This operation requires your %(authType)s key or Master password.",
+        "this_operation_requires_your_private_key":
+            "This operation requires your private %(authType)s key.",
         "keep_me_logged_in": "Keep me logged in",
         "signup_button": "Sign up now to earn ",
         "signup_button_emphasis": "FREE STEEM!",
@@ -953,6 +962,10 @@
         "saved": "Saved!"
     },
     "transfer_jsx": {
+        "exchange_alert": "<strong>Exchange Account Detected</strong><br/><br/>To prevent irreversible loss of funds, please ensure the following:<br/><br/><ul><li>Use the correct memo and deposit address provided by the exchange.</li><li>Verify that the exchange has not suspended deposits.</li><li>Verify that the exchange still supports %(asset)s deposits.</li></ul>",
+        "similar_account_warning": "<strong>Exchange Account Similarity Detected</strong><br/><br/><ul><li>The recipient address shares %(similarity)s %% similarity with a known exchange account (<strong>@%(accountName)s</strong>). Verify the address carefully, as incorrect transfers may result in permanent loss of funds.</li></ul>",
+        "exchange_misspelling": "The recipient address appears to be an intentional misspelling of a known exchange account. It is strongly recommended not to send any funds.",
+        "toggle_exchange_message": "I have read and understood the above warnings",
         "amount_is_in_form": "Amount is in the form 99999.999",
         "insufficient_funds": "Insufficient funds",
         "use_only_3_digits_of_precison": "Use only 3 digits of precison",
@@ -1007,6 +1020,17 @@
         "end_date": "Expiration Time",
         "no_delegations": "No Delegations Found."
     },
+    "change_recovery_account": {
+      "recovery_warning": "Warning: %(days)s %(day_label)s left until your recovery account change to @%(recovery_account)s becomes final.",
+      "take_action": "Take Action",
+      "new_recovery_account": "New Recovery Account",
+      "title": "Change Recovery Account",
+      "faq_link_message": "<a href=\"/faq.html#What_is_a_recovery_account\">Visit the FAQ for more details on the Recovery Account.</a>",
+      "current_account": "Account",
+      "current_recovery_account": "Current Recovery Account",
+      "pending_recovery_account": "Pending Change",
+      "new_account": "New Recovery Account"
+    },
     "userwallet_jsx": {
         "transfer": "Transfer",
         "conversion_complete_tip": "Will complete on %(date)s",
@@ -1025,6 +1049,8 @@
             "Tokens worth about $1.00 of %(LIQUID_TICKER)s, currently collecting %(sbdInterest)s%% APR.",
         "tradeable_tokens_transferred":
             "Tradeable tokens that may be transferred anywhere at anytime.",
+        "convert_sbd_to_steem_info":
+            "SBD can be converted to STEEM over 3.5 days. The amount received is based on the median price feed from witnesses during that period. Final results may vary due to price changes. <a href=\"/faq.html#How_do_Steem_Dollar_to_STEEM_conversions_work\">See FAQ for details</a>.",
         "savings": "SAVINGS",
         "estimated_account_value": "Estimated Account Value",
         "next_power_down_is_scheduled_to_happen":

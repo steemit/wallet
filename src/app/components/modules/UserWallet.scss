@@ -103,3 +103,55 @@
         left: 10px !important;
     }
 }
+
+
+.UserWallet__warningbox {
+  @include themify($themes) {
+    border: themed('borderWarning');
+    background-color: themed('backgroundColorWarning');
+  }
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1.5rem 0 0.5rem;
+  padding: 1rem 1rem 1.1rem 1rem;
+  border-radius: 5px;
+}
+
+.UserWallet__warningbox__text {
+  max-width: 65%;
+  font-weight: bold;
+}
+
+.UserWallet__warningbox__buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+@media only screen and (max-width: 942px) {
+  .UserWallet__warningbox__text {
+    max-width: max-content;
+  }
+}
+
+.UserWallet__warningbox__buttons {
+
+  .button {
+      @extend .e-btn;
+      @include font-size(14px);
+      margin: 0;
+  }
+
+  @media only screen and (max-width: 680px) {
+      .button {
+          margin: 8px 0 0 0;
+      }
+      .buttonSmall{
+          font-size: 10px;
+          margin-left: -20px;
+      }
+  }
+}

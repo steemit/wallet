@@ -6,7 +6,7 @@ import BadActorList from 'app/utils/BadActorList';
 import VerifiedExchangeList from 'app/utils/VerifiedExchangeList';
 import { PrivateKey, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
 
-export function validate_account_name(value) {
+export function validate_account_name(value, exchange_validation = false) {
     let i, label, len;
 
     if (!value) {
@@ -19,7 +19,7 @@ export function validate_account_name(value) {
     if (length > 16) {
         return tt('chainvalidation_js.account_name_should_be_shorter');
     }
-    if (BadActorList.includes(value)) {
+    if (!exchange_validation && BadActorList.includes(value)) {
         return tt('chainvalidation_js.badactor');
     }
     const ref = value.split('.');
@@ -62,11 +62,28 @@ export function validate_account_name(value) {
  * @param {string} memo
  * @returns {null|string} string if there's a validation error
  */
-export function validate_account_name_with_memo(name, memo) {
-    if (VerifiedExchangeList.includes(name) && !memo) {
+export function validate_account_name_with_memo(name, memo, transfer_type = "", exchange_validation = false) {
+    if (
+        !exchange_validation &&
+        VerifiedExchangeList.includes(name) &&
+        !memo &&
+        transfer_type === 'Transfer to Account'
+    ) {
         return tt('chainvalidation_js.verified_exchange_no_memo');
     }
-    return validate_account_name(name);
+    return validate_account_name(name, exchange_validation);
+}
+
+export function validate_exchange_account_with_memo(name, transfer_type = "") {
+    if (
+        VerifiedExchangeList.includes(name) &&
+        transfer_type === 'Transfer to Account'
+    ) {
+        return true;
+    } else if (BadActorList.includes(name)) {
+        return true;
+    }
+    return null
 }
 
 export function validate_memo_field(value, username, memokey) {

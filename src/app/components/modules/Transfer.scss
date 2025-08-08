@@ -33,3 +33,74 @@
 .react-autocomplete-input-no-data {
     border: 0 !important;
 }
+
+.toggle_container {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0px 15px 5px;
+  padding: 0;
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    min-width: 57px;
+    width: 52px;
+    height: 26px;
+    margin-right: 2px;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    -webkit-transition: .4s;
+    transition: .4s;
+    height: auto;
+    margin: 0;
+  }
+
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 8px;
+    bottom: 4px;
+    background-color: white;
+    -webkit-transition: .4s;
+    transition: .4s;
+  }
+
+  input:checked + .slider {
+    background-color: #07cda2;
+  }
+
+  input:focus + .slider {
+    box-shadow: 0 0 1px #07cda2;
+  }
+
+  input:checked + .slider:before {
+    -webkit-transform: translateX(24px);
+    -ms-transform: translateX(24px);
+    transform: translateX(24px);
+  }
+
+  .slider.round {
+    border-radius: 26px;
+  }
+
+  .slider.round:before {
+    border-radius: 50%;
+  }
+}

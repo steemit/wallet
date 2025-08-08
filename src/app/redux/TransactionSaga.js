@@ -32,6 +32,7 @@ export const transactionWatches = [
     takeEvery(transactionActions.BROADCAST_OPERATION, broadcastOperation),
     takeEvery(transactionActions.UPDATE_AUTHORITIES, updateAuthorities),
     takeEvery(transactionActions.RECOVER_ACCOUNT, recoverAccount),
+    takeEvery(transactionActions.UPDATE_PRICES, updatePricesSaga),
 ];
 
 const hook = {
@@ -42,6 +43,81 @@ const hook = {
     accepted_account_update,
     accepted_withdraw_vesting,
 };
+
+export function* updatePricesSaga() {
+    try {
+        // Llamadas al API como tenías
+        const steemResult = yield call(getSteemPrice);
+        const marketResult = yield call(getRecentTrades, 10);
+
+        let sbdPrice = 0;
+        if (!steemResult.error && !marketResult.error && marketResult.price !== 0) {
+            sbdPrice = (1 / marketResult.price) * steemResult.price;
+        }
+
+        yield put(transactionActions.setPrices({
+            steemPrice: steemResult.price,
+            sbdPrice,
+            lastUpdate: Date.now(),
+            error: steemResult.error || marketResult.error,
+            error_message: steemResult.error_message || marketResult.error_message,
+        }));
+    } catch (error) {
+        console.error('updatePricesSaga error:', error.message);
+        yield put(transactionActions.setPrices({
+            steemPrice: 0,
+            sbdPrice: 0,
+            lastUpdate: Date.now(),
+            error: true,
+            error_message: error.message,
+        }));
+    }
+}
+
+async function getSteemPrice() {
+    try {
+        const feedHistory = await api.callAsync('condenser_api.get_feed_history', []);
+        const latest = feedHistory.price_history[feedHistory.price_history.length - 1];
+        const base = parseFloat(latest.base.split(' ')[0]);
+        const quote = parseFloat(latest.quote.split(' ')[0]);
+        if (quote === 0) return { price: 0, error: true, error_message: 'Quote is zero' };
+        const price = base / quote;
+        if (price <= 0) return { price: 0, error: true, error_message: 'Price <= 0' };
+        console.log('set current price', price)
+        return { price, error: false, error_message: '' };
+    } catch (error) {
+        console.error('Error getting STEEM price:', error.message);
+        return { price: 0, error: true, error_message: error.message };
+    }
+}
+
+async function getRecentTrades(limit = 10) {
+    try {
+        const data = await api.callAsync('market_history_api.get_recent_trades', { limit });
+        let highest = null, lowest = null;
+        data.trades.forEach(trade => {
+            const currentAmount = parseFloat(trade.current_pays.amount) / (10 ** trade.current_pays.precision);
+            const openAmount = parseFloat(trade.open_pays.amount) / (10 ** trade.open_pays.precision);
+            let steemAmount = 0, sbdAmount = 0;
+            if (trade.current_pays.nai === '@@000000021') {
+                steemAmount = currentAmount; sbdAmount = openAmount;
+            } else if (trade.open_pays.nai === '@@000000021') {
+                steemAmount = openAmount; sbdAmount = currentAmount;
+            } else return;
+            if (steemAmount === 0) return;
+            const price = sbdAmount / steemAmount;
+            if (!highest || price > highest.price) highest = { price };
+            if (!lowest || price < lowest.price) lowest = { price };
+        });
+        if (!highest || !lowest) return { price: 0, error: true, error_message: 'No market prices' };
+        const mid = (highest.price + lowest.price) / 2;
+        if (mid <= 0) return { price: 0, error: true, error_message: 'Mid price <= 0' };
+        return { price: highest.price, error: false, error_message: '' };
+    } catch (error) {
+        console.error('Error getting recent trades:', error.message);
+        return { price: 0, error: true, error_message: error.message };
+    }
+}
 
 export function* preBroadcast_transfer({ operation }) {
     let memoStr = operation.memo;
