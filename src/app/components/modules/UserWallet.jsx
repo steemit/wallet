@@ -619,7 +619,7 @@ class UserWallet extends React.Component {
         let advancedRoutesNotification = null;
         if (isMyAccount && withdraw_routes && withdraw_routes.size > 0) {
             const message =
-                'Withdrawal routes are configured to receive vesting payments. Please reconfirm in the Advanced Routes options.';
+                'Custom withdrawal routes were configured to receive vesting payments. Please reconfirm in the Advanced Routes options.';
 
             advancedRoutesNotification = (
                 <div className="UserWallet__balance row">
