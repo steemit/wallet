@@ -1,15 +1,15 @@
 version: '3.8'
 
 services:
-  blaze-app:
+  Steemit-Wallet:
     image: node:10.0
-    container_name: blaze-app-wallet
+    container_name: Steemit-Wallet
     working_dir: /var/app
     volumes:
       - .:/var/app
       - /var/app/node_modules
     ports:
-      - "8085:8080"
+      - "8080:8080"
     environment:
       - NODE_ENV=development
       - PORT=8080
