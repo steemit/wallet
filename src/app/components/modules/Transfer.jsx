@@ -10,6 +10,8 @@ import reactForm from 'app/utils/ReactForm';
 import { Map, List, OrderedSet } from 'immutable';
 import Autocomplete from 'react-autocomplete';
 import tt from 'counterpart';
+import VerifiedExchangeList from 'app/utils/VerifiedExchangeList';
+import Fuse from 'fuse.js/dist/fuse';
 
 import * as transactionActions from 'app/redux/TransactionReducer';
 import * as userActions from 'app/redux/UserReducer';
@@ -22,6 +24,7 @@ import { FormattedHTMLMessage } from 'app/Translator';
 import runTests, { browserTests } from 'app/utils/BrowserTests';
 import { recordAdsView, userActionRecord } from 'app/utils/ServerApiClient';
 import {
+    validate_exchange_account_with_memo,
     validate_account_name_with_memo,
     validate_memo_field,
     validate_account_name,
@@ -55,7 +58,15 @@ class TransferForm extends Component {
             transferTo: false,
             autocompleteUsers: [],
             show_transfer_button: false,
+            isVerifiedAccount: false,
+            isSuspiciousAccount: false,
+            toggleExchangeRender: false,
+            exchangeValidation: false,
         };
+        this.fuse = new Fuse(VerifiedExchangeList, {
+            includeScore: true,
+            threshold: 0.4,
+        });
         this.initForm(props);
     }
 
@@ -69,6 +80,26 @@ class TransferForm extends Component {
         runTests();
 
         this.buildTransferAutocomplete();
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        const { isVerifiedAccount, isSuspiciousAccount } = this.state;
+        const { transferType } = this.props.initialValues;
+        const shouldRenderToggle =
+            ((isVerifiedAccount && transferType === "Transfer to Account") ||
+            (!isVerifiedAccount && isSuspiciousAccount && transferType === "Transfer to Account"));
+        const prevTransferType = prevProps.initialValues.transferType;
+        const hasChanged =
+            prevState.isVerifiedAccount !== isVerifiedAccount ||
+            prevState.isSuspiciousAccount !== isSuspiciousAccount ||
+            prevTransferType !== transferType;
+        if (hasChanged && this.state.toggleExchangeRender !== shouldRenderToggle) {
+            this.updateToggleExchangeRender(shouldRenderToggle)
+        }
+    }
+
+    updateToggleExchangeRender(toggleExchangeRender) {
+        this.setState({ toggleExchangeRender });
     }
 
     buildTransferAutocomplete() {
@@ -142,6 +173,65 @@ class TransferForm extends Component {
         this.setState({ advanced: !this.state.advanced });
     };
 
+    getCharMatchInfo = (input, target) => {
+        const result = {
+            percentage: 0,
+            exactMatch: false,
+            isSubstring: false,
+            containsOriginal: false,
+            noMatch: true,
+        };
+        if (!input || !target) return result;
+        input = input.toLowerCase();
+        target = target.toLowerCase();
+        if (input === target) {
+            result.percentage = 100;
+            result.exactMatch = true;
+            result.noMatch = false;
+        }
+        else if (target.includes(input)) {
+            result.percentage = Math.round((input.length / target.length) * 100);
+            result.isSubstring = true;
+            result.noMatch = false;
+        }
+        else if (input.includes(target)) {
+            result.percentage = Math.round((target.length / input.length) * 100);
+            result.containsOriginal = true;
+            result.noMatch = false;
+        }
+        return result;
+    }
+
+    checkExchangeStatus = (accountName) => {
+        const lowerName = accountName.trim().toLowerCase();
+        const isVerified = VerifiedExchangeList.includes(lowerName);
+        let similarityPercentage = 0;
+        let similarAccountName = null;
+        let isSuspicious = false;
+        const fuzzyResults = this.fuse.search(lowerName);
+        const { transferType } = this.props.initialValues;
+        const exchangeValidation = validate_exchange_account_with_memo(accountName, transferType)
+        if ((!isVerified && fuzzyResults.length > 0) || exchangeValidation) {
+            const topResult = fuzzyResults[0];
+            similarAccountName = topResult.item;
+            const score = Math.round((1 - topResult.score) * 100);
+            const matchInfo = this.getCharMatchInfo(accountName, similarAccountName);
+            const charMatch = matchInfo.percentage;
+            const finalScore = Math.round((charMatch + score) / 2);
+            similarityPercentage = finalScore
+            if (finalScore >= 70) {
+                isSuspicious = true;
+            }
+        }
+        this.setState({
+            isVerifiedAccount: isVerified,
+            isSuspiciousAccount: isSuspicious,
+            similarityPercentage,
+            similarAccountName,
+            exchangeValidation,
+        });
+    };
+
     initForm(props) {
         const { transferType } = props.initialValues;
         const insufficientFunds = (asset, amount) => {
@@ -181,7 +271,7 @@ class TransferForm extends Component {
             validation: values => ({
                 to: !values.to
                     ? tt('g.required')
-                    : validate_account_name_with_memo(values.to, values.memo),
+                    : validate_account_name_with_memo(values.to, values.memo, transferType, true),
                 amount: !values.amount
                     ? tt('g.required')
                     : !/^\d+(\.\d+)?$/.test(values.amount)
@@ -278,11 +368,28 @@ class TransferForm extends Component {
 
     onChangeTo = async value => {
         this.state.to.props.onChange(value);
+        const { transferType } = this.props.initialValues;
+        if (transferType === 'Transfer to Account') {
+            this.checkExchangeStatus(value);
+            this.setState({ toggle_check: false })
+        }
+    };
+
+    onChangeValueForm = (value, onChange) => {
+        onChange(value);
+        const { transferType } = this.props.initialValues;
+        if (transferType === 'Transfer to Account') {
+            this.setState({ toggle_check: false });
+        }
     };
 
     clearToTronInfo = () => {
         this.props.checkTron(null, null, null);
     };
+
+    handleToggleChange = (event) => {
+        this.setState({ toggle_check: event.target.checked });
+    }
 
     render() {
         const transferTips = {
@@ -305,7 +412,7 @@ class TransferForm extends Component {
             { LIQUID_TOKEN, VESTING_TOKEN }
         );
         const { to, amount, asset, memo } = this.state;
-        const { loading, advanced } = this.state;
+        const { loading, advanced, toggle_check } = this.state;
         const {
             currentUser,
             toVesting,
@@ -476,6 +583,7 @@ class TransferForm extends Component {
                                         : 'g.amount'
                                 )}
                                 {...amount.props}
+                                onChange={(event) => { this.onChangeValueForm(event.target.value, amount.props.onChange) }}
                                 ref="amount"
                                 autoComplete="off"
                                 autoCorrect="off"
@@ -494,6 +602,7 @@ class TransferForm extends Component {
                                     >
                                         <select
                                             {...asset.props}
+                                            onChange={(event) => { this.onChangeValueForm(event.target.value, asset.props.onChange) }}
                                             placeholder={tt(
                                                 'transfer_jsx.asset'
                                             )}
@@ -578,6 +687,7 @@ class TransferForm extends Component {
                                 type="text"
                                 placeholder={tt('g.memo')}
                                 {...memo.props}
+                                onChange={(event) => { this.onChangeValueForm(event.target.value, memo.props.onChange) }}
                                 ref="memo"
                                 autoComplete="on"
                                 autoCorrect="off"
@@ -588,6 +698,67 @@ class TransferForm extends Component {
                             <div className="error">
                                 {memo.touched && memo.error && memo.error}&nbsp;
                             </div>
+                        </div>
+                    </div>
+                )}
+                {this.state.isVerifiedAccount && transferType === "Transfer to Account" && (
+                    <div className="row">
+                        <div
+                            className="column callout alert"
+                            style={{ margin: '0 15px 30px' }}
+                        >
+                            <FormattedHTMLMessage
+                                id="transfer_jsx.exchange_alert"
+                                params={{ asset: asset.value }}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {!this.state.isVerifiedAccount && this.state.isSuspiciousAccount && transferType === "Transfer to Account" && (
+                    <div className="row">
+                        <div
+                            className="column callout warning"
+                            style={{ margin: '0 15px 30px' }}
+                        >
+                            <FormattedHTMLMessage
+                                id="transfer_jsx.similar_account_warning"
+                                params={{
+                                    accountName: this.state.similarAccountName,
+                                    similarity: this.state.similarityPercentage
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {(!this.state.toggleExchangeRender && this.state.exchangeValidation) && transferType === "Transfer to Account" && (
+                    <div className="row">
+                        <div
+                            className="column callout alert"
+                            style={{ margin: '0 15px 30px' }}
+                        >
+                            {tt("transfer_jsx.exchange_misspelling")}
+                        </div>
+                    </div>
+                )}
+
+                {(this.state.toggleExchangeRender || this.state.exchangeValidation) && (
+                    <div className="row">
+                        <div className="column toggle_container">
+                            <span>
+                                {tt("transfer_jsx.toggle_exchange_message")}
+                            </span>
+                            <label className="switch">
+                                <input
+                                    name="toggle_check"
+                                    type="checkbox"
+                                    checked={toggle_check}
+                                    ref="toggle_check"
+                                    onChange={this.handleToggleChange}
+                                />
+                                <span className="slider round" />
+                            </label>
                         </div>
                     </div>
                 )}
@@ -606,6 +777,7 @@ class TransferForm extends Component {
                                     disabled={
                                         submitting ||
                                         !valid ||
+                                        ((this.state.toggleExchangeRender || this.state.exchangeValidation) && !toggle_check) ||
                                         transferAsyncValidationLock > 0
                                     }
                                     className="button"

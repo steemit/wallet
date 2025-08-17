@@ -160,6 +160,7 @@
 - <a href="#What_are_my_different_keys_for">What are my different keys for?</a>
 - <a href="#What_do_I_do_if_I_lost_my_password_keys">What do I do if I lost my password/keys?</a>
 - <a href="#Are_my_STEEM_and_Steem_Dollar_tokens_insured_in_the_event_of_a_hack_or_if_someone_takes_over_my_account">Are my STEEM and Steem Dollar tokens insured in the event of a hack or if someone takes over my account?</a>
+- <a href="#What_is_a_recovery_account">What is a recovery account?</a>
 - <a href="#What_should_I_do_if_I_discover_that_someone_hacked_my_account">What should I do if I discover that someone hacked my account?</a>
 - <a href="#How_does_the_stolen_account_recovery_process_work">How does the stolen account recovery process work?</a>
 - <a href="#How_do_I_report_a_security_vulnerability">How do I report a security vulnerability?</a>
@@ -237,7 +238,7 @@ You can earn digital tokens on Steemit by:
 
 **Voting and curating** - If you discover a post and upvote it before it becomes popular, you can earn a curation reward. The reward amount will depend on the amount of Steem Power you have.
 
-**Purchasing** - Users can purchase STEEM or Steem Dollar tokens directly through their Steemit wallet using bitcoin, Ether, or BitShares tokens. They are also available from other markets and exchanges including [Binance](https://www.binance.com/en/trade/STEEM_USDT), [UpBit](https://upbit.com/exchange?code=CRIX.UPBIT.KRW-STEEM), [Bithumb](https://www.bithumb.com/react/trade/order/STEEM-KRW), [HTX](https://www.htx.com/trade/steem_usdt/), [Poloniex](https://poloniex.com/zh-CN/trade/STEEM_TRX), [MEXC](https://www.mexc.com/exchange/STEEM_USDT), [Gate.io](https://www.gate.io/zh/trade/STEEM_USDT), [Bingx](https://bingx.com/en/spot/STEEMUSDT/).
+**Purchasing** - Users can purchase STEEM or Steem Dollar tokens directly through their Steemit wallet using bitcoin, Ether, or BitShares tokens. They are also available from other markets and exchanges including [Binance](https://www.binance.com/), [Bithumb](https://www.bithumb.com/), [BitShares](https://wallet.bitshares.org/), [Bittrex](https://bittrex.com), [Changelly](https://changelly.com), [GOBADA](https://www.gobaba.com/), [HitBTC](https://hitbtc.com/), [Huobi](https://www.huobi.pro/), [LocalBitcoinCash](https://www.localbitcoincash.org/), [Poloniex](https://poloniex.com), [Shapeshift.io](https://shapeshift.io), [UpBit](https://upbit.com/), and [Yensesa](https://yensesa.com).
 
 **Vesting** - STEEM tokens that are powered up to Steem Power will earn a small amount of new tokens for holding.
 
@@ -1178,6 +1179,18 @@ It is strongly recommended that you store an offline copy of your password somew
 No, liquid tokens can not be taken back if stolen or sent to the wrong account.
 
 If your tokens are in Steem Power, it is impossible for a hacker to take out more than 1/4 per week. If your tokens are in savings, there is a three-day wait period for them to become transferable.
+
+<a href="#Table_of_Contents_Security">^</a>
+## <span id="What_is_a_recovery_account">What is a recovery account?</span>
+
+On the Steem blockchain, a recovery account is a designated authority that holds the exclusive ability to initiate the ownership recovery process for a user account in the event of unauthorized access or key compromise. Each Steem account is associated with exactly one recovery account at any given time.
+By default, when a new account is created, the recovery account is assigned to the account that performed the creation operation. For users who register through steemit.com, the default recovery account is @steem, which is operated by Steemit Inc.
+
+The recovery account plays a critical role in the blockchain-level recovery protocol. If an account's owner authority is changed without the user's consent, the recovery account may initiate an account recovery transaction. This is only possible if the request is submitted within the defined 30-day window and the account owner can provide a previously valid owner key from the past 30 days.
+
+Users are encouraged to change their recovery account to either a trusted third party or a separate account they personally control. This provides an additional layer of protection by ensuring that account recovery capabilities remain in secure and trustworthy hands.
+
+It is important to note that a recovery account does not have access to the account's private keys, funds, or posting capabilities. Its role is limited to initiating the recovery process under conditions defined by the Steem protocol.
 
 <a href="#Table_of_Contents_Security">^</a>
 ## <span id="What_should_I_do_if_I_discover_that_someone_hacked_my_account">What should I do if I discover that someone hacked my account?</span>

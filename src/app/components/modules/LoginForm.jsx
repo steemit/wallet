@@ -24,6 +24,10 @@ import { APP_URL } from 'app/client_config';
 import { PrivateKey, PublicKey } from '@steemit/steem-js/lib/auth/ecc';
 import { SIGNUP_URL } from 'shared/constants';
 
+const OPERATIONS_AND_KEYS = {
+    change_recovery_account: 'owner',
+}
+
 class LoginForm extends Component {
     static propTypes = {
         // Steemit.
@@ -396,8 +400,12 @@ class LoginForm extends Component {
                     <div>
                         <div className="info">
                             {tt(
-                                'loginform_jsx.this_operation_requires_your_key_or_master_password',
-                                { authType }
+                                OPERATIONS_AND_KEYS[opType]
+                                    ? 'loginform_jsx.this_operation_requires_your_private_key'
+                                    : 'loginform_jsx.this_operation_requires_your_key_or_master_password',
+                                {
+                                    authType: OPERATIONS_AND_KEYS[opType] || authType,
+                                }
                             )}
                         </div>
                     </div>

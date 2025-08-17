@@ -54,6 +54,7 @@ export const userWatches = [
     takeLatest(userActions.GET_WITHDRAW_ROUTES, getWithdrawRoutes),
     takeLatest(userActions.LOGIN_ERROR, loginError),
     takeLatest(userActions.LOAD_SAVINGS_WITHDRAW, loadSavingsWithdraw),
+    takeLatest(userActions.REFRESH_ACCOUNT_REQUEST, refreshAccountSaga),
     takeLatest(userActions.ACCEPT_TERMS, function*() {
         try {
             yield call(acceptTos);
@@ -501,6 +502,15 @@ function* getFeatureFlags(username, posting_private) {
         yield put(appActions.receiveFeatureFlags(flags));
     } catch (error) {
         // Do nothing; feature flags are not ready yet. Or posting_private is not available.
+    }
+}
+
+function* refreshAccountSaga(action) {
+    try {
+        const { username } = action.payload;
+        const account = yield call(getAccount, username.username, true);
+    } catch (error) {
+        console.log(error);
     }
 }
 
