@@ -791,7 +791,7 @@ You can exchange them. Visit the internal Market, found in the main menu. There 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="What_is_a_MVEST">What is a MVEST?</span>
 
-A VEST is a unit of measurement for Steem Power. A MVEST is one million VESTS. The amount of Steem Power in one MVEST can be found on <a href="https://steemdb.io/">steemdb.io</a> or <a href="https://blazescanner.org/">Blaze Scanner</a> as `steem_per_mvests`. or  <a href="https://steemscan/">SteemScan</a>
+A VEST is a unit of measurement for Steem Power. A MVEST is one million VESTS. The amount of Steem Power in one MVEST can be found on <a href="https://steemdb.io/">steemdb.io</a> or <a href="https://blazescanner.org/">Blaze Scanner</a> as `steem_per_mvests`. or  <a href="https://steemscan.com/">SteemScan</a>
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="Can_I_sell_goods_and_services_on_Steemit">Can I sell goods and services on Steemit?</span>
