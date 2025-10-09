@@ -456,16 +456,9 @@ class UserKeys extends Component {
                                     {tt('userkeys_jsx.public_key.desc2')}{' '}
                                     <a
                                         className="public-keys__link"
-                                        href={`https://blazescanner.org/account/${account.get('name')}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                    >
-                                        Blazescanner
-                                    </a>
-                                    or
-                                    <a
-                                        className="public-keys__link"
-                                        href={`https://steemscan.com/@${account.get('name')}`}
+                                        href={`https://steemscan.com/@${account.get(
+                                            'name'
+                                        )}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                     >
