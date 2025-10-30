@@ -377,3 +377,46 @@
   margin: 0 auto;
   padding-bottom: 2px;
 }
+
+// /* ===========================
+// Voting buttons: DISABLED ONLY
+// =========================== */
+
+// .Voting__button-up.disabled:not(.Voting__button--upvoted) {
+//   path {
+//     @include themify($themes) { fill: #a5a5a5; }
+//   }
+//   circle {
+//     @include themify($themes) {
+//       fill: transparent;
+//       stroke: #a5a5a5;
+//     }
+//   }
+//   a { pointer-events: none; }
+//   & a:hover {
+//     path { @include themify($themes) { fill: #a5a5a5; } }
+//     circle { @include themify($themes) { fill: transparent; stroke: #a5a5a5; } }
+//   }
+// }
+
+// .Voting__button--upvoted.disabled {
+
+//   circle {
+//     @include themify($themes) {
+//       fill: #a5a5a5;
+//       stroke: #a5a5a5;
+//     }
+//   }
+
+//   path { fill: #000; }
+//   a { pointer-events: none; }
+//   & a:hover {
+//     path { fill: #000; }
+//     circle {
+//       @include themify($themes) {
+//         fill: #a5a5a5;
+//         stroke: #a5a5a5;
+//       }
+//     }
+//   }
+// }

@@ -86,7 +86,7 @@ export function* getWithdrawRoutes(action) {
 
 const highSecurityPages = [
     /\/market/,
-    /\/@.+\/(transfers|permissions|password|communities|delegations)/,
+    /\/@.+\/(transfers|permissions|password|communities|delegations|proposals|witnesses)/,
     /\/~witnesses/,
     /\/proposals/,
 ];

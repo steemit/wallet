@@ -272,7 +272,6 @@ Don't get discouraged if you don't earn much at first. Keep up the good work!
 ## <span id="Users_to_Follow">Users to Follow</span>
 
 - @steemitblog - Official Steemit Announcements
-- @ned - Ned Scott, CEO and Co-Founder of Steemit, Inc.
 
 <a href="#Table_of_Contents">^</a>
 ## <span id="Other_Resources">Other Resources</span>
@@ -281,8 +280,8 @@ Don't get discouraged if you don't earn much at first. Keep up the good work!
 - [Bluepaper](https://steem.io/steem-bluepaper.pdf) - Explanation of how the platform works
 - [The Steem Whitepaper](https://steem.io/SteemWhitePaper.pdf) - Technical details of the Steem blockchain
 - [Apps Built on Steem] will come up soon  - Directory of apps, sites and tools built by Steem community
-- [Steem Blockchain Explorer](https://Steemdb.io/) - Analysis pages for the Steem blockchain data
-- [Steem Blockchain Explorer](https://steemscan.com/) - Analysis pages for the Steem blockchain data
+- [SteemDB](https://Steemdb.io/) - Analysis pages for the Steem blockchain data
+- [SteemScan](https://steemscan.com/) - Analysis pages for the Steem blockchain data
 
 <a href="#Table_of_Contents">^</a>
 ## <span id="Get_Help">Get Help</span>

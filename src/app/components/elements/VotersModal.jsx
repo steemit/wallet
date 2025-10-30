@@ -183,7 +183,7 @@ class VotersModal extends React.Component {
     };
 
     handleResize = () => {
-        this.setState({ isSmallScreen: window.innerWidth <= 425 });
+        this.setState({ isSmallScreen: window.innerWidth <= 650 });
     };
 
     updateVotersAccount = res => {
@@ -260,7 +260,7 @@ class VotersModal extends React.Component {
             <div className="voters-modal__container">
                 <ReactModal
                     isOpen={open_modal}
-                    onAfterOpen={() => open_modal}
+                    onAfterOpen={open_modal}
                     onRequestClose={close_modal}
                     className={
                         nightmodeEnabled
@@ -330,7 +330,7 @@ class VotersModal extends React.Component {
                                 />
                             </div>
                             <div className="content">
-                                <div className="content__row">
+                                <div className={`content__row content__row--proposal_votes ${nightmodeEnabled ? 'theme-dark' : ''}`}>
                                     {isSmallScreen ? (
                                         <SmallTable
                                             sortData={this.sortData}
