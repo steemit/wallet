@@ -85,6 +85,7 @@
         "previous": "Previous",
         "price": "Price",
         "print": "Print",
+        "proposals": "Proposals",
         "promote": "Promote",
         "promoted": "Promoted",
         "re": "RE",
@@ -597,7 +598,9 @@
         "witness_proxy_current": "Your current proxy is",
         "witness_proxy_set": "Set proxy",
         "witness_proxy_clear": "Clear proxy",
-        "proxy_update_error": "Your proxy was not updated"
+        "proxy_update_error": "Your proxy was not updated",
+        "witnesses_description": "Witnesses are trusted accounts that run and secure the Steem blockchain.",
+        "witnesses_learn_more": "<a href=\"/faq.html#What_are_Steem_witnesses\">Learn more in the FAQ.</a>"
     },
     "votesandcomments_jsx": {
         "no_responses_yet_click_to_respond":
@@ -721,7 +724,11 @@
             "This is a price feed conversion. The 3.5 day delay is necessary to prevent abuse from gaming the price feed average.",
         "convert_to_LIQUID_TOKEN": "Convert to %(LIQUID_TOKEN)s",
         "DEBT_TOKEN_will_be_unavailable":
-            "The conversion process takes 3.5 days to complete and cannot be canceled once initiated. During this period, the specified %(DEBT_TOKEN)s (SBD) amount becomes immediately unavailable. The final amount of STEEM received is not fixed, as it is determined by the median witness price feed averaged over the entire 3.5-day window. As a result, conversions carry risk, particularly during periods of price volatility. Due to this, exercising due diligence before initiating a conversion is strongly advised."
+            "The conversion process takes 3.5 days to complete and cannot be canceled once initiated. During this period, the specified %(DEBT_TOKEN)s (SBD) amount becomes immediately unavailable. The final amount of STEEM received is not fixed, as it is determined by the median witness price feed averaged over the entire 3.5-day window. As a result, conversions carry risk, particularly during periods of price volatility. Due to this, exercising due diligence before initiating a conversion is strongly advised.",
+        "current_conversions": "Current Conversions",
+        "no_conversion_data": "No conversion data available.",
+        "id": "ID",
+        "request_id": "Request ID"
     },
     "tips_js": {
         "liquid_token":
@@ -1040,6 +1047,8 @@
         "power_down": "Power Down",
         "delegate": "Delegate",
         "advanced_routes": "Advanced Routes",
+        "set_advanced_routes": "Set Withdraw Route",
+        "advanced_routes_visit_faq":"<a href=\"/faq.html#What_is_a_withdraw_route\">Set or update withdraw routes. Visit the FAQ for more details.</a>",
         "route_settings": "Route Settings",
         "market": "Market",
         "convert_to_LIQUID_TOKEN": "Convert to %(LIQUID_TOKEN)s",
@@ -1055,6 +1064,8 @@
         "estimated_account_value": "Estimated Account Value",
         "next_power_down_is_scheduled_to_happen":
             "The next power down is scheduled to happen",
+        "routed_to_single": "100%% routed to the following account: ",
+        "view_all_withdraw_routes": "View all withdraw routes",
         "transfers_are_temporary_disabled": "Transfers are temporary disabled.",
         "history": "HISTORY",
         "redeem_rewards": "Redeem Rewards (Transfer to Balance)",
@@ -1062,6 +1073,26 @@
         "just_mortgage": "Staking by JUST",
         "incorrect_account_format": "Incorrect account format",
         "confirm_route_setup": "Are you sure you want to set up %(percent)s%% of your Steem Power withdrawal to go to @%(account)s?"
+    },
+    "advanced_routes": {
+      "from": "From",
+      "to": "To",
+      "percent": "Percentage",
+      "current_routes": "Current Withdraw Routes (%(accounts_number)s left)",
+      "current_withdraw_route": "Current Withdraw Routes",
+      "account": "Account",
+      "percentage": "Percentage",
+      "receive": "Receive As",
+      "receive_amount": "Receive",
+      "remove": "Remove",
+      "steem_power": "Steem Power",
+      "steem": "STEEM",
+      "no_routes": "No withdraw routes are set.",
+      "not_remaining_routes": "No additional routes can be added due to a blockchain limitation.",
+      "not_remaining_percentage": "All 100%% has already been distributed. No additional routes can be added.",
+      "withdraw_routes_detected": "Active withdraw routes detected on your account. Review now to prevent assets loss.",
+      "take_action": "Take Action",
+      "acknowledge_routes": "I have read and acknowledge the current withdraw routes."
     },
     "powerdown_jsx": {
         "power_down": "Power Down",
@@ -1074,6 +1105,12 @@
         "warning":
             "Leaving less than %(AMOUNT)s %(VESTING_TOKEN)s in your account is not recommended and can leave your account in a unusable state.",
         "error": "Unable to power down (ERROR: %(MESSAGE)s)"
+    },
+    "powerdown_alert": {
+      "message": "%(percent)s%% of your Steem Power (%(amount)s SP) is currently being powered down.",
+      "high_risk_label": "High risk",
+      "learn_more": "Learn more",
+      "aria_label": "Power-down alert"
     },
     "checkloginowner_jsx": {
         "your_password_permissions_were_reduced":

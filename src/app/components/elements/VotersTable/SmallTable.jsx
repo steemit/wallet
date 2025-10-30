@@ -199,21 +199,18 @@ class SmallTable extends React.Component {
                                     }}
                                 >
                                     <span>
-                                        <Link to={`/@${userInfo.name}`}>
-                                            {userInfo.name}
-                                        </Link>
+                                        <span style={{ fontWeight: 'bold' }}>{`${tt('proposals.voters.account')}:  `}</span>
+                                        <Link to={`/@${userInfo.name}`}>{userInfo.name}</Link>
                                     </span>
+
                                     <span>
-                                        {this.proxyVoteStyle(
-                                            numberWithCommas(
-                                                userInfo.steemPower
-                                            )
-                                        )}
+                                        <span style={{ fontWeight: 'bold' }}>{`${tt('proposals.voters.own_sp')}:  `}</span>
+                                        {this.proxyVoteStyle(numberWithCommas(userInfo.steemPower), ' SP')}
                                     </span>
+
                                     <span>
-                                        {this.proxyVoteStyle(
-                                            numberWithCommas(userInfo.proxySP)
-                                        )}
+                                        <span style={{ fontWeight: 'bold' }}>{`${tt('proposals.voters.proxy_sp')}:  `}</span>
+                                        {this.proxyVoteStyle(numberWithCommas(userInfo.proxySP), ' SP')}
                                     </span>
                                     <span className="influence-cell">
                                         <span className="proxied_to">

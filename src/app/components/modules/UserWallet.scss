@@ -155,3 +155,36 @@
       }
   }
 }
+
+.UserWallet__warningbox--danger {
+ @include themify($themes) {
+   background-color: themed('backgroundColorDanger');
+   border: themed('borderDanger');
+   color: themed('textColorOnDanger');
+ }
++
+ .UserWallet__warningbox__text {
+   @include themify($themes) {
+     color: themed('textColorOnDanger');
+   }
+ }
++
+ .UserWallet__warningbox__buttons {
+   .button.hollow {
+     @include themify($themes) {
+       border: 1px solid themed('textColorOnDanger');
+       color: themed('textColorOnDanger');
+     }
+     &:hover,
+     &:focus {
+       @include themify($themes) {
+         border-color: themed('textColorOnDanger');
+         color: themed('textColorOnDanger');
+       }
+       text-shadow: none;
+       box-shadow: none;
+       background: rgba(255, 255, 255, 0.12);
+     }
+   }
+ }
+}

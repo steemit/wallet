@@ -19,6 +19,7 @@ export const UPDATE_PRICES = 'transaction/UPDATE_PRICES';
 export const SET_PRICES = 'transaction/SET_PRICES';
 // Saga-related
 export const RECOVER_ACCOUNT = 'transaction/RECOVER_ACCOUNT';
+export const FETCH_ACCOUNT_WITNESS_VOTES = 'transaction/FETCH_ACCOUNT_WITNESS_VOTES';
 const defaultState = fromJS({
     operations: [],
     status: { key: '', error: false, busy: false },
@@ -269,5 +270,10 @@ export const updatePrices = () => ({
 
 export const setPrices = payload => ({
     type: SET_PRICES,
+    payload,
+});
+
+export const fetchAccountWitnessVotes = payload => ({
+    type: FETCH_ACCOUNT_WITNESS_VOTES,
     payload,
 });

@@ -53,6 +53,7 @@
     gap: 2rem;
     margin-left: inherit;
     padding-top: 1rem;
+    margin-bottom: 2rem;
 }
 
 .row.filter-menu label{
@@ -71,13 +72,13 @@
     position: relative;
     cursor: pointer;
 }
-  
+
 .OutgoingDelegations th span,
 .ExpiringDelegations th span {
     float: right;
     margin-left: 10px; /* Ajusta el margen izquierdo según tus necesidades */
 }
-  
+
 .OutgoingDelegations th::after,
 .ExpiringDelegations th::after {
     content: "";
@@ -107,7 +108,7 @@
 .text--capitalize {
     text-transform: lowercase;
 }
-  
+
 .text--capitalize:first-letter {
     text-transform: uppercase;
 }

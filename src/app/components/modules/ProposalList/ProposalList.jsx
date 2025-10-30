@@ -158,7 +158,7 @@ class ProposalList extends React.Component {
         const proposalCount = proposals.length;
 
         return (
-            <div className="ProposalsList">
+            <div className="ProposalsList column">
                 <ProposalsHeader
                     status={status}
                     orderBy={orderBy}
@@ -230,6 +230,7 @@ class ProposalList extends React.Component {
                                     voteOnProposal={voteOnProposal}
                                     proposal={proposal}
                                     currentUser={this.props.currentUser}
+                                    walletSectionAccount={this.props.walletSectionAccount}
                                     removeProposalById={
                                         this.props.removeProposalById
                                     }

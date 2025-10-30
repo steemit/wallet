@@ -22,6 +22,7 @@ class ConvertToSteem extends React.Component {
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'ConvertToSteem');
         this.state = {
             toggle_check: false,
+            errorMessage: undefined,
         };
         this.initForm(props);
     }
@@ -73,10 +74,10 @@ class ConvertToSteem extends React.Component {
             this.setState({ loading: false });
             if (onClose) onClose();
         };
-        const error = () => {
-            this.setState({ loading: false });
+        const error = (msg_error) => {
+            this.setState({ loading: false,  errorMessage: String(msg_error) });
         };
-        this.setState({ loading: true });
+        this.setState({ errorMessage: undefined, loading: true });
 
         convert(currentUser, amount.value, success, error);
     };
@@ -103,7 +104,7 @@ class ConvertToSteem extends React.Component {
 
     render() {
         const { onClose, currentUser, sbd_balance } = this.props;
-        const { loading, amount, marketRate } = this.state;
+        const { loading, amount, marketRate, errorMessage } = this.state;
         const { submitting, valid, handleSubmit } = this.state.convertToSteem;
 
         const { prices } = this.props;
@@ -276,6 +277,13 @@ class ConvertToSteem extends React.Component {
                             </div>
                             ) : null}
                     </div>
+                    {errorMessage && (
+                        <div className="row">
+                            <div className="column small-12 callout alert">
+                                {errorMessage}
+                            </div>
+                        </div>
+                    )}
                     <div className="row">
                         <div className="column toggle_container">
                             <span>

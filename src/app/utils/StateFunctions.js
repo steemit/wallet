@@ -124,6 +124,13 @@ export function isFetchingOrRecentlyUpdated(global_status, order, category) {
     return false;
 }
 
+export function getRedirectPagePath(location) {
+    if (location.match(/^\/(@[\w\.\d-]+)\/(witnesses)\/?$/)) {
+        return { location: '/~witnesses', search_account: location.replace('/witnesses', '/transfers') };
+    }
+    return { location, search_account: false  };
+}
+
 export function contentStats(content) {
     if (!content) return {};
     if (!(content instanceof Map)) content = fromJS(content);
