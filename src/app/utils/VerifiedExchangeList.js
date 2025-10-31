@@ -2,7 +2,6 @@ const list = `
 bittrex
 blocktrades
 changelly
-deepcrypto8
 gopax-deposit
 hitbtc-exchange
 poloniex
@@ -17,7 +16,6 @@ gateiodeposit
 bingxsteem
 probitsteem
 coinexofficial
-whitebit
 rudex
 cold.dunamu
 binance-hot2
@@ -31,7 +29,6 @@ hot5.dunamu
 hot1.dunamu
 polopw-01
 htx-s8vznt82
-bittrex
 user.dunamu
 deepcrypto8
 bithumbrecv1

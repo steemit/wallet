@@ -87,6 +87,7 @@
 - <a href="#How_do_I_get_more_STEEM_Power">How do I get more STEEM Power?</a>
 - <a href="#How_long_does_it_take_STEEM_or_STEEM_Power_that_I_purchased_to_show_up_in_my_account">How long does it take STEEM or STEEM Power that I purchased to show up in my account?</a>
 - <a href="#What_is_powering_up_and_down">What is powering up and down?</a>
+- <a href="#What_is_a_withdraw_route">What is a withdraw route?</a>
 - <a href="#What_do_the_dollar_amounts_for_pending_payouts_represent">What do the dollar amounts for pending payouts represent?</a>
 - <a href="#Will_1_Steem_Dollar_always_be_worth__1_00_USD">Will 1 Steem Dollar always be worth $1.00 USD?</a>
 - <a href="#How_do_Steem_Dollar_to_STEEM_conversions_work">How do Steem Dollar to STEEM conversions work?</a>
@@ -206,7 +207,7 @@ Steemit has redefined social media by building a living, breathing, and growing 
 <a href="#Table_of_Contents_General">^</a>
 ## <span id="How_does_Steemit_work">How does Steemit work?</span>
 
-Steemit.com is one of the many websites (including [Busy.org](https://busy.org/), [DTube](https://d.tube/), and [Utopian.io](https://utopian.io/)) that are powered by the Steem blockchain and STEEM cryptocurrency. All of these websites read and write content to the Steem blockchain, which stores the content in an immutable blockchain ledger, and rewards users for their contributions with digital tokens called STEEM.
+Steemit.com is one of the many websites (including [SteemPro](https://www.steempro.com/), [SteemX](https://steemx.org/), and [UPVU](https://upvu.org/)) that are powered by the Steem blockchain and STEEM cryptocurrency. All of these websites read and write content to the Steem blockchain, which stores the content in an immutable blockchain ledger, and rewards users for their contributions with digital tokens called STEEM.
 
 Every day, the Steem blockchain mints new STEEM tokens and adds them to a community's "rewards pool". These tokens are then awarded to users for their contributions, based on the votes that their content receives. Users who hold more tokens in their account as "Steem Power" will get to decide where a larger portion of the rewards pool is distributed.
 
@@ -238,7 +239,33 @@ You can earn digital tokens on Steemit by:
 
 **Voting and curating** - If you discover a post and upvote it before it becomes popular, you can earn a curation reward. The reward amount will depend on the amount of Steem Power you have.
 
-**Purchasing** - Users can purchase STEEM or Steem Dollar tokens directly through their Steemit wallet using bitcoin, Ether, or BitShares tokens. They are also available from other markets and exchanges including [Binance](https://www.binance.com/), [Bithumb](https://www.bithumb.com/), [BitShares](https://wallet.bitshares.org/), [Bittrex](https://bittrex.com), [Changelly](https://changelly.com), [GOBADA](https://www.gobaba.com/), [HitBTC](https://hitbtc.com/), [Huobi](https://www.huobi.pro/), [LocalBitcoinCash](https://www.localbitcoincash.org/), [Poloniex](https://poloniex.com), [Shapeshift.io](https://shapeshift.io), [UpBit](https://upbit.com/), and [Yensesa](https://yensesa.com).
+**Purchasing** – Users can purchase **STEEM** or **Steem Dollar (SBD)** tokens directly through their **Steemit wallet** by buying them on exchanges and then trading in the internal market, or by directly buying them from exchanges.
+
+The **current exchanges that support STEEM and SBD** include:
+
+| #  | Exchange      | Supported Tokens | Link |
+|----|---------------|------------------|------|
+| 1  | HTX (Huobi)   | STEEM / **SBD**  | [htx.com](https://www.htx.com/) |
+| 2  | Poloniex      | STEEM            | [poloniex.com](https://poloniex.com/) |
+| 3  | CoinUp.io     | STEEM           | [coinup.io](https://coinup.io/) |
+| 4  | MEXC          | STEEM            | [mexc.com](https://www.mexc.com/) |
+| 5  | Binance       | STEEM            | [binance.com](https://www.binance.com/) |
+| 6  | WhiteBIT      | STEEM            | [whitebit.com](https://whitebit.com/) |
+| 7  | Upbit         | STEEM            | [upbit.com](https://upbit.com/) |
+| 8  | BitKan        | STEEM            | [bitkan.com](https://bitkan.com/) |
+| 9  | Bithumb       | STEEM            | [bithumb.com](https://www.bithumb.com/) |
+| 10 | WEEX          | STEEM            | [weex.com](https://www.weex.com/) |
+| 11 | Gate          | STEEM            | [gate.io](https://www.gate.io/) |
+| 12 | Koinbay       | STEEM            | [koinbay.com](https://koinbay.com/) |
+| 13 | Bitexen       | STEEM            | [bitexen.com](https://www.bitexen.com/) |
+| 14 | ZKE           | STEEM            | [zkex.com](https://www.zke.com/) |
+| 15 | DigiFinex     | STEEM            | [digifinex.com](https://www.digifinex.com/) |
+| 16 | ProBit Global | STEEM            | [probit.com](https://www.probit.com/) |
+| 17 | CoinEx        | STEEM            | [coinex.com](https://www.coinex.com/) |
+| 18 | ChangeNOW     | STEEM            | [changenow.io](https://changenow.io/) |
+| 19 | CoinDCX       | STEEM            | [coindcx.com](https://coindcx.com/) |
+| 20 | ONUS Pro      | STEEM            | [onus.pro](https://goonus.io/) |
+| 21 | Pionex        | STEEM            | [pionex.com](https://www.pionex.com/) |
 
 **Vesting** - STEEM tokens that are powered up to Steem Power will earn a small amount of new tokens for holding.
 
@@ -270,7 +297,7 @@ It is best to have realistic expectations, without focusing on rewards when you 
 
 Click on the "Sign Up" link at the top of steemit.com to get started.
 
-You will be asked to enter your email address and verify your phone number. After your information has been verified, you will be added to the waiting list to receive an account. You will be notified via email once your account is approved.
+You will be asked to enter your email address and verify your phone number. After your information has been verified, you will be added to receive an account. You will be notified via email once your account is approved.
 
 After you receive notification that your account is approved, click on the link in the email to finish the account creation process. **Be sure to save and backup your username and password.** It is very important that you do not lose your password. There is no way to recover your password or access your account if it is lost. Once your password is saved and backed up, click on the "Create Account" button to create the account.
 
@@ -635,21 +662,29 @@ Out of the new tokens that are generated:
 
 STEEM and SBD are listed on the following exchanges:
 
-| Exchange        | STEEM           | SBD  |
-| ------------- |:-------------:| -----:|
-| [Binance](https://www.binance.com/)      | Y | N |
-| [Bithumb](https://www.bithumb.com/)  | Y | N |
-| [BitShares](https://wallet.bitshares.org/)      | Y      |   Y |
-| [Bittrex](https://bittrex.com) | Y      |    Y |
-| [Changelly](https://changelly.com) | Y      |    N |
-| [GOBADA](https://www.gobaba.com/)  | Y | N |
-| [HitBTC](https://hitbtc.com/) | Y      |    Y |
-| [Huobi](https://www.huobi.pro/)  | Y | N |
-| [LocalBitcoinCash](https://www.localbitcoincash.org/)  | Y | N |
-| [Poloniex](https://poloniex.com) | Y      |    Y |
-| [Shapeshift.io](https://shapeshift.io) | Y      |    N |
-| [UpBit](https://upbit.com/) | Y      |    Y |
-| [Yensesa](https://yensesa.com) | Y      |    Y |
+| #  | Exchange      | Supported Tokens | Link |
+|----|---------------|------------------|------|
+| 1  | HTX (Huobi)   | STEEM / **SBD**  | [htx.com](https://www.htx.com/) |
+| 2  | Poloniex      | STEEM            | [poloniex.com](https://poloniex.com/) |
+| 3  | CoinUp.io     | STEEM            | [coinup.io](https://coinup.io/) |
+| 4  | MEXC          | STEEM            | [mexc.com](https://www.mexc.com/) |
+| 5  | Binance       | STEEM            | [binance.com](https://www.binance.com/) |
+| 6  | WhiteBIT      | STEEM            | [whitebit.com](https://whitebit.com/) |
+| 7  | Upbit         | STEEM            | [upbit.com](https://upbit.com/) |
+| 8  | BitKan        | STEEM            | [bitkan.com](https://bitkan.com/) |
+| 9  | Bithumb       | STEEM            | [bithumb.com](https://www.bithumb.com/) |
+| 10 | WEEX          | STEEM            | [weex.com](https://www.weex.com/) |
+| 11 | Gate          | STEEM            | [gate.io](https://www.gate.io/) |
+| 12 | Koinbay       | STEEM            | [koinbay.com](https://koinbay.com/) |
+| 13 | Bitexen       | STEEM            | [bitexen.com](https://www.bitexen.com/) |
+| 14 | ZKE           | STEEM            | [zkex.com](https://www.zke.com/) |
+| 15 | DigiFinex     | STEEM            | [digifinex.com](https://www.digifinex.com/) |
+| 16 | ProBit Global | STEEM            | [probit.com](https://www.probit.com/) |
+| 17 | CoinEx        | STEEM            | [coinex.com](https://www.coinex.com/) |
+| 18 | ChangeNOW     | STEEM            | [changenow.io](https://changenow.io/) |
+| 19 | CoinDCX       | STEEM            | [coindcx.com](https://coindcx.com/) |
+| 20 | ONUS Pro      | STEEM            | [onus.pro](https://goonus.io/) |
+| 21 | Pionex        | STEEM            | [pionex.com](https://www.pionex.com/) |
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="What_is_the_reward_pool">What is the reward pool?</span>
@@ -721,25 +756,18 @@ The price of STEEM is based on the supply and demand of the token, as determined
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="How_do_I_get_more_STEEM_Power">How do I get more Steem Power?</span>
 
-With STEEM tokens in your wallet, click "Power Up" to turn them into Steem Power. If you have Steem Dollars, you can convert them to STEEM from your wallet, and then power up the STEEM.
+With **STEEM tokens** in your wallet, you can click **“Power Up”** to convert them into **Steem Power**.  
+If you hold **Steem Dollars (SBD)**, you may first convert them into **STEEM** within your wallet and then power up the STEEM, or alternatively, you can directly purchase STEEM through the internal market. If you do not already have STEEM or Steem Dollars in your wallet, they can be obtained from the exchanges that support these tokens.
 
-If you don’t already have STEEM or Steem Dollars in your wallet, you can purchase them using bitcoin (BTC), Ether (ETH), Litecoin (LTC), or BitShares (BTS) tokens. You may purchase BTC on various exchanges, such as Coinbase.com or Localbitcoins.com.
+Bitcoin can also be exchanged for **STEEM** on external markets such as [Binance](https://www.binance.com/), [Upbit](https://upbit.com/), [CoinEx](https://www.coinex.com/), [Poloniex](https://poloniex.com/), and [ChangeNOW](https://changenow.io/).
 
-To buy:
-- Click "Buy Steem" from the main menu in the top right corner of steemit.com, or from your wallet.
-- Select the currency to deposit, and enter the amount of that currency you wish to use.
-- Enter your Steemit account name (without the @) for "Your receive address".
-- Click the "Get Deposit Address" button.
-- Send the currency to the provided address.
-
-bitcoin can also be exchanged for STEEM on external markets such as [Binance](https://www.binance.com/), [Bithumb](https://www.bithumb.com/), [BitShares](https://wallet.bitshares.org/), [Bittrex](https://bittrex.com), [Changelly](https://changelly.com), [GOBADA](https://www.gobaba.com/), [HitBTC](https://hitbtc.com/), [Huobi](https://www.huobi.pro/), [LocalBitcoinCash](https://www.localbitcoincash.org/), [Poloniex](https://poloniex.com), [Shapeshift.io](https://shapeshift.io), [UpBit](https://upbit.com/), and [Yensesa](https://yensesa.com).
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="How_long_does_it_take_STEEM_or_STEEM_Power_that_I_purchased_to_show_up_in_my_account">How long does it take STEEM or Steem Power that I purchased to show up in my account?</span>
 
 Transactions on the Steem blockchain typically only take about three seconds to process, but when you are purchasing the STEEM tokens using bitcoin or some other token, then the transaction must wait for the transaction to be confirmed on the other network. This can take several hours, and sometimes even days.    
 
-If you paid using bitcoin, the third party website <a href="https://bitcoinfees.21.co/">bitcoinfees.21.co</a> can estimate the approximate wait time of the transaction based on the fees that were paid. The third party website <a href="https://blockchain.info/">blockchain.info</a> will lookup the fees that were paid on a specific blockchain transaction.
+If you paid using bitcoin, the third party website <a href="https://btc.network/estimate">btc.network</a> can estimate the approximate wait time of the transaction based on the fees that were paid. The third party website <a href="https://blockchain.info/">blockchain.info</a> will lookup the fees that were paid on a specific blockchain transaction.
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="What_is_powering_up_and_down">What is powering up and down?</span>
@@ -747,6 +775,13 @@ If you paid using bitcoin, the third party website <a href="https://bitcoinfees.
 **Powering up** - If you have STEEM tokens, you can Power Up to Steem Power to get more voting influence on posts and comments. Having more Steem Power also increases the amount of curation rewards and new vested tokens that you can earn. More SP also grants more influence on approving Steem witnesses.
 
 **Powering down** - If you have Steem Power, you can power down to turn it into liquid STEEM over a period of time. The system will transfer 1/4 of your Steem Power to STEEM each week for about one month (4 weeks), starting 1 week from the time it is started. However, you will lose your influence in the network proportionally to how much is powered down, so think about it carefully. Power downs can be stopped at any time.
+
+<a href="#Table_of_Contents_Economics">^</a>
+## <span id="What_is_a_withdraw_route">What is a withdraw route?</span>
+
+A withdraw route on Steem is simply an instruction on your Steem account that tells the blockchain where your weekly power down payouts should go. When Steem Power (SP) is powered down, the withdrawn amount is divided according to the configured routes, if they exist, and each destination may receive either liquid STEEM or additional SP via automatic power up. Users can also remove routes at any time, regardless of whether the power down process is in progress.
+
+The number of permissible routes is defined by the blockchain. The account holder can allocate up to a total of 100% across all routes. If the configured routes sum to 100%, the entire payout is redirected to designated recipients; if the sum is below 100%, the remaining percentage normally returns to the owner’s account as STEEM, unless specified otherwise.
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="What_do_the_dollar_amounts_for_pending_payouts_represent">What do the dollar amounts for pending payouts represent?</span>
@@ -791,7 +826,7 @@ You can exchange them. Visit the internal Market, found in the main menu. There 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="What_is_a_MVEST">What is a MVEST?</span>
 
-A VEST is a unit of measurement for Steem Power. A MVEST is one million VESTS. The amount of Steem Power in one MVEST can be found on <a href="https://steemdb.io/">steemdb.io</a> or <a href="https://steemscan.com/">SteemScan</a>
+A VEST is a unit of measurement for Steem Power. A MVEST is one million VESTS. The amount of Steem Power in one MVEST can be found on <a href="https://steemscan.com/">steemscan.com</a> as `steem_per_mvests`. or <a href="https://steemdb.io/">steemdb.io</a> 
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="Can_I_sell_goods_and_services_on_Steemit">Can I sell goods and services on Steemit?</span>
@@ -809,15 +844,6 @@ It is recommended that you withdraw a small amount first, to verify it works bef
 
 #### Sell Steem Dollars via Poloniex
 https://steemit.com/steemit/@ash/steemit-how-to-sell-steem-dollars-via-poloniex-newbie-friendly
-
-#### Withdraw Steem Dollars to a Bitcoin address
-https://steemit.com/steem-help/@piedpiper/how-to-withdraw-your-steem-dollars-in-less-that-a-minute
-
-#### Convert Steem Dollars to a country’s currency and withdraw to a bank account
-https://steemit.com/tutorial/@beanz/how-to-get-my-usdteemit-money-into-my-bank-account
-
-#### Convert STEEM to many other cryptocurrencies via ShapeShift
-https://steemit.com/steemit/@shapeshiftio/official-announcement-shapeshift-has-added-steem-to-the-exchange
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="Will_I_get_a_1099_from_Steemit">Will I get a 1099 from Steemit?</span>
@@ -867,7 +893,10 @@ Upvotes and downvotes use the same amount of voting power.
 <a href="#Table_of_Contents_Voting_and_Curating">^</a>
 ## <span id="Where_can_I_check_my_voting_power">Where can I check my voting power?</span>
 
-You can view your current voting power using third party tools such as https://steemdb.io/@youraccount or  https://steemscan.com/account/youraccount
+You can view your current voting power using third party tools such as:
+
+https://steemscan.com/account/youraccount  
+https://steemdb.io/@youraccount  
 
 <a href="#Table_of_Contents_Voting_and_Curating">^</a>
 ## <span id="What_determines_how_much_of_the_curation_reward_goes_to_the_author_versus_curators">What determines how much of the curation reward goes to the author versus curators?</span>
@@ -1047,8 +1076,9 @@ Every user has a limited amount of bandwidth to use each week. The more transact
 Normally everyone's bandwidth allowance is quite high, and users are able to use the network freely without any interruptions. Sometimes when the blockchain becomes busy however (due to heavy use), everyone's individual allowances may go down until the network becomes less busy.
 
 You can check how much bandwidth you currently have based on the current limit at:
-https://steemdb.io/@youraccount
-https://steemscan.com/account/youraccount
+
+https://steemscan.com/account/youraccount  
+https://steemdb.io/@youraccount  
 
 If users are below their bandwidth limit, they will be unable to transact with the blockchain until their bandwidth recharges or their limit is raised.
 
@@ -1087,8 +1117,9 @@ The Steem blockchain schedules witnesses to produce a new block every 3 seconds.
 <a href="#Table_of_Contents_Blockchain">^</a>
 ## <span id="Is_there_a_way_to_see_the_raw_data_that_is_stored_in_the_blockchain">Is there a way to see the raw data that is stored in the blockchain?</span>
 
-Yes. The blockchain data can be viewed in different ways with third-party tools such as <a href="https://steemdb.io/">steemdb.io</a> or <a href="https://steemscan.com/">SteemScan</a>
-
+Yes. The blockchain data can be viewed in different ways with third-party tools such as 
+<a href="https://steemscan.com/">steemscan.com</a>, and 
+<a href="https://steemdb.io/">steemdb.io</a>.
 
 <a href="#Table_of_Contents_Blockchain">^</a>
 ## <span id="Where_can_I_find_the_information_for_the_official_launch_of_the_blockchain">Where can I find the information for the official launch of the blockchain?</span>
@@ -1257,7 +1288,7 @@ The Steem blockchain requires a set of people to create blocks and uses a consen
 <a href="#Table_of_Contents_Witnesses">^</a>
 ## <span id="How_can_I_vote_for_witnesses">How can I vote for witnesses?</span>
 
-Visit https://steemit.com/~witnesses.
+Visit https://steemitwallet.com/~witnesses, or https://steemitwallet.com/@youraccount/witnesses.
 
 <a href="#Table_of_Contents_Witnesses">^</a>
 ## <span id="How_many_witnesses_can_I_vote_for">How many witnesses can I vote for?</span>
@@ -1279,7 +1310,7 @@ The SPS (DAO) is funded by 10% of the annual token inflation. These funds are he
 <a href="#Table_of_Contents_Proposals">^</a>
 ## <span id="How_to_create_or_cancel_a_proposal">How to create or cancel a proposal?</span>
 
-To submit a proposal to the Steem DAO, community members must complete the official form available through the <a href="https://steemitwallet.com/proposals">Steemit Wallet</a> interface. Required fields include the proposal title, daily requested amount in SBD, start and end dates, a valid proposal permlink (linking to a post that outlines the proposal), the creator’s username, and the intended receiver’s username.
+To submit a proposal to the Steem DAO, community members must complete the official form available through the <a href="https://steemitwallet.com/proposals">Steemit Wallet</a> interface or their <a href="https://steemitwallet.com/@youraccount/proposals">account dashboard</a>. The required fields include the proposal title, the daily requested amount in SBD, the start and end dates, a valid proposal permlink (linking to the post that outlines the proposal), the creator’s username, and the intended receiver’s username.
 
 Proposal creation is subject to a submission fee. The exact amount is defined by the blockchain protocol and is displayed during the proposal creation process. Once submitted, the proposal becomes active and open for voting by Steem Power holders.
 
@@ -1306,14 +1337,13 @@ No. Once submitted to the DAO, a proposal cannot be edited or updated. It can on
 <a href="#Table_of_Contents_Proposals">^</a>
 ## <span id="Where_can_community_members_view_active_proposals">Where can community members view active proposals?</span>
 
-Active and votable proposals can be viewed on the official <a href="https://steemitwallet.com/proposals">Steemit Wallet</a> interface.
+Active and votable proposals can be viewed on the official <a href="https://steemitwallet.com/proposals">Steemit Wallet</a> interface or on an account’s <a href="https://steemitwallet.com/@youraccount/proposals">dashboard</a>.
 
 
 <a href="#Table_of_Contents_Witnesses">^</a>
 # Miscellaneous
 
 ## <span id="What_third_party_tools_are_there_for_Steemit">What third-party tools are there for Steemit?</span>
-
 
 <a href="#Table_of_Contents_Miscellaneous">^</a>
 ## <span id="Is_there_an_official_Steemit_Facebook_page">Is there an official Steemit Facebook page?</span>
@@ -1344,7 +1374,7 @@ https://steem.io/SteemWhitePaper.pdf
 
 ## <span id="Third_Party_References_and_User_Links">Third Party References and User Links</span>
 
-Binance, bitcoinfees, Bitcointalk, Bithumb, BitShares, Bittrex, blockchain.info, Busy.org, Changelly, @cheetah, Coinbase, DTube, GOBADA, HitBTC, Huobi, LocalBitcoinCash, Localbitcoins, Markdown Cheatsheet, Pexels, Pixabay, Poloniex, Postimage, Shapeshift.io, Steemcleaners, SteemCreate, steemd, SteemStats, The Steemit Shop, UpBit, Utopian.io, Vessel, and Yensesa are third party applications/services, and are not owned or maintained by Steemit, Inc. Their listing here, as well as any other third party applications or websites that are listed, does not constitute and endorsement or recommendation on behalf of Steemit, Inc.
+Binance, bitcoinfees, Bitcointalk, Bithumb, blockchain.info, DTube, Huobi (HTX), Markdown Cheatsheet, Pexels, Pixabay, Poloniex, Postimage, SteemCreate, SteemStats, UpBit, Vessel, WhiteBIT, MEXC, Gate, WEEX, BitKan, DigiFinex, CoinEx, ProBit Global, ChangeNOW, CoinDCX, Bitexen, ZKE, CoinUp.io, ONUS Pro, Koinbay, Pionex, SteemPro, SteemX, Boy, UPVU, as well as other third-party applications and services, are not owned or maintained by Steemit, Inc. Their listing here, as well as any other third-party applications or websites that are referenced, does not constitute an endorsement or recommendation on behalf of Steemit, Inc.
 
 All links to user posts were created by our users and do not necessarily represent the views of Steemit, Inc. or its management. Their listing here does not constitute and endorsement or recommendation on behalf of Steemit, Inc.
 

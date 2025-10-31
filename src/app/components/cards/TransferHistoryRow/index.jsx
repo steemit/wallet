@@ -6,12 +6,15 @@ import Memo from 'app/components/elements/Memo';
 import { numberWithCommas, vestsToSp } from 'app/utils/StateFunctions';
 import tt from 'counterpart';
 import GDPRUserList from 'app/utils/GDPRUserList';
+import { STEEMSCAN_BLOCK_URL, STEEMSCAN_TRANSACTION_URL } from 'app/client_config';
 
 class TransferHistoryRow extends React.Component {
     render() {
         const {
             op,
             context,
+            block,
+            trx,
             curation_reward,
             author_reward,
             benefactor_reward,
@@ -287,8 +290,14 @@ class TransferHistoryRow extends React.Component {
         }
         return (
             <tr key={op[0]} className="Trans">
-                <td>
+                <td style={{ whiteSpace: 'nowrap', width: '1%' }}>
                     <TimeAgoWrapper date={op[1].timestamp} />
+                    {block && (<div>
+                        Block: <a href={`${STEEMSCAN_BLOCK_URL}/${block}`} target="_blank" >{block}</a>
+                    </div>)}
+                    {(trx && trx !== '0000000000000000000000000000000000000000') && (<div>
+                        TxID: <a href={`${STEEMSCAN_TRANSACTION_URL}/${trx}`} target="_blank" >{trx}</a>
+                    </div>)}
                 </td>
                 <td
                     className="TransferHistoryRow__text"

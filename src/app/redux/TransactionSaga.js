@@ -33,6 +33,7 @@ export const transactionWatches = [
     takeEvery(transactionActions.UPDATE_AUTHORITIES, updateAuthorities),
     takeEvery(transactionActions.RECOVER_ACCOUNT, recoverAccount),
     takeEvery(transactionActions.UPDATE_PRICES, updatePricesSaga),
+    takeEvery(transactionActions.FETCH_ACCOUNT_WITNESS_VOTES, refreshAccountWitnessVotes),
 ];
 
 const hook = {
@@ -167,6 +168,17 @@ function* error_account_witness_vote({
             approve: !approve,
         })
     );
+}
+
+export function* refreshAccountWitnessVotes({ payload: { accountName } }) {
+    try {
+        const [account] = yield call([api, api.getAccountsAsync], [accountName]);
+        if (account) {
+            yield put(globalActions.updateAccountWitnessVotes({account: account.name, witness_votes: account.witness_votes || []}));
+        }
+    } catch (err) {
+        console.error('Error refreshing witness_votes:', err);
+    }
 }
 
 /** Keys, username, and password are not needed for the initial call.  This will check the login and may trigger an action to prompt for the password / key. */
@@ -746,3 +758,4 @@ export function* updateAuthorities({
     };
     yield call(broadcastOperation, { payload });
 }
+

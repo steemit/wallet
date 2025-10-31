@@ -75,6 +75,8 @@ class AuthorRewards extends React.Component {
             .map((item, index) => {
                 // Filter out rewards
                 if (item[1].op[0] === 'author_reward') {
+                    const trx_id = item[1].trx_id
+                    const block_id = item[1].block
                     if (!finalDate) {
                         finalDate = new Date(item[1].timestamp).getTime();
                     }
@@ -111,6 +113,8 @@ class AuthorRewards extends React.Component {
                         <TransferHistoryRow
                             key={index}
                             op={item}
+                            trx={trx_id}
+                            block={block_id}
                             context={account_name}
                         />
                     );
