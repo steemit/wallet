@@ -4,7 +4,17 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Enable standalone output for Docker deployment
+  output: 'standalone',
+
+  // Optimize for production
+  reactStrictMode: true,
+
+  // Disable powered by header for security
+  poweredByHeader: false,
+
+  // Compress responses
+  compress: true,
 };
 
 export default withNextIntl(nextConfig);

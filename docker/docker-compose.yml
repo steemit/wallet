@@ -1,19 +1,90 @@
+# ==========================================
+# Steem Wallet - Docker Compose Configuration
+# ==========================================
+
 services:
   wallet:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      args:
+        BUILD_DATE: ${BUILD_DATE:-}
+        VCS_REF: ${VCS_REF:-}
+        VERSION: ${VERSION:-0.1.0}
+    image: steem-wallet:${VERSION:-latest}
+    container_name: steem-wallet
+    restart: unless-stopped
+
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
+
     environment:
+      # Application
       - NODE_ENV=production
+      - PORT=3000
+
+      # Steem Blockchain
       - STEEM_RPC_URL=${STEEM_RPC_URL:-https://api.steemit.com}
+      - STEEM_RPC_FALLBACKS=${STEEM_RPC_FALLBACKS:-}
+
+      # Security (IMPORTANT: Override in production!)
       - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
       - CSRF_SECRET=${CSRF_SECRET:-change-me-in-production}
-    restart: unless-stopped
+      - SESSION_MAX_AGE=${SESSION_MAX_AGE:-604800}
+
+      # Analytics
+      - MIXPANEL_TOKEN=${MIXPANEL_TOKEN:-}
+      - ANALYTICS_ENABLED=${ANALYTICS_ENABLED:-false}
+
+      # Rate Limiting
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - RATE_LIMIT_MAX_QUERY=${RATE_LIMIT_MAX_QUERY:-100}
+      - RATE_LIMIT_WINDOW_QUERY=${RATE_LIMIT_WINDOW_QUERY:-60}
+      - RATE_LIMIT_MAX_BROADCAST=${RATE_LIMIT_MAX_BROADCAST:-10}
+      - RATE_LIMIT_WINDOW_BROADCAST=${RATE_LIMIT_WINDOW_BROADCAST:-60}
+      - RATE_LIMIT_MAX_AUTH=${RATE_LIMIT_MAX_AUTH:-10}
+      - RATE_LIMIT_WINDOW_AUTH=${RATE_LIMIT_WINDOW_AUTH:-60}
+
+      # Feature Flags
+      - MAINTENANCE_MODE=${MAINTENANCE_MODE:-false}
+      - FEATURE_WITNESS_VOTING=${FEATURE_WITNESS_VOTING:-true}
+      - FEATURE_POWER_DOWN=${FEATURE_POWER_DOWN:-true}
+      - FEATURE_DELEGATIONS=${FEATURE_DELEGATIONS:-true}
+
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_REQUESTS=${LOG_REQUESTS:-false}
+
+    # Health check
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+
+    # Read-only root filesystem (uncomment if no write access needed)
+    # read_only: true
+
+    # Temporary filesystem for /tmp
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100M
+
+# Named volumes (if needed)
+# volumes:
+#   data:
+#     driver: local
