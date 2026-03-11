@@ -1,0 +1,36 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "submit": "Submit",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "username": "Username",
+    "password": "Password",
+    "privateKey": "Private Key",
+    "loginButton": "Sign In",
+    "loginError": "Invalid credentials"
+  },
+  "wallet": {
+    "title": "Wallet",
+    "balance": "Balance",
+    "transfer": "Transfer",
+    "powerDown": "Power Down",
+    "delegations": "Delegations",
+    "witnesses": "Witnesses",
+    "history": "History"
+  },
+  "navigation": {
+    "home": "Home",
+    "wallet": "Wallet",
+    "settings": "Settings"
+  }
+}

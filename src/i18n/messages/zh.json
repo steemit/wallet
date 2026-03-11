@@ -1,0 +1,36 @@
+{
+  "common": {
+    "loading": "加载中...",
+    "error": "发生错误",
+    "cancel": "取消",
+    "confirm": "确认",
+    "submit": "提交",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "close": "关闭"
+  },
+  "auth": {
+    "login": "登录",
+    "logout": "退出",
+    "username": "用户名",
+    "password": "密码",
+    "privateKey": "私钥",
+    "loginButton": "登录",
+    "loginError": "凭证无效"
+  },
+  "wallet": {
+    "title": "钱包",
+    "balance": "余额",
+    "transfer": "转账",
+    "powerDown": "能量下调",
+    "delegations": "委托",
+    "witnesses": "见证人",
+    "history": "历史"
+  },
+  "navigation": {
+    "home": "首页",
+    "wallet": "钱包",
+    "settings": "设置"
+  }
+}
