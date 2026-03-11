@@ -1,0 +1,19 @@
+services:
+  wallet:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - STEEM_RPC_URL=${STEEM_RPC_URL:-https://api.steemit.com}
+      - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
+      - CSRF_SECRET=${CSRF_SECRET:-change-me-in-production}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
