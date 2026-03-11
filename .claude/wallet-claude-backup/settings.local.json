@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm create:*)"
+    ],
+    "additionalDirectories": [
+      "/home/ety001/workspace/wallet/.claude"
+    ]
+  }
+}
