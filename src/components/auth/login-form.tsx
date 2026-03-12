@@ -8,6 +8,7 @@ import { AppDispatch } from '@/lib/store';
 import { setCredentials } from '@/lib/store/slices/auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import { LegacyButton, LegacyInputGroup } from '@/components/ui/legacy-components';
+import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 
 interface LoginFormData {
   username: string;
@@ -90,7 +91,12 @@ export function LoginForm() {
   };
 
   return (
-    <div className="max-w-28rem mx-auto mt-4 mb-2">
+    <div className="max-w-28rem mx-auto mt-4 mb-2 relative">
+      {/* Language Switcher - Top Right */}
+      <div className="absolute top-0 right-0">
+        <LanguageSwitcher />
+      </div>
+
       {/* Header */}
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-foreground">Steem Wallet</h1>
