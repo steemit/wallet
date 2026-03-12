@@ -3,8 +3,9 @@
 import { useRequireAuth } from '@/hooks/use-auth';
 import { useTranslations } from 'next-intl';
 import { RecentActivityLazy } from '@/components/wallet/client-wrappers';
-import { BalanceCards } from '@/components/wallet/balance-cards';
+import { BalanceRows } from '@/components/wallet/balance-rows';
 import { ThemeSwitcher } from '@/components/ui/theme-switcher';
+import { Link } from '@/i18n/routing';
 
 export default function WalletPage() {
   const { username, isAuthenticated } = useRequireAuth();
@@ -21,24 +22,56 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header with Theme Switcher */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
+    <div className="UserWallet">
+      {/* Header with navigation and actions */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-4 border-b border-themed">
+        {/* Wallet Sub Menu Navigation */}
+        <nav className="WalletSubMenu flex flex-wrap gap-4">
+          <Link href="/wallet" className="text-base font-bold text-foreground">
             {t('title')}
-          </h1>
-          <p className="mt-2 text-text-secondary">
-            {t('welcome')}, {username}
-          </p>
+          </Link>
+          <Link
+            href="/transfer"
+            className="text-base text-text-secondary hover:text-accent transition-colors"
+          >
+            {t('transfer')}
+          </Link>
+          <Link
+            href="/power-down"
+            className="text-base text-text-secondary hover:text-accent transition-colors"
+          >
+            {t('powerDown')}
+          </Link>
+          <Link
+            href="/delegations"
+            className="text-base text-text-secondary hover:text-accent transition-colors"
+          >
+            {t('delegations')}
+          </Link>
+          <Link
+            href="/witnesses"
+            className="text-base text-text-secondary hover:text-accent transition-colors"
+          >
+            {t('witnesses')}
+          </Link>
+        </nav>
+
+        {/* Right side actions */}
+        <div className="flex items-center gap-4">
+          <Link
+            href="/market"
+            className="e-btn-hollow inline-block font-bold px-6 py-2 rounded-legacy transition-all"
+          >
+            {t('buySteem')}
+          </Link>
+          <ThemeSwitcher />
         </div>
-        <ThemeSwitcher />
       </div>
 
-      {/* Balance Cards - loaded immediately (above the fold) */}
-      <BalanceCards />
+      {/* Balance Rows - Legacy layout */}
+      <BalanceRows username={username} />
 
-      {/* Recent Activity - lazy loaded (below the fold, makes API calls) */}
+      {/* Recent Activity - lazy loaded */}
       <RecentActivityLazy username={username} />
     </div>
   );

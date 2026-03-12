@@ -62,7 +62,17 @@
     "totalVests": "Total VESTS",
     "effectiveSP": "Effective Steem Power",
     "receivedVests": "Received VESTS",
-    "delegatedVests": "Delegated VESTS"
+    "delegatedVests": "Delegated VESTS",
+    "buySteem": "Buy Steem or Steem Power",
+    "claimRewards": "Redeem Rewards",
+    "liquidBalanceDesc": "Liquid token, transferable at any time.",
+    "powerDesc": "Influence token that gives you more influence.",
+    "sbdDesc": "Tradeable tokens that can be transferred to savings.",
+    "savings": "Savings",
+    "savingsDesc": "Balance subject to 3 day withdraw waiting period.",
+    "estimatedValue": "Estimated Account Value",
+    "estimatedValueDesc": "Approximate value in USD based on current market prices.",
+    "nextPowerDown": "Next power down is scheduled to happen"
   },
   "navigation": {
     "home": "Home",

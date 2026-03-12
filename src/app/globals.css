@@ -250,3 +250,12 @@ body {
 .border-themed {
   border-color: var(--border-color);
 }
+
+/* Zebra striping for alternating rows */
+.bg-zebra {
+  background-color: var(--bg-almost-white);
+}
+
+.theme-dark .bg-zebra {
+  background-color: var(--bg-blue-dark);
+}

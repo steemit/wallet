@@ -62,7 +62,17 @@
     "totalVests": "总 VESTS",
     "effectiveSP": "有效 Steem Power",
     "receivedVests": "收到的 VESTS",
-    "delegatedVests": "委托的 VESTS"
+    "delegatedVests": "委托的 VESTS",
+    "buySteem": "购买 STEEM 或 STEEM POWER",
+    "claimRewards": "领取奖励",
+    "liquidBalanceDesc": "流动代币，可随时转账。",
+    "powerDesc": "影响力代币，给予您更多影响力。",
+    "sbdDesc": "可交易的代币，可转入储蓄。",
+    "savings": "储蓄",
+    "savingsDesc": "余额需等待 3 天才能提取。",
+    "estimatedValue": "预估账户价值",
+    "estimatedValueDesc": "基于当前市场价格的美元预估价值。",
+    "nextPowerDown": "下次能量下调计划时间"
   },
   "navigation": {
     "home": "首页",
