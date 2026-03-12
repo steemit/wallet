@@ -1,26 +1,252 @@
 @import "tailwindcss";
 
+/* ==========================================
+   Legacy Wallet Color Variables
+   ========================================== */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Primary Colors */
+  --color-teal: #06D6A9;
+  --color-teal-dark: #049173;
+  --color-teal-light: #00FFC8;
+  --color-blue: #004EFF;
+  --color-blue-dark: #1A5099;
+  --color-blue-light: #4BA2F2;
+  --color-red: #ff0264;
+  --color-orange: #F76900;
+
+  /* Background Colors */
+  --bg-off-white: #fcfcfc;
+  --bg-almost-white: #fefefe;
+  --bg-dark: #1C252B;
+  --bg-super-dark: #10151b;
+  --bg-blue-dark: #2C3A45;
+
+  /* Text Colors */
+  --text-primary: #333;
+  --text-secondary: #788187;
+  --text-gray-light: #A6B2BA;
+  --text-teal: #1FBF8F;
+
+  /* Border Colors */
+  --border-light: #eee;
+  --border-light-lightest: #f6f6f6;
+  --border-dark: #232F38;
+  --border-dark-lightest: #2B3A45;
+
+  /* Base Theme Variables (default to original) */
+  --background: #fcfcfc;
+  --foreground: #333;
+  --accent: #004EFF;
+  --accent-hover: #4BA2F2;
+  --module-bg: #fff;
+  --border-color: #eee;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-module-bg: var(--module-bg);
+  --color-border: var(--border-color);
+
+  /* Legacy Color Extensions */
+  --color-teal: #06D6A9;
+  --color-teal-dark: #049173;
+  --color-teal-light: #00FFC8;
+  --color-steem-blue: #004EFF;
+  --color-steem-blue-dark: #1A5099;
+  --color-steem-blue-light: #4BA2F2;
+  --color-steem-red: #ff0264;
+  --color-steem-orange: #F76900;
+  --color-background-dark: #1C252B;
+  --color-background-super-dark: #10151b;
+  --color-text-secondary: #788187;
+  --color-text-gray-light: #A6B2BA;
+
+  /* Font Family - Source Sans Pro (Legacy) */
+  --font-sans: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: var(--font-geist-mono);
+
+  /* Border Radius - Legacy */
+  --radius-legacy: 5px;
+
+  /* Box Shadow - Legacy Buttons */
+  --shadow-button: 0px 0px 0px 0 rgba(0,0,0,0), 2px 2px 0px 0px;
+  --shadow-button-hover: 2px 2px 2px 0 rgba(0,0,0,0.1), 4px 4px 0 0;
 }
 
+/* ==========================================
+   Theme System - Original, Light, Dark
+   ========================================== */
+
+/* Original Theme (默认浅色，蓝色强调) */
+.theme-original {
+  --background: var(--bg-off-white);
+  --foreground: var(--text-primary);
+  --accent: var(--color-blue);
+  --accent-hover: var(--color-blue-light);
+  --module-bg: #fff;
+  --border-color: var(--border-light);
+}
+
+.theme-original body {
+  background-color: var(--bg-off-white);
+  color: var(--text-primary);
+}
+
+/* Light Theme (浅色，teal 强调) */
+.theme-light {
+  --background: var(--bg-off-white);
+  --foreground: var(--text-primary);
+  --accent: var(--color-teal);
+  --accent-hover: var(--color-teal-dark);
+  --module-bg: #fff;
+  --border-color: var(--border-light);
+}
+
+.theme-light body {
+  background-color: var(--bg-off-white);
+  color: var(--text-primary);
+}
+
+/* Dark Theme (深色，teal 强调) */
+.theme-dark {
+  --background: var(--bg-dark);
+  --foreground: #fcfcfc;
+  --accent: var(--color-teal);
+  --accent-hover: var(--color-teal-light);
+  --module-bg: var(--bg-dark);
+  --border-color: var(--border-dark);
+}
+
+.theme-dark body {
+  background-color: var(--bg-dark);
+  color: #fcfcfc;
+}
+
+/* Fallback system dark mode (can be overridden by manual theme) */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not(.theme-original):not(.theme-light) {
+    --background: var(--bg-dark);
+    --foreground: #fcfcfc;
+    --accent: var(--color-teal);
+    --module-bg: var(--bg-dark);
+    --border-color: var(--border-dark);
   }
 }
 
+/* ==========================================
+   Base Styles
+   ========================================== */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+/* ==========================================
+   Legacy Button Styles
+   ========================================== */
+.e-btn {
+  font-weight: bold;
+  text-transform: capitalize;
+  transition: all 0.2s ease-in-out;
+  background-color: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow-button);
+}
+
+.e-btn:hover {
+  background-color: var(--accent-hover);
+  box-shadow: var(--shadow-button-hover);
+  transform: translate(-2px, 2px);
+}
+
+.e-btn-hollow {
+  background-color: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  transition: all 0.2s ease-in-out;
+}
+
+.e-btn-hollow:hover {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+.e-btn-black {
+  background-color: #171F24;
+  color: #fff;
+  box-shadow: 0px 0px 0px 0 rgba(0,0,0,0), 5px 5px 0 0 #06D6A9;
+}
+
+.e-btn-black:hover {
+  background-color: var(--color-teal);
+  box-shadow: 2px 2px 2px 0 rgba(0,0,0,0.1), 7px 7px 0 0 #171F24;
+}
+
+/* ==========================================
+   Legacy Form Styles
+   ========================================== */
+.input-group {
+  display: flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-legacy);
+  overflow: hidden;
+}
+
+.input-group:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.input-group-label {
+  padding: 0.5rem 0.75rem;
+  background-color: #f3f4f6;
+  color: #6b7280;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+}
+
+.input-group-field {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  outline: none;
+  background-color: var(--module-bg);
+  color: var(--foreground);
+}
+
+/* ==========================================
+   Utility Classes
+   ========================================== */
+.rounded-legacy {
+  border-radius: var(--radius-legacy);
+}
+
+.shadow-button {
+  box-shadow: var(--shadow-button);
+}
+
+.shadow-button-hover {
+  box-shadow: var(--shadow-button-hover);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+.bg-accent {
+  background-color: var(--accent);
+}
+
+.bg-module {
+  background-color: var(--module-bg);
+}
+
+.border-themed {
+  border-color: var(--border-color);
 }

@@ -3,9 +3,8 @@
 import { useRequireAuth } from '@/hooks/use-auth';
 import { useTranslations } from 'next-intl';
 import { RecentActivityLazy } from '@/components/wallet/client-wrappers';
-
-// BalanceCards is shown above the fold, load it normally
 import { BalanceCards } from '@/components/wallet/balance-cards';
+import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 export default function WalletPage() {
   const { username, isAuthenticated } = useRequireAuth();
@@ -15,7 +14,7 @@ export default function WalletPage() {
     return (
       <div className="flex justify-center py-12">
         <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+          <p className="text-text-secondary">Loading...</p>
         </div>
       </div>
     );
@@ -23,13 +22,17 @@ export default function WalletPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          {t('title')}
-        </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
-          {t('welcome')}, {username}
-        </p>
+      {/* Header with Theme Switcher */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">
+            {t('title')}
+          </h1>
+          <p className="mt-2 text-text-secondary">
+            {t('welcome')}, {username}
+          </p>
+        </div>
+        <ThemeSwitcher />
       </div>
 
       {/* Balance Cards - loaded immediately (above the fold) */}

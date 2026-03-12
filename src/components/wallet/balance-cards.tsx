@@ -6,6 +6,7 @@ import type { RootState } from '@/lib/store';
 import { apiClient } from '@/lib/steem/client';
 import { useTranslations } from 'next-intl';
 import type { SteemAccount } from '@/lib/steem/types';
+import { LegacyCard } from '@/components/ui/legacy-components';
 
 interface BalanceData {
   balance: string;
@@ -77,19 +78,19 @@ export function BalanceCards() {
     {
       title: t('steemBalance'),
       value: balance ? formatBalance(balance.balance) : '--',
-      color: 'blue',
+      colorClass: 'text-steem-blue',
       icon: '💰',
     },
     {
       title: t('sbdBalance'),
       value: balance ? formatBalance(balance.sbd_balance) : '--',
-      color: 'green',
+      colorClass: 'text-teal',
       icon: '💵',
     },
     {
       title: t('vestingShares'),
       value: balance ? formatVests(balance.vesting_shares) : '--',
-      color: 'purple',
+      colorClass: 'text-steem-orange',
       icon: '📊',
     },
   ];
@@ -97,33 +98,26 @@ export function BalanceCards() {
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map((card) => (
-        <div
-          key={card.title}
-          className="rounded-lg bg-white p-6 shadow dark:bg-gray-800"
-        >
+        <LegacyCard key={card.title} padding="md">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
+            <h3 className="text-sm font-medium text-text-secondary">
               {card.title}
             </h3>
-            <span className="text-2xl">{card.icon}</span>
+            <span className="text-2xl" role="img" aria-label="icon">
+              {card.icon}
+            </span>
           </div>
           <p
-            className={`mt-4 text-2xl font-bold ${
-              card.color === 'blue'
-                ? 'text-blue-600 dark:text-blue-400'
-                : card.color === 'green'
-                  ? 'text-green-600 dark:text-green-400'
-                  : 'text-purple-600 dark:text-purple-400'
-            }`}
+            className={`mt-4 text-2xl font-bold ${card.colorClass}`}
           >
             {loading ? '...' : error ? 'Error' : card.value}
           </p>
           {error && (
-            <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+            <p className="mt-2 text-xs text-steem-red">
               {error}
             </p>
           )}
-        </div>
+        </LegacyCard>
       ))}
     </div>
   );

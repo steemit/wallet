@@ -7,6 +7,7 @@ import { useDispatch } from 'react-redux';
 import { AppDispatch } from '@/lib/store';
 import { setCredentials } from '@/lib/store/slices/auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
+import { LegacyButton, LegacyInputGroup } from '@/components/ui/legacy-components';
 
 interface LoginFormData {
   username: string;
@@ -89,65 +90,86 @@ export function LoginForm() {
   };
 
   return (
-    <div className="rounded-lg bg-white p-8 shadow-lg dark:bg-gray-800">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label
-            htmlFor="username"
-            className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            {t('username')}
-          </label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            value={formData.username}
-            onChange={handleChange}
-            required
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            placeholder="Enter your username"
-            disabled={isLoading || isPending}
-          />
-        </div>
+    <div className="max-w-28rem mx-auto mt-4 mb-2">
+      {/* Header */}
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold text-foreground">Steem Wallet</h1>
+        <p className="mt-2 text-sm text-text-secondary">{t('login')}</p>
+      </div>
 
-        <div>
-          <label
-            htmlFor="privateKey"
-            className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            {t('privateKey')}
-          </label>
-          <input
-            type="password"
-            id="privateKey"
-            name="privateKey"
-            value={formData.privateKey}
-            onChange={handleChange}
-            required
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            placeholder="Enter your private key"
-            disabled={isLoading || isPending}
-          />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Your private key is stored locally and never sent to the server
-          </p>
-        </div>
-
-        {error && (
-          <div className="rounded-md bg-red-50 p-4 dark:bg-red-900/20">
-            <p className="text-sm text-red-800 dark:text-red-400">{error}</p>
+      {/* Login Form */}
+      <div className="bg-module border border-themed rounded-legacy p-8 shadow-sm">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Username Input with @ prefix */}
+          <div>
+            <label
+              htmlFor="username"
+              className="mb-2 block text-sm font-medium text-foreground"
+            >
+              {t('username')}
+            </label>
+            <LegacyInputGroup
+              id="username"
+              name="username"
+              type="text"
+              prefix="@"
+              value={formData.username}
+              onChange={handleChange}
+              required
+              placeholder="username"
+              disabled={isLoading || isPending}
+            />
           </div>
-        )}
 
-        <button
-          type="submit"
-          disabled={isLoading || isPending}
-          className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
-        >
-          {isLoading || isPending ? tCommon('loading') : t('loginButton')}
-        </button>
-      </form>
+          {/* Private Key Input */}
+          <div>
+            <label
+              htmlFor="privateKey"
+              className="mb-2 block text-sm font-medium text-foreground"
+            >
+              {t('privateKey')}
+            </label>
+            <LegacyInputGroup
+              id="privateKey"
+              name="privateKey"
+              type="password"
+              value={formData.privateKey}
+              onChange={handleChange}
+              required
+              placeholder="Enter your private key"
+              disabled={isLoading || isPending}
+            />
+            <p className="mt-1 text-xs text-text-secondary">
+              Your private key is stored locally and never sent to the server
+            </p>
+          </div>
+
+          {/* Save Login Option */}
+          <div className="LoginForm__save-login mt-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-teal focus:ring-teal" />
+              <span className="text-sm text-foreground">{t('keepLoggedIn')}</span>
+            </label>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="rounded-legacy bg-steem-red/10 border border-steem-red/30 p-4">
+              <p className="text-sm text-steem-red">{error}</p>
+            </div>
+          )}
+
+          {/* Submit Button - Using Legacy Button */}
+          <LegacyButton
+            type="submit"
+            disabled={isLoading || isPending}
+            fullWidth
+            variant="black"
+          >
+            {isLoading || isPending ? tCommon('loading') : t('loginButton')}
+          </LegacyButton>
+        </form>
+      </div>
     </div>
   );
 }

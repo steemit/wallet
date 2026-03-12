@@ -35,7 +35,8 @@
     "loginSuccess": "Login successful",
     "logoutSuccess": "Logout successful",
     "sessionExpired": "Your session has expired. Please login again.",
-    "notAuthenticated": "Please login to continue"
+    "notAuthenticated": "Please login to continue",
+    "keepLoggedIn": "Keep me logged in"
   },
   "wallet": {
     "title": "Wallet",

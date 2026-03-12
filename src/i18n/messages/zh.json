@@ -35,7 +35,8 @@
     "loginSuccess": "登录成功",
     "logoutSuccess": "退出成功",
     "sessionExpired": "会话已过期，请重新登录",
-    "notAuthenticated": "请先登录"
+    "notAuthenticated": "请先登录",
+    "keepLoggedIn": "保持登录状态"
   },
   "wallet": {
     "title": "钱包",
