@@ -8,7 +8,6 @@ import { AppDispatch } from '@/lib/store';
 import { setCredentials } from '@/lib/store/slices/auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import { LegacyButton, LegacyInputGroup } from '@/components/ui/legacy-components';
-import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 
 interface LoginFormData {
   username: string;
@@ -91,89 +90,83 @@ export function LoginForm() {
   };
 
   return (
-    <div className="max-w-28rem mx-auto mt-4 mb-2 relative">
-      {/* Language Switcher - Top Right */}
-      <div className="absolute top-0 right-0">
-        <LanguageSwitcher />
-      </div>
+    <div className="Login row">
+      <div className="column">
+        <div className="LoginForm max-w-28rem mx-auto mt-4 mb-2">
+          {/* Login Form Card */}
+          <div className="bg-module border border-themed rounded-legacy p-8 shadow-sm">
+            <form onSubmit={handleSubmit} className="mt-6">
+              {/* Username Input with @ prefix */}
+              <div>
+                <label
+                  htmlFor="username"
+                  className="mb-2 block text-sm font-medium text-foreground"
+                >
+                  {t('username')}
+                </label>
+                <LegacyInputGroup
+                  id="username"
+                  name="username"
+                  type="text"
+                  prefix="@"
+                  value={formData.username}
+                  onChange={handleChange}
+                  required
+                  placeholder="username"
+                  disabled={isLoading || isPending}
+                />
+              </div>
 
-      {/* Header */}
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold text-foreground">Steem Wallet</h1>
-      </div>
+              {/* Private Key Input */}
+              <div>
+                <label
+                  htmlFor="privateKey"
+                  className="mb-2 block text-sm font-medium text-foreground"
+                >
+                  {t('privateKey')}
+                </label>
+                <LegacyInputGroup
+                  id="privateKey"
+                  name="privateKey"
+                  type="password"
+                  value={formData.privateKey}
+                  onChange={handleChange}
+                  required
+                  placeholder="Enter your private key"
+                  disabled={isLoading || isPending}
+                />
+                <p className="mt-1 text-xs text-text-secondary">
+                  Your private key is stored locally and never sent to the server
+                </p>
+              </div>
 
-      {/* Login Form */}
-      <div className="bg-module border border-themed rounded-legacy p-8 shadow-sm">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Username Input with @ prefix */}
-          <div>
-            <label
-              htmlFor="username"
-              className="mb-2 block text-sm font-medium text-foreground"
-            >
-              {t('username')}
-            </label>
-            <LegacyInputGroup
-              id="username"
-              name="username"
-              type="text"
-              prefix="@"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              placeholder="username"
-              disabled={isLoading || isPending}
-            />
+              {/* Save Login Option */}
+              <div className="LoginForm__save-login mt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-teal focus:ring-teal" />
+                  <span className="text-sm text-foreground">{t('keepLoggedIn')}</span>
+                </label>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="rounded-legacy bg-steem-red/10 border border-steem-red/30 p-4 mt-4">
+                  <p className="text-sm text-steem-red">{error}</p>
+                </div>
+              )}
+
+              {/* Submit Button - Using Legacy Button */}
+              <LegacyButton
+                type="submit"
+                disabled={isLoading || isPending}
+                fullWidth
+                variant="black"
+              >
+                {isLoading || isPending ? tCommon('loading') : t('loginButton')}
+              </LegacyButton>
+            </form>
           </div>
-
-          {/* Private Key Input */}
-          <div>
-            <label
-              htmlFor="privateKey"
-              className="mb-2 block text-sm font-medium text-foreground"
-            >
-              {t('privateKey')}
-            </label>
-            <LegacyInputGroup
-              id="privateKey"
-              name="privateKey"
-              type="password"
-              value={formData.privateKey}
-              onChange={handleChange}
-              required
-              placeholder="Enter your private key"
-              disabled={isLoading || isPending}
-            />
-            <p className="mt-1 text-xs text-text-secondary">
-              Your private key is stored locally and never sent to the server
-            </p>
-          </div>
-
-          {/* Save Login Option */}
-          <div className="LoginForm__save-login mt-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-teal focus:ring-teal" />
-              <span className="text-sm text-foreground">{t('keepLoggedIn')}</span>
-            </label>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="rounded-legacy bg-steem-red/10 border border-steem-red/30 p-4">
-              <p className="text-sm text-steem-red">{error}</p>
-            </div>
-          )}
-
-          {/* Submit Button - Using Legacy Button */}
-          <LegacyButton
-            type="submit"
-            disabled={isLoading || isPending}
-            fullWidth
-            variant="black"
-          >
-            {isLoading || isPending ? tCommon('loading') : t('loginButton')}
-          </LegacyButton>
-        </form>
+        </div>
       </div>
     </div>
   );
