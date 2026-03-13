@@ -92,7 +92,9 @@ export async function verifyCSRF(request: NextRequest): Promise<NextResponse | n
 export function setCSRFToken(response: NextResponse): void {
   const token = generateCSRFToken();
   response.cookies.set(CSRF_COOKIE_NAME, token, {
-    httpOnly: true,
+    // CSRF token is not a secret; it must be readable by JS
+    // so that the client can mirror it into the X-CSRF-Token header.
+    httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     maxAge: 24 * 60 * 60, // 24 hours

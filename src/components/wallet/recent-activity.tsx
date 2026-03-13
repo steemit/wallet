@@ -1,66 +1,156 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiClient } from '@/lib/steem/client';
+import { useTranslations } from 'next-intl';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+} from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 
-interface Transaction {
-  id: string;
-  type: string;
-  from: string;
-  to: string;
-  amount: string;
-  memo: string;
+interface TransferHistoryItem {
+  op: [string, Record<string, any>];
   timestamp: string;
+  block: number;
+  trx_id: string;
 }
 
-interface RecentActivityProps {
-  username: string;
+function formatTimeAgo(dateStr: string): string {
+  const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+  return date.toLocaleDateString();
 }
 
-export function RecentActivity({ username }: RecentActivityProps) {
+function formatTransferRow(item: TransferHistoryItem, context: string) {
+  const [type, data] = item.op;
+
+  switch (type) {
+    case 'transfer': {
+      const isReceive = data.to === context;
+      return {
+        icon: isReceive ? '↓' : '↑',
+        description: isReceive
+          ? `Received ${data.amount} from ${data.from}`
+          : `Transferred ${data.amount} to ${data.to}`,
+        memo: data.memo || '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    }
+    case 'transfer_to_vesting':
+      return {
+        icon: '⚡',
+        description: data.from === data.to
+          ? `Powered up ${data.amount}`
+          : `${data.from} powered up ${data.amount} to ${data.to}`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    case 'withdraw_vesting':
+      return {
+        icon: '🔻',
+        description: `Started power down of ${data.vesting_shares}`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    case 'fill_vesting_withdraw':
+      return {
+        icon: '💧',
+        description: `Withdrew ${data.deposited}`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    case 'claim_reward_balance':
+      return {
+        icon: '🎁',
+        description: `Claimed rewards: ${data.reward_steem} ${data.reward_sbd} ${data.reward_vests}`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    case 'transfer_to_savings':
+      return {
+        icon: '🏦',
+        description: `Transfer to savings: ${data.amount}`,
+        memo: data.memo || '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    case 'transfer_from_savings':
+      return {
+        icon: '🏧',
+        description: `Withdraw from savings: ${data.amount}`,
+        memo: data.memo || '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    case 'delegate_vesting_shares':
+      return {
+        icon: '📤',
+        description: data.delegator === context
+          ? `Delegated ${data.vesting_shares} to ${data.delegatee}`
+          : `Received delegation of ${data.vesting_shares} from ${data.delegator}`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    default:
+      return {
+        icon: '📋',
+        description: type.replace(/_/g, ' '),
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+  }
+}
+
+export function RecentActivity({ username }: { username: string }) {
   const t = useTranslations('wallet');
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [history, setHistory] = useState<TransferHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>('');
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
         setLoading(true);
-        setError('');
-        const response = await apiClient.getHistory(username, 10);
-
+        const response = await apiClient.getHistory(username);
         if (response.error) {
-          setError(response.error);
+          console.error('Failed to fetch history:', response.error);
           return;
         }
-
-        // Process history data
-        const history = response.history || [];
-        // Format: [sequence, op] - we need to extract relevant info
-        const formatted: Transaction[] = (history as [number, unknown[]][])
-          .slice()
-          .reverse()
-          .map(([sequence, op]) => {
-            const opArray = op as unknown[];
-            const opType = opArray[0] as string;
-            const opData = opArray[1] as Record<string, unknown>;
+        // Filter out rewards and null-payout items
+        const transfers = (response.history || [])
+          .filter((item: any) => {
+            const type = item.op?.[0] || item[1]?.op?.[0];
+            if (!type) return false;
+            if (type === 'curation_reward' || type === 'author_reward' || type === 'comment_benefactor_reward') {
+              return false;
+            }
+            return true;
+          })
+          .map((item: any) => {
+            // Handle different history formats
+            if (item.op) {
+              return item as TransferHistoryItem;
+            }
+            const entry = item[1];
             return {
-              id: `${sequence}`,
-              type: opType,
-              from: (opData.from as string) || '',
-              to: (opData.to as string) || '',
-              amount: (opData.amount as string) || '',
-              memo: (opData.memo as string) || '',
-              timestamp: new Date().toISOString(),
-            };
-          });
+              op: entry.op,
+              timestamp: entry.timestamp,
+              block: entry.block,
+              trx_id: entry.trx_id,
+            } as TransferHistoryItem;
+          })
+          .reverse();
 
-        setTransactions(formatted);
+        setHistory(transfers);
       } catch (err) {
         console.error('Error fetching history:', err);
-        setError('Failed to fetch transaction history');
       } finally {
         setLoading(false);
       }
@@ -69,53 +159,56 @@ export function RecentActivity({ username }: RecentActivityProps) {
     fetchHistory();
   }, [username]);
 
-  return (
-    <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-      <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-        {t('recentActivity')}
-      </h2>
-
-      {loading ? (
-        <div className="text-center text-gray-500 dark:text-gray-400">
-          Loading...
-        </div>
-      ) : error ? (
-        <div className="text-center text-red-600 dark:text-red-400">
-          {error}
-        </div>
-      ) : transactions.length === 0 ? (
-        <div className="text-center text-gray-500 dark:text-gray-400">
-          No recent activity
-        </div>
-      ) : (
+  if (loading) {
+    return (
+      <div className="mt-8">
+        <Skeleton className="h-6 w-24 mb-4" />
         <div className="space-y-3">
-          {transactions.map((tx) => (
-            <div
-              key={tx.id}
-              className="flex items-center justify-between border-b border-gray-200 pb-3 last:border-0 last:pb-0 dark:border-gray-700"
-            >
-              <div className="flex-1">
-                <p className="font-medium text-gray-900 dark:text-white">
-                  {tx.type}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {tx.from} → {tx.to}
-                </p>
-                {tx.memo && (
-                  <p className="text-xs text-gray-500 dark:text-gray-500">
-                    Memo: {tx.memo}
-                  </p>
-                )}
-              </div>
-              <div className="text-right">
-                <p className="font-semibold text-gray-900 dark:text-white">
-                  {tx.amount}
-                </p>
-              </div>
-            </div>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-10 w-full" />
           ))}
         </div>
-      )}
+      </div>
+    );
+  }
+
+  if (!history.length) {
+    return null;
+  }
+
+  return (
+    <div className="mt-8">
+      <Separator className="mb-6" />
+      <h4 className="text-lg font-bold mb-2">{t('history', { defaultMessage: 'History' })}</h4>
+      <div className="secondary mb-4">
+        <span>Beware of spam and phishing links in transfer memos. </span>
+        <span>Do not open links from users you do not trust. </span>
+        <span>Do not provide your private keys to any third party websites. </span>
+        <span>Transactions will not show until they are confirmed on the blockchain, which may take a few minutes.</span>
+      </div>
+      <Table>
+        <TableBody>
+          {history.map((item, index) => {
+            const row = formatTransferRow(item, username);
+            return (
+              <TableRow key={index}>
+                <TableCell className="w-8 text-lg">{row.icon}</TableCell>
+                <TableCell>
+                  <div className="font-medium text-sm">{row.description}</div>
+                  {row.memo && (
+                    <div className="text-xs text-muted-foreground truncate max-w-md mt-0.5">
+                      {row.memo}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">
+                  {row.time}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }

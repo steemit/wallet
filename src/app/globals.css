@@ -5,10 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ==========================================
-   Legacy Wallet Color Variables
+   Root Variables & shadcn Integration
    ========================================== */
 :root {
-  /* Primary Colors */
+  /* Legacy Wallet Colors */
   --color-teal: #06D6A9;
   --color-teal-dark: #049173;
   --color-teal-light: #00FFC8;
@@ -18,70 +18,79 @@
   --color-red: #ff0264;
   --color-orange: #F76900;
 
-  /* Background Colors */
+  /* Legacy Background Colors */
   --bg-off-white: #fcfcfc;
   --bg-almost-white: #fefefe;
   --bg-dark: #1C252B;
   --bg-super-dark: #10151b;
   --bg-blue-dark: #2C3A45;
 
-  /* Text Colors */
+  /* Legacy Text Colors */
   --text-primary: #333;
   --text-secondary: #788187;
   --text-gray-light: #A6B2BA;
   --text-teal: #1FBF8F;
 
-  /* Border Colors */
+  /* Legacy Border Colors */
   --border-light: #eee;
   --border-light-lightest: #f6f6f6;
   --border-dark: #232F38;
   --border-dark-lightest: #2B3A45;
 
-  /* Base Theme Variables (default to original) */
-  --accent: oklch(0.97 0 0);
-  --accent-hover: #4BA2F2;
+  /* shadcn + legacy merged */
+  --background: var(--bg-off-white);
+  --foreground: var(--text-primary);
+  --card: #ffffff;
+  --card-foreground: var(--text-primary);
+  --popover: #ffffff;
+  --popover-foreground: var(--text-primary);
+  --primary: var(--color-blue);
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: var(--text-primary);
+  --muted: #f5f5f5;
+  --muted-foreground: var(--text-secondary);
+  --accent: #f5f5f5;
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--color-red);
+  --border: var(--border-light);
+  --input: var(--border-light);
+  --ring: var(--color-blue);
+
   --module-bg: #fff;
-  --border-color: #eee;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border-color: var(--border-light);
+  --radius: 0.375rem;
+
+  /* Sidebar */
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--color-blue);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border-light);
+  --sidebar-ring: var(--color-blue);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-module-bg: var(--module-bg);
-  --color-border: var(--border-color);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 
   /* Legacy Color Extensions */
   --color-teal: #06D6A9;
@@ -96,17 +105,21 @@
   --color-background-super-dark: #10151b;
   --color-text-secondary: #788187;
   --color-text-gray-light: #A6B2BA;
+  --color-module-bg: var(--module-bg);
 
   /* Font Family - Source Sans Pro (Legacy) */
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
-  /* Border Radius - Legacy */
-  --radius-legacy: 5px;
+  /* Border Radius */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* Box Shadow - Legacy Buttons */
-  --shadow-button: 0px 0px 0px 0 rgba(0,0,0,0), 2px 2px 0px 0px;
-  --shadow-button-hover: 2px 2px 2px 0 rgba(0,0,0,0.1), 4px 4px 0 0;
+  /* Sidebar */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -115,32 +128,6 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 /* ==========================================
@@ -151,222 +138,195 @@
 .theme-original {
   --background: var(--bg-off-white);
   --foreground: var(--text-primary);
-  --accent: var(--color-blue);
-  --accent-hover: var(--color-blue-light);
+  --primary: var(--color-blue);
+  --primary-foreground: #ffffff;
+  --ring: var(--color-blue);
   --module-bg: #fff;
   --border-color: var(--border-light);
-}
-
-.theme-original body {
-  background-color: var(--bg-off-white);
-  color: var(--text-primary);
+  --border: var(--border-light);
 }
 
 /* Light Theme (浅色，teal 强调) */
 .theme-light {
   --background: var(--bg-off-white);
   --foreground: var(--text-primary);
-  --accent: var(--color-teal);
-  --accent-hover: var(--color-teal-dark);
+  --primary: var(--color-teal);
+  --primary-foreground: #ffffff;
+  --ring: var(--color-teal);
   --module-bg: #fff;
   --border-color: var(--border-light);
-}
-
-.theme-light body {
-  background-color: var(--bg-off-white);
-  color: var(--text-primary);
+  --border: var(--border-light);
 }
 
 /* Dark Theme (深色，teal 强调) */
 .theme-dark {
   --background: var(--bg-dark);
   --foreground: #fcfcfc;
-  --accent: var(--color-teal);
-  --accent-hover: var(--color-teal-light);
+  --card: var(--bg-dark);
+  --card-foreground: #fcfcfc;
+  --popover: var(--bg-dark);
+  --popover-foreground: #fcfcfc;
+  --primary: var(--color-teal);
+  --primary-foreground: #ffffff;
+  --secondary: var(--bg-blue-dark);
+  --secondary-foreground: #fcfcfc;
+  --muted: var(--bg-blue-dark);
+  --muted-foreground: var(--text-gray-light);
+  --accent: var(--bg-blue-dark);
+  --accent-foreground: #fcfcfc;
+  --ring: var(--color-teal);
   --module-bg: var(--bg-dark);
   --border-color: var(--border-dark);
-}
-
-.theme-dark body {
-  background-color: var(--bg-dark);
-  color: #fcfcfc;
-}
-
-/* Fallback system dark mode (can be overridden by manual theme) */
-@media (prefers-color-scheme: dark) {
-  :root:not(.theme-original):not(.theme-light) {
-    --background: var(--bg-dark);
-    --foreground: #fcfcfc;
-    --accent: var(--color-teal);
-    --module-bg: var(--bg-dark);
-    --border-color: var(--border-dark);
-  }
+  --border: var(--border-dark);
+  --input: var(--border-dark);
 }
 
 /* ==========================================
    Base Styles
    ========================================== */
-body {
-  font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-}
-
-/* ==========================================
-   Legacy Button Styles
-   ========================================== */
-.e-btn {
-  font-weight: bold;
-  text-transform: capitalize;
-  transition: all 0.2s ease-in-out;
-  background-color: var(--accent);
-  color: #fff;
-  box-shadow: var(--shadow-button);
-}
-
-.e-btn:hover {
-  background-color: var(--accent-hover);
-  box-shadow: var(--shadow-button-hover);
-  transform: translate(-2px, 2px);
-}
-
-.e-btn-hollow {
-  background-color: transparent;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  transition: all 0.2s ease-in-out;
-}
-
-.e-btn-hollow:hover {
-  background-color: var(--accent);
-  color: #fff;
-}
-
-.e-btn-black {
-  background-color: #171F24;
-  color: #fff;
-  box-shadow: 0px 0px 0px 0 rgba(0,0,0,0), 5px 5px 0 0 #06D6A9;
-}
-
-.e-btn-black:hover {
-  background-color: var(--color-teal);
-  box-shadow: 2px 2px 2px 0 rgba(0,0,0,0.1), 7px 7px 0 0 #171F24;
-}
-
-/* ==========================================
-   Legacy Form Styles
-   ========================================== */
-.input-group {
-  display: flex;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-legacy);
-  overflow: hidden;
-}
-
-.input-group:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-}
-
-.input-group-label {
-  padding: 0.5rem 0.75rem;
-  background-color: #f3f4f6;
-  color: #6b7280;
-  border-right: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-}
-
-.input-group-field {
-  flex: 1;
-  padding: 0.5rem 0.75rem;
-  border: none;
-  outline: none;
-  background-color: var(--module-bg);
-  color: var(--foreground);
-}
-
-/* ==========================================
-   Utility Classes
-   ========================================== */
-.rounded-legacy {
-  border-radius: var(--radius-legacy);
-}
-
-.shadow-button {
-  box-shadow: var(--shadow-button);
-}
-
-.shadow-button-hover {
-  box-shadow: var(--shadow-button-hover);
-}
-
-.text-accent {
-  color: var(--accent);
-}
-
-.bg-accent {
-  background-color: var(--accent);
-}
-
-.bg-module {
-  background-color: var(--module-bg);
-}
-
-.border-themed {
-  border-color: var(--border-color);
-}
-
-/* Zebra striping for alternating rows */
-.bg-zebra {
-  background-color: var(--bg-almost-white);
-}
-
-.theme-dark .bg-zebra {
-  background-color: var(--bg-blue-dark);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
+    font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
   }
   html {
     @apply font-sans;
   }
+}
+
+/* ==========================================
+   Legacy Wallet Specific Styles
+   ========================================== */
+
+/* Zebra striping for alternating rows */
+.bg-zebra {
+  background-color: var(--bg-almost-white);
+}
+.theme-dark .bg-zebra {
+  background-color: var(--bg-blue-dark);
+}
+
+/* UserWallet balance rows */
+.UserWallet__balance {
+  padding: 0.75rem 0;
+}
+
+/* WalletSubMenu */
+.WalletSubMenu a.active {
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+/* Wallet dropdown - match legacy style */
+.Wallet_dropdown {
+  cursor: pointer;
+}
+
+/* Secondary text */
+.secondary {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Legacy button styles still used in some places */
+.e-btn-hollow {
+  background-color: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  transition: all 0.2s ease-in-out;
+  border-radius: var(--radius);
+}
+
+.e-btn-hollow:hover {
+  background-color: var(--primary);
+  color: #fff;
+}
+
+/* Claim rewards box */
+.UserWallet__claimbox {
+  background-color: #f3faf0;
+  border: 1px solid var(--color-teal);
+  border-radius: var(--radius);
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.theme-dark .UserWallet__claimbox {
+  background-color: rgba(6, 214, 169, 0.1);
+}
+
+/* Warning box */
+.UserWallet__warningbox {
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.theme-dark .UserWallet__warningbox {
+  background-color: rgba(255, 193, 7, 0.1);
+}
+
+/* Header styles */
+.Header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100;
+  background-color: var(--card);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* User profile banner */
+.UserProfile__banner {
+  padding: 2rem 1rem;
+  background-color: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+
+.UserProfile__banner h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.UserProfile__bio {
+  color: var(--text-secondary);
+  margin: 0.5rem 0 0;
+}
+
+.UserProfile__info {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.UserProfile__info span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Top navigation for user profile */
+.UserProfile__top-nav {
+  border-bottom: 1px solid var(--border);
+  background-color: var(--card);
 }

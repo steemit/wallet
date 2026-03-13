@@ -23,38 +23,18 @@ vi.mock('@/lib/steem/client', () => {
       isValidPrivateKey: mockIsValidPrivateKey,
       privateKeyToPublicKey: mockPrivateKeyToPublicKey,
       signChallenge: mockSignChallenge,
+      derivePrivateKeyFromPassword: vi.fn(),
     },
     apiClient: {
       getChallenge: mockGetChallenge,
       login: mockLogin,
       logout: mockLogout,
     },
-    __mockExports: {
-      mockGetChallenge,
-      mockLogin,
-      mockLogout,
-      mockIsValidPrivateKey,
-      mockPrivateKeyToPublicKey,
-      mockSignChallenge,
-    },
   };
 });
 
 // Import the mocked functions
-import { SteemSigner, apiClient, __mockExports } from '@/lib/steem/client';
-
-// @ts-expect-error - Accessing mock exports
-const mockGetChallenge = __mockExports?.mockGetChallenge || vi.fn();
-// @ts-expect-error - Accessing mock exports
-const mockLogin = __mockExports?.mockLogin || vi.fn();
-// @ts-expect-error - Accessing mock exports
-const mockLogout = __mockExports?.mockLogout || vi.fn();
-// @ts-expect-error - Accessing mock exports
-const mockIsValidPrivateKey = __mockExports?.mockIsValidPrivateKey || vi.fn();
-// @ts-expect-error - Accessing mock exports
-const mockPrivateKeyToPublicKey = __mockExports?.mockPrivateKeyToPublicKey || vi.fn();
-// @ts-expect-error - Accessing mock exports
-const mockSignChallenge = __mockExports?.mockSignChallenge || vi.fn();
+import { SteemSigner, apiClient } from '@/lib/steem/client';
 
 // Mock window.location
 Object.defineProperty(window, 'location', {
@@ -65,7 +45,7 @@ Object.defineProperty(window, 'location', {
 });
 
 describe('useAuth Hook', () => {
-  let mockStore: ReturnType<typeof configureStore>;
+  let mockStore: any;
 
   beforeEach(() => {
     mockStore = configureStore({
@@ -82,12 +62,23 @@ describe('useAuth Hook', () => {
   );
 
   describe('login', () => {
-    it('should successfully login with valid credentials', async () => {
-      mockIsValidPrivateKey.mockReturnValue(true);
-      mockPrivateKeyToPublicKey.mockReturnValue('STMPublicKey...');
-      mockSignChallenge.mockReturnValue('signed-challenge');
-      mockGetChallenge.mockResolvedValue({ challenge: 'test-challenge' });
-      mockLogin.mockResolvedValue({ success: true });
+    it('should successfully login with valid WIF key', async () => {
+      (SteemSigner.isValidPrivateKey as unknown as any).mockReturnValue(true);
+      (SteemSigner.privateKeyToPublicKey as unknown as any).mockReturnValue('STMPublicKey...');
+      (SteemSigner.signChallenge as unknown as any).mockReturnValue('signed-challenge');
+      (apiClient.getAccounts as unknown as any).mockResolvedValue({
+        accounts: [
+          {
+            name: 'testuser',
+            owner: { key_auths: [['STMOwner', 1]] },
+            active: { key_auths: [['STMPublicKey...', 1]] },
+            posting: { key_auths: [['STMPosting', 1]] },
+            memo_key: 'STMMemo',
+          },
+        ],
+      });
+      (apiClient.getChallenge as unknown as any).mockResolvedValue({ challenge: 'test-challenge' });
+      (apiClient.login as unknown as any).mockResolvedValue({ success: true });
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -102,7 +93,18 @@ describe('useAuth Hook', () => {
     });
 
     it('should fail login with invalid private key', async () => {
-      mockIsValidPrivateKey.mockReturnValue(false);
+      (SteemSigner.isValidPrivateKey as unknown as any).mockReturnValue(false);
+      (apiClient.getAccounts as unknown as any).mockResolvedValue({
+        accounts: [
+          {
+            name: 'testuser',
+            owner: { key_auths: [] },
+            active: { key_auths: [] },
+            posting: { key_auths: [] },
+            memo_key: '',
+          },
+        ],
+      });
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -116,11 +118,22 @@ describe('useAuth Hook', () => {
     });
 
     it('should fail login when server rejects credentials', async () => {
-      mockIsValidPrivateKey.mockReturnValue(true);
-      mockPrivateKeyToPublicKey.mockReturnValue('STMPublicKey...');
-      mockSignChallenge.mockReturnValue('signed-challenge');
-      mockGetChallenge.mockResolvedValue({ challenge: 'test-challenge' });
-      mockLogin.mockResolvedValue({ success: false, error: 'Invalid credentials' });
+      (SteemSigner.isValidPrivateKey as unknown as any).mockReturnValue(true);
+      (SteemSigner.privateKeyToPublicKey as unknown as any).mockReturnValue('STMPublicKey...');
+      (SteemSigner.signChallenge as unknown as any).mockReturnValue('signed-challenge');
+      (apiClient.getAccounts as unknown as any).mockResolvedValue({
+        accounts: [
+          {
+            name: 'testuser',
+            owner: { key_auths: [['STMOwner', 1]] },
+            active: { key_auths: [['STMPublicKey...', 1]] },
+            posting: { key_auths: [['STMPosting', 1]] },
+            memo_key: 'STMMemo',
+          },
+        ],
+      });
+      (apiClient.getChallenge as unknown as any).mockResolvedValue({ challenge: 'test-challenge' });
+      (apiClient.login as unknown as any).mockResolvedValue({ success: false, error: 'Invalid credentials' });
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -134,8 +147,19 @@ describe('useAuth Hook', () => {
     });
 
     it('should handle network errors during login', async () => {
-      mockIsValidPrivateKey.mockReturnValue(true);
-      mockGetChallenge.mockRejectedValue(new Error('Network error'));
+      (SteemSigner.isValidPrivateKey as unknown as any).mockReturnValue(true);
+      (apiClient.getAccounts as unknown as any).mockResolvedValue({
+        accounts: [
+          {
+            name: 'testuser',
+            owner: { key_auths: [['STMOwner', 1]] },
+            active: { key_auths: [['STMPublicKey...', 1]] },
+            posting: { key_auths: [['STMPosting', 1]] },
+            memo_key: 'STMMemo',
+          },
+        ],
+      });
+      (apiClient.getChallenge as unknown as any).mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -160,7 +184,7 @@ describe('useAuth Hook', () => {
         },
       });
 
-      mockLogout.mockResolvedValue({ success: true });
+      (apiClient.logout as unknown as any).mockResolvedValue({ success: true });
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -184,7 +208,7 @@ describe('useAuth Hook', () => {
         },
       });
 
-      mockLogout.mockRejectedValue(new Error('Network error'));
+      (apiClient.logout as unknown as any).mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -223,7 +247,7 @@ describe('useAuth Hook', () => {
 });
 
 describe('useRequireAuth Hook', () => {
-  let mockStore: ReturnType<typeof configureStore>;
+  let mockStore: any;
 
   beforeEach(() => {
     mockStore = configureStore({

@@ -25,6 +25,7 @@
   "auth": {
     "login": "登录",
     "logout": "退出",
+    "signUp": "注册",
     "username": "用户名",
     "password": "密码",
     "privateKey": "私钥",

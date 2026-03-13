@@ -25,6 +25,7 @@
   "auth": {
     "login": "Login",
     "logout": "Logout",
+    "signUp": "Sign Up",
     "username": "Username",
     "password": "Password",
     "privateKey": "Private Key",

@@ -7,11 +7,13 @@ import { useDispatch } from 'react-redux';
 import { AppDispatch } from '@/lib/store';
 import { setCredentials } from '@/lib/store/slices/auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
-import { LegacyButton, LegacyInputGroup } from '@/components/ui/legacy-components';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface LoginFormData {
   username: string;
-  privateKey: string;
+  password: string;
 }
 
 export function LoginForm() {
@@ -23,7 +25,7 @@ export function LoginForm() {
 
   const [formData, setFormData] = useState<LoginFormData>({
     username: '',
-    privateKey: '',
+    password: '',
   });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -40,28 +42,75 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
-      // Validate private key format
-      if (!SteemSigner.isValidPrivateKey(formData.privateKey)) {
-        setError('Invalid private key format');
+      const username = formData.username.trim().toLowerCase();
+      const rawSecret = formData.password.trim();
+
+      if (!username || !rawSecret) {
+        setError('Username and password are required');
         setIsLoading(false);
         return;
       }
 
-      // Get public key from private key
-      const publicKey = SteemSigner.privateKeyToPublicKey(formData.privateKey);
+      // Role-specific private keys we will store in Redux
+      let ownerKey: string | null = null;
+      let activeKey: string | null = null;
+      let postingKey: string | null = null;
+      let memoKey: string | null = null;
+
+      // Accept either a WIF private key or a master password.
+      let primaryPrivateKey: string | null = null;
+
+      if (SteemSigner.isValidPrivateKey(rawSecret)) {
+        // Single WIF path: we can't be certain of the role here,
+        // so treat it as the primary key and do not guess roles.
+        primaryPrivateKey = rawSecret;
+      } else {
+        // Master password path: derive all four role keys using steem-js helper
+        try {
+          const keys = SteemSigner.getPrivateKeysFromMasterPassword(username, rawSecret);
+          ownerKey = keys.owner ?? null;
+          activeKey = keys.active ?? null;
+          postingKey = keys.posting ?? null;
+          memoKey = keys.memo ?? null;
+        } catch {
+          setError('Invalid private key or master password');
+          setIsLoading(false);
+          return;
+        }
+
+        // Prefer active key as primary, fall back to owner/posting/memo
+        if (activeKey) {
+          primaryPrivateKey = activeKey;
+        } else if (ownerKey) {
+          primaryPrivateKey = ownerKey;
+        } else if (postingKey) {
+          primaryPrivateKey = postingKey;
+        } else if (memoKey) {
+          primaryPrivateKey = memoKey;
+        } else {
+          setError('Invalid private key or master password');
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      if (!primaryPrivateKey) {
+        setError('Invalid credentials');
+        setIsLoading(false);
+        return;
+      }
+
+      // Get public key from primary private key for login challenge
+      const publicKey = SteemSigner.privateKeyToPublicKey(primaryPrivateKey);
 
       // Get challenge from server
-      const { challenge } = await apiClient.getChallenge(formData.username);
+      const { challenge } = await apiClient.getChallenge(username);
 
       // Sign the challenge
-      const signedChallenge = SteemSigner.signChallenge(challenge, formData.privateKey);
+      const signedChallenge = SteemSigner.signChallenge(challenge, primaryPrivateKey);
 
       // Login to server
-      const response = await apiClient.login(
-        formData.username,
-        signedChallenge,
-        publicKey
-      );
+      const response = await apiClient.login(username, signedChallenge, publicKey);
 
       if (!response.success) {
         setError(response.error || t('loginError'));
@@ -72,15 +121,21 @@ export function LoginForm() {
       // Store credentials in Redux (memory only)
       dispatch(
         setCredentials({
-          username: formData.username,
-          privateKey: formData.privateKey,
+          username,
+          ownerKey,
+          activeKey,
+          postingKey,
+          memoKey,
+          // Keep a primary key field for backwards compatibility (prefer active)
+          privateKey: primaryPrivateKey,
           publicKey,
         })
       );
 
-      // Navigate to wallet
+      // Navigate to user's wallet (transfers tab), preserving legacy-style @username in URL
       startTransition(() => {
-        router.push('/wallet');
+        const encoded = encodeURIComponent(`@${username}`);
+        router.push(`/${encoded}/transfers`);
       });
     } catch (err) {
       console.error('Login error:', err);
@@ -94,76 +149,68 @@ export function LoginForm() {
       <div className="column">
         <div className="LoginForm max-w-28rem mx-auto mt-4 mb-2">
           {/* Login Form Card */}
-          <div className="bg-module border border-themed rounded-legacy p-8 shadow-sm">
-            <form onSubmit={handleSubmit} className="mt-6">
+          <div className="bg-card text-card-foreground border border-border rounded-lg p-8 shadow-sm max-w-md mx-auto">
+            <h2 className="text-2xl font-bold mb-6 text-center">{t('login')}</h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* Username Input with @ prefix */}
-              <div>
-                <label
-                  htmlFor="username"
-                  className="mb-2 block text-sm font-medium text-foreground"
-                >
-                  {t('username')}
-                </label>
-                <LegacyInputGroup
-                  id="username"
-                  name="username"
-                  type="text"
-                  prefix="@"
-                  value={formData.username}
-                  onChange={handleChange}
-                  required
-                  placeholder="username"
-                  disabled={isLoading || isPending}
-                />
+              <div className="space-y-2">
+                <Label htmlFor="username">{t('username')}</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">@</span>
+                  <Input
+                    id="username"
+                    name="username"
+                    type="text"
+                    value={formData.username}
+                    onChange={handleChange}
+                    required
+                    placeholder="username"
+                    disabled={isLoading || isPending}
+                    className="pl-8"
+                  />
+                </div>
               </div>
 
               {/* Private Key Input */}
-              <div>
-                <label
-                  htmlFor="privateKey"
-                  className="mb-2 block text-sm font-medium text-foreground"
-                >
-                  {t('privateKey')}
-                </label>
-                <LegacyInputGroup
-                  id="privateKey"
-                  name="privateKey"
+              <div className="space-y-2">
+                <Label htmlFor="password">{t('privateKey')}</Label>
+                <Input
+                  id="password"
+                  name="password"
                   type="password"
-                  value={formData.privateKey}
+                  value={formData.password}
                   onChange={handleChange}
                   required
-                  placeholder="Enter your private key"
+                  placeholder="Enter your private key or master password"
                   disabled={isLoading || isPending}
                 />
-                <p className="mt-1 text-xs text-text-secondary">
-                  Your private key is stored locally and never sent to the server
+                <p className="text-xs text-muted-foreground">
+                  Your secret is stored locally and never sent to the server
                 </p>
               </div>
 
               {/* Save Login Option */}
-              <div className="LoginForm__save-login mt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-teal focus:ring-teal" />
-                  <span className="text-sm text-foreground">{t('keepLoggedIn')}</span>
-                </label>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="keepLoggedIn" className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                <Label htmlFor="keepLoggedIn" className="font-normal cursor-pointer">{t('keepLoggedIn')}</Label>
               </div>
 
               {/* Error Message */}
               {error && (
-                <div className="rounded-legacy bg-steem-red/10 border border-steem-red/30 p-4 mt-4">
-                  <p className="text-sm text-steem-red">{error}</p>
+                <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4">
+                  <p className="text-sm text-destructive font-medium">{error}</p>
                 </div>
               )}
 
-              {/* Submit Button - Using Legacy Button */}
-              <LegacyButton
+              {/* Submit Button */}
+              <Button
                 type="submit"
                 disabled={isLoading || isPending}
-                fullWidth
-                variant="black"
+                className="w-full"
+                size="lg"
               >
                 {isLoading || isPending ? tCommon('loading') : t('loginButton')}
-              </LegacyButton>
+              </Button>
             </form>
           </div>
         </div>

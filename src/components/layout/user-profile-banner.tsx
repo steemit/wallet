@@ -1,0 +1,162 @@
+'use client';
+
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MapPin, LinkIcon, Calendar, ChevronDown, ExternalLink } from 'lucide-react';
+
+interface UserProfileBannerProps {
+  accountname: string;
+  displayName?: string;
+  about?: string;
+  location?: string;
+  website?: string;
+  createdDate?: string;
+  coverImage?: string;
+  socialUrl?: string;
+  isMyAccount: boolean;
+}
+
+export function UserProfileBanner({
+  accountname,
+  displayName,
+  about,
+  location,
+  website,
+  createdDate,
+  coverImage,
+}: UserProfileBannerProps) {
+  const websiteLabel = website
+    ? website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
+    : null;
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+    });
+  };
+
+  return (
+    <div className="UserProfile__banner" style={coverImage ? {
+      backgroundImage: `url(${coverImage})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    } : undefined}>
+      <div className="max-w-5xl mx-auto px-4">
+        <h1 className="flex items-center gap-3 text-2xl font-bold m-0">
+          <Avatar className="h-12 w-12">
+            <AvatarImage
+              src={`https://steemitimages.com/u/${accountname}/avatar`}
+              alt={accountname}
+            />
+            <AvatarFallback className="bg-primary text-primary-foreground font-bold">
+              {accountname.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          {displayName || accountname}
+        </h1>
+
+        <div>
+          {about && (
+            <p className="UserProfile__bio">{about}</p>
+          )}
+          <p className="UserProfile__info">
+            {location && (
+              <span>
+                <MapPin className="h-3.5 w-3.5" /> {location}
+              </span>
+            )}
+            {website && (
+              <span>
+                <LinkIcon className="h-3.5 w-3.5" />{' '}
+                <a
+                  href={website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  {websiteLabel}
+                </a>
+              </span>
+            )}
+            {createdDate && (
+              <span>
+                <Calendar className="h-3.5 w-3.5" /> {formatDate(createdDate)}
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface TopNavProps {
+  accountname: string;
+  socialUrl?: string;
+  activeSection?: string;
+}
+
+export function TopNav({ accountname, socialUrl = 'https://steemit.com', activeSection }: TopNavProps) {
+  const isRewardsActive = activeSection === 'curation-rewards' || activeSection === 'author-rewards';
+  const isWalletActive = !isRewardsActive;
+
+  return (
+    <div className="UserProfile__top-nav">
+      <div className="max-w-5xl mx-auto px-4">
+        <div className="flex items-center justify-between py-2">
+          <ul className="flex gap-1">
+            <li>
+              <a
+                href={`${socialUrl}/@${accountname}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Blog <ExternalLink className="h-3 w-3" />
+              </a>
+            </li>
+            <li>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={`inline-flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors ${
+                    isRewardsActive ? 'text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Rewards <ChevronDown className="h-3 w-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem asChild>
+                    <a href={`/@${accountname}/curation-rewards`}>Curation Rewards</a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a href={`/@${accountname}/author-rewards`}>Author Rewards</a>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </li>
+          </ul>
+          <ul className="flex gap-1">
+            <li>
+              <a
+                href={`/@${accountname}/transfers`}
+                className={`inline-block px-3 py-2 text-sm font-medium transition-colors ${
+                  isWalletActive ? 'text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Wallet
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -2,7 +2,7 @@
 // Generate a login challenge for the user
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
-import { generateCSRFToken } from '@/lib/middleware';
+import { setCSRFToken } from '@/lib/middleware';
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,15 +32,8 @@ export async function GET(request: NextRequest) {
       challenge,
     });
 
-    // Set CSRF token in cookie
-    const token = generateCSRFToken();
-    response.cookies.set('csrf_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60,
-      path: '/',
-    });
+    // Set CSRF token cookie (readable by JS, validated server-side)
+    setCSRFToken(response);
 
     return response;
   } catch (error) {

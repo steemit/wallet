@@ -28,7 +28,6 @@ import {
   trackError,
   identifyUser,
   resetUser,
-  type AnalyticsEvent,
 } from '@/lib/analytics';
 
 // Mock fetch
@@ -38,7 +37,7 @@ describe('Analytics Module', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Set development mode to enable console logging
-    process.env.NODE_ENV = 'development';
+    vi.stubEnv('NODE_ENV', 'development');
     vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
@@ -52,7 +51,7 @@ describe('Analytics Module', () => {
 
       await trackEvent('page_view', { page: '/wallet', username: 'testuser' });
 
-      const loggedValue = JSON.parse(consoleSpy.mock.calls[0][0] as string);
+      const loggedValue = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string);
       expect(loggedValue).toMatchObject({
         type: 'analytics',
         event: 'page_view',

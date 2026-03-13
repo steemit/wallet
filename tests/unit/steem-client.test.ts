@@ -69,7 +69,12 @@ describe('apiClient', () => {
   });
 
   describe('login', () => {
-    it('should send login request', async () => {
+    it('should send login request with CSRF header when cookie is present', async () => {
+      Object.defineProperty(global, 'document', {
+        value: { cookie: 'csrf_token=test-token' },
+        configurable: true,
+      });
+
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         json: async () => ({ success: true }),
@@ -79,15 +84,27 @@ describe('apiClient', () => {
 
       expect(global.fetch).toHaveBeenCalledWith('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'alice', signedChallenge: 'signed-challenge', publicKey: 'STM123' }),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': 'test-token',
+        },
+        body: JSON.stringify({
+          username: 'alice',
+          signedChallenge: 'signed-challenge',
+          publicKey: 'STM123',
+        }),
       });
       expect(result).toEqual({ success: true });
     });
   });
 
   describe('logout', () => {
-    it('should send logout request', async () => {
+    it('should send logout request with CSRF header when cookie is present', async () => {
+      Object.defineProperty(global, 'document', {
+        value: { cookie: 'csrf_token=test-token' },
+        configurable: true,
+      });
+
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         json: async () => ({ success: true }),
@@ -95,14 +112,22 @@ describe('apiClient', () => {
 
       const result = await apiClient.logout();
 
-      expect(global.fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });
+      expect(global.fetch).toHaveBeenCalledWith('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': 'test-token' },
+      });
       expect(result).toEqual({ success: true });
     });
   });
 
   describe('broadcastTransfer', () => {
-    it('should broadcast transfer transaction', async () => {
-      const mockTx = { signatures: ['SIG123'] };
+    it('should broadcast transfer transaction with CSRF header', async () => {
+      const mockTx = { signatures: ['SIG123'] } as unknown as any;
+      Object.defineProperty(global, 'document', {
+        value: { cookie: 'csrf_token=test-token' },
+        configurable: true,
+      });
+
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         json: async () => ({ success: true, result: { id: 'tx123' } }),
@@ -112,7 +137,10 @@ describe('apiClient', () => {
 
       expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/transfer', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': 'test-token',
+        },
         body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
       });
       expect(result.success).toBe(true);
@@ -120,8 +148,13 @@ describe('apiClient', () => {
   });
 
   describe('broadcastPowerDown', () => {
-    it('should broadcast power down transaction', async () => {
-      const mockTx = { signatures: ['SIG123'] };
+    it('should broadcast power down transaction with CSRF header', async () => {
+      const mockTx = { signatures: ['SIG123'] } as unknown as any;
+      Object.defineProperty(global, 'document', {
+        value: { cookie: 'csrf_token=test-token' },
+        configurable: true,
+      });
+
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         json: async () => ({ success: true }),
@@ -131,7 +164,10 @@ describe('apiClient', () => {
 
       expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/power-down', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': 'test-token',
+        },
         body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
       });
       expect(result.success).toBe(true);
@@ -139,8 +175,13 @@ describe('apiClient', () => {
   });
 
   describe('broadcastDelegate', () => {
-    it('should broadcast delegate transaction', async () => {
-      const mockTx = { signatures: ['SIG123'] };
+    it('should broadcast delegate transaction with CSRF header', async () => {
+      const mockTx = { signatures: ['SIG123'] } as unknown as any;
+      Object.defineProperty(global, 'document', {
+        value: { cookie: 'csrf_token=test-token' },
+        configurable: true,
+      });
+
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         json: async () => ({ success: true }),
@@ -150,7 +191,10 @@ describe('apiClient', () => {
 
       expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/delegate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': 'test-token',
+        },
         body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
       });
       expect(result.success).toBe(true);
@@ -158,8 +202,13 @@ describe('apiClient', () => {
   });
 
   describe('broadcastVote', () => {
-    it('should broadcast vote transaction', async () => {
-      const mockTx = { signatures: ['SIG123'] };
+    it('should broadcast vote transaction with CSRF header', async () => {
+      const mockTx = { signatures: ['SIG123'] } as unknown as any;
+      Object.defineProperty(global, 'document', {
+        value: { cookie: 'csrf_token=test-token' },
+        configurable: true,
+      });
+
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         json: async () => ({ success: true }),
@@ -169,7 +218,10 @@ describe('apiClient', () => {
 
       expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/vote', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': 'test-token',
+        },
         body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
       });
       expect(result.success).toBe(true);
@@ -177,8 +229,13 @@ describe('apiClient', () => {
   });
 
   describe('broadcastWitnessVote', () => {
-    it('should broadcast witness vote transaction', async () => {
-      const mockTx = { signatures: ['SIG123'] };
+    it('should broadcast witness vote transaction with CSRF header', async () => {
+      const mockTx = { signatures: ['SIG123'] } as unknown as any;
+      Object.defineProperty(global, 'document', {
+        value: { cookie: 'csrf_token=test-token' },
+        configurable: true,
+      });
+
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         json: async () => ({ success: true }),
@@ -188,7 +245,10 @@ describe('apiClient', () => {
 
       expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/witness-vote', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': 'test-token',
+        },
         body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
       });
       expect(result.success).toBe(true);

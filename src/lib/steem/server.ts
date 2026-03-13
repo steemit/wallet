@@ -1,6 +1,8 @@
 // Server-side Steem service
 // All communication with Steem nodes happens here
 
+import { steem } from '@steemit/steem-js';
+
 import type {
   SteemAccount,
   SignedTransaction,
@@ -10,10 +12,6 @@ import type {
 
 // Steem configuration from environment
 const STEEM_RPC_URL = process.env.STEEM_RPC_URL || 'https://api.steemit.com';
-
-// Dynamic import steem-js for server-side
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const steem = require('@steemit/steem-js');
 
 // Configure steem-js lazily when first accessed
 let configured = false;
@@ -52,7 +50,7 @@ export class SteemService {
   ): Promise<unknown[]> {
     try {
       ensureConfigured();
-      const history = await steem.api.getAccountHistoryAsync(username, -1, limit);
+      const history = await (steem.api as any).getAccountHistoryAsync(username, -1, limit);
       return history;
     } catch (error) {
       console.error('Error fetching account history:', error);
@@ -66,7 +64,7 @@ export class SteemService {
   static async getWitnessesByVote(limit: number = 100): Promise<unknown[]> {
     try {
       ensureConfigured();
-      const witnesses = await steem.api.getWitnessesByVoteAsync('', limit);
+      const witnesses = await (steem.api as any).getWitnessesByVoteAsync('', limit);
       return witnesses;
     } catch (error) {
       console.error('Error fetching witnesses:', error);
@@ -80,7 +78,7 @@ export class SteemService {
   static async getWitness(account: string): Promise<unknown> {
     try {
       ensureConfigured();
-      const witness = await steem.api.getWitnessByAccountAsync(account);
+      const witness = await (steem.api as any).getWitnessByAccountAsync(account);
       return witness;
     } catch (error) {
       console.error('Error fetching witness:', error);
@@ -94,7 +92,7 @@ export class SteemService {
   static async getGlobalProperties(): Promise<GlobalProperties> {
     try {
       ensureConfigured();
-      const props = await steem.api.getDynamicGlobalPropertiesAsync();
+      const props = await (steem.api as any).getDynamicGlobalPropertiesAsync();
       return props as GlobalProperties;
     } catch (error) {
       console.error('Error fetching global properties:', error);
@@ -108,7 +106,7 @@ export class SteemService {
   static async getFeedHistory(): Promise<unknown> {
     try {
       ensureConfigured();
-      const feed = await steem.api.getFeedHistoryAsync();
+      const feed = await (steem.api as any).getFeedHistoryAsync();
       return feed;
     } catch (error) {
       console.error('Error fetching feed history:', error);
@@ -170,7 +168,7 @@ export class SteemService {
   ): boolean {
     try {
       ensureConfigured();
-      const recovered = steem.auth.signatureVerify(challenge, signature, publicKey);
+      const recovered = steem.auth.verifySignature(challenge, signature, publicKey);
       return recovered;
     } catch {
       return false;
@@ -187,7 +185,7 @@ export class SteemService {
   }> {
     try {
       ensureConfigured();
-      const props = await steem.api.getDynamicGlobalPropertiesAsync();
+      const props = await (steem.api as any).getDynamicGlobalPropertiesAsync();
       return {
         block_number: props.head_block_number,
         block_id: props.head_block_id,

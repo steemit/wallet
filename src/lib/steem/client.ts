@@ -1,5 +1,7 @@
 'use client';
 
+import { steem } from '@steemit/steem-js';
+
 import type {
   Operation,
   SignedTransaction,
@@ -7,10 +9,6 @@ import type {
   GlobalProperties,
   BroadcastResult,
 } from './types';
-
-// Dynamic import for steem-js to handle SSR
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const steem = require('@steemit/steem-js');
 
 /**
  * SteemSigner - Client-side transaction signing module
@@ -155,7 +153,32 @@ export class SteemSigner {
    * Get public key from private key
    */
   static privateKeyToPublicKey(privateKey: string): string {
-    return steem.auth.privateToPublic(privateKey);
+    // In steem-js >=1.0, use getPublicKey helper from auth module.
+    // This accepts a WIF private key and returns the corresponding public key.
+    return steem.auth.getPublicKey(privateKey);
+  }
+
+  /**
+   * Derive a private key from a master password and role.
+   * This never sends the password over the network.
+   */
+  static derivePrivateKeyFromPassword(
+    username: string,
+    password: string,
+    role: 'owner' | 'active' | 'posting' | 'memo' = 'active'
+  ): string {
+    return steem.auth.toWif(username, password, role);
+  }
+
+  /**
+   * Derive all role keys from a master password.
+   * Returns a map of role -> WIF private key.
+   */
+  static getPrivateKeysFromMasterPassword(
+    username: string,
+    password: string
+  ): { [role: string]: string } {
+    return steem.auth.getPrivateKeys(username, password, ['owner', 'active', 'posting', 'memo']);
   }
 
   /**
@@ -194,6 +217,22 @@ export class SteemSigner {
   }
 }
 
+function getCSRFCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function withCSRFHeader(baseHeaders: HeadersInit = {}): HeadersInit {
+  const token = getCSRFCookie();
+  if (!token) return baseHeaders;
+
+  return {
+    ...baseHeaders,
+    'X-CSRF-Token': token,
+  };
+}
+
 /**
  * API Client for communicating with Next.js API routes
  */
@@ -218,7 +257,7 @@ export const apiClient = {
   }> {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ username, signedChallenge, publicKey }),
     });
     return response.json();
@@ -228,7 +267,10 @@ export const apiClient = {
    * Logout
    */
   async logout(): Promise<{ success: boolean }> {
-    const response = await fetch('/api/auth/logout', { method: 'POST' });
+    const response = await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: withCSRFHeader(),
+    });
     return response.json();
   },
 
@@ -241,7 +283,7 @@ export const apiClient = {
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/transfer', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();
@@ -256,7 +298,7 @@ export const apiClient = {
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/power-down', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();
@@ -271,7 +313,7 @@ export const apiClient = {
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/delegate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();
@@ -286,7 +328,7 @@ export const apiClient = {
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/vote', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();
@@ -301,7 +343,7 @@ export const apiClient = {
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/witness-vote', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();

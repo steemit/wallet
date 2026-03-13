@@ -8,6 +8,10 @@ import type { RootState } from '@/lib/store';
 import { usePrivateKey } from '@/hooks/use-auth';
 import { useAccountData } from '@/hooks/use-account-data';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function PowerDownForm() {
   const t = useTranslations('wallet');
@@ -61,9 +65,10 @@ export function PowerDownForm() {
         return;
       }
 
-      // Redirect back to wallet
+      // Redirect back to user's wallet
       startTransition(() => {
-        router.push('/wallet');
+        const encoded = encodeURIComponent(`@${username}`);
+        router.push(`/${encoded}/transfers`);
       });
     } catch (err) {
       console.error('Power down error:', err);
@@ -95,7 +100,8 @@ export function PowerDownForm() {
       }
 
       startTransition(() => {
-        router.push('/wallet');
+        const encoded = encodeURIComponent(`@${username}`);
+        router.push(`/${encoded}/transfers`);
       });
     } catch (err) {
       console.error('Cancel power down error:', err);
@@ -105,89 +111,85 @@ export function PowerDownForm() {
   };
 
   return (
-    <div className="mx-auto max-w-md rounded-lg bg-white p-8 shadow dark:bg-gray-800">
-      <h2 className="mb-6 text-2xl font-bold text-gray-900 dark:text-white">
-        {t('powerDown')}
-      </h2>
-
-      {account && (
-        <div className="mb-6 rounded-md bg-gray-50 p-4 dark:bg-gray-700">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-gray-600 dark:text-gray-400">Current Rate:</p>
-              <p className="font-medium text-gray-900 dark:text-white">
-                {account.vesting_withdraw_rate}
-              </p>
+    <Card className="mx-auto max-w-md mt-8 shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold">{t('powerDown')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {account && (
+          <div className="mb-6 rounded-md bg-muted p-4 border border-border">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Current Rate:</p>
+                <p className="font-medium text-foreground">
+                  {account.vesting_withdraw_rate}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Next Withdrawal:</p>
+                <p className="font-medium text-foreground">
+                  {account.next_vesting_withdrawal}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-gray-600 dark:text-gray-400">Next Withdrawal:</p>
-              <p className="font-medium text-gray-900 dark:text-white">
-                {account.next_vesting_withdrawal}
-              </p>
-            </div>
-          </div>
-          {isPoweringDown && (
-            <div className="mt-4">
-              <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                Power down is currently active
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label
-            htmlFor="shares"
-            className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            VESTS to Power Down
-          </label>
-          <input
-            type="number"
-            id="shares"
-            value={shares}
-            onChange={(e) => setShares(e.target.value)}
-            step="0.000001"
-            min="0"
-            required={!isPoweringDown}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            placeholder="Enter VESTS amount"
-            disabled={isLoading || isPending}
-          />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Use format: 6 decimal places (e.g., 1000000.000000)
-          </p>
-        </div>
-
-        {error && (
-          <div className="rounded-md bg-red-50 p-4 dark:bg-red-900/20">
-            <p className="text-sm text-red-800 dark:text-red-400">{error}</p>
+            {isPoweringDown && (
+              <div className="mt-4">
+                <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
+                  Power down is currently active
+                </p>
+              </div>
+            )}
           </div>
         )}
 
-        <div className="flex gap-4">
-          <button
-            type="submit"
-            disabled={isLoading || isPending}
-            className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
-          >
-            {isLoading || isPending ? tCommon('loading') : 'Start Power Down'}
-          </button>
-
-          {isPoweringDown && (
-            <button
-              type="button"
-              onClick={handleCancel}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="shares">VESTS to Power Down</Label>
+            <Input
+              type="number"
+              id="shares"
+              value={shares}
+              onChange={(e) => setShares(e.target.value)}
+              step="0.000001"
+              min="0"
+              required={!isPoweringDown}
+              placeholder="Enter VESTS amount"
               disabled={isLoading || isPending}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-            >
-              Cancel Power Down
-            </button>
+            />
+            <p className="text-xs text-muted-foreground">
+              Use format: 6 decimal places (e.g., 1000000.000000)
+            </p>
+          </div>
+
+          {error && (
+            <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4">
+              <p className="text-sm text-destructive font-medium">{error}</p>
+            </div>
           )}
-        </div>
-      </form>
-    </div>
+
+          <div className="flex gap-4 pt-2">
+            <Button
+              type="submit"
+              disabled={isLoading || isPending}
+              className="flex-1"
+            >
+              {isLoading || isPending ? tCommon('loading') : 'Start Power Down'}
+            </Button>
+
+            {isPoweringDown && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+                disabled={isLoading || isPending}
+                className="flex-1"
+              >
+                Cancel Power Down
+              </Button>
+            )}
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

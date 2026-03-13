@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
@@ -9,14 +8,26 @@ import { SteemLogo } from './steem-logo';
 import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 import { useTheme } from '@/lib/theme';
 import { useTranslations } from 'next-intl';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Menu, Wallet, Key, Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
 
-export function Header() {
+interface HeaderProps {
+  onOpenSidePanel?: () => void;
+}
+
+export function Header({ onOpenSidePanel }: HeaderProps) {
   const t = useTranslations('auth');
   const router = useRouter();
-  const { theme, changeTheme } = useTheme();
+  const { theme, cycleTheme } = useTheme();
   const username = useSelector((state: RootState) => state.auth.username);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isLoggedIn = !!username;
 
@@ -29,29 +40,15 @@ export function Header() {
     }
   };
 
-  const userMenuItems = isLoggedIn
-    ? [
-        { label: 'Wallet', href: `/@${username}/transfers` },
-        { label: 'Settings', href: `/@${username}/settings` },
-        {
-          label: 'Theme',
-          action: () => {
-            const themes: readonly ['original', 'light', 'dark'] = ['original', 'light', 'dark'] as const;
-            const currentIndex = themes.indexOf(theme);
-            const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % themes.length : 0;
-            changeTheme(themes[nextIndex]!);
-          },
-        },
-        { label: 'Logout', action: handleLogout },
-      ]
-    : [];
+  const themeIcon = theme === 'dark' ? <Moon className="h-4 w-4" /> : theme === 'light' ? <Sun className="h-4 w-4" /> : <Monitor className="h-4 w-4" />;
+  const themeLabel = theme === 'dark' ? 'Dark Mode' : theme === 'light' ? 'Light Mode' : 'Original Mode';
 
   return (
-    <header className="Header fixed top-0 left-0 w-full z-[100] shadow-sm bg-module border-b border-themed transition-colors duration-200">
+    <header className="Header">
       <nav className="flex items-center h-16 max-w-none px-4 md:px-6">
         {/* Logo - Left */}
         <div className="flex-shrink-0">
-          <Link href="/" className="block h-[37px] flex items-baseline transition-colors duration-200">
+          <Link href="/" className="flex items-baseline h-[37px] transition-colors duration-200">
             <SteemLogo />
           </Link>
         </div>
@@ -68,59 +65,64 @@ export function Header() {
             <div className="hidden md:flex items-center gap-4">
               <Link
                 href="/login"
-                className="text-sm font-medium transition-colors duration-200 hover:text-steem-blue"
+                className="text-sm font-medium transition-colors duration-200 hover:text-primary"
               >
                 {t('login')}
               </Link>
-              <Link
-                href="/signup"
-                className="e-btn e-btn-black px-4 py-2 text-sm font-bold"
-              >
-                {t('signUp')}
-              </Link>
+              <Button asChild size="sm">
+                <Link href="/signup">
+                  {t('signUp')}
+                </Link>
+              </Button>
             </div>
           )}
 
-          {/* Logged In: User Avatar + Menu */}
+          {/* Logged In: User Avatar Dropdown */}
           {isLoggedIn && (
-            <div className="relative">
-              <button
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                title={username}
-              >
-                <div className="w-9 h-9 md:w-10 md:h-10 rounded bg-gradient-to-br from-steem-blue to-teal flex items-center justify-center text-white font-bold text-sm">
-                  {username?.charAt(0).toUpperCase()}
-                </div>
-              </button>
-
-              {userMenuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setUserMenuOpen(false)}
-                  />
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-legacy shadow-lg z-20">
-                    {userMenuItems.map((item, index) => (
-                      <Link
-                        key={index}
-                        href={item.href || '#'}
-                        onClick={(e) => {
-                          if (item.action) {
-                            e.preventDefault();
-                            item.action();
-                          }
-                          setUserMenuOpen(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 first:rounded-t-md last:rounded-b-md"
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage
+                      src={`https://steemitimages.com/u/${username}/avatar`}
+                      alt={username}
+                    />
+                    <AvatarFallback className="bg-primary text-primary-foreground font-bold text-sm">
+                      {username?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link href={`/@${username}/transfers`} className="cursor-pointer">
+                    <Wallet className="h-4 w-4" />
+                    <span>Wallet</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={cycleTheme} className="cursor-pointer">
+                  {themeIcon}
+                  <span>{themeLabel}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/@${username}/password`} className="cursor-pointer">
+                    <Key className="h-4 w-4" />
+                    <span>Change Password</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/@${username}/settings`} className="cursor-pointer">
+                    <Settings className="h-4 w-4" />
+                    <span>Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                  <LogOut className="h-4 w-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
 
           {/* Mobile Language Toggle */}
@@ -131,93 +133,17 @@ export function Header() {
           )}
 
           {/* Hamburger Menu */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="w-4 h-4 ml-2 md:ml-4 relative"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={onOpenSidePanel}
             aria-label="Menu"
           >
-            <span
-              className={`block w-full h-0.5 bg-current transition-all duration-200 ${
-                mobileMenuOpen ? 'rotate-45 translate-y-1.5' : ''
-              }`}
-            />
-            <span
-              className={`block w-full h-0.5 bg-current mt-1.5 transition-all duration-200 ${
-                mobileMenuOpen ? 'opacity-0' : ''
-              }`}
-            />
-            <span
-              className={`block w-full h-0.5 bg-current mt-1.5 transition-all duration-200 ${
-                mobileMenuOpen ? '-rotate-45 -translate-y-1.5' : ''
-              }`}
-            />
-          </button>
+            <Menu className="h-4 w-4" />
+          </Button>
         </div>
       </nav>
-
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t border-themed bg-module">
-          <div className="px-4 py-4 space-y-3">
-            {!isLoggedIn ? (
-              <>
-                <Link
-                  href="/login"
-                  className="block py-2 text-sm font-medium"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {t('login')}
-                </Link>
-                <Link
-                  href="/signup"
-                  className="block py-2 text-sm font-medium"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {t('signUp')}
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link
-                  href={`/@${username}/transfers`}
-                  className="block py-2 text-sm"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Wallet
-                </Link>
-                <Link
-                  href={`/@${username}/settings`}
-                  className="block py-2 text-sm"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Settings
-                </Link>
-                <button
-                  onClick={() => {
-                    const themes: readonly ['original', 'light', 'dark'] = ['original', 'light', 'dark'] as const;
-                    const currentIndex = themes.indexOf(theme);
-                    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % themes.length : 0;
-                    changeTheme(themes[nextIndex]!);
-                    setMobileMenuOpen(false);
-                  }}
-                  className="block w-full text-left py-2 text-sm"
-                >
-                  Theme ({theme})
-                </button>
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="block w-full text-left py-2 text-sm"
-                >
-                  Logout
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </header>
   );
 }

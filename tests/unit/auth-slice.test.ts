@@ -14,6 +14,10 @@ import authReducer, {
 describe('Auth Slice', () => {
   const initialState: AuthState = {
     username: null,
+    ownerKey: null,
+    activeKey: null,
+    postingKey: null,
+    memoKey: null,
     privateKey: null,
     publicKey: null,
     isAuthenticated: false,
@@ -30,13 +34,14 @@ describe('Auth Slice', () => {
     it('should set user credentials and mark as authenticated', () => {
       const action = setCredentials({
         username: 'testuser',
-        privateKey: '5JTestPrivateKey...',
+        activeKey: '5JTestPrivateKey...',
         publicKey: 'STMTestPublicKey...',
       });
 
       const state = authReducer(initialState, action);
 
       expect(state.username).toBe('testuser');
+      expect(state.activeKey).toBe('5JTestPrivateKey...');
       expect(state.privateKey).toBe('5JTestPrivateKey...');
       expect(state.publicKey).toBe('STMTestPublicKey...');
       expect(state.isAuthenticated).toBe(true);
@@ -45,6 +50,10 @@ describe('Auth Slice', () => {
     it('should overwrite existing credentials', () => {
       const existingState: AuthState = {
         username: 'olduser',
+        ownerKey: 'oldOwner',
+        activeKey: 'oldActive',
+        postingKey: 'oldPosting',
+        memoKey: 'oldMemo',
         privateKey: 'oldkey',
         publicKey: 'oldpub',
         isAuthenticated: true,
@@ -53,14 +62,15 @@ describe('Auth Slice', () => {
 
       const action = setCredentials({
         username: 'newuser',
-        privateKey: 'newkey',
+        activeKey: 'newActive',
         publicKey: 'newpub',
       });
 
       const state = authReducer(existingState, action);
 
       expect(state.username).toBe('newuser');
-      expect(state.privateKey).toBe('newkey');
+      expect(state.activeKey).toBe('newActive');
+      expect(state.privateKey).toBe('newActive');
       expect(state.publicKey).toBe('newpub');
       expect(state.isAuthenticated).toBe(true);
     });
@@ -107,6 +117,10 @@ describe('Auth Slice', () => {
     it('should not affect other state properties', () => {
       const stateWithChallenge: AuthState = {
         username: 'testuser',
+        ownerKey: 'owner',
+        activeKey: 'active',
+        postingKey: 'posting',
+        memoKey: 'memo',
         privateKey: 'testkey',
         publicKey: 'testpub',
         isAuthenticated: true,
@@ -126,6 +140,10 @@ describe('Auth Slice', () => {
     it('should clear all auth state', () => {
       const loggedInState: AuthState = {
         username: 'testuser',
+        ownerKey: 'owner',
+        activeKey: 'active',
+        postingKey: 'posting',
+        memoKey: 'memo',
         privateKey: 'testkey',
         publicKey: 'testpub',
         isAuthenticated: true,
