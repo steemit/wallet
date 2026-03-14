@@ -1,8 +1,9 @@
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useEffect } from 'react';
+import { usePathname, useRouter } from '@/i18n/routing';
 import { RecentActivityLazy } from '@/components/wallet/client-wrappers';
 import { BalanceRows } from '@/components/wallet/balance-rows';
 import { WalletSubMenu } from '@/components/layout/wallet-sub-menu';
@@ -13,6 +14,7 @@ export default function WalletPage() {
   const { username: loggedInUser, isAuthenticated } = useAuth();
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
 
   const rawUsername = params?.username as string | undefined;
   
@@ -20,13 +22,20 @@ export default function WalletPage() {
   const urlUsername = rawUsername ? decodeURIComponent(rawUsername).replace(/^@/, '') : '';
   const isMyAccount = !!isAuthenticated && !!loggedInUser && loggedInUser === urlUsername;
 
+  // Align with wallet-legacy: user homepage /@username has no content, redirect to /@username/transfers
+  const isUserHome = pathname === `/@${urlUsername}` || pathname === `/@${urlUsername}/`;
+
   useEffect(() => {
     if (!urlUsername) {
       router.push('/');
+      return;
     }
-  }, [urlUsername, router]);
+    if (isUserHome) {
+      router.replace(`/@${urlUsername}/transfers`);
+    }
+  }, [urlUsername, isUserHome, router]);
 
-  if (!urlUsername) {
+  if (!urlUsername || isUserHome) {
     return (
       <div className="flex justify-center py-12">
         <div className="text-center">
