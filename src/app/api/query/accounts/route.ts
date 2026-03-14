@@ -41,10 +41,9 @@ export async function GET(request: NextRequest) {
 
     const accounts = await SteemService.getAccounts(usernames);
 
-    return NextResponse.json({
-      success: true,
-      accounts,
-    });
+    const response = NextResponse.json({ success: true, accounts });
+    response.headers.set('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=60');
+    return response;
   } catch (error) {
     console.error('Error fetching accounts:', error);
     return NextResponse.json(

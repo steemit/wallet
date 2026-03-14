@@ -220,7 +220,8 @@ export class SteemSigner {
 function getCSRFCookie(): string | null {
   if (typeof document === 'undefined') return null;
   const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : null;
+  const token = match?.[1];
+  return token ? decodeURIComponent(token) : null;
 }
 
 function withCSRFHeader(baseHeaders: HeadersInit = {}): HeadersInit {

@@ -10,16 +10,40 @@ import type {
   GlobalProperties,
 } from './types';
 
-// Steem configuration from environment
-const STEEM_RPC_URL = process.env.STEEM_RPC_URL || 'https://api.steemit.com';
+// Steem configuration from environment; support multiple URLs for failover
+const STEEM_RPC_URLS = (process.env.STEEM_RPC_URL || 'https://api.steemit.com')
+  .split(',')
+  .map((u) => u.trim())
+  .filter(Boolean);
 
-// Configure steem-js lazily when first accessed
-let configured = false;
-function ensureConfigured() {
-  if (!configured && steem?.api?.setOptions) {
-    steem.api.setOptions({ url: STEEM_RPC_URL });
-    configured = true;
+let currentUrlIndex = 0;
+function getCurrentRpcUrl(): string {
+  return STEEM_RPC_URLS[currentUrlIndex % STEEM_RPC_URLS.length] ?? STEEM_RPC_URLS[0]!;
+}
+
+function ensureConfigured(url?: string) {
+  const rpcUrl = url ?? getCurrentRpcUrl();
+  if (steem?.api?.setOptions) {
+    steem.api.setOptions({ url: rpcUrl });
   }
+}
+
+async function withFailover<T>(fn: () => Promise<T>): Promise<T> {
+  const startIndex = currentUrlIndex;
+  let lastError: Error | null = null;
+  for (let i = 0; i < STEEM_RPC_URLS.length; i++) {
+    currentUrlIndex = (startIndex + i) % STEEM_RPC_URLS.length;
+    ensureConfigured(getCurrentRpcUrl());
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (i < STEEM_RPC_URLS.length - 1) {
+        console.warn(`Steem RPC ${getCurrentRpcUrl()} failed, trying next:`, lastError.message);
+      }
+    }
+  }
+  throw lastError ?? new Error('Steem RPC failed');
 }
 
 /**
@@ -31,14 +55,14 @@ export class SteemService {
    * Get account information
    */
   static async getAccounts(usernames: string[]): Promise<SteemAccount[]> {
-    try {
+    return withFailover(async () => {
       ensureConfigured();
       const accounts = await steem.api.getAccountsAsync(usernames);
       return accounts as SteemAccount[];
-    } catch (error) {
+    }).catch((error) => {
       console.error('Error fetching accounts:', error);
       throw new Error(`Failed to fetch accounts: ${(error as Error).message}`);
-    }
+    });
   }
 
   /**
@@ -46,86 +70,82 @@ export class SteemService {
    */
   static async getAccountHistory(
     username: string,
-    limit: number = 100
+    limit: number = 10
   ): Promise<unknown[]> {
-    try {
+    return withFailover(async () => {
       ensureConfigured();
-      const history = await (steem.api as any).getAccountHistoryAsync(username, -1, limit);
-      return history;
-    } catch (error) {
+      return await (steem.api as any).getAccountHistoryAsync(username, -1, limit);
+    }).catch((error) => {
       console.error('Error fetching account history:', error);
       throw new Error(`Failed to fetch history: ${(error as Error).message}`);
-    }
+    });
   }
 
   /**
    * Get witnesses list (by vote)
    */
   static async getWitnessesByVote(limit: number = 100): Promise<unknown[]> {
-    try {
+    return withFailover(async () => {
       ensureConfigured();
-      const witnesses = await (steem.api as any).getWitnessesByVoteAsync('', limit);
-      return witnesses;
-    } catch (error) {
+      return await (steem.api as any).getWitnessesByVoteAsync('', limit);
+    }).catch((error) => {
       console.error('Error fetching witnesses:', error);
       throw new Error(`Failed to fetch witnesses: ${(error as Error).message}`);
-    }
+    });
   }
 
   /**
    * Get witness by account
    */
   static async getWitness(account: string): Promise<unknown> {
-    try {
+    return withFailover(async () => {
       ensureConfigured();
-      const witness = await (steem.api as any).getWitnessByAccountAsync(account);
-      return witness;
-    } catch (error) {
+      return await (steem.api as any).getWitnessByAccountAsync(account);
+    }).catch((error) => {
       console.error('Error fetching witness:', error);
       throw new Error(`Failed to fetch witness: ${(error as Error).message}`);
-    }
+    });
   }
 
   /**
    * Get global properties
    */
   static async getGlobalProperties(): Promise<GlobalProperties> {
-    try {
+    return withFailover(async () => {
       ensureConfigured();
       const props = await (steem.api as any).getDynamicGlobalPropertiesAsync();
       return props as GlobalProperties;
-    } catch (error) {
+    }).catch((error) => {
       console.error('Error fetching global properties:', error);
       throw new Error(`Failed to fetch global properties: ${(error as Error).message}`);
-    }
+    });
   }
 
   /**
    * Get feed history (price)
    */
   static async getFeedHistory(): Promise<unknown> {
-    try {
+    return withFailover(async () => {
       ensureConfigured();
-      const feed = await (steem.api as any).getFeedHistoryAsync();
-      return feed;
-    } catch (error) {
+      return await (steem.api as any).getFeedHistoryAsync();
+    }).catch((error) => {
       console.error('Error fetching feed history:', error);
       throw new Error(`Failed to fetch feed history: ${(error as Error).message}`);
-    }
+    });
   }
 
   /**
    * Broadcast a signed transaction
    */
   static async broadcastTransaction(signedTx: SignedTransaction): Promise<BroadcastResult> {
-    try {
+    return withFailover(async () => {
       ensureConfigured();
       const result = await steem.api.broadcastTransactionAsync(signedTx);
       return result as BroadcastResult;
-    } catch (error) {
+    }).catch((error) => {
       console.error('Error broadcasting transaction:', error);
       throw new Error(`Failed to broadcast: ${(error as Error).message}`);
-    }
+    });
   }
 
   /**
@@ -183,7 +203,7 @@ export class SteemService {
     block_id: string;
     timestamp: string;
   }> {
-    try {
+    return withFailover(async () => {
       ensureConfigured();
       const props = await (steem.api as any).getDynamicGlobalPropertiesAsync();
       return {
@@ -191,10 +211,10 @@ export class SteemService {
         block_id: props.head_block_id,
         timestamp: props.time,
       };
-    } catch (error) {
+    }).catch((error) => {
       console.error('Error fetching block header:', error);
       throw new Error(`Failed to fetch block header: ${(error as Error).message}`);
-    }
+    });
   }
 
   /**

@@ -15,6 +15,12 @@ export default defineConfig({
         'tests/',
         '.next/',
       ],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        statements: 80,
+        branches: 60,
+      },
     },
   },
   resolve: {

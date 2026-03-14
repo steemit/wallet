@@ -41,6 +41,60 @@ describe('SteemSigner - Basic Structure', () => {
     expect(challenge2).toMatch(/^\d+-[a-z0-9]+$/);
     expect(challenge1).not.toBe(challenge2);
   });
+
+  it('should sign transfer and return signed tx', () => {
+    const signed = SteemSigner.signTransfer('alice', 'bob', '1.000 STEEM', 'memo', '5Jkey');
+    expect(signed).toEqual(expect.objectContaining({ signatures: ['SIG'], operations: [] }));
+  });
+
+  it('should sign power down and return signed tx', () => {
+    const signed = SteemSigner.signPowerDown('alice', '100.000000 VESTS', '5Jkey');
+    expect(signed).toEqual(expect.objectContaining({ signatures: ['SIG'], operations: [] }));
+  });
+
+  it('should sign delegate and return signed tx', () => {
+    const signed = SteemSigner.signDelegate('alice', 'bob', '100.000000 VESTS', '5Jkey');
+    expect(signed).toEqual(expect.objectContaining({ signatures: ['SIG'], operations: [] }));
+  });
+
+  it('should sign vote and return signed tx', () => {
+    const signed = SteemSigner.signVote('voter', 'author', 'permlink', 10000, '5Jkey');
+    expect(signed).toEqual(expect.objectContaining({ signatures: ['SIG'], operations: [] }));
+  });
+
+  it('should sign witness vote and return signed tx', () => {
+    const signed = SteemSigner.signWitnessVote('alice', 'witness1', true, '5Jkey');
+    expect(signed).toEqual(expect.objectContaining({ signatures: ['SIG'], operations: [] }));
+  });
+
+  it('should return public key from private key', () => {
+    const pub = SteemSigner.privateKeyToPublicKey('5Jkey');
+    expect(pub).toBe('STM5Jkey');
+  });
+
+  it('should derive role key from password', () => {
+    const wif = SteemSigner.derivePrivateKeyFromPassword('user', 'pass', 'active');
+    expect(wif).toBe('5Jmock');
+  });
+
+  it('should return all role keys from master password', () => {
+    const keys = SteemSigner.getPrivateKeysFromMasterPassword('user', 'pass');
+    expect(keys).toMatchObject({ owner: '5Jo', active: '5Ja', posting: '5Jp', memo: '5Jm' });
+  });
+
+  it('should sign challenge', () => {
+    const sig = SteemSigner.signChallenge('challenge', '5Jkey');
+    expect(sig).toBe('signed');
+  });
+
+  it('should verify private key matches public key', () => {
+    const ok = SteemSigner.verifyPrivateKey('5Jkey', 'STM5Jkey');
+    expect(ok).toBe(true);
+  });
+
+  it('should validate WIF format', () => {
+    expect(SteemSigner.isValidPrivateKey('5Jkey')).toBe(true);
+  });
 });
 
 describe('apiClient', () => {

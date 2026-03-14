@@ -14,6 +14,7 @@ vi.mock('@/lib/steem/client', () => {
   const mockGetChallenge = vi.fn();
   const mockLogin = vi.fn();
   const mockLogout = vi.fn();
+  const mockGetAccounts = vi.fn();
   const mockIsValidPrivateKey = vi.fn();
   const mockPrivateKeyToPublicKey = vi.fn();
   const mockSignChallenge = vi.fn();
@@ -29,6 +30,7 @@ vi.mock('@/lib/steem/client', () => {
       getChallenge: mockGetChallenge,
       login: mockLogin,
       logout: mockLogout,
+      getAccounts: mockGetAccounts,
     },
   };
 });

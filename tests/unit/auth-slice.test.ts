@@ -197,6 +197,10 @@ describe('Auth Slice', () => {
       // Start with logged in state
       const loggedInState: AuthState = {
         username: 'testuser',
+        ownerKey: null,
+        activeKey: 'privatekey',
+        postingKey: null,
+        memoKey: null,
         privateKey: 'privatekey',
         publicKey: 'publickey',
         isAuthenticated: true,
