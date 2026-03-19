@@ -174,7 +174,7 @@ export function LoginForm() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* Username Input with @ prefix */}
           <div className="flex flex-col gap-2">
-            <Label htmlFor="username">{t('username')}</Label>
+            <Label htmlFor="username" className="text-base">{t('username')}</Label>
             <div className="relative">
               <span className="absolute inset-y-0 left-3 flex items-center text-muted-foreground pointer-events-none">
                 @
@@ -195,7 +195,7 @@ export function LoginForm() {
 
           {/* Private Key Input */}
           <div className="flex flex-col gap-2">
-            <Label htmlFor="password">{t('privateKey')}</Label>
+            <Label htmlFor="password" className="text-base">{t('privateKey')}</Label>
             <Input
               id="password"
               name="password"
@@ -206,7 +206,7 @@ export function LoginForm() {
               placeholder={t('secretPlaceholder')}
               disabled={isLoading || isPending}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {t('secretHelper')}
             </p>
           </div>
@@ -219,7 +219,7 @@ export function LoginForm() {
               onCheckedChange={(value) => setRememberUsername(value === true)}
               disabled={isLoading || isPending}
             />
-            <Label htmlFor="keepLoggedIn" className="cursor-pointer font-normal">
+            <Label htmlFor="keepLoggedIn" className="cursor-pointer font-normal text-base">
               {t('rememberUsername')}
             </Label>
           </div>

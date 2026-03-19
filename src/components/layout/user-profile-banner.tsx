@@ -50,7 +50,7 @@ export function UserProfileBanner({
       backgroundSize: 'cover',
       backgroundPosition: 'center',
     } : undefined}>
-      <div className="max-w-5xl mx-auto px-4">
+      <div className="max-w-6xl mx-auto px-4">
         <h1 className="flex items-center gap-3 text-2xl font-bold m-0">
           <Avatar size="lg">
             <AvatarImage
@@ -111,7 +111,7 @@ export function TopNav({ accountname, socialUrl = 'https://steemit.com', activeS
 
   return (
     <div className="UserProfile__top-nav">
-      <div className="max-w-5xl mx-auto px-4">
+      <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between py-2">
           <ul className="flex gap-1">
             <li>

@@ -61,7 +61,7 @@ export default function WalletPage() {
       />
 
       {/* Wallet Content Area */}
-      <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Wallet Sub Menu - Balances | Delegations | Permissions | etc */}
         <WalletSubMenu accountname={urlUsername} isMyAccount={isMyAccount} />
 

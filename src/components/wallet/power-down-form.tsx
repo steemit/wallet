@@ -111,7 +111,7 @@ export function PowerDownForm() {
   };
 
   return (
-    <div className="mx-auto mt-8 w-full max-w-md px-4">
+    <div className="mx-auto mt-8 w-full max-w-lg px-4">
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="text-2xl font-bold">{t('powerDown')}</CardTitle>
@@ -119,7 +119,7 @@ export function PowerDownForm() {
         <CardContent>
           {account && (
             <div className="mb-6 rounded-md border border-border bg-muted p-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 text-base">
                 <div>
                   <p className="text-muted-foreground">Current Rate:</p>
                   <p className="font-medium text-foreground">
@@ -135,7 +135,7 @@ export function PowerDownForm() {
               </div>
               {isPoweringDown && (
                 <div className="mt-4">
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="text-base font-medium text-foreground">
                     Power down is currently active
                   </p>
                 </div>
@@ -145,7 +145,7 @@ export function PowerDownForm() {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="shares">VESTS to Power Down</Label>
+              <Label htmlFor="shares" className="text-base">VESTS to Power Down</Label>
               <Input
                 type="number"
                 id="shares"
@@ -157,7 +157,7 @@ export function PowerDownForm() {
                 placeholder="Enter VESTS amount"
                 disabled={isLoading || isPending}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Use format: 6 decimal places (e.g., 1000000.000000)
               </p>
             </div>

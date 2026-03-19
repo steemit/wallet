@@ -108,7 +108,7 @@ export function TransferForm() {
   };
 
   return (
-    <div className="mx-auto mt-8 w-full max-w-md px-4">
+    <div className="mx-auto mt-8 w-full max-w-lg px-4">
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="text-2xl font-bold">{t('title')}</CardTitle>
@@ -116,7 +116,7 @@ export function TransferForm() {
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="to">{t('to')}</Label>
+            <Label htmlFor="to" className="text-base">{t('to')}</Label>
             <Input
               type="text"
               id="to"
@@ -130,7 +130,7 @@ export function TransferForm() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="amount">{t('amount')}</Label>
+            <Label htmlFor="amount" className="text-base">{t('amount')}</Label>
             <Input
               type="number"
               id="amount"
@@ -143,13 +143,13 @@ export function TransferForm() {
               placeholder="Enter amount (e.g., 1.000)"
               disabled={isLoading || isPending}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Amount in STEEM (e.g., 1.000)
             </p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="memo">{t('memo')}</Label>
+            <Label htmlFor="memo" className="text-base">{t('memo')}</Label>
             <Input
               type="text"
               id="memo"

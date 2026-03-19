@@ -83,7 +83,7 @@ export function DelegateForm() {
   };
 
   return (
-    <div className="mx-auto mt-8 w-full max-w-md px-4">
+    <div className="mx-auto mt-8 w-full max-w-lg px-4">
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="text-2xl font-bold">{t('delegations')}</CardTitle>
@@ -91,7 +91,7 @@ export function DelegateForm() {
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="delegatee">Delegatee Username</Label>
+              <Label htmlFor="delegatee" className="text-base">Delegatee Username</Label>
               <Input
                 type="text"
                 id="delegatee"
@@ -104,7 +104,7 @@ export function DelegateForm() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="shares">VESTS to Delegate</Label>
+              <Label htmlFor="shares" className="text-base">VESTS to Delegate</Label>
               <Input
                 type="number"
                 id="shares"
@@ -116,7 +116,7 @@ export function DelegateForm() {
                 placeholder="Enter VESTS amount"
                 disabled={isLoading || isPending}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Use format: 6 decimal places (e.g., 1000000.000000)
               </p>
             </div>

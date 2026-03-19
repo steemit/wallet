@@ -41,7 +41,7 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
   const signupUrl = process.env.NEXT_PUBLIC_SIGNUP_URL ?? 'https://signup.steemit.com';
 
   const navItemClassName =
-    'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0';
+    'flex items-center gap-2 rounded-md px-2 py-1.5 text-base font-medium transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0';
   const activeNavItemClassName = 'bg-accent text-accent-foreground';
 
   const getNavItemClassName = (href: string, muted = false) => {
@@ -65,7 +65,7 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
 
           {isLoggedIn && (
             <>
-              <p className="px-2 pt-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <p className="px-2 pt-2 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                 {t('navAccount')}
               </p>
               <Link
@@ -89,7 +89,7 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
             </>
           )}
 
-          <p className="px-2 pt-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <p className="px-2 pt-1 text-sm font-medium tracking-wide text-muted-foreground uppercase">
             {t('navDiscover')}
           </p>
 
@@ -121,7 +121,7 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
           {!isLoggedIn && (
             <>
               <Separator className="my-2" />
-              <p className="px-2 pt-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <p className="px-2 pt-1 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                 {t('navAccess')}
               </p>
               <Link

@@ -152,7 +152,7 @@ export function WitnessVoteForm() {
       <Card className="mb-6 shadow-sm">
         <CardContent className="pt-6">
           <div className="mb-4 flex flex-col gap-2">
-            <Label htmlFor="search">Search Witnesses</Label>
+            <Label htmlFor="search" className="text-base">Search Witnesses</Label>
             <Input
               type="text"
               id="search"
@@ -165,7 +165,7 @@ export function WitnessVoteForm() {
 
           {/* Quick Vote Section */}
           <div className="mb-4 rounded-md bg-muted p-4 border border-border">
-            <p className="mb-2 text-sm font-medium text-foreground">
+            <p className="mb-2 text-base font-medium text-foreground">
               Quick Vote
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -214,7 +214,7 @@ export function WitnessVoteForm() {
 
           {/* Stats */}
           {account && (
-            <div className="text-sm text-muted-foreground">
+            <div className="text-base text-muted-foreground">
               You have voted for {userVotes.length} witness{userVotes.length !== 1 ? 'es' : ''}
             </div>
           )}

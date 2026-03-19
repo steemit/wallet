@@ -44,7 +44,7 @@ export function WalletSubMenu({ accountname, isMyAccount }: WalletSubMenuProps) 
               <Link
                 href={link.href}
                 className={cn(
-                  'inline-block px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                  'inline-block px-3 py-2 text-base font-medium rounded-md transition-colors',
                   isActive
                     ? 'text-foreground font-bold'
                     : 'text-muted-foreground hover:text-foreground'
@@ -60,7 +60,7 @@ export function WalletSubMenu({ accountname, isMyAccount }: WalletSubMenuProps) 
       {isMyAccount && (
         <Button
           variant="outline"
-          size="sm"
+          size="default"
           onClick={handleBuySteem}
           className="e-btn-hollow font-bold"
         >
