@@ -8,6 +8,7 @@ import { AppDispatch } from '@/lib/store';
 import { setCredentials } from '@/lib/store/slices/auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -23,12 +24,23 @@ export function LoginForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const [formData, setFormData] = useState<LoginFormData>({
-    username: '',
-    password: '',
+  const [formData, setFormData] = useState<LoginFormData>(() => {
+    try {
+      const saved = localStorage.getItem('wallet:rememberedUsername') ?? '';
+      return { username: saved, password: '' };
+    } catch {
+      return { username: '', password: '' };
+    }
   });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberUsername, setRememberUsername] = useState(() => {
+    try {
+      return !!localStorage.getItem('wallet:rememberedUsername');
+    } catch {
+      return false;
+    }
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -42,11 +54,11 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
-      const username = formData.username.trim().toLowerCase();
+      const username = formData.username.trim().toLowerCase().replace(/^@+/, '');
       const rawSecret = formData.password.trim();
 
       if (!username || !rawSecret) {
-        setError('Username and password are required');
+        setError(t('requiredFields'));
         setIsLoading(false);
         return;
       }
@@ -73,7 +85,7 @@ export function LoginForm() {
           postingKey = keys.posting ?? null;
           memoKey = keys.memo ?? null;
         } catch {
-          setError('Invalid private key or master password');
+          setError(t('invalidSecret'));
           setIsLoading(false);
           return;
         }
@@ -88,14 +100,14 @@ export function LoginForm() {
         } else if (memoKey) {
           primaryPrivateKey = memoKey;
         } else {
-          setError('Invalid private key or master password');
+          setError(t('invalidSecret'));
           setIsLoading(false);
           return;
         }
       }
 
       if (!primaryPrivateKey) {
-        setError('Invalid credentials');
+        setError(t('loginError'));
         setIsLoading(false);
         return;
       }
@@ -132,6 +144,16 @@ export function LoginForm() {
         })
       );
 
+      try {
+        if (rememberUsername) {
+          localStorage.setItem('wallet:rememberedUsername', username);
+        } else {
+          localStorage.removeItem('wallet:rememberedUsername');
+        }
+      } catch {
+        // ignore
+      }
+
       // Navigate to user's wallet (transfers tab), preserving legacy-style @username in URL
       startTransition(() => {
         const encoded = encodeURIComponent(`@${username}`);
@@ -145,75 +167,75 @@ export function LoginForm() {
   };
 
   return (
-    <div className="Login row">
-      <div className="column">
-        <div className="LoginForm max-w-28rem mx-auto mt-4 mb-2">
-          {/* Login Form Card */}
-          <div className="bg-card text-card-foreground border border-border rounded-lg p-8 shadow-sm max-w-md mx-auto">
-            <h2 className="text-2xl font-bold mb-6 text-center">{t('login')}</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Username Input with @ prefix */}
-              <div className="space-y-2">
-                <Label htmlFor="username">{t('username')}</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-muted-foreground">@</span>
-                  <Input
-                    id="username"
-                    name="username"
-                    type="text"
-                    value={formData.username}
-                    onChange={handleChange}
-                    required
-                    placeholder="username"
-                    disabled={isLoading || isPending}
-                    className="pl-8"
-                  />
-                </div>
-              </div>
-
-              {/* Private Key Input */}
-              <div className="space-y-2">
-                <Label htmlFor="password">{t('privateKey')}</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  placeholder="Enter your private key or master password"
-                  disabled={isLoading || isPending}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Your secret is stored locally and never sent to the server
-                </p>
-              </div>
-
-              {/* Save Login Option */}
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="keepLoggedIn" className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                <Label htmlFor="keepLoggedIn" className="font-normal cursor-pointer">{t('keepLoggedIn')}</Label>
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4">
-                  <p className="text-sm text-destructive font-medium">{error}</p>
-                </div>
-              )}
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
+    <div className="mx-auto w-full max-w-md">
+      {/* Login Form Card */}
+      <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm sm:p-8">
+        <h2 className="mb-6 text-center text-2xl font-bold">{t('login')}</h2>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          {/* Username Input with @ prefix */}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="username">{t('username')}</Label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-3 flex items-center text-muted-foreground pointer-events-none">
+                @
+              </span>
+              <Input
+                id="username"
+                name="username"
+                type="text"
+                value={formData.username}
+                onChange={handleChange}
+                required
+                placeholder={t('usernamePlaceholder')}
                 disabled={isLoading || isPending}
-                className="w-full"
-                size="lg"
-              >
-                {isLoading || isPending ? tCommon('loading') : t('loginButton')}
-              </Button>
-            </form>
+                className="pl-8"
+              />
+            </div>
           </div>
-        </div>
+
+          {/* Private Key Input */}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="password">{t('privateKey')}</Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              placeholder={t('secretPlaceholder')}
+              disabled={isLoading || isPending}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t('secretHelper')}
+            </p>
+          </div>
+
+          {/* Save Login Option */}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="keepLoggedIn"
+              checked={rememberUsername}
+              onCheckedChange={(value) => setRememberUsername(value === true)}
+              disabled={isLoading || isPending}
+            />
+            <Label htmlFor="keepLoggedIn" className="cursor-pointer font-normal">
+              {t('rememberUsername')}
+            </Label>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4">
+              <p className="text-sm font-medium text-destructive">{error}</p>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <Button type="submit" disabled={isLoading || isPending} className="w-full" size="lg">
+            {isLoading || isPending ? tCommon('loading') : t('loginButton')}
+          </Button>
+        </form>
       </div>
     </div>
   );

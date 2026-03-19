@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 
 export type LegacyTheme = 'original' | 'light' | 'dark';
 
@@ -11,20 +11,11 @@ const validThemes: LegacyTheme[] = ['original', 'light', 'dark'];
  * Hook for managing legacy wallet themes (original, light, dark)
  */
 export function useTheme() {
-  const [theme, setThemeState] = useState<LegacyTheme>('original');
-  const [isMounted, setIsMounted] = useState(false);
-
-  // Initialize theme from localStorage on mount
-  useEffect(() => {
+  const [theme, setThemeState] = useState<LegacyTheme>(() => {
+    if (typeof window === 'undefined') return 'original';
     const stored = localStorage.getItem(THEME_KEY) as LegacyTheme;
-    const validStored = stored && validThemes.includes(stored) ? stored : 'original';
-
-    setThemeState(validStored);
-    setIsMounted(true);
-
-    // Apply theme class to document
-    applyTheme(validStored);
-  }, []);
+    return stored && validThemes.includes(stored) ? stored : 'original';
+  });
 
   const applyTheme = (newTheme: LegacyTheme) => {
     // Remove all theme classes
@@ -33,6 +24,11 @@ export function useTheme() {
     // Add new theme class
     document.documentElement.classList.add(`theme-${newTheme}`);
   };
+
+  // Apply theme class before paint to avoid FOUC.
+  useLayoutEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
 
   const changeTheme = (newTheme: LegacyTheme) => {
     if (!validThemes.includes(newTheme)) {
@@ -56,7 +52,6 @@ export function useTheme() {
     theme,
     changeTheme,
     cycleTheme,
-    isMounted,
     themes: validThemes,
   };
 }

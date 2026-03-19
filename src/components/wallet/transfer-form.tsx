@@ -108,13 +108,14 @@ export function TransferForm() {
   };
 
   return (
-    <Card className="mx-auto max-w-md mt-8 shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold">{t('title')}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
+    <div className="mx-auto mt-8 w-full max-w-md px-4">
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">{t('title')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="to">{t('to')}</Label>
             <Input
               type="text"
@@ -128,7 +129,7 @@ export function TransferForm() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="amount">{t('amount')}</Label>
             <Input
               type="number"
@@ -147,7 +148,7 @@ export function TransferForm() {
             </p>
           </div>
 
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="memo">{t('memo')}</Label>
             <Input
               type="text"
@@ -184,8 +185,9 @@ export function TransferForm() {
               {tCommon('cancel')}
             </Button>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

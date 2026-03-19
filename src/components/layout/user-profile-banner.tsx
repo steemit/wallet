@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MapPin, LinkIcon, Calendar, ChevronDown, ExternalLink } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface UserProfileBannerProps {
   accountname: string;
@@ -51,7 +52,7 @@ export function UserProfileBanner({
     } : undefined}>
       <div className="max-w-5xl mx-auto px-4">
         <h1 className="flex items-center gap-3 text-2xl font-bold m-0">
-          <Avatar className="h-12 w-12">
+          <Avatar size="lg">
             <AvatarImage
               src={`https://steemitimages.com/u/${accountname}/avatar`}
               alt={accountname}
@@ -70,12 +71,12 @@ export function UserProfileBanner({
           <p className="UserProfile__info">
             {location && (
               <span>
-                <MapPin className="h-3.5 w-3.5" /> {location}
+                <MapPin className="size-3.5" /> {location}
               </span>
             )}
             {website && (
               <span>
-                <LinkIcon className="h-3.5 w-3.5" />{' '}
+                <LinkIcon className="size-3.5" />{' '}
                 <a
                   href={website}
                   target="_blank"
@@ -88,7 +89,7 @@ export function UserProfileBanner({
             )}
             {createdDate && (
               <span>
-                <Calendar className="h-3.5 w-3.5" /> {formatDate(createdDate)}
+                <Calendar className="size-3.5" /> {formatDate(createdDate)}
               </span>
             )}
           </p>
@@ -120,17 +121,20 @@ export function TopNav({ accountname, socialUrl = 'https://steemit.com', activeS
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                Blog <ExternalLink className="h-3 w-3" />
+                Blog <ExternalLink className="size-3" />
               </a>
             </li>
             <li>
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className={`inline-flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors ${
-                    isRewardsActive ? 'text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                  className={cn(
+                    'inline-flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors',
+                    isRewardsActive
+                      ? 'font-bold text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
                 >
-                  Rewards <ChevronDown className="h-3 w-3" />
+                  Rewards <ChevronDown className="size-3 opacity-70" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuItem asChild>
@@ -147,9 +151,12 @@ export function TopNav({ accountname, socialUrl = 'https://steemit.com', activeS
             <li>
               <a
                 href={`/@${accountname}/transfers`}
-                className={`inline-block px-3 py-2 text-sm font-medium transition-colors ${
-                  isWalletActive ? 'text-foreground font-bold' : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={cn(
+                  'inline-block px-3 py-2 text-sm font-medium transition-colors',
+                  isWalletActive
+                    ? 'font-bold text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
               >
                 Wallet
               </a>

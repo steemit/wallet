@@ -47,14 +47,18 @@ Object.defineProperty(window, 'location', {
 });
 
 describe('useAuth Hook', () => {
-  let mockStore: any;
-
-  beforeEach(() => {
-    mockStore = configureStore({
+  const createTestStore = () =>
+    configureStore({
       reducer: {
         auth: authReducer,
       },
     });
+  type TestStore = ReturnType<typeof createTestStore>;
+
+  let mockStore: TestStore;
+
+  beforeEach(() => {
+    mockStore = createTestStore();
 
     vi.clearAllMocks();
   });
@@ -65,10 +69,10 @@ describe('useAuth Hook', () => {
 
   describe('login', () => {
     it('should successfully login with valid WIF key', async () => {
-      (SteemSigner.isValidPrivateKey as unknown as any).mockReturnValue(true);
-      (SteemSigner.privateKeyToPublicKey as unknown as any).mockReturnValue('STMPublicKey...');
-      (SteemSigner.signChallenge as unknown as any).mockReturnValue('signed-challenge');
-      (apiClient.getAccounts as unknown as any).mockResolvedValue({
+      (SteemSigner.isValidPrivateKey as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+      (SteemSigner.privateKeyToPublicKey as unknown as ReturnType<typeof vi.fn>).mockReturnValue('STMPublicKey...');
+      (SteemSigner.signChallenge as unknown as ReturnType<typeof vi.fn>).mockReturnValue('signed-challenge');
+      (apiClient.getAccounts as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
         accounts: [
           {
             name: 'testuser',
@@ -79,8 +83,8 @@ describe('useAuth Hook', () => {
           },
         ],
       });
-      (apiClient.getChallenge as unknown as any).mockResolvedValue({ challenge: 'test-challenge' });
-      (apiClient.login as unknown as any).mockResolvedValue({ success: true });
+      (apiClient.getChallenge as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ challenge: 'test-challenge' });
+      (apiClient.login as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true });
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -95,8 +99,8 @@ describe('useAuth Hook', () => {
     });
 
     it('should fail login with invalid private key', async () => {
-      (SteemSigner.isValidPrivateKey as unknown as any).mockReturnValue(false);
-      (apiClient.getAccounts as unknown as any).mockResolvedValue({
+      (SteemSigner.isValidPrivateKey as unknown as ReturnType<typeof vi.fn>).mockReturnValue(false);
+      (apiClient.getAccounts as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
         accounts: [
           {
             name: 'testuser',
@@ -120,10 +124,10 @@ describe('useAuth Hook', () => {
     });
 
     it('should fail login when server rejects credentials', async () => {
-      (SteemSigner.isValidPrivateKey as unknown as any).mockReturnValue(true);
-      (SteemSigner.privateKeyToPublicKey as unknown as any).mockReturnValue('STMPublicKey...');
-      (SteemSigner.signChallenge as unknown as any).mockReturnValue('signed-challenge');
-      (apiClient.getAccounts as unknown as any).mockResolvedValue({
+      (SteemSigner.isValidPrivateKey as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+      (SteemSigner.privateKeyToPublicKey as unknown as ReturnType<typeof vi.fn>).mockReturnValue('STMPublicKey...');
+      (SteemSigner.signChallenge as unknown as ReturnType<typeof vi.fn>).mockReturnValue('signed-challenge');
+      (apiClient.getAccounts as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
         accounts: [
           {
             name: 'testuser',
@@ -134,8 +138,8 @@ describe('useAuth Hook', () => {
           },
         ],
       });
-      (apiClient.getChallenge as unknown as any).mockResolvedValue({ challenge: 'test-challenge' });
-      (apiClient.login as unknown as any).mockResolvedValue({ success: false, error: 'Invalid credentials' });
+      (apiClient.getChallenge as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ challenge: 'test-challenge' });
+      (apiClient.login as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ success: false, error: 'Invalid credentials' });
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -149,8 +153,8 @@ describe('useAuth Hook', () => {
     });
 
     it('should handle network errors during login', async () => {
-      (SteemSigner.isValidPrivateKey as unknown as any).mockReturnValue(true);
-      (apiClient.getAccounts as unknown as any).mockResolvedValue({
+      (SteemSigner.isValidPrivateKey as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+      (apiClient.getAccounts as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
         accounts: [
           {
             name: 'testuser',
@@ -161,7 +165,7 @@ describe('useAuth Hook', () => {
           },
         ],
       });
-      (apiClient.getChallenge as unknown as any).mockRejectedValue(new Error('Network error'));
+      (apiClient.getChallenge as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -186,7 +190,7 @@ describe('useAuth Hook', () => {
         },
       });
 
-      (apiClient.logout as unknown as any).mockResolvedValue({ success: true });
+      (apiClient.logout as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true });
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -210,7 +214,7 @@ describe('useAuth Hook', () => {
         },
       });
 
-      (apiClient.logout as unknown as any).mockRejectedValue(new Error('Network error'));
+      (apiClient.logout as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -249,14 +253,18 @@ describe('useAuth Hook', () => {
 });
 
 describe('useRequireAuth Hook', () => {
-  let mockStore: any;
-
-  beforeEach(() => {
-    mockStore = configureStore({
+  const createTestStore = () =>
+    configureStore({
       reducer: {
         auth: authReducer,
       },
     });
+  type TestStore = ReturnType<typeof createTestStore>;
+
+  let mockStore: TestStore;
+
+  beforeEach(() => {
+    mockStore = createTestStore();
 
     window.location.href = '';
   });

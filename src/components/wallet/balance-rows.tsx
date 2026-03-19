@@ -37,6 +37,11 @@ interface BalanceData {
   reward_vesting_steem: string;
 }
 
+interface GlobalPropsData {
+  total_vesting_shares: string;
+  total_vesting_fund_steem: string;
+}
+
 function numberWithCommas(x: string): string {
   return x.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
@@ -44,7 +49,7 @@ function numberWithCommas(x: string): string {
 export function BalanceRows({ username }: { username: string }) {
   const t = useTranslations('wallet');
   const [balance, setBalance] = useState<BalanceData | null>(null);
-  const [globalProps, setGlobalProps] = useState<any>(null);
+  const [globalProps, setGlobalProps] = useState<GlobalPropsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,8 +68,12 @@ export function BalanceRows({ username }: { username: string }) {
         }
 
         const account = accountsResponse.accounts[0] as SteemAccount;
-        setBalance(account as any);
-        setGlobalProps(propsResponse);
+        setBalance(account as unknown as BalanceData);
+        if (propsResponse.error) {
+          console.error(propsResponse.error);
+          return;
+        }
+        setGlobalProps(propsResponse.props as unknown as GlobalPropsData);
       } catch (err) {
         console.error('Error fetching balance:', err);
       } finally {
@@ -139,7 +148,7 @@ export function BalanceRows({ username }: { username: string }) {
 
   if (loading) {
     return (
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         {[1, 2, 3, 4, 5].map((i) => (
           <div key={i} className="UserWallet__balance border-b border-border">
             <div className="flex justify-between items-start gap-4 py-4">

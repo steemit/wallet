@@ -74,7 +74,10 @@ export class SteemService {
   ): Promise<unknown[]> {
     return withFailover(async () => {
       ensureConfigured();
-      return await (steem.api as any).getAccountHistoryAsync(username, -1, limit);
+      const api = steem.api as unknown as {
+        getAccountHistoryAsync: (account: string, index: number, limit: number) => Promise<unknown[]>;
+      };
+      return await api.getAccountHistoryAsync(username, -1, limit);
     }).catch((error) => {
       console.error('Error fetching account history:', error);
       throw new Error(`Failed to fetch history: ${(error as Error).message}`);
@@ -87,7 +90,10 @@ export class SteemService {
   static async getWitnessesByVote(limit: number = 100): Promise<unknown[]> {
     return withFailover(async () => {
       ensureConfigured();
-      return await (steem.api as any).getWitnessesByVoteAsync('', limit);
+      const api = steem.api as unknown as {
+        getWitnessesByVoteAsync: (start: string, limit: number) => Promise<unknown[]>;
+      };
+      return await api.getWitnessesByVoteAsync('', limit);
     }).catch((error) => {
       console.error('Error fetching witnesses:', error);
       throw new Error(`Failed to fetch witnesses: ${(error as Error).message}`);
@@ -100,7 +106,10 @@ export class SteemService {
   static async getWitness(account: string): Promise<unknown> {
     return withFailover(async () => {
       ensureConfigured();
-      return await (steem.api as any).getWitnessByAccountAsync(account);
+      const api = steem.api as unknown as {
+        getWitnessByAccountAsync: (account: string) => Promise<unknown>;
+      };
+      return await api.getWitnessByAccountAsync(account);
     }).catch((error) => {
       console.error('Error fetching witness:', error);
       throw new Error(`Failed to fetch witness: ${(error as Error).message}`);
@@ -113,7 +122,10 @@ export class SteemService {
   static async getGlobalProperties(): Promise<GlobalProperties> {
     return withFailover(async () => {
       ensureConfigured();
-      const props = await (steem.api as any).getDynamicGlobalPropertiesAsync();
+      const api = steem.api as unknown as {
+        getDynamicGlobalPropertiesAsync: () => Promise<GlobalProperties>;
+      };
+      const props = await api.getDynamicGlobalPropertiesAsync();
       return props as GlobalProperties;
     }).catch((error) => {
       console.error('Error fetching global properties:', error);
@@ -127,7 +139,8 @@ export class SteemService {
   static async getFeedHistory(): Promise<unknown> {
     return withFailover(async () => {
       ensureConfigured();
-      return await (steem.api as any).getFeedHistoryAsync();
+      const api = steem.api as unknown as { getFeedHistoryAsync: () => Promise<unknown> };
+      return await api.getFeedHistoryAsync();
     }).catch((error) => {
       console.error('Error fetching feed history:', error);
       throw new Error(`Failed to fetch feed history: ${(error as Error).message}`);
@@ -205,7 +218,14 @@ export class SteemService {
   }> {
     return withFailover(async () => {
       ensureConfigured();
-      const props = await (steem.api as any).getDynamicGlobalPropertiesAsync();
+      const api = steem.api as unknown as {
+        getDynamicGlobalPropertiesAsync: () => Promise<{
+          head_block_number: number;
+          head_block_id: string;
+          time: string;
+        }>;
+      };
+      const props = await api.getDynamicGlobalPropertiesAsync();
       return {
         block_number: props.head_block_number,
         block_id: props.head_block_id,

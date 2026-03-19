@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 
 // Mock for mixpanel-browser
-export default {
+const mixpanelBrowserMock = {
   init: vi.fn(),
   track: vi.fn(),
   identify: vi.fn(),
@@ -10,3 +10,5 @@ export default {
     set: vi.fn(),
   },
 };
+
+export default mixpanelBrowserMock;

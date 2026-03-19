@@ -10,7 +10,10 @@ export default getRequestConfig(async ({ requestLocale }) => {
     // Try to get locale from cookie first
     const cookieStore = await cookies();
     const localeCookie = cookieStore.get('NEXT_LOCALE');
-    if (localeCookie?.value && routing.locales.includes(localeCookie.value as any)) {
+    if (
+      localeCookie?.value &&
+      routing.locales.includes(localeCookie.value as (typeof routing.locales)[number])
+    ) {
       locale = localeCookie.value;
     } else {
       // Fallback to Accept-Language header
@@ -19,7 +22,9 @@ export default getRequestConfig(async ({ requestLocale }) => {
       const preferredLocale = acceptLanguage
         .split(',')
         .map(lang => lang.split('-')[0])
-        .find(lang => routing.locales.includes(lang as any));
+        .find((lang): lang is (typeof routing.locales)[number] =>
+          routing.locales.includes(lang as (typeof routing.locales)[number])
+        );
       locale = preferredLocale || routing.defaultLocale;
     }
   }

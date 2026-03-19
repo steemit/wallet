@@ -83,68 +83,70 @@ export function DelegateForm() {
   };
 
   return (
-    <Card className="mx-auto max-w-md mt-8 shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold">{t('delegations')}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="delegatee">Delegatee Username</Label>
-            <Input
-              type="text"
-              id="delegatee"
-              value={delegatee}
-              onChange={(e) => setDelegatee(e.target.value)}
-              required
-              placeholder="Enter username to delegate to"
-              disabled={isLoading || isPending}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="shares">VESTS to Delegate</Label>
-            <Input
-              type="number"
-              id="shares"
-              value={shares}
-              onChange={(e) => setShares(e.target.value)}
-              step="0.000001"
-              min="0"
-              required
-              placeholder="Enter VESTS amount"
-              disabled={isLoading || isPending}
-            />
-            <p className="text-xs text-muted-foreground">
-              Use format: 6 decimal places (e.g., 1000000.000000)
-            </p>
-          </div>
-
-          {error && (
-            <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4">
-              <p className="text-sm text-destructive font-medium">{error}</p>
+    <div className="mx-auto mt-8 w-full max-w-md px-4">
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">{t('delegations')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="delegatee">Delegatee Username</Label>
+              <Input
+                type="text"
+                id="delegatee"
+                value={delegatee}
+                onChange={(e) => setDelegatee(e.target.value)}
+                required
+                placeholder="Enter username to delegate to"
+                disabled={isLoading || isPending}
+              />
             </div>
-          )}
 
-          <div className="flex gap-4 pt-2">
-            <Button
-              type="submit"
-              disabled={isLoading || isPending}
-              className="flex-1"
-            >
-              {isLoading || isPending ? tCommon('loading') : 'Delegate'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-              disabled={isLoading || isPending}
-            >
-              {tCommon('cancel')}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="shares">VESTS to Delegate</Label>
+              <Input
+                type="number"
+                id="shares"
+                value={shares}
+                onChange={(e) => setShares(e.target.value)}
+                step="0.000001"
+                min="0"
+                required
+                placeholder="Enter VESTS amount"
+                disabled={isLoading || isPending}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use format: 6 decimal places (e.g., 1000000.000000)
+              </p>
+            </div>
+
+            {error && (
+              <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4">
+                <p className="text-sm text-destructive font-medium">{error}</p>
+              </div>
+            )}
+
+            <div className="flex gap-4 pt-2">
+              <Button
+                type="submit"
+                disabled={isLoading || isPending}
+                className="flex-1"
+              >
+                {isLoading || isPending ? tCommon('loading') : 'Delegate'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+                disabled={isLoading || isPending}
+              >
+                {tCommon('cancel')}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

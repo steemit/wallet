@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const LoadingFallback = () => (
-  <div className="mt-8 space-y-3">
+  <div className="mt-8 flex flex-col gap-3">
     <Skeleton className="h-6 w-24 mb-4" />
     {[1, 2, 3, 4, 5].map((i) => (
       <Skeleton key={i} className="h-10 w-full" />

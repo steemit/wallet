@@ -134,8 +134,8 @@ export function WitnessVoteForm() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl pt-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="mx-auto w-full max-w-4xl px-4 pt-6 md:px-6">
+      <div className="mb-6 flex items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-foreground">
           {t('witnessVoting')}
         </h2>
@@ -151,7 +151,7 @@ export function WitnessVoteForm() {
       {/* Search and Quick Vote */}
       <Card className="mb-6 shadow-sm">
         <CardContent className="pt-6">
-          <div className="mb-4 space-y-2">
+          <div className="mb-4 flex flex-col gap-2">
             <Label htmlFor="search">Search Witnesses</Label>
             <Input
               type="text"
@@ -262,7 +262,7 @@ export function WitnessVoteForm() {
                         <div className="font-medium text-foreground flex items-center gap-2">
                           {witness.owner}
                           {hasVoted(witness.owner) && (
-                            <span className="text-xs text-green-600 dark:text-green-500 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded-full">
+                            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
                               ✓ Voted
                             </span>
                           )}

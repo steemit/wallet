@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/lib/store';
 import { SteemLogo } from './steem-logo';
-import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 import { useTheme } from '@/lib/theme';
 import { useTranslations } from 'next-intl';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +30,7 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
   const username = useSelector((state: RootState) => state.auth.username);
 
   const isLoggedIn = !!username;
+  const signupUrl = process.env.NEXT_PUBLIC_SIGNUP_URL ?? 'https://signup.steemit.com';
 
   const handleLogout = async () => {
     try {
@@ -40,12 +41,16 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
     }
   };
 
-  const themeIcon = theme === 'dark' ? <Moon className="h-4 w-4" /> : theme === 'light' ? <Sun className="h-4 w-4" /> : <Monitor className="h-4 w-4" />;
+  const themeIcon = theme === 'dark' ? <Moon data-icon="inline-start" /> : theme === 'light' ? <Sun data-icon="inline-start" /> : <Monitor data-icon="inline-start" />;
   const themeLabel = theme === 'dark' ? 'Dark Mode' : theme === 'light' ? 'Light Mode' : 'Original Mode';
 
   return (
-    <header className="Header">
-      <nav className="flex items-center h-16 max-w-none px-4 md:px-6">
+    <header
+      className={cn(
+        'fixed inset-x-0 top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60'
+      )}
+    >
+      <nav className="flex h-16 items-center px-4 md:px-6">
         {/* Logo - Left */}
         <div className="flex-shrink-0">
           <Link href="/" className="flex items-baseline h-[37px] transition-colors duration-200">
@@ -54,12 +59,7 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
         </div>
 
         {/* Right Side */}
-        <div className="ml-auto flex items-center h-16 gap-2 md:gap-4">
-          {/* Language Switcher */}
-          <div className="hidden md:block">
-            <LanguageSwitcher />
-          </div>
-
+        <div className="ml-auto flex h-16 items-center gap-2 md:gap-4">
           {/* Not Logged In: Login + Sign Up */}
           {!isLoggedIn && (
             <div className="hidden md:flex items-center gap-4">
@@ -70,9 +70,13 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
                 {t('login')}
               </Link>
               <Button asChild size="sm">
-                <Link href="/signup">
+                <a
+                  href={signupUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   {t('signUp')}
-                </Link>
+                </a>
               </Button>
             </div>
           )}
@@ -81,8 +85,8 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
           {isLoggedIn && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
-                  <Avatar className="h-9 w-9">
+                <Button variant="ghost" size="icon-lg" className="rounded-full">
+                  <Avatar size="lg">
                     <AvatarImage
                       src={`https://steemitimages.com/u/${username}/avatar`}
                       alt={username}
@@ -96,7 +100,7 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem asChild>
                   <Link href={`/@${username}/transfers`} className="cursor-pointer">
-                    <Wallet className="h-4 w-4" />
+                    <Wallet data-icon="inline-start" />
                     <span>Wallet</span>
                   </Link>
                 </DropdownMenuItem>
@@ -106,41 +110,33 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href={`/@${username}/password`} className="cursor-pointer">
-                    <Key className="h-4 w-4" />
+                    <Key data-icon="inline-start" />
                     <span>Change Password</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href={`/@${username}/settings`} className="cursor-pointer">
-                    <Settings className="h-4 w-4" />
+                    <Settings data-icon="inline-start" />
                     <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                  <LogOut className="h-4 w-4" />
+                  <LogOut data-icon="inline-start" />
                   <span>Logout</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
 
-          {/* Mobile Language Toggle */}
-          {!isLoggedIn && (
-            <div className="md:hidden">
-              <LanguageSwitcher />
-            </div>
-          )}
-
           {/* Hamburger Menu */}
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
             onClick={onOpenSidePanel}
             aria-label="Menu"
           >
-            <Menu className="h-4 w-4" />
+            <Menu />
           </Button>
         </div>
       </nav>

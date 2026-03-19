@@ -111,85 +111,87 @@ export function PowerDownForm() {
   };
 
   return (
-    <Card className="mx-auto max-w-md mt-8 shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold">{t('powerDown')}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {account && (
-          <div className="mb-6 rounded-md bg-muted p-4 border border-border">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Current Rate:</p>
-                <p className="font-medium text-foreground">
-                  {account.vesting_withdraw_rate}
-                </p>
+    <div className="mx-auto mt-8 w-full max-w-md px-4">
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">{t('powerDown')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {account && (
+            <div className="mb-6 rounded-md border border-border bg-muted p-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Current Rate:</p>
+                  <p className="font-medium text-foreground">
+                    {account.vesting_withdraw_rate}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Next Withdrawal:</p>
+                  <p className="font-medium text-foreground">
+                    {account.next_vesting_withdrawal}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-muted-foreground">Next Withdrawal:</p>
-                <p className="font-medium text-foreground">
-                  {account.next_vesting_withdrawal}
-                </p>
-              </div>
-            </div>
-            {isPoweringDown && (
-              <div className="mt-4">
-                <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
-                  Power down is currently active
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="shares">VESTS to Power Down</Label>
-            <Input
-              type="number"
-              id="shares"
-              value={shares}
-              onChange={(e) => setShares(e.target.value)}
-              step="0.000001"
-              min="0"
-              required={!isPoweringDown}
-              placeholder="Enter VESTS amount"
-              disabled={isLoading || isPending}
-            />
-            <p className="text-xs text-muted-foreground">
-              Use format: 6 decimal places (e.g., 1000000.000000)
-            </p>
-          </div>
-
-          {error && (
-            <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4">
-              <p className="text-sm text-destructive font-medium">{error}</p>
+              {isPoweringDown && (
+                <div className="mt-4">
+                  <p className="text-sm font-medium text-foreground">
+                    Power down is currently active
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
-          <div className="flex gap-4 pt-2">
-            <Button
-              type="submit"
-              disabled={isLoading || isPending}
-              className="flex-1"
-            >
-              {isLoading || isPending ? tCommon('loading') : 'Start Power Down'}
-            </Button>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="shares">VESTS to Power Down</Label>
+              <Input
+                type="number"
+                id="shares"
+                value={shares}
+                onChange={(e) => setShares(e.target.value)}
+                step="0.000001"
+                min="0"
+                required={!isPoweringDown}
+                placeholder="Enter VESTS amount"
+                disabled={isLoading || isPending}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use format: 6 decimal places (e.g., 1000000.000000)
+              </p>
+            </div>
 
-            {isPoweringDown && (
+            {error && (
+              <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4">
+                <p className="text-sm text-destructive font-medium">{error}</p>
+              </div>
+            )}
+
+            <div className="flex gap-4 pt-2">
               <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
+                type="submit"
                 disabled={isLoading || isPending}
                 className="flex-1"
               >
-                Cancel Power Down
+                {isLoading || isPending ? tCommon('loading') : 'Start Power Down'}
               </Button>
-            )}
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+
+              {isPoweringDown && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={isLoading || isPending}
+                  className="flex-1"
+                >
+                  Cancel Power Down
+                </Button>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

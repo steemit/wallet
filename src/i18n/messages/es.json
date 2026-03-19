@@ -25,9 +25,15 @@
   "auth": {
     "login": "Iniciar sesión",
     "logout": "Cerrar sesión",
+    "signUp": "Registrarse",
     "username": "Nombre de usuario",
     "password": "Contraseña",
     "privateKey": "Clave privada",
+    "usernamePlaceholder": "usuario",
+    "secretPlaceholder": "Ingrese su clave privada o contraseña maestra",
+    "secretHelper": "Su secreto permanece en este dispositivo y nunca se envía al servidor",
+    "requiredFields": "Se requieren nombre de usuario y secreto",
+    "invalidSecret": "Clave privada o contraseña maestra inválida",
     "loginButton": "Iniciar sesión",
     "loginError": "Credenciales inválidas",
     "invalidUsername": "Ingrese un nombre de usuario válido",
@@ -35,11 +41,14 @@
     "loginSuccess": "Inicio de sesión exitoso",
     "logoutSuccess": "Cierre de sesión exitoso",
     "sessionExpired": "Su sesión ha expirado. Inicie sesión nuevamente.",
-    "notAuthenticated": "Inicie sesión para continuar"
+    "notAuthenticated": "Inicie sesión para continuar",
+    "rememberUsername": "Recordar el usuario en este dispositivo",
+    "keepLoggedIn": "Mantener la sesión iniciada"
   },
   "wallet": {
     "title": "Billetera",
     "balance": "Saldo",
+    "balances": "Saldos",
     "transfer": "Transferir",
     "powerDown": "Bajar Energía",
     "delegations": "Delegaciones",
@@ -61,7 +70,13 @@
     "totalVests": "VESTS Totales",
     "effectiveSP": "Steem Power Efectivo",
     "receivedVests": "VESTS Recibidos",
-    "delegatedVests": "VESTS Delegados"
+    "delegatedVests": "VESTS Delegados",
+    "navAccount": "Cuenta",
+    "navDiscover": "Descubrir",
+    "navAccess": "Acceso",
+    "blog": "Blog",
+    "proposals": "Propuestas",
+    "market": "Mercado"
   },
   "navigation": {
     "home": "Inicio",

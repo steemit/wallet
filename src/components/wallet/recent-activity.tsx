@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 
 interface TransferHistoryItem {
-  op: [string, Record<string, any>];
+  op: [string, Record<string, unknown>];
   timestamp: string;
   block: number;
   trx_id: string;
@@ -42,7 +42,7 @@ function formatTransferRow(item: TransferHistoryItem, context: string) {
         description: isReceive
           ? `Received ${data.amount} from ${data.from}`
           : `Transferred ${data.amount} to ${data.to}`,
-        memo: data.memo || '',
+        memo: typeof data.memo === 'string' ? data.memo : '',
         time: formatTimeAgo(item.timestamp),
       };
     }
@@ -80,14 +80,14 @@ function formatTransferRow(item: TransferHistoryItem, context: string) {
       return {
         icon: '🏦',
         description: `Transfer to savings: ${data.amount}`,
-        memo: data.memo || '',
+        memo: typeof data.memo === 'string' ? data.memo : '',
         time: formatTimeAgo(item.timestamp),
       };
     case 'transfer_from_savings':
       return {
         icon: '🏧',
         description: `Withdraw from savings: ${data.amount}`,
-        memo: data.memo || '',
+        memo: typeof data.memo === 'string' ? data.memo : '',
         time: formatTimeAgo(item.timestamp),
       };
     case 'delegate_vesting_shares':
@@ -125,20 +125,27 @@ export function RecentActivity({ username }: { username: string }) {
         }
         // Filter out rewards and null-payout items
         const transfers = (response.history || [])
-          .filter((item: any) => {
-            const type = item.op?.[0] || item[1]?.op?.[0];
+          .filter((item: unknown) => {
+            const i = item as unknown as {
+              op?: [string, unknown];
+              1?: { op?: [string, unknown] };
+            };
+            const type = i.op?.[0] || i[1]?.op?.[0];
             if (!type) return false;
             if (type === 'curation_reward' || type === 'author_reward' || type === 'comment_benefactor_reward') {
               return false;
             }
             return true;
           })
-          .map((item: any) => {
+          .map((item: unknown) => {
             // Handle different history formats
-            if (item.op) {
-              return item as TransferHistoryItem;
+            const i = item as unknown as
+              | TransferHistoryItem
+              | [unknown, { op: TransferHistoryItem['op']; timestamp: string; block: number; trx_id: string }];
+            if (typeof i === 'object' && i !== null && 'op' in i) {
+              return i as TransferHistoryItem;
             }
-            const entry = item[1];
+            const entry = (i as [unknown, { op: TransferHistoryItem['op']; timestamp: string; block: number; trx_id: string }])[1];
             return {
               op: entry.op,
               timestamp: entry.timestamp,
@@ -163,7 +170,7 @@ export function RecentActivity({ username }: { username: string }) {
     return (
       <div className="mt-8">
         <Skeleton className="h-6 w-24 mb-4" />
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {[1, 2, 3, 4, 5].map((i) => (
             <Skeleton key={i} className="h-10 w-full" />
           ))}

@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { SignedTransaction } from '@/lib/steem/types';
 
 // Mock fetch
 global.fetch = vi.fn();
@@ -176,7 +177,14 @@ describe('apiClient', () => {
 
   describe('broadcastTransfer', () => {
     it('should broadcast transfer transaction with CSRF header', async () => {
-      const mockTx = { signatures: ['SIG123'] } as unknown as any;
+      const mockTx: SignedTransaction = {
+        ref_block_num: 1,
+        ref_block_prefix: 1,
+        expiration: '2020-01-01T00:00:00',
+        operations: [],
+        extensions: [],
+        signatures: ['SIG123'],
+      };
       Object.defineProperty(global, 'document', {
         value: { cookie: 'csrf_token=test-token' },
         configurable: true,
@@ -203,7 +211,14 @@ describe('apiClient', () => {
 
   describe('broadcastPowerDown', () => {
     it('should broadcast power down transaction with CSRF header', async () => {
-      const mockTx = { signatures: ['SIG123'] } as unknown as any;
+      const mockTx: SignedTransaction = {
+        ref_block_num: 1,
+        ref_block_prefix: 1,
+        expiration: '2020-01-01T00:00:00',
+        operations: [],
+        extensions: [],
+        signatures: ['SIG123'],
+      };
       Object.defineProperty(global, 'document', {
         value: { cookie: 'csrf_token=test-token' },
         configurable: true,
@@ -230,7 +245,14 @@ describe('apiClient', () => {
 
   describe('broadcastDelegate', () => {
     it('should broadcast delegate transaction with CSRF header', async () => {
-      const mockTx = { signatures: ['SIG123'] } as unknown as any;
+      const mockTx: SignedTransaction = {
+        ref_block_num: 1,
+        ref_block_prefix: 1,
+        expiration: '2020-01-01T00:00:00',
+        operations: [],
+        extensions: [],
+        signatures: ['SIG123'],
+      };
       Object.defineProperty(global, 'document', {
         value: { cookie: 'csrf_token=test-token' },
         configurable: true,
@@ -257,7 +279,14 @@ describe('apiClient', () => {
 
   describe('broadcastVote', () => {
     it('should broadcast vote transaction with CSRF header', async () => {
-      const mockTx = { signatures: ['SIG123'] } as unknown as any;
+      const mockTx: SignedTransaction = {
+        ref_block_num: 1,
+        ref_block_prefix: 1,
+        expiration: '2020-01-01T00:00:00',
+        operations: [],
+        extensions: [],
+        signatures: ['SIG123'],
+      };
       Object.defineProperty(global, 'document', {
         value: { cookie: 'csrf_token=test-token' },
         configurable: true,
@@ -284,7 +313,14 @@ describe('apiClient', () => {
 
   describe('broadcastWitnessVote', () => {
     it('should broadcast witness vote transaction with CSRF header', async () => {
-      const mockTx = { signatures: ['SIG123'] } as unknown as any;
+      const mockTx: SignedTransaction = {
+        ref_block_num: 1,
+        ref_block_prefix: 1,
+        expiration: '2020-01-01T00:00:00',
+        operations: [],
+        extensions: [],
+        signatures: ['SIG123'],
+      };
       Object.defineProperty(global, 'document', {
         value: { cookie: 'csrf_token=test-token' },
         configurable: true,

@@ -29,6 +29,11 @@
     "username": "用户名",
     "password": "密码",
     "privateKey": "私钥",
+    "usernamePlaceholder": "username",
+    "secretPlaceholder": "输入私钥或主密码",
+    "secretHelper": "你的密钥只保存在本设备，不会发送到服务器",
+    "requiredFields": "用户名和密钥为必填项",
+    "invalidSecret": "私钥或主密码无效",
     "loginButton": "登录",
     "loginError": "凭证无效",
     "invalidUsername": "请输入有效的用户名",
@@ -37,11 +42,13 @@
     "logoutSuccess": "退出成功",
     "sessionExpired": "会话已过期，请重新登录",
     "notAuthenticated": "请先登录",
+    "rememberUsername": "在本设备记住用户名",
     "keepLoggedIn": "保持登录状态"
   },
   "wallet": {
     "title": "钱包",
     "balance": "余额",
+    "balances": "余额",
     "transfer": "转账",
     "powerDown": "能量下调",
     "delegations": "委托",
@@ -73,7 +80,13 @@
     "savingsDesc": "余额需等待 3 天才能提取。",
     "estimatedValue": "预估账户价值",
     "estimatedValueDesc": "基于当前市场价格的美元预估价值。",
-    "nextPowerDown": "下次能量下调计划时间"
+    "nextPowerDown": "下次能量下调计划时间",
+    "navAccount": "账户",
+    "navDiscover": "发现",
+    "navAccess": "访问",
+    "blog": "博客",
+    "proposals": "提案",
+    "market": "市场"
   },
   "navigation": {
     "home": "首页",

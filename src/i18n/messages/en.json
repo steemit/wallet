@@ -29,6 +29,11 @@
     "username": "Username",
     "password": "Password",
     "privateKey": "Private Key",
+    "usernamePlaceholder": "username",
+    "secretPlaceholder": "Enter your private key or master password",
+    "secretHelper": "Your secret stays on this device and is never sent to the server",
+    "requiredFields": "Username and secret are required",
+    "invalidSecret": "Invalid private key or master password",
     "loginButton": "Sign In",
     "loginError": "Invalid credentials",
     "invalidUsername": "Please enter a valid username",
@@ -37,11 +42,13 @@
     "logoutSuccess": "Logout successful",
     "sessionExpired": "Your session has expired. Please login again.",
     "notAuthenticated": "Please login to continue",
+    "rememberUsername": "Remember username on this device",
     "keepLoggedIn": "Keep me logged in"
   },
   "wallet": {
     "title": "Wallet",
     "balance": "Balance",
+    "balances": "Balances",
     "transfer": "Transfer",
     "powerDown": "Power Down",
     "delegations": "Delegations",
@@ -73,7 +80,13 @@
     "savingsDesc": "Balance subject to 3 day withdraw waiting period.",
     "estimatedValue": "Estimated Account Value",
     "estimatedValueDesc": "Approximate value in USD based on current market prices.",
-    "nextPowerDown": "Next power down is scheduled to happen"
+    "nextPowerDown": "Next power down is scheduled to happen",
+    "navAccount": "Account",
+    "navDiscover": "Discover",
+    "navAccess": "Access",
+    "blog": "Blog",
+    "proposals": "Proposals",
+    "market": "Market"
   },
   "navigation": {
     "home": "Home",
