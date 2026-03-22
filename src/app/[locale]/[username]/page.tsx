@@ -54,7 +54,7 @@ export default function WalletPage() {
         isMyAccount={isMyAccount}
       />
 
-      {/* Top Navigation - Blog | Rewards | Wallet */}
+      {/* Top Navigation - Blog | Wallet | Rewards */}
       <TopNav
         accountname={urlUsername}
         activeSection="transfers"

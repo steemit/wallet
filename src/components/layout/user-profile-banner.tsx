@@ -112,8 +112,8 @@ export function TopNav({ accountname, socialUrl = 'https://steemit.com', activeS
   return (
     <div className="UserProfile__top-nav">
       <div className="max-w-6xl mx-auto px-4">
-        <div className="flex items-center justify-between py-2">
-          <ul className="flex gap-1">
+        <div className="flex items-center py-2">
+          <ul className="flex flex-wrap items-center gap-1">
             <li>
               <a
                 href={`${socialUrl}/@${accountname}`}
@@ -122,6 +122,19 @@ export function TopNav({ accountname, socialUrl = 'https://steemit.com', activeS
                 className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 Blog <ExternalLink className="size-3" />
+              </a>
+            </li>
+            <li>
+              <a
+                href={`/@${accountname}/transfers`}
+                className={cn(
+                  'inline-block px-3 py-2 text-sm font-medium transition-colors',
+                  isWalletActive
+                    ? 'font-bold text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Wallet
               </a>
             </li>
             <li>
@@ -145,21 +158,6 @@ export function TopNav({ accountname, socialUrl = 'https://steemit.com', activeS
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </li>
-          </ul>
-          <ul className="flex gap-1">
-            <li>
-              <a
-                href={`/@${accountname}/transfers`}
-                className={cn(
-                  'inline-block px-3 py-2 text-sm font-medium transition-colors',
-                  isWalletActive
-                    ? 'font-bold text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                Wallet
-              </a>
             </li>
           </ul>
         </div>
