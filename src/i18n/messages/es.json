@@ -42,7 +42,8 @@
     "logoutSuccess": "Cierre de sesión exitoso",
     "sessionExpired": "Su sesión ha expirado. Inicie sesión nuevamente.",
     "notAuthenticated": "Inicie sesión para continuar",
-    "rememberUsername": "Recordar el usuario en este dispositivo",
+    "rememberUsername": "Recordar usuario en este dispositivo",
+    "rememberUserTooltip": "Recordar nombre de usuario y clave Posting Key en este dispositivo (si existe)",
     "keepLoggedIn": "Mantener la sesión iniciada"
   },
   "wallet": {

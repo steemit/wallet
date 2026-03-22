@@ -42,7 +42,8 @@
     "logoutSuccess": "Logout successful",
     "sessionExpired": "Your session has expired. Please login again.",
     "notAuthenticated": "Please login to continue",
-    "rememberUsername": "Remember username on this device",
+    "rememberUsername": "Remember user on this device",
+    "rememberUserTooltip": "Remember username and Posting Key on this device (when available)",
     "keepLoggedIn": "Keep me logged in"
   },
   "wallet": {

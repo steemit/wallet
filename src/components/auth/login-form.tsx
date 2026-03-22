@@ -7,10 +7,19 @@ import { useDispatch } from 'react-redux';
 import { AppDispatch } from '@/lib/store';
 import { setCredentials } from '@/lib/store/slices/auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
+import {
+  REMEMBERED_POSTING_KEY_KEY,
+  REMEMBERED_USERNAME_KEY,
+} from '@/lib/auth/browser-storage';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface LoginFormData {
   username: string;
@@ -26,7 +35,7 @@ export function LoginForm() {
 
   const [formData, setFormData] = useState<LoginFormData>(() => {
     try {
-      const saved = localStorage.getItem('wallet:rememberedUsername') ?? '';
+      const saved = localStorage.getItem(REMEMBERED_USERNAME_KEY) ?? '';
       return { username: saved, password: '' };
     } catch {
       return { username: '', password: '' };
@@ -34,9 +43,9 @@ export function LoginForm() {
   });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberUsername, setRememberUsername] = useState(() => {
+  const [rememberUser, setRememberUser] = useState(() => {
     try {
-      return !!localStorage.getItem('wallet:rememberedUsername');
+      return !!localStorage.getItem(REMEMBERED_USERNAME_KEY);
     } catch {
       return false;
     }
@@ -63,34 +72,85 @@ export function LoginForm() {
         return;
       }
 
-      // Role-specific private keys we will store in Redux
+      const accountsResp = await apiClient.getAccounts([username]);
+      const account = accountsResp.accounts?.[0];
+      if (!account) {
+        setError(t('invalidUsername'));
+        setIsLoading(false);
+        return;
+      }
+
+      const accountOwnerKey = account.owner?.key_auths?.[0]?.[0];
+      const accountActiveKey = account.active?.key_auths?.[0]?.[0];
+      const accountPostingKey = account.posting?.key_auths?.[0]?.[0];
+      const accountMemoKey = account.memo_key;
+
+      const matchesPub = (priv: string, expectedPub?: string | null) => {
+        if (!expectedPub) return false;
+        try {
+          return SteemSigner.privateKeyToPublicKey(priv) === expectedPub;
+        } catch {
+          return false;
+        }
+      };
+
       let ownerKey: string | null = null;
       let activeKey: string | null = null;
       let postingKey: string | null = null;
       let memoKey: string | null = null;
-
-      // Accept either a WIF private key or a master password.
       let primaryPrivateKey: string | null = null;
 
       if (SteemSigner.isValidPrivateKey(rawSecret)) {
-        // Single WIF path: we can't be certain of the role here,
-        // so treat it as the primary key and do not guess roles.
-        primaryPrivateKey = rawSecret;
+        if (matchesPub(rawSecret, accountOwnerKey)) {
+          ownerKey = rawSecret;
+          primaryPrivateKey = ownerKey;
+        } else if (matchesPub(rawSecret, accountActiveKey)) {
+          activeKey = rawSecret;
+          primaryPrivateKey = activeKey;
+        } else if (matchesPub(rawSecret, accountPostingKey)) {
+          postingKey = rawSecret;
+          primaryPrivateKey = postingKey;
+        } else if (matchesPub(rawSecret, accountMemoKey)) {
+          memoKey = rawSecret;
+          primaryPrivateKey = memoKey;
+        } else {
+          setError(t('invalidSecret'));
+          setIsLoading(false);
+          return;
+        }
       } else {
-        // Master password path: derive all four role keys using steem-js helper
         try {
-          const keys = SteemSigner.getPrivateKeysFromMasterPassword(username, rawSecret);
-          ownerKey = keys.owner ?? null;
-          activeKey = keys.active ?? null;
-          postingKey = keys.posting ?? null;
-          memoKey = keys.memo ?? null;
+          const derivedOwner = SteemSigner.derivePrivateKeyFromPassword(
+            username,
+            rawSecret,
+            'owner'
+          );
+          const derivedActive = SteemSigner.derivePrivateKeyFromPassword(
+            username,
+            rawSecret,
+            'active'
+          );
+          const derivedPosting = SteemSigner.derivePrivateKeyFromPassword(
+            username,
+            rawSecret,
+            'posting'
+          );
+          const derivedMemo = SteemSigner.derivePrivateKeyFromPassword(
+            username,
+            rawSecret,
+            'memo'
+          );
+
+          if (matchesPub(derivedOwner, accountOwnerKey)) ownerKey = derivedOwner;
+          if (matchesPub(derivedActive, accountActiveKey)) activeKey = derivedActive;
+          if (matchesPub(derivedPosting, accountPostingKey)) postingKey = derivedPosting;
+          if (matchesPub(derivedMemo, accountMemoKey)) memoKey = derivedMemo;
         } catch {
           setError(t('invalidSecret'));
           setIsLoading(false);
           return;
         }
 
-        // Prefer active key as primary, fall back to owner/posting/memo
         if (activeKey) {
           primaryPrivateKey = activeKey;
         } else if (ownerKey) {
@@ -112,6 +172,24 @@ export function LoginForm() {
         return;
       }
 
+      // Restore posting key from device storage when signing in with a key that is not posting
+      // (e.g. active WIF) but a posting key was saved earlier for claim-reward signing.
+      if (!postingKey && rememberUser && accountPostingKey) {
+        try {
+          const savedPosting = localStorage.getItem(REMEMBERED_POSTING_KEY_KEY);
+          const savedUser = localStorage.getItem(REMEMBERED_USERNAME_KEY);
+          if (
+            savedPosting &&
+            savedUser === username &&
+            SteemSigner.verifyPrivateKey(savedPosting, accountPostingKey)
+          ) {
+            postingKey = savedPosting;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       // Get public key from primary private key for login challenge
       const publicKey = SteemSigner.privateKeyToPublicKey(primaryPrivateKey);
 
@@ -130,7 +208,7 @@ export function LoginForm() {
         return;
       }
 
-      // Store credentials in Redux (memory only)
+      // Store credentials in Redux (session memory; posting key may also be saved locally when opted in below)
       dispatch(
         setCredentials({
           username,
@@ -145,10 +223,16 @@ export function LoginForm() {
       );
 
       try {
-        if (rememberUsername) {
-          localStorage.setItem('wallet:rememberedUsername', username);
+        if (rememberUser) {
+          localStorage.setItem(REMEMBERED_USERNAME_KEY, username);
+          if (postingKey) {
+            localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, postingKey);
+          } else {
+            localStorage.removeItem(REMEMBERED_POSTING_KEY_KEY);
+          }
         } else {
-          localStorage.removeItem('wallet:rememberedUsername');
+          localStorage.removeItem(REMEMBERED_USERNAME_KEY);
+          localStorage.removeItem(REMEMBERED_POSTING_KEY_KEY);
         }
       } catch {
         // ignore
@@ -221,8 +305,8 @@ export function LoginForm() {
           <div className="flex items-start gap-3">
             <Checkbox
               id="keepLoggedIn"
-              checked={rememberUsername}
-              onCheckedChange={(value) => setRememberUsername(value === true)}
+              checked={rememberUser}
+              onCheckedChange={(value) => setRememberUser(value === true)}
               disabled={isLoading || isPending}
               className="peer mt-0.5 border-muted-foreground/50 data-[state=unchecked]:bg-background"
             />
@@ -230,7 +314,16 @@ export function LoginForm() {
               htmlFor="keepLoggedIn"
               className="cursor-pointer text-sm font-normal leading-snug text-muted-foreground peer-disabled:cursor-not-allowed"
             >
-              {t('rememberUsername')}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help underline decoration-dotted decoration-muted-foreground/60 underline-offset-2">
+                    {t('rememberUsername')}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-left">
+                  {t('rememberUserTooltip')}
+                </TooltipContent>
+              </Tooltip>
             </Label>
           </div>
 

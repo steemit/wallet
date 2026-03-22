@@ -42,7 +42,8 @@
     "logoutSuccess": "退出成功",
     "sessionExpired": "会话已过期，请重新登录",
     "notAuthenticated": "请先登录",
-    "rememberUsername": "在本设备记住用户名",
+    "rememberUsername": "在本设备记住用户",
+    "rememberUserTooltip": "在本设备记住用户名和 Posting Key (如果存在)",
     "keepLoggedIn": "保持登录状态"
   },
   "wallet": {
