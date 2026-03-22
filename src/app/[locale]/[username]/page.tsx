@@ -1,14 +1,15 @@
 'use client';
 
+import { Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useParams } from 'next/navigation';
-import { useEffect } from 'react';
 import { usePathname, useRouter } from '@/i18n/routing';
 import { RecentActivityLazy } from '@/components/wallet/client-wrappers';
 import { BalanceRows } from '@/components/wallet/balance-rows';
 import { WalletSubMenu } from '@/components/layout/wallet-sub-menu';
 import { UserProfileBanner, TopNav } from '@/components/layout/user-profile-banner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { WalletTransfersModals } from '@/components/wallet/wallet-transfers-modals';
 
 export default function WalletPage() {
   const { username: loggedInUser, isAuthenticated } = useAuth();
@@ -21,6 +22,8 @@ export default function WalletPage() {
   // Parse username from params (e.g. "%40ety001" -> "ety001")
   const urlUsername = rawUsername ? decodeURIComponent(rawUsername).replace(/^@/, '') : '';
   const isMyAccount = !!isAuthenticated && !!loggedInUser && loggedInUser === urlUsername;
+
+  const [walletRefreshNonce, setWalletRefreshNonce] = useState(0);
 
   // Align with wallet-legacy: user homepage /@username has no content, redirect to /@username/transfers
   const isUserHome = pathname === `/@${urlUsername}` || pathname === `/@${urlUsername}/`;
@@ -67,12 +70,18 @@ export default function WalletPage() {
 
         {/* Balance Rows - Legacy layout with dropdown menus */}
         <div className="mt-4">
-          <BalanceRows username={urlUsername} />
+          <BalanceRows username={urlUsername} refreshNonce={walletRefreshNonce} />
         </div>
 
         {/* Recent Activity - lazy loaded */}
-        <RecentActivityLazy username={urlUsername} />
+        <RecentActivityLazy username={urlUsername} refreshNonce={walletRefreshNonce} />
       </div>
+
+      <Suspense fallback={null}>
+        <WalletTransfersModals
+          onWalletDataChanged={() => setWalletRefreshNonce((n) => n + 1)}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -21,30 +21,6 @@ export const RecentActivityLazy = dynamic(
   }
 );
 
-export const DelegationsPageClient = dynamic(
-  () => import('@/components/wallet/delegate-form').then((mod) => ({ default: mod.DelegateForm })),
-  {
-    loading: LoadingFallback,
-    ssr: false,
-  }
-);
-
-export const PowerDownPageClient = dynamic(
-  () => import('@/components/wallet/power-down-form').then((mod) => ({ default: mod.PowerDownForm })),
-  {
-    loading: LoadingFallback,
-    ssr: false,
-  }
-);
-
-export const TransferPageClient = dynamic(
-  () => import('@/components/wallet/transfer-form').then((mod) => ({ default: mod.TransferForm })),
-  {
-    loading: LoadingFallback,
-    ssr: false,
-  }
-);
-
 export const WitnessesPageClient = dynamic(
   () => import('@/components/wallet/witness-vote-form').then((mod) => ({ default: mod.WitnessVoteForm })),
   {

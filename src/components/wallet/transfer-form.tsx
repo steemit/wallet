@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
@@ -12,14 +12,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { WalletTransferType } from '@/lib/wallet/wallet-modal-search-params';
 
-interface TransferFormData {
-  to: string;
-  amount: string;
-  memo: string;
+export type TransferFormVariant = 'page' | 'dialog';
+
+export interface TransferFormProps {
+  variant?: TransferFormVariant;
+  /** Initial asset from URL / balance row (STEEM, SBD, or VESTS for power-up entry). */
+  initialAsset?: 'STEEM' | 'SBD' | 'VESTS';
+  /** transfer = to another account; savings / savings_withdraw / power_up = self operations. */
+  initialTransferType?: WalletTransferType;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
-export function TransferForm() {
+export function TransferForm({
+  variant = 'page',
+  initialAsset = 'STEEM',
+  initialTransferType = 'transfer',
+  onSuccess,
+  onCancel,
+}: TransferFormProps) {
   const t = useTranslations('transfer');
   const tCommon = useTranslations('common');
   const router = useRouter();
@@ -27,19 +40,25 @@ export function TransferForm() {
   const privateKey = usePrivateKey();
   const [isPending, startTransition] = useTransition();
 
-  const [formData, setFormData] = useState<TransferFormData>({
-    to: '',
-    amount: '',
-    memo: '',
-  });
+  const [transferType, setTransferType] = useState<WalletTransferType>(initialTransferType);
+  const [asset, setAsset] = useState<'STEEM' | 'SBD'>(initialAsset === 'SBD' ? 'SBD' : 'STEEM');
+  const [formData, setFormData] = useState({ to: '', amount: '', memo: '' });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setTransferType(initialTransferType);
+    setAsset(initialAsset === 'SBD' ? 'SBD' : 'STEEM');
+  }, [initialAsset, initialTransferType]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setError('');
   };
+
+  const amountSuffix =
+    transferType === 'power_up' ? 'STEEM' : asset === 'SBD' ? 'SBD' : 'STEEM';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,14 +72,6 @@ export function TransferForm() {
     }
 
     try {
-      // Validate recipient
-      if (!formData.to.trim()) {
-        setError('Please enter a recipient username');
-        setIsLoading(false);
-        return;
-      }
-
-      // Validate amount format (e.g., "1.000 STEEM")
       const amountMatch = formData.amount.match(/^([\d.]+)\s*$/);
       if (!amountMatch || !amountMatch[1]) {
         setError('Please enter a valid amount');
@@ -74,19 +85,53 @@ export function TransferForm() {
         return;
       }
 
-      // Format amount for Steem (3 decimal places)
-      const amount = `${amountValue.toFixed(3)} STEEM`;
+      const amountStr = `${amountValue.toFixed(3)} ${amountSuffix}`;
+      let signedTx: SignedTransaction;
 
-      // Sign transaction
-      const signedTx: SignedTransaction = SteemSigner.signTransfer(
-        username,
-        formData.to.trim(),
-        amount,
-        formData.memo,
-        privateKey
-      );
+      if (transferType === 'transfer') {
+        if (!formData.to.trim()) {
+          setError('Please enter a recipient username');
+          setIsLoading(false);
+          return;
+        }
+        signedTx = SteemSigner.signTransfer(
+          username,
+          formData.to.trim(),
+          amountStr,
+          formData.memo,
+          privateKey
+        );
+      } else if (transferType === 'savings') {
+        signedTx = SteemSigner.signTransferToSavings(
+          username,
+          username,
+          amountStr,
+          formData.memo,
+          privateKey
+        );
+      } else if (transferType === 'savings_withdraw') {
+        const requestId = Date.now() >>> 0;
+        signedTx = SteemSigner.signTransferFromSavings(
+          username,
+          username,
+          amountStr,
+          formData.memo,
+          requestId,
+          privateKey
+        );
+      } else if (transferType === 'power_up') {
+        signedTx = SteemSigner.signTransferToVesting(
+          username,
+          username,
+          amountStr,
+          privateKey
+        );
+      } else {
+        setError('Unsupported operation');
+        setIsLoading(false);
+        return;
+      }
 
-      // Broadcast transaction
       const response = await apiClient.broadcastTransfer(signedTx, username);
 
       if (!response.success) {
@@ -95,10 +140,14 @@ export function TransferForm() {
         return;
       }
 
-      // Success - redirect to user's wallet transfers view
+      setIsLoading(false);
       startTransition(() => {
-        const encoded = encodeURIComponent(`@${username}`);
-        router.push(`/${encoded}/transfers`);
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          const encoded = encodeURIComponent(`@${username}`);
+          router.push(`/${encoded}/transfers`);
+        }
       });
     } catch (err) {
       console.error('Transfer error:', err);
@@ -107,86 +156,132 @@ export function TransferForm() {
     }
   };
 
+  const handleCancel = () => {
+    if (onCancel) onCancel();
+    else router.back();
+  };
+
+  const showRecipient = transferType === 'transfer';
+  const showMemo =
+    transferType === 'transfer' ||
+    transferType === 'savings' ||
+    transferType === 'savings_withdraw';
+  const titleKey =
+    transferType === 'savings'
+      ? 'Transfer to savings'
+      : transferType === 'savings_withdraw'
+        ? 'Withdraw from savings'
+        : transferType === 'power_up'
+          ? 'Power up'
+          : t('title');
+
+  const formBody = (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      {variant === 'page' && transferType === 'transfer' && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="flex flex-col gap-1">
+            <Label>Asset</Label>
+            <select
+              className="border-input bg-background h-9 rounded-md border px-2 text-sm"
+              value={asset}
+              onChange={(e) => setAsset(e.target.value as 'STEEM' | 'SBD')}
+              disabled={isLoading || isPending}
+            >
+              <option value="STEEM">STEEM</option>
+              <option value="SBD">SBD</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {showRecipient && (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="to" className="text-base">
+            {t('to')}
+          </Label>
+          <Input
+            type="text"
+            id="to"
+            name="to"
+            value={formData.to}
+            onChange={handleChange}
+            required
+            placeholder="Enter recipient username"
+            disabled={isLoading || isPending}
+          />
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="amount" className="text-base">
+          {t('amount')}
+        </Label>
+        <Input
+          type="number"
+          id="amount"
+          name="amount"
+          value={formData.amount}
+          onChange={handleChange}
+          required
+          step="0.001"
+          min="0"
+          placeholder={`e.g. 1.000 ${amountSuffix}`}
+          disabled={isLoading || isPending}
+        />
+        <p className="text-muted-foreground text-sm">Amount in {amountSuffix}</p>
+      </div>
+
+      {showMemo && (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="memo" className="text-base">
+            {t('memo')}
+          </Label>
+          <Input
+            type="text"
+            id="memo"
+            name="memo"
+            value={formData.memo}
+            onChange={handleChange}
+            placeholder="Optional memo (max 2048 bytes)"
+            maxLength={2048}
+            disabled={isLoading || isPending}
+          />
+        </div>
+      )}
+
+      {error && (
+        <div className="border-destructive/20 bg-destructive/10 rounded-md border p-4">
+          <p className="text-destructive text-sm font-medium">{error}</p>
+        </div>
+      )}
+
+      <div className="flex gap-4 pt-2">
+        <Button type="submit" disabled={isLoading || isPending} className="flex-1">
+          {isLoading || isPending ? tCommon('loading') : t('transferButton')}
+        </Button>
+        <Button type="button" variant="outline" onClick={handleCancel} disabled={isLoading || isPending}>
+          {tCommon('cancel')}
+        </Button>
+      </div>
+    </form>
+  );
+
+  if (variant === 'dialog') {
+    return (
+      <div className="px-1 py-1">
+        <h2 className="mb-4 text-lg font-semibold">{titleKey}</h2>
+        {formBody}
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto mt-8 w-full max-w-lg px-4">
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">{t('title')}</CardTitle>
+          <CardTitle className="text-2xl font-bold">{titleKey}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="to" className="text-base">{t('to')}</Label>
-            <Input
-              type="text"
-              id="to"
-              name="to"
-              value={formData.to}
-              onChange={handleChange}
-              required
-              placeholder="Enter recipient username"
-              disabled={isLoading || isPending}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="amount" className="text-base">{t('amount')}</Label>
-            <Input
-              type="number"
-              id="amount"
-              name="amount"
-              value={formData.amount}
-              onChange={handleChange}
-              required
-              step="0.001"
-              min="0"
-              placeholder="Enter amount (e.g., 1.000)"
-              disabled={isLoading || isPending}
-            />
-            <p className="text-sm text-muted-foreground">
-              Amount in STEEM (e.g., 1.000)
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="memo" className="text-base">{t('memo')}</Label>
-            <Input
-              type="text"
-              id="memo"
-              name="memo"
-              value={formData.memo}
-              onChange={handleChange}
-              placeholder="Optional memo (max 2048 bytes)"
-              maxLength={2048}
-              disabled={isLoading || isPending}
-            />
-          </div>
-
-          {error && (
-            <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4">
-              <p className="text-sm text-destructive font-medium">{error}</p>
-            </div>
-          )}
-
-          <div className="flex gap-4 pt-2">
-            <Button
-              type="submit"
-              disabled={isLoading || isPending}
-              className="flex-1"
-            >
-              {isLoading || isPending ? tCommon('loading') : t('transferButton')}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-              disabled={isLoading || isPending}
-            >
-              {tCommon('cancel')}
-            </Button>
-          </div>
-          </form>
-        </CardContent>
+        <CardContent>{formBody}</CardContent>
       </Card>
     </div>
   );

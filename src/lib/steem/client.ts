@@ -58,6 +58,78 @@ export class SteemSigner {
   }
 
   /**
+   * Move liquid STEEM/SBD into savings (transfer_to_savings).
+   */
+  static signTransferToSavings(
+    from: string,
+    to: string,
+    amount: string,
+    memo: string,
+    activeKey: string
+  ): SignedTransaction {
+    const operations: Operation[] = [
+      [
+        'transfer_to_savings',
+        {
+          from,
+          to,
+          amount,
+          memo: memo || '',
+        },
+      ],
+    ];
+    return this.signTransaction(operations, [activeKey]);
+  }
+
+  /**
+   * Withdraw from savings to liquid (transfer_from_savings).
+   */
+  static signTransferFromSavings(
+    from: string,
+    to: string,
+    amount: string,
+    memo: string,
+    requestId: number,
+    activeKey: string
+  ): SignedTransaction {
+    const operations: Operation[] = [
+      [
+        'transfer_from_savings',
+        {
+          from,
+          to,
+          amount,
+          memo: memo || '',
+          request_id: requestId,
+        },
+      ],
+    ];
+    return this.signTransaction(operations, [activeKey]);
+  }
+
+  /**
+   * Power up: move liquid STEEM to own vesting (transfer_to_vesting).
+   */
+  static signTransferToVesting(
+    from: string,
+    to: string,
+    amount: string,
+    activeKey: string
+  ): SignedTransaction {
+    const operations: Operation[] = [
+      [
+        'transfer_to_vesting',
+        {
+          from,
+          to,
+          amount,
+        },
+      ],
+    ];
+    return this.signTransaction(operations, [activeKey]);
+  }
+
+  /**
    * Sign a power down operation
    */
   static signPowerDown(

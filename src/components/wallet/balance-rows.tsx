@@ -19,6 +19,12 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronDown } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from '@/i18n/routing';
+import {
+  buildWalletModalSearchString,
+  transfersHref,
+  type WalletModalAction,
+} from '@/lib/wallet/wallet-modal-search-params';
 
 interface BalanceData {
   balance: string;
@@ -46,7 +52,19 @@ function numberWithCommas(x: string): string {
   return x.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-export function BalanceRows({ username }: { username: string }) {
+type BalanceDropdownItemConfig =
+  | { label: string; external: true; href: string }
+  | { label: string; link: string }
+  | { label: string; walletAction: WalletModalAction; asset?: string; type?: string };
+
+export function BalanceRows({
+  username,
+  refreshNonce = 0,
+}: {
+  username: string;
+  /** Increment after wallet modal completes to refetch balances. */
+  refreshNonce?: number;
+}) {
   const t = useTranslations('wallet');
   const [balance, setBalance] = useState<BalanceData | null>(null);
   const [globalProps, setGlobalProps] = useState<GlobalPropsData | null>(null);
@@ -82,7 +100,7 @@ export function BalanceRows({ username }: { username: string }) {
     };
 
     fetchData();
-  }, [username]);
+  }, [username, refreshNonce]);
 
   const formatBalance = (value: string | undefined) => {
     if (!value) return '0.000';
@@ -197,13 +215,29 @@ export function BalanceRows({ username }: { username: string }) {
           </div>
           <div className="md:text-right whitespace-nowrap">
             <BalanceDropdown
+              username={username}
               selected={steemBalance + ' STEEM'}
               items={[
-                { label: 'Transfer', href: '/transfer?asset=STEEM&type=transfer' },
-                { label: 'Transfer to Savings', href: '/transfer?asset=STEEM&type=savings' },
-                { label: 'Power Up', href: '/transfer?asset=VESTS&type=transfer' },
-                { label: 'Trade', href: 'https://poloniex.com/trade/STEEM_TRX/?type=spot', external: true },
-                { label: 'Market', href: '/market' },
+                {
+                  label: 'Transfer',
+                  walletAction: 'transfer',
+                  asset: 'STEEM',
+                  type: 'transfer',
+                },
+                {
+                  label: 'Transfer to Savings',
+                  walletAction: 'transfer',
+                  asset: 'STEEM',
+                  type: 'savings',
+                },
+                {
+                  label: 'Power Up',
+                  walletAction: 'transfer',
+                  asset: 'STEEM',
+                  type: 'power_up',
+                },
+                { label: 'Trade', external: true, href: 'https://poloniex.com/trade/STEEM_TRX/?type=spot' },
+                { label: 'Market', link: '/market' },
               ]}
             />
           </div>
@@ -227,11 +261,12 @@ export function BalanceRows({ username }: { username: string }) {
           </div>
           <div className="md:text-right whitespace-nowrap">
             <BalanceDropdown
+              username={username}
               selected={spBalance + ' STEEM'}
               items={[
-                { label: 'Delegate', href: '/delegations?action=delegate' },
-                { label: 'Power Down', href: '/power-down' },
-                { label: 'Advanced Routes', href: '#advanced' },
+                { label: 'Delegate', walletAction: 'delegate' },
+                { label: 'Power Down', walletAction: 'powerDown' },
+                { label: 'Advanced Routes', walletAction: 'advanced' },
               ]}
             />
             {hasDelegation && (
@@ -261,13 +296,18 @@ export function BalanceRows({ username }: { username: string }) {
           </div>
           <div className="md:text-right whitespace-nowrap">
             <BalanceDropdown
+              username={username}
               selected={sbdBalance}
               items={[
-                { label: 'Transfer', href: '/transfer?asset=SBD&type=transfer' },
-                { label: 'Transfer to Savings', href: '/transfer?asset=SBD&type=savings' },
-                { label: 'Convert to STEEM', href: '#convert' },
-                { label: 'Market', href: '/market' },
-                { label: 'Trade', href: 'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD', external: true },
+                { label: 'Transfer', walletAction: 'transfer', asset: 'SBD', type: 'transfer' },
+                { label: 'Transfer to Savings', walletAction: 'transfer', asset: 'SBD', type: 'savings' },
+                { label: 'Convert to STEEM', walletAction: 'convert' },
+                { label: 'Market', link: '/market' },
+                {
+                  label: 'Trade',
+                  external: true,
+                  href: 'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD',
+                },
               ]}
             />
           </div>
@@ -285,16 +325,28 @@ export function BalanceRows({ username }: { username: string }) {
           </div>
           <div className="md:text-right whitespace-nowrap">
             <BalanceDropdown
+              username={username}
               selected={savingsBalance}
               items={[
-                { label: 'Withdraw STEEM', href: '/transfer?asset=STEEM&type=savings_withdraw' },
+                {
+                  label: 'Withdraw STEEM',
+                  walletAction: 'transfer',
+                  asset: 'STEEM',
+                  type: 'savings_withdraw',
+                },
               ]}
             />
             <div className="mt-1">
               <BalanceDropdown
+                username={username}
                 selected={savingsSbdBalance}
                 items={[
-                  { label: 'Withdraw Steem Dollars', href: '/transfer?asset=SBD&type=savings_withdraw' },
+                  {
+                    label: 'Withdraw Steem Dollars',
+                    walletAction: 'transfer',
+                    asset: 'SBD',
+                    type: 'savings_withdraw',
+                  },
                 ]}
               />
             </div>
@@ -339,20 +391,17 @@ export function BalanceRows({ username }: { username: string }) {
    BalanceDropdown - per-row action dropout
    ============================================ */
 
-interface BalanceDropdownItem {
-  label: string;
-  href: string;
-  external?: boolean;
-  onClick?: () => void;
-}
-
 function BalanceDropdown({
+  username,
   selected,
   items,
 }: {
+  username: string;
   selected: string;
-  items: BalanceDropdownItem[];
+  items: BalanceDropdownItemConfig[];
 }) {
+  const router = useRouter();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="Wallet_dropdown inline-flex items-center gap-1 font-bold hover:text-primary transition-colors text-right">
@@ -360,21 +409,40 @@ function BalanceDropdown({
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {items.map((item) =>
-          item.external ? (
+        {items.map((item) => {
+          if ('walletAction' in item) {
+            const q = buildWalletModalSearchString({
+              walletAction: item.walletAction,
+              ...(item.asset !== undefined ? { asset: item.asset } : {}),
+              ...(item.type !== undefined ? { type: item.type } : {}),
+            });
+            return (
+              <DropdownMenuItem
+                key={item.label}
+                onSelect={() => router.push(transfersHref(username, q))}
+                className="cursor-pointer"
+              >
+                {item.label}
+              </DropdownMenuItem>
+            );
+          }
+          if ('link' in item) {
+            return (
+              <DropdownMenuItem key={item.label} asChild>
+                <Link href={item.link} className="cursor-pointer">
+                  {item.label}
+                </Link>
+              </DropdownMenuItem>
+            );
+          }
+          return (
             <DropdownMenuItem key={item.label} asChild>
               <a href={item.href} target="_blank" rel="noopener noreferrer" className="cursor-pointer">
                 {item.label}
               </a>
             </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem key={item.label} asChild>
-              <Link href={item.href} className="cursor-pointer">
-                {item.label}
-              </Link>
-            </DropdownMenuItem>
-          )
-        )}
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );

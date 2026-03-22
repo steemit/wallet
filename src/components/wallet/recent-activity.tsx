@@ -109,7 +109,13 @@ function formatTransferRow(item: TransferHistoryItem, context: string) {
   }
 }
 
-export function RecentActivity({ username }: { username: string }) {
+export function RecentActivity({
+  username,
+  refreshNonce = 0,
+}: {
+  username: string;
+  refreshNonce?: number;
+}) {
   const t = useTranslations('wallet');
   const [history, setHistory] = useState<TransferHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,7 +170,7 @@ export function RecentActivity({ username }: { username: string }) {
     };
 
     fetchHistory();
-  }, [username]);
+  }, [username, refreshNonce]);
 
   if (loading) {
     return (
