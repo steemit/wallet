@@ -170,11 +170,15 @@ export function LoginForm() {
     <div className="mx-auto w-full max-w-md">
       {/* Login Form Card */}
       <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm sm:p-8">
-        <h2 className="mb-6 text-center text-2xl font-bold">{t('login')}</h2>
+        <h2 className="mb-8 text-center text-3xl font-bold tracking-tight text-foreground">
+          {t('login')}
+        </h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* Username Input with @ prefix */}
           <div className="flex flex-col gap-2">
-            <Label htmlFor="username" className="text-base">{t('username')}</Label>
+            <Label htmlFor="username" className="text-sm font-semibold text-foreground">
+              {t('username')}
+            </Label>
             <div className="relative">
               <span className="absolute inset-y-0 left-3 flex items-center text-muted-foreground pointer-events-none">
                 @
@@ -195,7 +199,9 @@ export function LoginForm() {
 
           {/* Private Key Input */}
           <div className="flex flex-col gap-2">
-            <Label htmlFor="password" className="text-base">{t('privateKey')}</Label>
+            <Label htmlFor="password" className="text-sm font-semibold text-foreground">
+              {t('privateKey')}
+            </Label>
             <Input
               id="password"
               name="password"
@@ -206,20 +212,24 @@ export function LoginForm() {
               placeholder={t('secretPlaceholder')}
               disabled={isLoading || isPending}
             />
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               {t('secretHelper')}
             </p>
           </div>
 
           {/* Save Login Option */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-start gap-3">
             <Checkbox
               id="keepLoggedIn"
               checked={rememberUsername}
               onCheckedChange={(value) => setRememberUsername(value === true)}
               disabled={isLoading || isPending}
+              className="peer mt-0.5 border-muted-foreground/50 data-[state=unchecked]:bg-background"
             />
-            <Label htmlFor="keepLoggedIn" className="cursor-pointer font-normal text-base">
+            <Label
+              htmlFor="keepLoggedIn"
+              className="cursor-pointer text-sm font-normal leading-snug text-muted-foreground peer-disabled:cursor-not-allowed"
+            >
               {t('rememberUsername')}
             </Label>
           </div>
