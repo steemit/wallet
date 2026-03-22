@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/routing';
+import { useAuth } from '@/hooks/use-auth';
 import {
   WALLET_ACTION_QUERY,
   WALLET_ASSET_QUERY,
@@ -19,19 +21,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { TransferForm } from '@/components/wallet/transfer-form';
 import { PowerDownForm } from '@/components/wallet/power-down-form';
 import { DelegateForm } from '@/components/wallet/delegate-form';
+import { WithdrawRoutesForm } from '@/components/wallet/withdraw-routes-form';
+import { ConvertSbdForm } from '@/components/wallet/convert-sbd-form';
 
 export interface WalletTransfersModalsProps {
   onWalletDataChanged?: () => void;
 }
 
 export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersModalsProps) {
+  const t = useTranslations('wallet');
+  const params = useParams();
+  const { username: loggedInUser, isAuthenticated } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const rawUsername = params?.username as string | undefined;
+  const accountUsername = rawUsername ? decodeURIComponent(rawUsername).replace(/^@/, '') : '';
+  const isMyAccount = !!isAuthenticated && !!loggedInUser && loggedInUser === accountUsername;
 
   const walletAction = parseWalletModalAction(searchParams.get(WALLET_ACTION_QUERY));
   const asset = parseWalletAsset(searchParams.get(WALLET_ASSET_QUERY));
@@ -93,31 +103,36 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
           </>
         )}
         {walletAction === 'advanced' && (
-          <div className="space-y-4">
+          <>
             <DialogHeader>
-              <DialogTitle>Advanced routes</DialogTitle>
-              <DialogDescription>
-                Withdraw routing and savings routing UI will be added in a future release (wallet-legacy
-                RouteSettings).
+              <DialogTitle>{t('withdrawRoutes.title')}</DialogTitle>
+              <DialogDescription className="sr-only">
+                {t('withdrawRoutes.dialogDescription')}
               </DialogDescription>
             </DialogHeader>
-            <Button type="button" onClick={clearWalletQuery}>
-              Close
-            </Button>
-          </div>
+            <WithdrawRoutesForm
+              variant="dialog"
+              accountUsername={accountUsername}
+              isMyAccount={isMyAccount}
+              {...(onWalletDataChanged ? { onRoutesUpdated: onWalletDataChanged } : {})}
+              onCancel={clearWalletQuery}
+            />
+          </>
         )}
         {walletAction === 'convert' && (
-          <div className="space-y-4">
+          <>
             <DialogHeader>
-              <DialogTitle>Convert SBD to STEEM</DialogTitle>
-              <DialogDescription>
-                Conversion flow will be added in a future release (wallet-legacy ConvertToSteem).
-              </DialogDescription>
+              <DialogTitle>{t('convertSbd.title')}</DialogTitle>
+              <DialogDescription className="sr-only">{t('convertSbd.dialogDescription')}</DialogDescription>
             </DialogHeader>
-            <Button type="button" onClick={clearWalletQuery}>
-              Close
-            </Button>
-          </div>
+            <ConvertSbdForm
+              variant="dialog"
+              accountUsername={accountUsername}
+              isMyAccount={isMyAccount}
+              onSuccess={handleSuccess}
+              onCancel={clearWalletQuery}
+            />
+          </>
         )}
       </DialogContent>
     </Dialog>

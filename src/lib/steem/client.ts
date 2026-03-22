@@ -222,6 +222,53 @@ export class SteemSigner {
   }
 
   /**
+   * Set power-down withdraw routing (set_withdraw_vesting_route).
+   * `percent` is chain units (legacy: Math.round(uiPercent * 100)).
+   */
+  static signSetWithdrawVestingRoute(
+    fromAccount: string,
+    toAccount: string,
+    percent: number,
+    autoVest: boolean,
+    activeKey: string
+  ): SignedTransaction {
+    const operations: Operation[] = [
+      [
+        'set_withdraw_vesting_route',
+        {
+          from_account: fromAccount,
+          to_account: toAccount,
+          percent,
+          auto_vest: autoVest,
+        },
+      ],
+    ];
+    return this.signTransaction(operations, [activeKey]);
+  }
+
+  /**
+   * Request SBD to STEEM conversion over the feed delay (convert).
+   */
+  static signConvert(
+    owner: string,
+    requestid: number,
+    amount: string,
+    activeKey: string
+  ): SignedTransaction {
+    const operations: Operation[] = [
+      [
+        'convert',
+        {
+          owner,
+          requestid,
+          amount,
+        },
+      ],
+    ];
+    return this.signTransaction(operations, [activeKey]);
+  }
+
+  /**
    * Get public key from private key
    */
   static privateKeyToPublicKey(privateKey: string): string {
@@ -451,6 +498,59 @@ export const apiClient = {
    */
   async getGlobalProps(): Promise<{ props: GlobalProperties; error?: string }> {
     const response = await fetch('/api/query/global-props');
+    return response.json();
+  },
+
+  /**
+   * Outgoing withdraw routes for power down
+   */
+  async getWithdrawRoutes(
+    username: string
+  ): Promise<{
+    success?: boolean;
+    routes?: { to_account: string; percent: number; auto_vest: boolean }[];
+    error?: string;
+  }> {
+    const response = await fetch(
+      `/api/query/withdraw-routes?username=${encodeURIComponent(username)}`
+    );
+    return response.json();
+  },
+
+  /**
+   * Median SBD/STEEM feed price from chain
+   */
+  async getMedianHistoryPrice(): Promise<{
+    success?: boolean;
+    base?: string;
+    quote?: string;
+    error?: string;
+  }> {
+    const response = await fetch('/api/query/median-history-price');
+    return response.json();
+  },
+
+  async broadcastSetWithdrawVestingRoute(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+    const response = await fetch('/api/broadcast/set-withdraw-vesting-route', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
+    return response.json();
+  },
+
+  async broadcastConvert(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+    const response = await fetch('/api/broadcast/convert', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
     return response.json();
   },
 };

@@ -134,6 +134,53 @@ export class SteemService {
   }
 
   /**
+   * Outgoing power-down withdraw routes (condenser_api.get_withdraw_routes).
+   */
+  static async getWithdrawRoutesOutgoing(
+    account: string
+  ): Promise<{ to_account: string; percent: number; auto_vest: boolean }[]> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        callAsync: (method: string, params: unknown[]) => Promise<unknown>;
+      };
+      const raw = await api.callAsync('condenser_api.get_withdraw_routes', [account, 'outgoing']);
+      if (!Array.isArray(raw)) return [];
+      return raw.map((row: Record<string, unknown>) => {
+        const to = (row.to_account ?? row.to ?? '') as string;
+        const percent = Number(row.percent ?? 0);
+        const auto_vest = Boolean(row.auto_vest);
+        return { to_account: to, percent, auto_vest };
+      });
+    }).catch((error) => {
+      console.error('Error fetching withdraw routes:', error);
+      throw new Error(`Failed to fetch withdraw routes: ${(error as Error).message}`);
+    });
+  }
+
+  /**
+   * Median history price for SBD/STEEM feed (condenser_api.get_current_median_history_price).
+   */
+  static async getCurrentMedianHistoryPrice(): Promise<{ base: string; quote: string }> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        callAsync: (method: string, params: unknown[]) => Promise<unknown>;
+      };
+      const result = (await api.callAsync('condenser_api.get_current_median_history_price', [])) as {
+        base?: string;
+        quote?: string;
+      };
+      const base = typeof result?.base === 'string' ? result.base : '0 SBD';
+      const quote = typeof result?.quote === 'string' ? result.quote : '0 STEEM';
+      return { base, quote };
+    }).catch((error) => {
+      console.error('Error fetching median history price:', error);
+      throw new Error(`Failed to fetch median history price: ${(error as Error).message}`);
+    });
+  }
+
+  /**
    * Get feed history (price)
    */
   static async getFeedHistory(): Promise<unknown> {

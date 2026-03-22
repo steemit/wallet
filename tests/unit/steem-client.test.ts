@@ -10,6 +10,7 @@ import type { SignedTransaction } from '@/lib/steem/types';
 // Mock fetch
 global.fetch = vi.fn();
 
+import { steem } from '@steemit/steem-js';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
 
 describe('SteemSigner - Basic Structure', () => {
@@ -95,6 +96,31 @@ describe('SteemSigner - Basic Structure', () => {
 
   it('should validate WIF format', () => {
     expect(SteemSigner.isValidPrivateKey('5Jkey')).toBe(true);
+  });
+
+  it('should sign set_withdraw_vesting_route with expected operation payload', () => {
+    vi.mocked(steem.auth.signTransaction).mockImplementationOnce(
+      (tx: { operations: unknown[]; extensions: unknown[] }) =>
+        ({ ...tx, signatures: ['SIG'] }) as SignedTransaction
+    );
+    const signed = SteemSigner.signSetWithdrawVestingRoute('alice', 'bob', 5000, true, '5Jkey');
+    expect(signed.operations).toEqual([
+      [
+        'set_withdraw_vesting_route',
+        { from_account: 'alice', to_account: 'bob', percent: 5000, auto_vest: true },
+      ],
+    ]);
+  });
+
+  it('should sign convert with expected operation payload', () => {
+    vi.mocked(steem.auth.signTransaction).mockImplementationOnce(
+      (tx: { operations: unknown[]; extensions: unknown[] }) =>
+        ({ ...tx, signatures: ['SIG'] }) as SignedTransaction
+    );
+    const signed = SteemSigner.signConvert('alice', 1710000000, '10.500 SBD', '5Jkey');
+    expect(signed.operations).toEqual([
+      ['convert', { owner: 'alice', requestid: 1710000000, amount: '10.500 SBD' }],
+    ]);
   });
 });
 
@@ -408,6 +434,106 @@ describe('apiClient', () => {
 
       expect(global.fetch).toHaveBeenCalledWith('/api/query/global-props');
       expect(result.props).toEqual(mockProps);
+    });
+  });
+
+  describe('getWithdrawRoutes', () => {
+    it('should fetch outgoing withdraw routes', async () => {
+      const mockRoutes = [{ to_account: 'bob', percent: 2500, auto_vest: false }];
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        json: async () => ({ routes: mockRoutes }),
+      });
+
+      const result = await apiClient.getWithdrawRoutes('alice');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        `/api/query/withdraw-routes?username=${encodeURIComponent('alice')}`
+      );
+      expect(result.routes).toEqual(mockRoutes);
+    });
+  });
+
+  describe('getMedianHistoryPrice', () => {
+    it('should fetch median history price', async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        json: async () => ({ base: '1.234 SBD', quote: '5.000 STEEM' }),
+      });
+
+      const result = await apiClient.getMedianHistoryPrice();
+
+      expect(global.fetch).toHaveBeenCalledWith('/api/query/median-history-price');
+      expect(result.base).toBe('1.234 SBD');
+      expect(result.quote).toBe('5.000 STEEM');
+    });
+  });
+
+  describe('broadcastSetWithdrawVestingRoute', () => {
+    it('should POST signed route transaction with CSRF header', async () => {
+      const mockTx: SignedTransaction = {
+        ref_block_num: 1,
+        ref_block_prefix: 1,
+        expiration: '2020-01-01T00:00:00',
+        operations: [],
+        extensions: [],
+        signatures: ['SIG123'],
+      };
+      Object.defineProperty(global, 'document', {
+        value: { cookie: 'csrf_token=test-token' },
+        configurable: true,
+      });
+
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true }),
+      });
+
+      const result = await apiClient.broadcastSetWithdrawVestingRoute(mockTx, 'alice');
+
+      expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/set-withdraw-vesting-route', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': 'test-token',
+        },
+        body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
+      });
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('broadcastConvert', () => {
+    it('should POST signed convert transaction with CSRF header', async () => {
+      const mockTx: SignedTransaction = {
+        ref_block_num: 1,
+        ref_block_prefix: 1,
+        expiration: '2020-01-01T00:00:00',
+        operations: [],
+        extensions: [],
+        signatures: ['SIG123'],
+      };
+      Object.defineProperty(global, 'document', {
+        value: { cookie: 'csrf_token=test-token' },
+        configurable: true,
+      });
+
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true }),
+      });
+
+      const result = await apiClient.broadcastConvert(mockTx, 'alice');
+
+      expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/convert', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': 'test-token',
+        },
+        body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
+      });
+      expect(result.success).toBe(true);
     });
   });
 });
