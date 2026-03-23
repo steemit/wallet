@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { transfersPathForUsername } from '@/lib/wallet/wallet-modal-search-params';
 
 export type PowerDownFormVariant = 'page' | 'dialog';
 
@@ -42,9 +43,8 @@ export function PowerDownForm({ variant = 'page', onSuccess }: PowerDownFormProp
     void refetch();
     startTransition(() => {
       if (onSuccess) onSuccess();
-      else {
-        const encoded = encodeURIComponent(`@${username}`);
-        router.push(`/${encoded}/transfers`);
+      else if (username) {
+        router.push(transfersPathForUsername(username));
       }
     });
   };

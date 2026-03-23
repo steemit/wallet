@@ -19,7 +19,7 @@ export default function WalletPage() {
 
   const rawUsername = params?.username as string | undefined;
   
-  // Parse username from params (e.g. "%40ety001" -> "ety001")
+  // Parse username from params (e.g. "@ety001" -> "ety001")
   const urlUsername = rawUsername ? decodeURIComponent(rawUsername).replace(/^@/, '') : '';
   const isMyAccount = !!isAuthenticated && !!loggedInUser && loggedInUser === urlUsername;
 

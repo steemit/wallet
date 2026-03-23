@@ -20,6 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { transfersPathForUsername } from '@/lib/wallet/wallet-modal-search-params';
 
 interface LoginFormData {
   username: string;
@@ -238,10 +239,9 @@ export function LoginForm() {
         // ignore
       }
 
-      // Navigate to user's wallet (transfers tab), preserving legacy-style @username in URL
+      // Navigate to user's wallet (transfers tab) with /@username in the path (not %40)
       startTransition(() => {
-        const encoded = encodeURIComponent(`@${username}`);
-        router.push(`/${encoded}/transfers`);
+        router.push(transfersPathForUsername(username));
       });
     } catch (err) {
       console.error('Login error:', err);

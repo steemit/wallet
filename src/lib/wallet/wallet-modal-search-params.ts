@@ -71,9 +71,12 @@ export function buildWalletModalSearchString(params: {
   return sp.toString();
 }
 
-/** Path segment uses URL-encoded `@username` (matches login redirect and Next `[username]` param). */
+/**
+ * Wallet transfers URL path: literal /@username/transfers (same idea as condenser).
+ * Do not encode `@` — encodeURIComponent would turn it into %40 in the address bar.
+ */
 export function transfersPathForUsername(username: string): string {
-  return `/${encodeURIComponent(`@${username}`)}/transfers`;
+  return `/@${username}/transfers`;
 }
 
 export function transfersHref(username: string, search?: string): string {

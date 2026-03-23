@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { transfersPathForUsername } from '@/lib/wallet/wallet-modal-search-params';
 
 export function WitnessVoteForm() {
   const t = useTranslations('wallet');
@@ -100,8 +101,7 @@ export function WitnessVoteForm() {
 
       // Redirect back to user's wallet
       startTransition(() => {
-        const encoded = encodeURIComponent(`@${username}`);
-        router.push(`/${encoded}/transfers`);
+        router.push(transfersPathForUsername(username));
       });
     } catch (err) {
       console.error('Witness vote error:', err);
