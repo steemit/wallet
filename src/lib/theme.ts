@@ -7,14 +7,17 @@ export type LegacyTheme = 'original' | 'light' | 'dark';
 const THEME_KEY = 'wallet-theme';
 const validThemes: LegacyTheme[] = ['original', 'light', 'dark'];
 
+/** Default day theme — wallet-legacy uses `theme-light` only (see App.jsx), not `theme-original`. */
+const DEFAULT_THEME: LegacyTheme = 'light';
+
 /**
  * Hook for managing legacy wallet themes (original, light, dark)
  */
 export function useTheme() {
   const [theme, setThemeState] = useState<LegacyTheme>(() => {
-    if (typeof window === 'undefined') return 'original';
+    if (typeof window === 'undefined') return DEFAULT_THEME;
     const stored = localStorage.getItem(THEME_KEY) as LegacyTheme;
-    return stored && validThemes.includes(stored) ? stored : 'original';
+    return stored && validThemes.includes(stored) ? stored : DEFAULT_THEME;
   });
 
   const applyTheme = (newTheme: LegacyTheme) => {
@@ -60,10 +63,10 @@ export function useTheme() {
  * Utility function to get the current theme (for SSR compatibility)
  */
 export function getCurrentTheme(): LegacyTheme {
-  if (typeof window === 'undefined') return 'original';
+  if (typeof window === 'undefined') return DEFAULT_THEME;
 
   const stored = localStorage.getItem(THEME_KEY) as LegacyTheme;
-  return stored && validThemes.includes(stored) ? stored : 'original';
+  return stored && validThemes.includes(stored) ? stored : DEFAULT_THEME;
 }
 
 /**

@@ -75,6 +75,22 @@
   --sidebar-accent-foreground: #06d6a9;
   --sidebar-border: #eeeeee;
   --sidebar-ring: #06d6a9;
+
+  /*
+   * Legacy .e-btn / .e-btn-hollow — :root matches wallet-legacy day mode (`theme-light` in App.jsx).
+   * `theme-original` is optional (Steemit blue); legacy production wallet never applied it on the app root.
+   */
+  --btn-solid-bg: #171f24;
+  --btn-solid-bg-hover: #06d6a9;
+  --btn-solid-fg: #fcfcfc;
+  --btn-solid-fg-hover: #fcfcfc;
+  --btn-solid-shadow: 2px 2px 0 0 #06d6a9;
+  --btn-solid-shadow-hover: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 4px 4px 0 0 #171f24;
+  --btn-solid-text-shadow-hover: 0 1px 0 rgba(0, 0, 0, 0.2);
+  --btn-hollow-border: 1px solid var(--color-teal);
+  --btn-hollow-text: #1fbf8f;
+  --btn-hollow-border-hover: 1px solid #788187;
+  --btn-hollow-text-hover: #333333;
 }
 
 @theme inline {
@@ -172,6 +188,36 @@
   --sidebar-ring: #06d6a9;
 }
 
+/* Light theme: teal offset shadow (wallet-legacy "light" map) */
+.theme-light {
+  --btn-solid-bg: #171f24;
+  --btn-solid-bg-hover: #06d6a9;
+  --btn-solid-fg: #fcfcfc;
+  --btn-solid-fg-hover: #fcfcfc;
+  --btn-solid-shadow: 2px 2px 0 0 #06d6a9;
+  --btn-solid-shadow-hover: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 4px 4px 0 0 #171f24;
+  --btn-solid-text-shadow-hover: 0 1px 0 rgba(0, 0, 0, 0.2);
+  --btn-hollow-border: 1px solid var(--color-teal);
+  --btn-hollow-text: #1fbf8f;
+  --btn-hollow-border-hover: 1px solid #788187;
+  --btn-hollow-text-hover: #333333;
+}
+
+/* Original theme: Steem blue fills, no visible offset shadow */
+.theme-original {
+  --btn-solid-bg: #1a5099;
+  --btn-solid-bg-hover: #4ba2f2;
+  --btn-solid-fg: #fcfcfc;
+  --btn-solid-fg-hover: #fcfcfc;
+  --btn-solid-shadow: 2px 2px 0 0 transparent;
+  --btn-solid-shadow-hover: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 4px 4px 0 0 #1a5099;
+  --btn-solid-text-shadow-hover: 0 1px 0 rgba(0, 0, 0, 0.2);
+  --btn-hollow-border: 1px solid var(--color-blue);
+  --btn-hollow-text: var(--color-blue);
+  --btn-hollow-border-hover: 1px solid #788187;
+  --btn-hollow-text-hover: #333333;
+}
+
 /* Dark: condenser .dark */
 .theme-dark {
   --background: #1c252b;
@@ -202,6 +248,18 @@
   --sidebar-accent-foreground: #06d6a9;
   --sidebar-border: #2b3a45;
   --sidebar-ring: #06d6a9;
+
+  --btn-solid-bg: #ffffff;
+  --btn-solid-bg-hover: #06d6a9;
+  --btn-solid-fg: #2c3a45;
+  --btn-solid-fg-hover: #fcfcfc;
+  --btn-solid-shadow: 2px 2px 0 0 #06d6a9;
+  --btn-solid-shadow-hover: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 4px 4px 0 0 #ffffff;
+  --btn-solid-text-shadow-hover: 0 1px 0 rgba(0, 0, 0, 0);
+  --btn-hollow-border: 1px solid var(--color-teal);
+  --btn-hollow-text: var(--color-teal);
+  --btn-hollow-border-hover: 1px solid #a6b2ba;
+  --btn-hollow-text-hover: #fcfcfc;
 }
 
 /* ==========================================
@@ -256,15 +314,18 @@
 /* Legacy button styles still used in some places */
 .e-btn-hollow {
   background-color: transparent;
-  border: 1px solid var(--primary);
-  color: var(--primary);
+  box-shadow: none;
   transition: all 0.2s ease-in-out;
   border-radius: var(--radius);
+  border: var(--btn-hollow-border);
+  color: var(--btn-hollow-text);
 }
 
-.e-btn-hollow:hover {
-  background-color: var(--primary);
-  color: #fff;
+.e-btn-hollow:hover,
+.e-btn-hollow:focus-visible {
+  background-color: transparent;
+  border: var(--btn-hollow-border-hover);
+  color: var(--btn-hollow-text-hover);
 }
 
 /* Claim rewards box */
