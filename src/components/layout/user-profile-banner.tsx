@@ -81,7 +81,7 @@ export function UserProfileBanner({
                   href={website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary hover:underline"
+                  className="text-accent-foreground hover:underline"
                 >
                   {websiteLabel}
                 </a>
@@ -119,7 +119,7 @@ export function TopNav({ accountname, socialUrl = 'https://steemit.com', activeS
                 href={`${socialUrl}/@${accountname}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/80 hover:text-accent-foreground"
               >
                 Blog <ExternalLink className="size-3" />
               </a>
@@ -128,10 +128,10 @@ export function TopNav({ accountname, socialUrl = 'https://steemit.com', activeS
               <a
                 href={`/@${accountname}/transfers`}
                 className={cn(
-                  'inline-block px-3 py-2 text-sm font-medium transition-colors',
+                  'inline-block rounded-md px-3 py-2 text-sm font-medium transition-colors',
                   isWalletActive
-                    ? 'font-bold text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-accent font-semibold text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground'
                 )}
               >
                 Wallet
@@ -141,10 +141,10 @@ export function TopNav({ accountname, socialUrl = 'https://steemit.com', activeS
               <DropdownMenu>
                 <DropdownMenuTrigger
                   className={cn(
-                    'inline-flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors',
+                    'inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     isRewardsActive
-                      ? 'font-bold text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-accent font-semibold text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground'
                   )}
                 >
                   Rewards <ChevronDown className="size-3 opacity-70" />

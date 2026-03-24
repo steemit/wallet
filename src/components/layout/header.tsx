@@ -65,7 +65,7 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
             <div className="hidden md:flex items-center gap-4">
               <Link
                 href="/login"
-                className="text-base font-medium transition-colors duration-200 hover:text-primary"
+                className="text-base font-medium transition-colors duration-200 hover:text-accent-foreground"
               >
                 {t('login')}
               </Link>

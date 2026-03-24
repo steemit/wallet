@@ -262,7 +262,7 @@ export function WitnessVoteForm() {
                         <div className="font-medium text-foreground flex items-center gap-2">
                           {witness.owner}
                           {hasVoted(witness.owner) && (
-                            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                            <span className="rounded-full bg-accent px-1.5 py-0.5 text-xs font-medium text-accent-foreground">
                               ✓ Voted
                             </span>
                           )}
@@ -272,7 +272,7 @@ export function WitnessVoteForm() {
                             href={witness.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-primary hover:underline mt-0.5"
+                            className="mt-0.5 text-xs text-accent-foreground hover:underline"
                           >
                             {witness.url.replace(/^https?:\/\//, '').substring(0, 30)}
                             {witness.url.length > 30 ? '...' : ''}

@@ -41,8 +41,8 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
   const signupUrl = process.env.NEXT_PUBLIC_SIGNUP_URL ?? 'https://signup.steemit.com';
 
   const navItemClassName =
-    'flex items-center gap-2 rounded-md px-2 py-1.5 text-base font-medium transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0';
-  const activeNavItemClassName = 'bg-accent text-accent-foreground';
+    'flex items-center gap-2 rounded-md px-2 py-1.5 text-base font-medium text-foreground transition-colors outline-none hover:bg-accent/80 hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0';
+  const activeNavItemClassName = 'bg-accent font-semibold text-accent-foreground';
 
   const getNavItemClassName = (href: string, muted = false) => {
     const isActive = pathname === href || pathname.startsWith(`${href}/`);

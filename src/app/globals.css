@@ -7,69 +7,74 @@
 /* ==========================================
    Root Variables & shadcn Integration
    ========================================== */
+/* Light theme defaults — aligned with condenser globals (Steemit SCSS palette) */
 :root {
-  /* Legacy Wallet Colors */
-  --color-teal: #06D6A9;
+  /* Legacy Wallet Colors (names kept for existing rules; teal = brand accent) */
+  --color-teal: #06d6a9;
   --color-teal-dark: #049173;
-  --color-teal-light: #00FFC8;
-  --color-blue: #004EFF;
-  --color-blue-dark: #1A5099;
-  --color-blue-light: #4BA2F2;
+  --color-teal-light: #00ffc8;
+  --color-blue: #004eff;
+  --color-blue-dark: #1a5099;
+  --color-blue-light: #4ba2f2;
   --color-red: #ff0264;
-  --color-orange: #F76900;
+  --color-orange: #f76900;
 
-  /* Legacy Background Colors */
+  /* Legacy Background Colors — wallet-legacy _variables.scss + _themes.scss */
+  /* Page/body: $color-background-off-white (#fcfcfc); zebra rows: tableRowEvenBackgroundColor (#f4f4f4) */
   --bg-off-white: #fcfcfc;
+  --table-row-even: #f4f4f4;
   --bg-almost-white: #fefefe;
-  --bg-dark: #1C252B;
+  --bg-dark: #1c252b;
   --bg-super-dark: #10151b;
-  --bg-blue-dark: #2C3A45;
+  --bg-blue-dark: #2c3a45;
 
   /* Legacy Text Colors */
-  --text-primary: #333;
+  --text-primary: #333333;
   --text-secondary: #788187;
-  --text-gray-light: #A6B2BA;
-  --text-teal: #1FBF8F;
+  --text-gray-light: #a6b2ba;
+  --text-teal: #06d6a9;
 
   /* Legacy Border Colors */
-  --border-light: #eee;
+  --border-light: #eeeeee;
   --border-light-lightest: #f6f6f6;
-  --border-dark: #232F38;
-  --border-dark-lightest: #2B3A45;
+  --border-dark: #232f38;
+  --border-dark-lightest: #2b3a45;
 
-  /* shadcn + legacy merged */
-  --background: var(--bg-off-white);
-  --foreground: var(--text-primary);
+  /* shadcn semantic tokens — match wallet-legacy themed('backgroundColor'), not table stripe grey */
+  --background: #fcfcfc;
+  --foreground: #333333;
   --card: #ffffff;
-  --card-foreground: var(--text-primary);
+  --card-foreground: #333333;
   --popover: #ffffff;
-  --popover-foreground: var(--text-primary);
-  --primary: var(--color-blue);
-  --primary-foreground: #ffffff;
-  --secondary: #f5f5f5;
-  --secondary-foreground: var(--text-primary);
-  --muted: #f5f5f5;
-  --muted-foreground: var(--text-secondary);
-  --accent: #f5f5f5;
-  --accent-foreground: var(--text-primary);
-  --destructive: var(--color-red);
-  --border: var(--border-light);
-  --input: var(--border-light);
-  --ring: var(--color-blue);
+  --popover-foreground: #333333;
+  /* Primary actions: dark buttons on light UI */
+  --primary: #171f24;
+  --primary-foreground: #fcfcfc;
+  --secondary: #fafafa;
+  --secondary-foreground: #333333;
+  --muted: #fafafa;
+  --muted-foreground: #788187;
+  /* Nav highlight + brand teal for links / accents */
+  --accent: #f3faf0;
+  --accent-foreground: #06d6a9;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #eeeeee;
+  --input: #eeeeee;
+  --ring: #06d6a9;
 
   --module-bg: #fff;
   --border-color: var(--border-light);
-  --radius: 0.375rem;
+  --radius: 0.3125rem;
 
   /* Sidebar */
-  --sidebar: #ffffff;
-  --sidebar-foreground: var(--text-primary);
-  --sidebar-primary: var(--color-blue);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f5f5f5;
-  --sidebar-accent-foreground: var(--text-primary);
-  --sidebar-border: var(--border-light);
-  --sidebar-ring: var(--color-blue);
+  --sidebar: #fefefe;
+  --sidebar-foreground: #333333;
+  --sidebar-primary: #171f24;
+  --sidebar-primary-foreground: #fcfcfc;
+  --sidebar-accent: #f3faf0;
+  --sidebar-accent-foreground: #06d6a9;
+  --sidebar-border: #eeeeee;
+  --sidebar-ring: #06d6a9;
 }
 
 @theme inline {
@@ -93,15 +98,15 @@
   --color-ring: var(--ring);
 
   /* Legacy Color Extensions */
-  --color-teal: #06D6A9;
+  --color-teal: #06d6a9;
   --color-teal-dark: #049173;
-  --color-teal-light: #00FFC8;
-  --color-steem-blue: #004EFF;
-  --color-steem-blue-dark: #1A5099;
-  --color-steem-blue-light: #4BA2F2;
+  --color-teal-light: #00ffc8;
+  --color-steem-blue: #004eff;
+  --color-steem-blue-dark: #1a5099;
+  --color-steem-blue-light: #4ba2f2;
   --color-steem-red: #ff0264;
-  --color-steem-orange: #F76900;
-  --color-background-dark: #1C252B;
+  --color-steem-orange: #f76900;
+  --color-background-dark: #1c252b;
   --color-background-super-dark: #10151b;
   --color-text-secondary: #788187;
   --color-text-gray-light: #A6B2BA;
@@ -131,54 +136,72 @@
 }
 
 /* ==========================================
-   Theme System - Original, Light, Dark
+   Theme System - Original, Light, Dark (condenser-aligned)
    ========================================== */
 
-/* Original Theme (默认浅色，蓝色强调) */
-.theme-original {
-  --background: var(--bg-off-white);
-  --foreground: var(--text-primary);
-  --primary: var(--color-blue);
-  --primary-foreground: #ffffff;
-  --ring: var(--color-blue);
-  --module-bg: #fff;
-  --border-color: var(--border-light);
-  --border: var(--border-light);
-}
-
-/* Light Theme (浅色，teal 强调) */
+/* Original & Light: same Steemit light palette as condenser :root */
+.theme-original,
 .theme-light {
-  --background: var(--bg-off-white);
-  --foreground: var(--text-primary);
-  --primary: var(--color-teal);
-  --primary-foreground: #ffffff;
-  --ring: var(--color-teal);
+  --background: #fcfcfc;
+  --foreground: #333333;
+  --card: #ffffff;
+  --card-foreground: #333333;
+  --popover: #ffffff;
+  --popover-foreground: #333333;
+  --primary: #171f24;
+  --primary-foreground: #fcfcfc;
+  --secondary: #fafafa;
+  --secondary-foreground: #333333;
+  --muted: #fafafa;
+  --muted-foreground: #788187;
+  --accent: #f3faf0;
+  --accent-foreground: #06d6a9;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #eeeeee;
+  --input: #eeeeee;
+  --ring: #06d6a9;
   --module-bg: #fff;
   --border-color: var(--border-light);
-  --border: var(--border-light);
+  --sidebar: #fefefe;
+  --sidebar-foreground: #333333;
+  --sidebar-primary: #171f24;
+  --sidebar-primary-foreground: #fcfcfc;
+  --sidebar-accent: #f3faf0;
+  --sidebar-accent-foreground: #06d6a9;
+  --sidebar-border: #eeeeee;
+  --sidebar-ring: #06d6a9;
 }
 
-/* Dark Theme (深色，teal 强调) */
+/* Dark: condenser .dark */
 .theme-dark {
-  --background: var(--bg-dark);
+  --background: #1c252b;
   --foreground: #fcfcfc;
-  --card: var(--bg-dark);
+  --card: #283336;
   --card-foreground: #fcfcfc;
-  --popover: var(--bg-dark);
+  --popover: #283336;
   --popover-foreground: #fcfcfc;
-  --primary: var(--color-teal);
-  --primary-foreground: #ffffff;
-  --secondary: var(--bg-blue-dark);
+  --primary: #ffffff;
+  --primary-foreground: #2c3a45;
+  --secondary: #212c33;
   --secondary-foreground: #fcfcfc;
-  --muted: var(--bg-blue-dark);
-  --muted-foreground: var(--text-gray-light);
-  --accent: var(--bg-blue-dark);
-  --accent-foreground: #fcfcfc;
-  --ring: var(--color-teal);
+  --muted: #212c33;
+  --muted-foreground: #a6b2ba;
+  --accent: #11161a;
+  --accent-foreground: #06d6a9;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: #2b3a45;
+  --input: #2b3a45;
+  --ring: #06d6a9;
   --module-bg: var(--bg-dark);
-  --border-color: var(--border-dark);
-  --border: var(--border-dark);
-  --input: var(--border-dark);
+  --border-color: var(--border-dark-lightest);
+  --sidebar: #283336;
+  --sidebar-foreground: #fcfcfc;
+  --sidebar-primary: #06d6a9;
+  --sidebar-primary-foreground: #fcfcfc;
+  --sidebar-accent: #11161a;
+  --sidebar-accent-foreground: #06d6a9;
+  --sidebar-border: #2b3a45;
+  --sidebar-ring: #06d6a9;
 }
 
 /* ==========================================
@@ -202,15 +225,15 @@
    Legacy Wallet Specific Styles
    ========================================== */
 
-/* Zebra striping for alternating rows */
+/* Zebra striping: wallet-legacy UserWallet.scss uses themed('tableRowEvenBackgroundColor') */
 .bg-zebra {
-  background-color: var(--bg-almost-white);
+  background-color: var(--table-row-even);
 }
 .theme-dark .bg-zebra {
   background-color: var(--bg-blue-dark);
 }
 
-/* UserWallet balance rows */
+/* UserWallet balance rows — non-zebra rows inherit page bg (#fcfcfc), same as wallet-legacy */
 .UserWallet__balance {
   padding: 0.75rem 0;
 }

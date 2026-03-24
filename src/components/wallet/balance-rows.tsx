@@ -404,7 +404,7 @@ function BalanceDropdown({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="Wallet_dropdown inline-flex items-center gap-1 font-bold hover:text-primary transition-colors text-right">
+      <DropdownMenuTrigger className="Wallet_dropdown inline-flex items-center gap-1 text-right font-bold transition-colors hover:text-accent-foreground">
         {selected}
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>

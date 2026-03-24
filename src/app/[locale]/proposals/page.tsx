@@ -14,7 +14,7 @@ export default function ProposalsPlaceholderPage() {
             href="https://wallet.esteem.app/proposals"
             target="_blank"
             rel="noreferrer"
-            className="font-medium text-primary hover:underline"
+            className="font-medium text-accent-foreground hover:underline"
           >
             wallet-legacy /proposals
           </a>
