@@ -25,6 +25,10 @@ import {
   transfersHref,
   type WalletModalAction,
 } from '@/lib/wallet/wallet-modal-search-params';
+import {
+  WalletBalanceRowColumns,
+  WalletBalanceRowShell,
+} from '@/components/wallet/wallet-balance-row-layout';
 
 interface BalanceData {
   balance: string;
@@ -166,17 +170,23 @@ export function BalanceRows({
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col">
         {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="UserWallet__balance border-b border-border">
-            <div className="flex justify-between items-start gap-4 py-4">
-              <div className="flex-1">
-                <Skeleton className="h-5 w-32 mb-2" />
-                <Skeleton className="h-4 w-64" />
-              </div>
-              <Skeleton className="h-5 w-24" />
-            </div>
-          </div>
+          <WalletBalanceRowShell key={i}>
+            <WalletBalanceRowColumns
+              left={
+                <>
+                  <Skeleton className="h-5 w-32 mb-2" />
+                  <Skeleton className="h-4 w-64" />
+                </>
+              }
+              right={
+                <div className="flex justify-end">
+                  <Skeleton className="h-5 w-24" />
+                </div>
+              }
+            />
+          </WalletBalanceRowShell>
         ))}
       </div>
     );
@@ -205,173 +215,193 @@ export function BalanceRows({
       )}
 
       {/* STEEM Balance Row */}
-      <div className="UserWallet__balance border-b border-border">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
-          <div className="flex-1">
-            <div className="font-bold">STEEM</div>
-            <div className="secondary">
-              Liquid token, tradeable and transferable at any time. Can also be converted to STEEM POWER through a process called powering up.
-            </div>
-          </div>
-          <div className="md:text-right whitespace-nowrap">
-            <BalanceDropdown
-              username={username}
-              selected={steemBalance + ' STEEM'}
-              items={[
-                {
-                  label: 'Transfer',
-                  walletAction: 'transfer',
-                  asset: 'STEEM',
-                  type: 'transfer',
-                },
-                {
-                  label: 'Transfer to Savings',
-                  walletAction: 'transfer',
-                  asset: 'STEEM',
-                  type: 'savings',
-                },
-                {
-                  label: 'Power Up',
-                  walletAction: 'transfer',
-                  asset: 'STEEM',
-                  type: 'power_up',
-                },
-                { label: 'Trade', external: true, href: 'https://poloniex.com/trade/STEEM_TRX/?type=spot' },
-                { label: 'Market', link: '/market' },
-              ]}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* STEEM POWER Row (zebra) */}
-      <div className="UserWallet__balance border-b border-border bg-zebra">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
-          <div className="flex-1">
-            <div className="font-bold">STEEM POWER</div>
-            <div className="secondary">
-              Influence tokens which give you more control over post payouts and allow you to earn on curation rewards.
-              {hasDelegation && (
-                <span className="block mt-1">Part of your STEEM POWER is currently delegated.</span>
-              )}
-              {!hasDelegation && (
-                <span className="block mt-1">Your STEEM POWER is not currently delegated.</span>
-              )}
-            </div>
-          </div>
-          <div className="md:text-right whitespace-nowrap">
-            <BalanceDropdown
-              username={username}
-              selected={spBalance + ' STEEM'}
-              items={[
-                { label: 'Delegate', walletAction: 'delegate' },
-                { label: 'Power Down', walletAction: 'powerDown' },
-                { label: 'Advanced Routes', walletAction: 'advanced' },
-              ]}
-            />
-            {hasDelegation && (
-              <div className="text-sm text-muted-foreground mt-1">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="cursor-help">({delegatedSP.display} STEEM)</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    STEEM POWER delegated to/from this account
-                  </TooltipContent>
-                </Tooltip>
+      <WalletBalanceRowShell>
+        <WalletBalanceRowColumns
+          left={
+            <>
+              <div className="font-bold">STEEM</div>
+              <div className="secondary">
+                Liquid token, tradeable and transferable at any time. Can also be converted to STEEM POWER through a process called powering up.
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* STEEM DOLLARS Row */}
-      <div className="UserWallet__balance border-b border-border">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
-          <div className="flex-1">
-            <div className="font-bold">STEEM DOLLARS</div>
-            <div className="secondary">
-              Tradeable tokens that may be transferred anywhere at anytime. May also be converted to STEEM.
-            </div>
-          </div>
-          <div className="md:text-right whitespace-nowrap">
-            <BalanceDropdown
-              username={username}
-              selected={sbdBalance}
-              items={[
-                { label: 'Transfer', walletAction: 'transfer', asset: 'SBD', type: 'transfer' },
-                { label: 'Transfer to Savings', walletAction: 'transfer', asset: 'SBD', type: 'savings' },
-                { label: 'Convert to STEEM', walletAction: 'convert' },
-                { label: 'Market', link: '/market' },
-                {
-                  label: 'Trade',
-                  external: true,
-                  href: 'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD',
-                },
-              ]}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Savings Row (zebra) */}
-      <div className="UserWallet__balance border-b border-border bg-zebra">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
-          <div className="flex-1">
-            <div className="font-bold">{t('savings', { defaultMessage: 'Savings' })}</div>
-            <div className="secondary">
-              Balance subject to 3 day withdraw waiting period.
-            </div>
-          </div>
-          <div className="md:text-right whitespace-nowrap">
-            <BalanceDropdown
-              username={username}
-              selected={savingsBalance}
-              items={[
-                {
-                  label: 'Withdraw STEEM',
-                  walletAction: 'transfer',
-                  asset: 'STEEM',
-                  type: 'savings_withdraw',
-                },
-              ]}
-            />
-            <div className="mt-1">
+            </>
+          }
+          right={
+            <div className="whitespace-nowrap">
               <BalanceDropdown
                 username={username}
-                selected={savingsSbdBalance}
+                selected={steemBalance + ' STEEM'}
                 items={[
                   {
-                    label: 'Withdraw Steem Dollars',
+                    label: 'Transfer',
                     walletAction: 'transfer',
-                    asset: 'SBD',
-                    type: 'savings_withdraw',
+                    asset: 'STEEM',
+                    type: 'transfer',
+                  },
+                  {
+                    label: 'Transfer to Savings',
+                    walletAction: 'transfer',
+                    asset: 'STEEM',
+                    type: 'savings',
+                  },
+                  {
+                    label: 'Power Up',
+                    walletAction: 'transfer',
+                    asset: 'STEEM',
+                    type: 'power_up',
+                  },
+                  { label: 'Trade', external: true, href: 'https://poloniex.com/trade/STEEM_TRX/?type=spot' },
+                  { label: 'Market', link: '/market' },
+                ]}
+              />
+            </div>
+          }
+        />
+      </WalletBalanceRowShell>
+
+      {/* STEEM POWER Row (zebra) */}
+      <WalletBalanceRowShell zebra>
+        <WalletBalanceRowColumns
+          left={
+            <>
+              <div className="font-bold">STEEM POWER</div>
+              <div className="secondary">
+                Influence tokens which give you more control over post payouts and allow you to earn on curation rewards.
+                {hasDelegation && (
+                  <span className="block mt-1">Part of your STEEM POWER is currently delegated.</span>
+                )}
+                {!hasDelegation && (
+                  <span className="block mt-1">Your STEEM POWER is not currently delegated.</span>
+                )}
+              </div>
+            </>
+          }
+          right={
+            <div className="whitespace-nowrap">
+              <BalanceDropdown
+                username={username}
+                selected={spBalance + ' STEEM'}
+                items={[
+                  { label: 'Delegate', walletAction: 'delegate' },
+                  { label: 'Power Down', walletAction: 'powerDown' },
+                  { label: 'Advanced Routes', walletAction: 'advanced' },
+                ]}
+              />
+              {hasDelegation && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help">({delegatedSP.display} STEEM)</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      STEEM POWER delegated to/from this account
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+            </div>
+          }
+        />
+      </WalletBalanceRowShell>
+
+      {/* STEEM DOLLARS Row */}
+      <WalletBalanceRowShell>
+        <WalletBalanceRowColumns
+          left={
+            <>
+              <div className="font-bold">STEEM DOLLARS</div>
+              <div className="secondary">
+                Tradeable tokens that may be transferred anywhere at anytime. May also be converted to STEEM.
+              </div>
+            </>
+          }
+          right={
+            <div className="whitespace-nowrap">
+              <BalanceDropdown
+                username={username}
+                selected={sbdBalance}
+                items={[
+                  { label: 'Transfer', walletAction: 'transfer', asset: 'SBD', type: 'transfer' },
+                  { label: 'Transfer to Savings', walletAction: 'transfer', asset: 'SBD', type: 'savings' },
+                  { label: 'Convert to STEEM', walletAction: 'convert' },
+                  { label: 'Market', link: '/market' },
+                  {
+                    label: 'Trade',
+                    external: true,
+                    href: 'https://global.bittrex.com/Market/Index?MarketName=BTC-SBD',
                   },
                 ]}
               />
             </div>
-          </div>
-        </div>
-      </div>
+          }
+        />
+      </WalletBalanceRowShell>
+
+      {/* Savings Row (zebra) */}
+      <WalletBalanceRowShell zebra>
+        <WalletBalanceRowColumns
+          left={
+            <>
+              <div className="font-bold">{t('savings', { defaultMessage: 'Savings' })}</div>
+              <div className="secondary">
+                Balance subject to 3 day withdraw waiting period.
+              </div>
+            </>
+          }
+          right={
+            <div className="whitespace-nowrap">
+              <BalanceDropdown
+                username={username}
+                selected={savingsBalance}
+                items={[
+                  {
+                    label: 'Withdraw STEEM',
+                    walletAction: 'transfer',
+                    asset: 'STEEM',
+                    type: 'savings_withdraw',
+                  },
+                ]}
+              />
+              <div className="mt-1">
+                <BalanceDropdown
+                  username={username}
+                  selected={savingsSbdBalance}
+                  items={[
+                    {
+                      label: 'Withdraw Steem Dollars',
+                      walletAction: 'transfer',
+                      asset: 'SBD',
+                      type: 'savings_withdraw',
+                    },
+                  ]}
+                />
+              </div>
+            </div>
+          }
+        />
+      </WalletBalanceRowShell>
 
       {/* Estimated Value Row */}
-      <div className="UserWallet__balance border-b border-border">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
-          <div className="flex-1">
-            <div className="font-bold">{t('estimatedValue', { defaultMessage: 'Estimated Account Value' })}</div>
-            <div className="secondary">
-              The estimated value is based on an average value of Steem in US dollars.
+      <WalletBalanceRowShell>
+        <WalletBalanceRowColumns
+          left={
+            <>
+              <div className="font-bold">{t('estimatedValue', { defaultMessage: 'Estimated Account Value' })}</div>
+              <div className="secondary">
+                The estimated value is based on an average value of Steem in US dollars.
+              </div>
+            </>
+          }
+          right={
+            <div>
+              <div className="font-bold text-lg">---</div>
             </div>
-          </div>
-          <div className="md:text-right">
-            <div className="font-bold text-lg">---</div>
-          </div>
-        </div>
-      </div>
+          }
+        />
+      </WalletBalanceRowShell>
 
       {/* Power Down Notice */}
       {isPoweringDown && (
-        <div className="UserWallet__balance bg-zebra">
+        <WalletBalanceRowShell zebra borderless>
           <div className="text-sm">
             The next power down is scheduled to happen{' '}
             <span className="font-medium">
@@ -381,7 +411,7 @@ export function BalanceRows({
             </span>{' '}
             (~{powerDownRate} STEEM).
           </div>
-        </div>
+        </WalletBalanceRowShell>
       )}
     </div>
   );

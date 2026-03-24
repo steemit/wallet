@@ -233,10 +233,7 @@
   background-color: var(--bg-blue-dark);
 }
 
-/* UserWallet balance rows — non-zebra rows inherit page bg (#fcfcfc), same as wallet-legacy */
-.UserWallet__balance {
-  padding: 0.75rem 0;
-}
+/* UserWallet balance rows: use Tailwind py-4 px-4 on WalletBalanceRowShell only — avoid global .UserWallet__balance padding; unlayered CSS overrides @layer utilities. */
 
 /* WalletSubMenu */
 .WalletSubMenu a.active {
