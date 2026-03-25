@@ -254,9 +254,6 @@ export function LoginForm() {
     <div className="mx-auto w-full max-w-md">
       {/* Login Form Card */}
       <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm sm:p-8">
-        <h2 className="mb-8 text-center text-3xl font-bold tracking-tight text-foreground">
-          {t('login')}
-        </h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* Username Input with @ prefix */}
           <div className="flex flex-col gap-2">
@@ -335,7 +332,12 @@ export function LoginForm() {
           )}
 
           {/* Submit Button */}
-          <Button type="submit" disabled={isLoading || isPending} className="w-full" size="lg">
+          <Button
+            type="submit"
+            disabled={isLoading || isPending}
+            className="h-11 w-full text-base"
+            size="lg"
+          >
             {isLoading || isPending ? tCommon('loading') : t('loginButton')}
           </Button>
         </form>
