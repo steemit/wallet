@@ -53,7 +53,10 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
       <nav className="flex h-16 items-center px-4 md:px-6">
         {/* Logo - Left */}
         <div className="flex-shrink-0">
-          <Link href="/" className="flex items-baseline h-[37px] transition-colors duration-200">
+          <Link
+            href="/"
+            className="flex h-[37px] items-baseline text-accent-foreground transition-colors duration-200 hover:text-primary"
+          >
             <SteemLogo />
           </Link>
         </div>

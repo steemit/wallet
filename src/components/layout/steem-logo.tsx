@@ -1,9 +1,11 @@
 'use client';
 
-export function SteemLogo() {
+import { cn } from '@/lib/utils';
+
+export function SteemLogo({ className }: { className?: string }) {
   return (
     <svg
-      className="h-9 w-auto text-foreground transition-colors duration-200"
+      className={cn('h-9 w-auto text-inherit', className)}
       width="218"
       height="40"
       viewBox="0 0 218 40"
