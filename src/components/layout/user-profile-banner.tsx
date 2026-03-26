@@ -138,13 +138,13 @@ export function TopNav({ accountname, socialUrl = 'https://steemit.com', activeS
               </a>
             </li>
             <li>
-              <DropdownMenu>
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger
                   className={cn(
                     'inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     isRewardsActive
-                      ? 'bg-accent font-semibold text-accent-foreground'
-                      : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground'
+                      ? 'bg-accent font-semibold text-accent-foreground data-[state=open]:bg-accent data-[state=open]:hover:bg-accent/90'
+                      : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground data-[state=open]:bg-accent/80 data-[state=open]:text-accent-foreground data-[state=open]:hover:bg-accent'
                   )}
                 >
                   Rewards <ChevronDown className="size-3 opacity-70" />
