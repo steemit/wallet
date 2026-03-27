@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useDispatch } from 'react-redux';
@@ -34,23 +34,26 @@ export function LoginForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const [formData, setFormData] = useState<LoginFormData>(() => {
-    try {
-      const saved = localStorage.getItem(REMEMBERED_USERNAME_KEY) ?? '';
-      return { username: saved, password: '' };
-    } catch {
-      return { username: '', password: '' };
-    }
+  const [formData, setFormData] = useState<LoginFormData>({
+    username: '',
+    password: '',
   });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberUser, setRememberUser] = useState(() => {
+  const [rememberUser, setRememberUser] = useState(false);
+
+  // Read remembered username only after mount so SSR and the first client render match.
+  useEffect(() => {
     try {
-      return !!localStorage.getItem(REMEMBERED_USERNAME_KEY);
+      const saved = localStorage.getItem(REMEMBERED_USERNAME_KEY) ?? '';
+      if (saved) {
+        setFormData((prev) => ({ ...prev, username: saved }));
+        setRememberUser(true);
+      }
     } catch {
-      return false;
+      // ignore
     }
-  });
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
