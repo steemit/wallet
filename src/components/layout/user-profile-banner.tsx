@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MapPin, LinkIcon, Calendar, ChevronDown, ExternalLink } from 'lucide-react';
+import { useFormatter, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 interface UserProfileBannerProps {
@@ -18,6 +19,7 @@ interface UserProfileBannerProps {
   website?: string;
   createdDate?: string;
   coverImage?: string;
+  profileImage?: string;
   socialUrl?: string;
   isMyAccount: boolean;
 }
@@ -30,19 +32,24 @@ export function UserProfileBanner({
   website,
   createdDate,
   coverImage,
+  profileImage,
 }: UserProfileBannerProps) {
+  const t = useTranslations('wallet');
+  const format = useFormatter();
+
   const websiteLabel = website
     ? website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
     : null;
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
+  const defaultAvatarUrl = `https://steemitimages.com/u/${accountname}/avatar`;
+  const avatarSrc = profileImage || defaultAvatarUrl;
+
+  const joinDateLabel =
+    createdDate &&
+    format.dateTime(new Date(createdDate), {
       year: 'numeric',
       month: 'long',
     });
-  };
 
   return (
     <div className="UserProfile__banner" style={coverImage ? {
@@ -51,17 +58,14 @@ export function UserProfileBanner({
       backgroundPosition: 'center',
     } : undefined}>
       <div className="max-w-6xl mx-auto px-4">
-        <h1 className="flex items-center gap-3 text-2xl font-bold m-0">
+        <h1 className="flex items-center justify-center gap-3 m-0">
           <Avatar size="lg">
-            <AvatarImage
-              src={`https://steemitimages.com/u/${accountname}/avatar`}
-              alt={accountname}
-            />
+            <AvatarImage src={avatarSrc} alt={accountname} />
             <AvatarFallback className="bg-primary text-primary-foreground font-bold">
               {accountname.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          {displayName || accountname}
+          <span className="UserProfile__account-name">{displayName || accountname}</span>
         </h1>
 
         <div>
@@ -81,15 +85,14 @@ export function UserProfileBanner({
                   href={website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-accent-foreground hover:underline"
                 >
                   {websiteLabel}
                 </a>
               </span>
             )}
-            {createdDate && (
+            {createdDate && joinDateLabel && (
               <span>
-                <Calendar className="size-3.5" /> {formatDate(createdDate)}
+                <Calendar className="size-3.5" /> {t('profileJoined')} {joinDateLabel}
               </span>
             )}
           </p>

@@ -357,41 +357,77 @@
   background-color: rgba(255, 193, 7, 0.1);
 }
 
-/* User profile banner */
+/* User profile banner — wallet-legacy UserProfile.scss ($color-blue-black hero) */
 .UserProfile__banner {
-  padding: 2rem 1rem;
-  background-color: var(--card);
-  border-bottom: 1px solid var(--border);
+  padding: 2.25rem 1rem 2.5rem;
+  text-align: center;
+  color: #fcfcfc;
+  background-color: #171f24;
+  border-bottom: 1px solid #11161a;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
 }
 
 .UserProfile__banner h1 {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
-  font-size: 1.5rem;
-  font-weight: 700;
   margin: 0;
+  padding-top: 0.25rem;
+  font-size: 1.845rem;
+  font-weight: 600;
+  color: inherit;
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.85);
+}
+
+/* Steemit wallet: account / display title is uppercase (legacy app typography) */
+.UserProfile__account-name {
+  text-transform: uppercase;
 }
 
 .UserProfile__bio {
-  color: var(--text-secondary);
-  margin: 0.5rem 0 0;
+  margin: 0.5rem auto 0;
+  max-width: 420px;
+  line-height: 1.4;
+  font-size: 0.95rem;
+  color: rgba(252, 252, 252, 0.95);
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.85);
 }
 
 .UserProfile__info {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 1rem;
   flex-wrap: wrap;
   margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: rgb(221, 238, 255);
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.85);
 }
 
 .UserProfile__info span {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+.UserProfile__info a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.UserProfile__info a:hover {
+  color: #ffffff;
+}
+
+@media screen and (max-width: 39.9375em) {
+  .UserProfile__banner h1 {
+    font-size: 1.131rem;
+  }
 }
 
 /* Top navigation for user profile */

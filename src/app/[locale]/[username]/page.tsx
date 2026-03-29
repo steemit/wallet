@@ -10,6 +10,34 @@ import { WalletSubMenu } from '@/components/layout/wallet-sub-menu';
 import { UserProfileBanner, TopNav } from '@/components/layout/user-profile-banner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WalletTransfersModals } from '@/components/wallet/wallet-transfers-modals';
+import { normalizeProfile } from '@/lib/steem/normalize-profile';
+
+type BannerProfileFields = {
+  displayName?: string;
+  about?: string;
+  location?: string;
+  website?: string;
+  coverImage?: string;
+  profileImage?: string;
+  createdDate?: string;
+};
+
+function bannerFieldsFromAccount(acc: {
+  created?: string;
+  json_metadata?: string;
+  posting_json_metadata?: string;
+}): BannerProfileFields {
+  const norm = normalizeProfile(acc);
+  const out: BannerProfileFields = {};
+  if (norm.name) out.displayName = norm.name;
+  if (norm.about) out.about = norm.about;
+  if (norm.location) out.location = norm.location;
+  if (norm.website) out.website = norm.website;
+  if (norm.cover_image) out.coverImage = norm.cover_image;
+  if (norm.profile_image) out.profileImage = norm.profile_image;
+  if (acc.created) out.createdDate = acc.created;
+  return out;
+}
 
 export default function WalletPage() {
   const { username: loggedInUser, isAuthenticated } = useAuth();
@@ -24,6 +52,47 @@ export default function WalletPage() {
   const isMyAccount = !!isAuthenticated && !!loggedInUser && loggedInUser === urlUsername;
 
   const [walletRefreshNonce, setWalletRefreshNonce] = useState(0);
+
+  const [bannerProfile, setBannerProfile] = useState<BannerProfileFields | null>(null);
+
+  useEffect(() => {
+    if (!urlUsername) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/query/accounts?names=${encodeURIComponent(urlUsername)}`,
+          { cache: 'no-store' }
+        );
+        const data = (await res.json()) as {
+          success?: boolean;
+          accounts?: Array<{
+            name?: string;
+            created?: string;
+            json_metadata?: string;
+            posting_json_metadata?: string;
+          }>;
+        };
+        if (cancelled || !data.success) {
+          if (!cancelled) setBannerProfile({});
+          return;
+        }
+        const acc = data.accounts?.[0];
+        if (!acc) {
+          if (!cancelled) setBannerProfile({});
+          return;
+        }
+        if (!cancelled) {
+          setBannerProfile(bannerFieldsFromAccount(acc));
+        }
+      } catch {
+        if (!cancelled) setBannerProfile({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [urlUsername]);
 
   // Align with wallet-legacy: user homepage /@username has no content, redirect to /@username/transfers
   const isUserHome = pathname === `/@${urlUsername}` || pathname === `/@${urlUsername}/`;
@@ -55,6 +124,7 @@ export default function WalletPage() {
       <UserProfileBanner
         accountname={urlUsername}
         isMyAccount={isMyAccount}
+        {...(bannerProfile ?? {})}
       />
 
       {/* Top Navigation - Blog | Wallet | Rewards */}

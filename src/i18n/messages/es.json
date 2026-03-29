@@ -78,6 +78,7 @@
     "blog": "Blog",
     "proposals": "Propuestas",
     "market": "Mercado",
+    "profileJoined": "Miembro desde",
     "withdrawRoutes": {
       "title": "Rutas de retiro de Power down",
       "dialogDescription": "Administra a dónde se envía el STEEM del power down.",

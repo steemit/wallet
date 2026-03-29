@@ -20,6 +20,8 @@ export interface SteemAccount {
   posting: KeyAuthority;
   memo_key: string;
   json_metadata: string;
+  /** Newer chains: profile lives here; falls back to json_metadata in normalizer */
+  posting_json_metadata?: string;
   balance: string;
   sbd_balance: string;
   savings_balance: string;

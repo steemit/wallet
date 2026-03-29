@@ -99,10 +99,10 @@ describe('SteemSigner - Basic Structure', () => {
   });
 
   it('should sign set_withdraw_vesting_route with expected operation payload', () => {
-    vi.mocked(steem.auth.signTransaction).mockImplementationOnce(
-      (tx: { operations: unknown[]; extensions: unknown[] }) =>
-        ({ ...tx, signatures: ['SIG'] }) as SignedTransaction
-    );
+    vi.mocked(steem.auth.signTransaction).mockImplementationOnce((trx: unknown) => {
+      const tx = trx as { operations: unknown[]; extensions: unknown[] };
+      return { ...tx, signatures: ['SIG'] } as SignedTransaction;
+    });
     const signed = SteemSigner.signSetWithdrawVestingRoute('alice', 'bob', 5000, true, '5Jkey');
     expect(signed.operations).toEqual([
       [
@@ -113,10 +113,10 @@ describe('SteemSigner - Basic Structure', () => {
   });
 
   it('should sign convert with expected operation payload', () => {
-    vi.mocked(steem.auth.signTransaction).mockImplementationOnce(
-      (tx: { operations: unknown[]; extensions: unknown[] }) =>
-        ({ ...tx, signatures: ['SIG'] }) as SignedTransaction
-    );
+    vi.mocked(steem.auth.signTransaction).mockImplementationOnce((trx: unknown) => {
+      const tx = trx as { operations: unknown[]; extensions: unknown[] };
+      return { ...tx, signatures: ['SIG'] } as SignedTransaction;
+    });
     const signed = SteemSigner.signConvert('alice', 1710000000, '10.500 SBD', '5Jkey');
     expect(signed.operations).toEqual([
       ['convert', { owner: 'alice', requestid: 1710000000, amount: '10.500 SBD' }],
