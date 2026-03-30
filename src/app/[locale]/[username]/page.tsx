@@ -6,7 +6,9 @@ import { useParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/routing';
 import { RecentActivityLazy } from '@/components/wallet/client-wrappers';
 import { BalanceRows } from '@/components/wallet/balance-rows';
+import { ClaimRewardsBanner } from '@/components/wallet/claim-rewards-banner';
 import { WalletSubMenu } from '@/components/layout/wallet-sub-menu';
+import { useSteemWalletBalances } from '@/hooks/use-steem-wallet-balances';
 import { UserProfileBanner, TopNav } from '@/components/layout/user-profile-banner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WalletTransfersModals } from '@/components/wallet/wallet-transfers-modals';
@@ -52,6 +54,11 @@ export default function WalletPage() {
   const isMyAccount = !!isAuthenticated && !!loggedInUser && loggedInUser === urlUsername;
 
   const [walletRefreshNonce, setWalletRefreshNonce] = useState(0);
+
+  const { balance, globalProps, loading: balanceLoading } = useSteemWalletBalances(
+    urlUsername,
+    walletRefreshNonce
+  );
 
   const [bannerProfile, setBannerProfile] = useState<BannerProfileFields | null>(null);
 
@@ -133,14 +140,23 @@ export default function WalletPage() {
         activeSection="transfers"
       />
 
-      {/* Wallet Content Area */}
+      {/* Wallet Content Area — claim banner above sub menu matches wallet-legacy UserWallet.jsx */}
       <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Wallet Sub Menu - Balances | Delegations | Permissions | etc */}
+        <ClaimRewardsBanner
+          balance={balance}
+          isMyAccount={isMyAccount}
+          loading={balanceLoading}
+        />
+
         <WalletSubMenu accountname={urlUsername} isMyAccount={isMyAccount} />
 
-        {/* Balance Rows - Legacy layout with dropdown menus */}
         <div className="mt-4">
-          <BalanceRows username={urlUsername} refreshNonce={walletRefreshNonce} />
+          <BalanceRows
+            username={urlUsername}
+            balance={balance}
+            globalProps={globalProps}
+            loading={balanceLoading}
+          />
         </div>
 
         {/* Recent Activity - lazy loaded */}

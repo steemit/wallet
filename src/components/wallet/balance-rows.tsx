@@ -1,10 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/steem/client';
 import { useTranslations } from 'next-intl';
-import type { SteemAccount } from '@/lib/steem/types';
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,28 +25,7 @@ import {
   WalletBalanceRowColumns,
   WalletBalanceRowShell,
 } from '@/components/wallet/wallet-balance-row-layout';
-
-interface BalanceData {
-  balance: string;
-  sbd_balance: string;
-  vesting_shares: string;
-  delegated_vesting_shares: string;
-  received_vesting_shares: string;
-  vesting_withdraw_rate: string;
-  savings_balance: string;
-  savings_sbd_balance: string;
-  next_vesting_withdrawal: string;
-  to_withdraw: string;
-  withdrawn: string;
-  reward_steem_balance: string;
-  reward_sbd_balance: string;
-  reward_vesting_steem: string;
-}
-
-interface GlobalPropsData {
-  total_vesting_shares: string;
-  total_vesting_fund_steem: string;
-}
+import type { GlobalPropsData, WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 
 function numberWithCommas(x: string): string {
   return x.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -63,48 +38,16 @@ type BalanceDropdownItemConfig =
 
 export function BalanceRows({
   username,
-  refreshNonce = 0,
+  balance,
+  globalProps,
+  loading,
 }: {
   username: string;
-  /** Increment after wallet modal completes to refetch balances. */
-  refreshNonce?: number;
+  balance: WalletBalanceData | null;
+  globalProps: GlobalPropsData | null;
+  loading: boolean;
 }) {
   const t = useTranslations('wallet');
-  const [balance, setBalance] = useState<BalanceData | null>(null);
-  const [globalProps, setGlobalProps] = useState<GlobalPropsData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-
-        const [accountsResponse, propsResponse] = await Promise.all([
-          apiClient.getAccounts([username]),
-          apiClient.getGlobalProps(),
-        ]);
-
-        if (accountsResponse.error || !accountsResponse.accounts?.length) {
-          console.error(accountsResponse.error || 'Failed to fetch balance');
-          return;
-        }
-
-        const account = accountsResponse.accounts[0] as SteemAccount;
-        setBalance(account as unknown as BalanceData);
-        if (propsResponse.error) {
-          console.error(propsResponse.error);
-          return;
-        }
-        setGlobalProps(propsResponse.props as unknown as GlobalPropsData);
-      } catch (err) {
-        console.error('Error fetching balance:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [username, refreshNonce]);
 
   const formatBalance = (value: string | undefined) => {
     if (!value) return '0.000';
@@ -139,30 +82,6 @@ export function BalanceRows({
       display: (sp < 0 ? '+' : '') + numberWithCommas(Math.abs(sp).toFixed(3)),
       raw: sp,
     };
-  };
-
-  // Check for rewards
-  const hasRewards = balance && (
-    parseFloat(balance.reward_steem_balance || '0') > 0 ||
-    parseFloat(balance.reward_sbd_balance || '0') > 0 ||
-    parseFloat(balance.reward_vesting_steem || '0') > 0
-  );
-
-  const buildRewardsStr = () => {
-    if (!balance) return '';
-    const rewards: string[] = [];
-    const rewardSteem = balance.reward_steem_balance;
-    const rewardSbd = balance.reward_sbd_balance;
-    const rewardSp = balance.reward_vesting_steem;
-    if (rewardSteem && parseFloat(rewardSteem.split(' ')[0] || '0') > 0) rewards.push(rewardSteem);
-    if (rewardSbd && parseFloat(rewardSbd.split(' ')[0] || '0') > 0) rewards.push(rewardSbd);
-    if (rewardSp && parseFloat(rewardSp.split(' ')[0] || '0') > 0) {
-      rewards.push(rewardSp.replace('STEEM', 'SP'));
-    }
-    if (rewards.length === 3) return `${rewards[0]}, ${rewards[1]} and ${rewards[2]}`;
-    if (rewards.length === 2) return `${rewards[0]} and ${rewards[1]}`;
-    if (rewards.length === 1) return rewards[0];
-    return '';
   };
 
   const isPoweringDown = balance && parseFloat(balance.vesting_withdraw_rate?.split(' ')[0] || '0') > 0;
@@ -202,18 +121,6 @@ export function BalanceRows({
 
   return (
     <div>
-      {/* Claim Rewards Box */}
-      {hasRewards && (
-        <div className="UserWallet__claimbox">
-          <span className="font-bold">
-            Your current rewards: {buildRewardsStr()}
-          </span>
-          <Button size="sm">
-            {t('claimRewards', { defaultMessage: 'Redeem Rewards' })}
-          </Button>
-        </div>
-      )}
-
       {/* STEEM Balance Row */}
       <WalletBalanceRowShell>
         <WalletBalanceRowColumns
