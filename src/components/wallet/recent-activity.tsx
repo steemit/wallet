@@ -192,7 +192,7 @@ export function RecentActivity({
   return (
     <div className="mt-8">
       <Separator className="mb-6" />
-      <h4 className="text-lg font-bold mb-2 px-4">{t('history', { defaultMessage: 'History' })}</h4>
+      <h4 className="text-lg font-medium mb-2 px-4">{t('history', { defaultMessage: 'History' })}</h4>
       <div className="secondary mb-4 px-4">
         <span>Beware of spam and phishing links in transfer memos. </span>
         <span>Do not open links from users you do not trust. </span>

@@ -126,7 +126,7 @@ export function BalanceRows({
         <WalletBalanceRowColumns
           left={
             <>
-              <div className="font-bold">STEEM</div>
+              <div className="font-medium">STEEM</div>
               <div className="secondary">
                 Liquid token, tradeable and transferable at any time. Can also be converted to STEEM POWER through a process called powering up.
               </div>
@@ -170,7 +170,7 @@ export function BalanceRows({
         <WalletBalanceRowColumns
           left={
             <>
-              <div className="font-bold">STEEM POWER</div>
+              <div className="font-medium">STEEM POWER</div>
               <div className="secondary">
                 Influence tokens which give you more control over post payouts and allow you to earn on curation rewards.
                 {hasDelegation && (
@@ -215,7 +215,7 @@ export function BalanceRows({
         <WalletBalanceRowColumns
           left={
             <>
-              <div className="font-bold">STEEM DOLLARS</div>
+              <div className="font-medium">STEEM DOLLARS</div>
               <div className="secondary">
                 Tradeable tokens that may be transferred anywhere at anytime. May also be converted to STEEM.
               </div>
@@ -248,7 +248,7 @@ export function BalanceRows({
         <WalletBalanceRowColumns
           left={
             <>
-              <div className="font-bold">{t('savings', { defaultMessage: 'Savings' })}</div>
+              <div className="font-medium">{t('savings', { defaultMessage: 'Savings' })}</div>
               <div className="secondary">
                 Balance subject to 3 day withdraw waiting period.
               </div>
@@ -292,7 +292,7 @@ export function BalanceRows({
         <WalletBalanceRowColumns
           left={
             <>
-              <div className="font-bold">{t('estimatedValue', { defaultMessage: 'Estimated Account Value' })}</div>
+              <div className="font-medium">{t('estimatedValue', { defaultMessage: 'Estimated Account Value' })}</div>
               <div className="secondary">
                 The estimated value is based on an average value of Steem in US dollars.
               </div>
@@ -300,7 +300,7 @@ export function BalanceRows({
           }
           right={
             <div>
-              <div className="font-bold text-lg">---</div>
+              <div className="font-medium text-lg">---</div>
             </div>
           }
         />
@@ -341,7 +341,7 @@ function BalanceDropdown({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="Wallet_dropdown inline-flex items-center gap-1 text-right font-bold transition-colors hover:text-accent-foreground">
+      <DropdownMenuTrigger className="Wallet_dropdown inline-flex items-center gap-1 text-right font-medium transition-colors hover:text-accent-foreground">
         {selected}
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
