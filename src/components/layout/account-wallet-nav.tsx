@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -38,11 +38,14 @@ export function AccountWalletNav({
   const pathname = usePathname();
 
   // showOwnerWalletNav uses localStorage (remembered device user); SSR always sees false.
-  // Defer applying it until after mount so the first client paint matches the server HTML.
-  const [ownerNavReady, setOwnerNavReady] = useState(false);
-  useEffect(() => {
-    setOwnerNavReady(true);
-  }, []);
+  // `useSyncExternalStore` lets us return false on the server and true on the client
+  // without an effect-driven state update (avoids cascading render lint rules).
+  const ownerNavReady = useSyncExternalStore(
+    // No subscription needed: we only need a stable SSR vs client snapshot.
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   const showExtraTabs = !!(isMyAccount || (ownerNavReady && showOwnerWalletNav));
 
