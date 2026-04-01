@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
-import { usePrivateKey } from '@/hooks/use-auth';
+import { useActiveSigningKey } from '@/hooks/use-auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import type { SignedTransaction } from '@/lib/steem/types';
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,7 @@ export function WithdrawRoutesForm({
   const t = useTranslations('wallet.withdrawRoutes');
   const tCommon = useTranslations('common');
   const loggedIn = useSelector((state: RootState) => state.auth.username);
-  const privateKey = usePrivateKey();
+  const signingKey = useActiveSigningKey();
 
   const [routes, setRoutes] = useState<WithdrawRouteRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +84,7 @@ export function WithdrawRoutesForm({
   const remainingDisplay = Math.max(0, 100 - totalRoutedChain / 100);
 
   const submitRoute = async (toAccount: string, chainPercent: number, vest: boolean) => {
-    if (!loggedIn || !privateKey || loggedIn !== accountUsername) {
+    if (!loggedIn || !signingKey || loggedIn !== accountUsername) {
       setError(t('mustBeAccountOwner'));
       return;
     }
@@ -96,7 +96,7 @@ export function WithdrawRoutesForm({
         toAccount,
         chainPercent,
         vest,
-        privateKey
+        signingKey
       );
       const res = await apiClient.broadcastSetWithdrawVestingRoute(signedTx, loggedIn);
       if (!res.success) {
@@ -135,7 +135,7 @@ export function WithdrawRoutesForm({
     void submitRoute(toAccount, 0, false);
   };
 
-  const canEdit = isMyAccount && !!loggedIn && loggedIn === accountUsername && !!privateKey;
+  const canEdit = isMyAccount && !!loggedIn && loggedIn === accountUsername && !!signingKey;
 
   const inner = (
     <div className="space-y-4">

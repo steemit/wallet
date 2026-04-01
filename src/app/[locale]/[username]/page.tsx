@@ -7,12 +7,14 @@ import { usePathname, useRouter } from '@/i18n/routing';
 import { RecentActivityLazy } from '@/components/wallet/client-wrappers';
 import { BalanceRows } from '@/components/wallet/balance-rows';
 import { ClaimRewardsBanner } from '@/components/wallet/claim-rewards-banner';
-import { WalletSubMenu } from '@/components/layout/wallet-sub-menu';
 import { useSteemWalletBalances } from '@/hooks/use-steem-wallet-balances';
-import { UserProfileBanner, TopNav } from '@/components/layout/user-profile-banner';
+import { UserProfileBanner } from '@/components/layout/user-profile-banner';
+import { AccountWalletNav } from '@/components/layout/account-wallet-nav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WalletTransfersModals } from '@/components/wallet/wallet-transfers-modals';
+import { WalletSectionPlaceholder } from '@/components/wallet/wallet-section-placeholder';
 import { normalizeProfile } from '@/lib/steem/normalize-profile';
+import { canManageBalanceForPageUrl } from '@/lib/auth/browser-storage';
 
 type BannerProfileFields = {
   displayName?: string;
@@ -52,6 +54,11 @@ export default function WalletPage() {
   // Parse username from params (e.g. "@ety001" -> "ety001")
   const urlUsername = rawUsername ? decodeURIComponent(rawUsername).replace(/^@/, '') : '';
   const isMyAccount = !!isAuthenticated && !!loggedInUser && loggedInUser === urlUsername;
+  const showBalanceActions = canManageBalanceForPageUrl({
+    urlUsername,
+    loggedInUser,
+    isAuthenticated,
+  });
 
   const [walletRefreshNonce, setWalletRefreshNonce] = useState(0);
 
@@ -125,6 +132,12 @@ export default function WalletPage() {
     );
   }
 
+  const isTransfersPath = pathname?.includes('/transfers') ?? false;
+  const isDelegationsPath = pathname?.includes('/delegations') ?? false;
+  const isPermissionsPath = pathname?.includes('/permissions') ?? false;
+  const isPasswordPath = pathname?.includes('/password') ?? false;
+  const isCommunitiesPath = pathname?.includes('/communities') ?? false;
+
   return (
     <div>
       {/* User Profile Banner - matches legacy UserProfile.jsx */}
@@ -134,39 +147,46 @@ export default function WalletPage() {
         {...(bannerProfile ?? {})}
       />
 
-      {/* Top Navigation - Blog | Wallet | Rewards */}
-      <TopNav
+      <AccountWalletNav
         accountname={urlUsername}
-        activeSection="transfers"
+        isMyAccount={isMyAccount}
+        showOwnerWalletNav={showBalanceActions}
       />
 
-      {/* Wallet Content Area — claim banner above sub menu matches wallet-legacy UserWallet.jsx */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <ClaimRewardsBanner
-          balance={balance}
-          isMyAccount={isMyAccount}
-          loading={balanceLoading}
-        />
-
-        <WalletSubMenu accountname={urlUsername} isMyAccount={isMyAccount} />
-
-        <div className="mt-4">
-          <BalanceRows
-            username={urlUsername}
+      {/* Wallet content: keep top padding tight under AccountWalletNav */}
+      <div className="mx-auto max-w-6xl space-y-3 px-4 pt-3 pb-6">
+        {isTransfersPath && (
+          <ClaimRewardsBanner
             balance={balance}
-            globalProps={globalProps}
+            isMyAccount={isMyAccount}
             loading={balanceLoading}
           />
-        </div>
+        )}
 
-        {/* Recent Activity - lazy loaded */}
-        <RecentActivityLazy username={urlUsername} refreshNonce={walletRefreshNonce} />
+        {isTransfersPath && (
+          <>
+            <BalanceRows
+              username={urlUsername}
+              balance={balance}
+              globalProps={globalProps}
+              loading={balanceLoading}
+              showBalanceActions={showBalanceActions}
+            />
+            <RecentActivityLazy username={urlUsername} refreshNonce={walletRefreshNonce} />
+          </>
+        )}
+        {isDelegationsPath && <WalletSectionPlaceholder titleKey="delegations" />}
+        {isPermissionsPath && <WalletSectionPlaceholder titleKey="keysAndPermissions" />}
+        {isPasswordPath && <WalletSectionPlaceholder titleKey="changePassword" />}
+        {isCommunitiesPath && <WalletSectionPlaceholder titleKey="communities" />}
       </div>
 
       <Suspense fallback={null}>
-        <WalletTransfersModals
-          onWalletDataChanged={() => setWalletRefreshNonce((n) => n + 1)}
-        />
+        {isTransfersPath && (
+          <WalletTransfersModals
+            onWalletDataChanged={() => setWalletRefreshNonce((n) => n + 1)}
+          />
+        )}
       </Suspense>
     </div>
   );

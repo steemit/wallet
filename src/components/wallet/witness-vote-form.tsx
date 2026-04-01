@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
-import { usePrivateKey } from '@/hooks/use-auth';
+import { useActiveSigningKey } from '@/hooks/use-auth';
 import { useAccountData } from '@/hooks/use-account-data';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import type { Witness } from '@/lib/steem/types';
@@ -21,7 +21,7 @@ export function WitnessVoteForm() {
   const tCommon = useTranslations('common');
   const router = useRouter();
   const username = useSelector((state: RootState) => state.auth.username);
-  const privateKey = usePrivateKey();
+  const signingKey = useActiveSigningKey();
   const [isPending, startTransition] = useTransition();
 
   const { data: account } = useAccountData();
@@ -80,7 +80,7 @@ export function WitnessVoteForm() {
 
   const handleVote = async (witness: Witness, approve: boolean) => {
     setError('');
-    if (!username || !privateKey) {
+    if (!username || !signingKey) {
       setError('Not authenticated');
       return;
     }
@@ -88,7 +88,7 @@ export function WitnessVoteForm() {
     setIsLoading(true);
     try {
       // Sign transaction
-      const signedTx = SteemSigner.signWitnessVote(username, witness.owner, approve, privateKey);
+      const signedTx = SteemSigner.signWitnessVote(username, witness.owner, approve, signingKey);
 
       // Broadcast
       const response = await apiClient.broadcastWitnessVote(signedTx, username);

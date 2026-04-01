@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
-import { usePrivateKey } from '@/hooks/use-auth';
+import { useActiveSigningKey } from '@/hooks/use-auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import type { SignedTransaction } from '@/lib/steem/types';
 import type { SteemAccount } from '@/lib/steem/types';
@@ -43,7 +43,7 @@ export function ConvertSbdForm({
   const t = useTranslations('wallet.convertSbd');
   const tCommon = useTranslations('common');
   const loggedIn = useSelector((state: RootState) => state.auth.username);
-  const privateKey = usePrivateKey();
+  const signingKey = useActiveSigningKey();
 
   const [amount, setAmount] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
@@ -106,7 +106,7 @@ export function ConvertSbdForm({
     isMyAccount &&
     !!loggedIn &&
     loggedIn === accountUsername &&
-    !!privateKey &&
+    !!signingKey &&
     amountNum > 0 &&
     amountNum <= sbdMax + 1e-9 &&
     acknowledged &&
@@ -115,7 +115,7 @@ export function ConvertSbdForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!privateKey || !loggedIn || loggedIn !== accountUsername) {
+    if (!signingKey || !loggedIn || loggedIn !== accountUsername) {
       setError(t('mustBeAccountOwner'));
       return;
     }
@@ -135,7 +135,7 @@ export function ConvertSbdForm({
         accountUsername,
         requestid,
         amountStr,
-        privateKey
+        signingKey
       );
       const res = await apiClient.broadcastConvert(signedTx, loggedIn);
       if (!res.success) {

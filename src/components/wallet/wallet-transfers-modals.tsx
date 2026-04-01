@@ -1,10 +1,15 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/routing';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useActiveSigningKey } from '@/hooks/use-auth';
+import {
+  canManageBalanceForPageUrl,
+  normalizeSteemUsername,
+} from '@/lib/auth/browser-storage';
+import { LoginForm } from '@/components/auth/login-form';
 import {
   WALLET_ACTION_QUERY,
   WALLET_ASSET_QUERY,
@@ -35,6 +40,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
   const t = useTranslations('wallet');
   const params = useParams();
   const { username: loggedInUser, isAuthenticated } = useAuth();
+  const activeSigningKey = useActiveSigningKey();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,6 +48,17 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
   const rawUsername = params?.username as string | undefined;
   const accountUsername = rawUsername ? decodeURIComponent(rawUsername).replace(/^@/, '') : '';
   const isMyAccount = !!isAuthenticated && !!loggedInUser && loggedInUser === accountUsername;
+
+  const canManageBalance = canManageBalanceForPageUrl({
+    urlUsername: accountUsername,
+    loggedInUser,
+    isAuthenticated,
+  });
+
+  const sessionMatchesPage =
+    !isAuthenticated ||
+    (!!loggedInUser &&
+      normalizeSteemUsername(loggedInUser) === normalizeSteemUsername(accountUsername));
 
   const walletAction = parseWalletModalAction(searchParams.get(WALLET_ACTION_QUERY));
   const asset = parseWalletAsset(searchParams.get(WALLET_ASSET_QUERY));
@@ -65,13 +82,41 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
     if (!next) clearWalletQuery();
   };
 
+  useEffect(() => {
+    if (walletAction === null || !accountUsername) return;
+    if (!canManageBalance) {
+      clearWalletQuery();
+    }
+  }, [walletAction, accountUsername, canManageBalance, clearWalletQuery]);
+
+  const needsWalletReauth =
+    open &&
+    canManageBalance &&
+    accountUsername &&
+    (!sessionMatchesPage || activeSigningKey === null);
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
-        {walletAction === 'transfer' && (
+        {needsWalletReauth && (
+          <>
+            <DialogHeader>
+              <DialogTitle>{t('reauthTitle')}</DialogTitle>
+              <DialogDescription>{t('reauthDescription')}</DialogDescription>
+            </DialogHeader>
+            <LoginForm
+              embedded
+              fixedUsername={accountUsername}
+              onLoginSuccess={() => {
+                /* Redux updates; modal re-renders into the wallet form */
+              }}
+            />
+          </>
+        )}
+        {!needsWalletReauth && walletAction === 'transfer' && (
           <>
             <DialogHeader className="sr-only">
               <DialogTitle>Transfer</DialogTitle>
@@ -86,7 +131,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
             />
           </>
         )}
-        {walletAction === 'powerDown' && (
+        {!needsWalletReauth && walletAction === 'powerDown' && (
           <>
             <DialogHeader className="sr-only">
               <DialogTitle>Power down</DialogTitle>
@@ -94,7 +139,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
             <PowerDownForm variant="dialog" onSuccess={handleSuccess} />
           </>
         )}
-        {walletAction === 'delegate' && (
+        {!needsWalletReauth && walletAction === 'delegate' && (
           <>
             <DialogHeader className="sr-only">
               <DialogTitle>Delegate vesting shares</DialogTitle>
@@ -102,7 +147,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
             <DelegateForm variant="dialog" onSuccess={handleSuccess} onCancel={clearWalletQuery} />
           </>
         )}
-        {walletAction === 'advanced' && (
+        {!needsWalletReauth && walletAction === 'advanced' && (
           <>
             <DialogHeader>
               <DialogTitle>{t('withdrawRoutes.title')}</DialogTitle>
@@ -119,7 +164,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
             />
           </>
         )}
-        {walletAction === 'convert' && (
+        {!needsWalletReauth && walletAction === 'convert' && (
           <>
             <DialogHeader>
               <DialogTitle>{t('convertSbd.title')}</DialogTitle>

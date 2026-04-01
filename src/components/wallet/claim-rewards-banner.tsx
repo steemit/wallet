@@ -21,7 +21,7 @@ export function ClaimRewardsBanner({
   }
 
   return (
-    <div className="UserWallet__claimbox mb-4">
+    <div className="UserWallet__claimbox">
       <span className="font-bold">
         Your current rewards: {buildRewardsDisplayStr(balance)}
       </span>
