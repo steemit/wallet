@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -36,7 +37,14 @@ export function AccountWalletNav({
   const t = useTranslations('wallet');
   const pathname = usePathname();
 
-  const showExtraTabs = !!(showOwnerWalletNav || isMyAccount);
+  // showOwnerWalletNav uses localStorage (remembered device user); SSR always sees false.
+  // Defer applying it until after mount so the first client paint matches the server HTML.
+  const [ownerNavReady, setOwnerNavReady] = useState(false);
+  useEffect(() => {
+    setOwnerNavReady(true);
+  }, []);
+
+  const showExtraTabs = !!(isMyAccount || (ownerNavReady && showOwnerWalletNav));
 
   const isRewardsActive =
     pathname?.includes('/curation-rewards') || pathname?.includes('/author-rewards');
