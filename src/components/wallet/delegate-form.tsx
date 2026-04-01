@@ -8,6 +8,10 @@ import type { RootState } from '@/lib/store';
 import { usePrivateKey } from '@/hooks/use-auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import { Button } from '@/components/ui/button';
+import {
+  ModalFormActions,
+  modalFormActionButtonClassName,
+} from '@/components/ui/modal-form-actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -133,14 +137,24 @@ export function DelegateForm({
         </div>
       )}
 
-      <div className="flex gap-4 pt-2">
-        <Button type="submit" disabled={isLoading || isPending} className="flex-1">
+      <ModalFormActions className="pt-4">
+        <Button
+          type="submit"
+          disabled={isLoading || isPending}
+          className={modalFormActionButtonClassName}
+        >
           {isLoading || isPending ? tCommon('loading') : 'Delegate'}
         </Button>
-        <Button type="button" variant="outline" onClick={handleCancel} disabled={isLoading || isPending}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleCancel}
+          disabled={isLoading || isPending}
+          className={modalFormActionButtonClassName}
+        >
           {tCommon('cancel')}
         </Button>
-      </div>
+      </ModalFormActions>
     </form>
   );
 

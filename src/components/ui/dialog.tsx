@@ -5,6 +5,10 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import {
+  ModalFormActions,
+  modalFormActionButtonClassName,
+} from "@/components/ui/modal-form-actions"
 import { XIcon } from "lucide-react"
 
 function Dialog({
@@ -98,26 +102,37 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
 function DialogFooter({
   className,
   showCloseButton = false,
+  columns: columnsProp,
   children,
   ...props
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean
+  /** Defaults: one column if only the built-in Close button; two columns when custom actions are present. */
+  columns?: 1 | 2
 }) {
+  const childCount = React.Children.toArray(children).filter(Boolean).length
+  const columns =
+    columnsProp ?? (showCloseButton && childCount === 0 ? 1 : 2)
+
   return (
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        "-mx-4 -mb-4 rounded-b-xl border-t bg-muted/50 p-4",
         className
       )}
       {...props}
     >
-      {children}
-      {showCloseButton && (
-        <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
-        </DialogPrimitive.Close>
-      )}
+      <ModalFormActions columns={columns}>
+        {children}
+        {showCloseButton && (
+          <DialogPrimitive.Close asChild>
+            <Button variant="outline" className={modalFormActionButtonClassName}>
+              Close
+            </Button>
+          </DialogPrimitive.Close>
+        )}
+      </ModalFormActions>
     </div>
   )
 }

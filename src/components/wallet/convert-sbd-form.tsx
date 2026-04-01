@@ -9,6 +9,10 @@ import { SteemSigner, apiClient } from '@/lib/steem/client';
 import type { SignedTransaction } from '@/lib/steem/types';
 import type { SteemAccount } from '@/lib/steem/types';
 import { Button } from '@/components/ui/button';
+import {
+  ModalFormActions,
+  modalFormActionButtonClassName,
+} from '@/components/ui/modal-form-actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -208,16 +212,22 @@ export function ConvertSbdForm({
         </p>
       )}
 
-      <div className="flex gap-2">
-        <Button type="submit" disabled={!canSubmit}>
+      <ModalFormActions className="pt-4" columns={onCancel ? 2 : 1}>
+        <Button type="submit" disabled={!canSubmit} className={modalFormActionButtonClassName}>
           {submitting ? tCommon('loading') : t('convertButton')}
         </Button>
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={submitting}
+            className={modalFormActionButtonClassName}
+          >
             {tCommon('cancel')}
           </Button>
         )}
-      </div>
+      </ModalFormActions>
     </form>
   );
 

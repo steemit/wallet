@@ -8,6 +8,10 @@ import { usePrivateKey } from '@/hooks/use-auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import type { SignedTransaction } from '@/lib/steem/types';
 import { Button } from '@/components/ui/button';
+import {
+  ModalFormActions,
+  modalFormActionButtonClassName,
+} from '@/components/ui/modal-form-actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -234,16 +238,26 @@ export function WithdrawRoutesForm({
               {error}
             </p>
           )}
-          <div className="flex gap-2">
-            <Button type="submit" disabled={broadcasting || remainingDisplay <= 0}>
+          <ModalFormActions className="pt-4" columns={onCancel ? 2 : 1}>
+            <Button
+              type="submit"
+              disabled={broadcasting || remainingDisplay <= 0}
+              className={modalFormActionButtonClassName}
+            >
               {broadcasting ? tCommon('loading') : tCommon('submit')}
             </Button>
             {onCancel && (
-              <Button type="button" variant="outline" onClick={onCancel} disabled={broadcasting}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={broadcasting}
+                className={modalFormActionButtonClassName}
+              >
                 {tCommon('cancel')}
               </Button>
             )}
-          </div>
+          </ModalFormActions>
         </form>
       )}
 

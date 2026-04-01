@@ -9,6 +9,10 @@ import { usePrivateKey } from '@/hooks/use-auth';
 import { useAccountData } from '@/hooks/use-account-data';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import { Button } from '@/components/ui/button';
+import {
+  ModalFormActions,
+  modalFormActionButtonClassName,
+} from '@/components/ui/modal-form-actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -162,8 +166,12 @@ export function PowerDownForm({ variant = 'page', onSuccess }: PowerDownFormProp
           </div>
         )}
 
-        <div className="flex gap-4 pt-2">
-          <Button type="submit" disabled={isLoading || isPending} className="flex-1">
+        <ModalFormActions className="pt-4" columns={isPoweringDown ? 2 : 1}>
+          <Button
+            type="submit"
+            disabled={isLoading || isPending}
+            className={modalFormActionButtonClassName}
+          >
             {isLoading || isPending ? tCommon('loading') : 'Start Power Down'}
           </Button>
           {isPoweringDown && (
@@ -172,12 +180,12 @@ export function PowerDownForm({ variant = 'page', onSuccess }: PowerDownFormProp
               variant="outline"
               onClick={handleCancelPowerDown}
               disabled={isLoading || isPending}
-              className="flex-1"
+              className={modalFormActionButtonClassName}
             >
               Cancel Power Down
             </Button>
           )}
-        </div>
+        </ModalFormActions>
       </form>
     </>
   );

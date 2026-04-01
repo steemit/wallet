@@ -85,7 +85,8 @@
   --btn-solid-fg: #fcfcfc;
   --btn-solid-fg-hover: #fcfcfc;
   --btn-solid-shadow: 2px 2px 0 0 #06d6a9;
-  --btn-solid-shadow-hover: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 4px 4px 0 0 #171f24;
+  /* Same offset as default shadow so hover does not shift the button vs outline actions */
+  --btn-solid-shadow-hover: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 2px 2px 0 0 #171f24;
   --btn-solid-text-shadow-hover: 0 1px 0 rgba(0, 0, 0, 0.2);
   --btn-hollow-border: 1px solid var(--color-teal);
   --btn-hollow-text: #1fbf8f;
@@ -195,7 +196,8 @@
   --btn-solid-fg: #fcfcfc;
   --btn-solid-fg-hover: #fcfcfc;
   --btn-solid-shadow: 2px 2px 0 0 #06d6a9;
-  --btn-solid-shadow-hover: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 4px 4px 0 0 #171f24;
+  /* Same offset as default shadow so hover does not shift the button vs outline actions */
+  --btn-solid-shadow-hover: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 2px 2px 0 0 #171f24;
   --btn-solid-text-shadow-hover: 0 1px 0 rgba(0, 0, 0, 0.2);
   --btn-hollow-border: 1px solid var(--color-teal);
   --btn-hollow-text: #1fbf8f;
@@ -210,7 +212,7 @@
   --btn-solid-fg: #fcfcfc;
   --btn-solid-fg-hover: #fcfcfc;
   --btn-solid-shadow: 2px 2px 0 0 transparent;
-  --btn-solid-shadow-hover: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 4px 4px 0 0 #1a5099;
+  --btn-solid-shadow-hover: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 2px 2px 0 0 #1a5099;
   --btn-solid-text-shadow-hover: 0 1px 0 rgba(0, 0, 0, 0.2);
   --btn-hollow-border: 1px solid var(--color-blue);
   --btn-hollow-text: var(--color-blue);
@@ -254,7 +256,7 @@
   --btn-solid-fg: #2c3a45;
   --btn-solid-fg-hover: #fcfcfc;
   --btn-solid-shadow: 2px 2px 0 0 #06d6a9;
-  --btn-solid-shadow-hover: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 4px 4px 0 0 #ffffff;
+  --btn-solid-shadow-hover: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 2px 2px 0 0 #ffffff;
   --btn-solid-text-shadow-hover: 0 1px 0 rgba(0, 0, 0, 0);
   --btn-hollow-border: 1px solid var(--color-teal);
   --btn-hollow-text: var(--color-teal);
