@@ -41,11 +41,14 @@ export function BalanceRows({
   balance,
   globalProps,
   loading,
+  showBalanceActions = true,
 }: {
   username: string;
   balance: WalletBalanceData | null;
   globalProps: GlobalPropsData | null;
   loading: boolean;
+  /** When false, hide per-asset dropdowns (view-only balances). */
+  showBalanceActions?: boolean;
 }) {
   const t = useTranslations('wallet');
 
@@ -137,6 +140,7 @@ export function BalanceRows({
               <BalanceDropdown
                 username={username}
                 selected={steemBalance + ' STEEM'}
+                showMenu={showBalanceActions}
                 items={[
                   {
                     label: 'Transfer',
@@ -187,6 +191,7 @@ export function BalanceRows({
               <BalanceDropdown
                 username={username}
                 selected={spBalance + ' STEEM'}
+                showMenu={showBalanceActions}
                 items={[
                   { label: 'Delegate', walletAction: 'delegate' },
                   { label: 'Power Down', walletAction: 'powerDown' },
@@ -226,6 +231,7 @@ export function BalanceRows({
               <BalanceDropdown
                 username={username}
                 selected={sbdBalance}
+                showMenu={showBalanceActions}
                 items={[
                   { label: 'Transfer', walletAction: 'transfer', asset: 'SBD', type: 'transfer' },
                   { label: 'Transfer to Savings', walletAction: 'transfer', asset: 'SBD', type: 'savings' },
@@ -259,6 +265,7 @@ export function BalanceRows({
               <BalanceDropdown
                 username={username}
                 selected={savingsBalance}
+                showMenu={showBalanceActions}
                 items={[
                   {
                     label: 'Withdraw STEEM',
@@ -272,6 +279,7 @@ export function BalanceRows({
                 <BalanceDropdown
                   username={username}
                   selected={savingsSbdBalance}
+                  showMenu={showBalanceActions}
                   items={[
                     {
                       label: 'Withdraw Steem Dollars',
@@ -332,12 +340,18 @@ function BalanceDropdown({
   username,
   selected,
   items,
+  showMenu,
 }: {
   username: string;
   selected: string;
   items: BalanceDropdownItemConfig[];
+  showMenu: boolean;
 }) {
   const router = useRouter();
+
+  if (!showMenu) {
+    return <span className="text-right font-medium tabular-nums">{selected}</span>;
+  }
 
   return (
     <DropdownMenu>

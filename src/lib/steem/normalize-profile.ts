@@ -87,7 +87,7 @@ export function normalizeProfile(account: AccountWithMeta | null | undefined): N
   let name = pickString(profile.name);
   let about = pickString(profile.about);
   let location = pickString(profile.location);
-  let website = normalizeWebsite(pickString(profile.website));
+  const website = normalizeWebsite(pickString(profile.website));
   const profile_image = normalizeHttpsUrl(pickString(profile.profile_image));
   const cover_image = normalizeHttpsUrl(pickString(profile.cover_image));
 

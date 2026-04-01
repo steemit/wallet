@@ -8,6 +8,7 @@ import { AppDispatch } from '@/lib/store';
 import { setCredentials } from '@/lib/store/slices/auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import {
+  normalizeSteemUsername,
   REMEMBERED_POSTING_KEY_KEY,
   REMEMBERED_USERNAME_KEY,
 } from '@/lib/auth/browser-storage';
@@ -27,33 +28,45 @@ interface LoginFormData {
   password: string;
 }
 
-export function LoginForm() {
+export interface LoginFormProps {
+  /** Wallet modal re-auth: skip navigation and call onLoginSuccess. */
+  embedded?: boolean;
+  /** Lock username to this account (normalized). */
+  fixedUsername?: string;
+  onLoginSuccess?: () => void;
+}
+
+export function LoginForm(props: LoginFormProps = {}) {
+  const { embedded = false, fixedUsername, onLoginSuccess } = props;
   const t = useTranslations('auth');
   const tCommon = useTranslations('common');
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const [formData, setFormData] = useState<LoginFormData>({
-    username: '',
+  const [formData, setFormData] = useState<LoginFormData>(() => ({
+    username: fixedUsername ? normalizeSteemUsername(fixedUsername) : '',
     password: '',
-  });
+  }));
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [rememberUser, setRememberUser] = useState(false);
 
-  // Read remembered username only after mount so SSR and the first client render match.
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(REMEMBERED_USERNAME_KEY) ?? '';
-      if (saved) {
-        setFormData((prev) => ({ ...prev, username: saved }));
-        setRememberUser(true);
+    if (embedded || fixedUsername) return;
+    const id = requestAnimationFrame(() => {
+      try {
+        const saved = localStorage.getItem(REMEMBERED_USERNAME_KEY) ?? '';
+        if (saved) {
+          setFormData((prev) => ({ ...prev, username: normalizeSteemUsername(saved) }));
+          setRememberUser(true);
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
-  }, []);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [embedded, fixedUsername]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -67,7 +80,9 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
-      const username = formData.username.trim().toLowerCase().replace(/^@+/, '');
+      const username = fixedUsername
+        ? normalizeSteemUsername(fixedUsername)
+        : normalizeSteemUsername(formData.username);
       const rawSecret = formData.password.trim();
 
       if (!username || !rawSecret) {
@@ -242,10 +257,14 @@ export function LoginForm() {
         // ignore
       }
 
-      // Navigate to user's wallet (transfers tab) with /@username in the path (not %40)
-      startTransition(() => {
-        router.push(transfersPathForUsername(username));
-      });
+      setIsLoading(false);
+      if (embedded) {
+        onLoginSuccess?.();
+      } else {
+        startTransition(() => {
+          router.push(transfersPathForUsername(username));
+        });
+      }
     } catch (err) {
       console.error('Login error:', err);
       setError(tCommon('error'));
@@ -253,14 +272,21 @@ export function LoginForm() {
     }
   };
 
+  const usernameInputId = embedded ? 'wallet-reauth-username' : 'username';
+
   return (
-    <div className="mx-auto w-full max-w-md">
-      {/* Login Form Card */}
-      <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm sm:p-8">
+    <div className={embedded ? 'w-full' : 'mx-auto w-full max-w-md'}>
+      <div
+        className={
+          embedded
+            ? ''
+            : 'rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm sm:p-8'
+        }
+      >
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* Username Input with @ prefix */}
           <div className="flex flex-col gap-2">
-            <Label htmlFor="username" className="text-sm font-semibold text-foreground">
+            <Label htmlFor={usernameInputId} className="text-sm font-semibold text-foreground">
               {t('username')}
             </Label>
             <div className="relative">
@@ -268,14 +294,15 @@ export function LoginForm() {
                 @
               </span>
               <Input
-                id="username"
+                id={usernameInputId}
                 name="username"
                 type="text"
                 value={formData.username}
                 onChange={handleChange}
                 required
                 placeholder={t('usernamePlaceholder')}
-                disabled={isLoading || isPending}
+                disabled={isLoading || isPending || !!fixedUsername}
+                readOnly={!!fixedUsername}
                 className="pl-8"
               />
             </div>
@@ -301,31 +328,32 @@ export function LoginForm() {
             </p>
           </div>
 
-          {/* Save Login Option */}
-          <div className="flex items-start gap-3">
-            <Checkbox
-              id="keepLoggedIn"
-              checked={rememberUser}
-              onCheckedChange={(value) => setRememberUser(value === true)}
-              disabled={isLoading || isPending}
-              className="peer mt-0.5 border-muted-foreground/50 data-[state=unchecked]:bg-background"
-            />
-            <Label
-              htmlFor="keepLoggedIn"
-              className="cursor-pointer text-sm font-normal leading-snug text-muted-foreground peer-disabled:cursor-not-allowed"
-            >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help underline decoration-dotted decoration-muted-foreground/60 underline-offset-2">
-                    {t('rememberUsername')}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs text-left">
-                  {t('rememberUserTooltip')}
-                </TooltipContent>
-              </Tooltip>
-            </Label>
-          </div>
+          {!embedded && (
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="keepLoggedIn"
+                checked={rememberUser}
+                onCheckedChange={(value) => setRememberUser(value === true)}
+                disabled={isLoading || isPending}
+                className="peer mt-0.5 border-muted-foreground/50 data-[state=unchecked]:bg-background"
+              />
+              <Label
+                htmlFor="keepLoggedIn"
+                className="cursor-pointer text-sm font-normal leading-snug text-muted-foreground peer-disabled:cursor-not-allowed"
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help underline decoration-dotted decoration-muted-foreground/60 underline-offset-2">
+                      {t('rememberUsername')}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-left">
+                    {t('rememberUserTooltip')}
+                  </TooltipContent>
+                </Tooltip>
+              </Label>
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (

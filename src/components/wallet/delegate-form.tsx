@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
-import { usePrivateKey } from '@/hooks/use-auth';
+import { useActiveSigningKey } from '@/hooks/use-auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,7 +34,7 @@ export function DelegateForm({
   const tCommon = useTranslations('common');
   const router = useRouter();
   const username = useSelector((state: RootState) => state.auth.username);
-  const privateKey = usePrivateKey();
+  const signingKey = useActiveSigningKey();
   const [isPending, startTransition] = useTransition();
 
   const [delegatee, setDelegatee] = useState('');
@@ -47,7 +47,7 @@ export function DelegateForm({
     setError('');
     setIsLoading(true);
 
-    if (!username || !privateKey) {
+    if (!username || !signingKey) {
       setError('Not authenticated');
       setIsLoading(false);
       return;
@@ -68,7 +68,7 @@ export function DelegateForm({
       }
 
       const vests = `${shareValue.toFixed(6)} VESTS`;
-      const signedTx = SteemSigner.signDelegate(username, delegatee.trim(), vests, privateKey);
+      const signedTx = SteemSigner.signDelegate(username, delegatee.trim(), vests, signingKey);
       const response = await apiClient.broadcastDelegate(signedTx, username);
 
       if (!response.success) {

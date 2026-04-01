@@ -179,3 +179,11 @@ export function useRequireAuth(): { username: string | null; isAuthenticated: bo
 export function usePrivateKey(): string | null {
   return useSelector((state: RootState) => state.auth.activeKey || state.auth.privateKey);
 }
+
+/**
+ * Private key that can sign operations requiring active (or owner) authority.
+ * Do not use posting/memo keys for transfers / power / delegate / etc.
+ */
+export function useActiveSigningKey(): string | null {
+  return useSelector((state: RootState) => state.auth.activeKey || state.auth.ownerKey || null);
+}

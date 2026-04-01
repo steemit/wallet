@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
-import { usePrivateKey } from '@/hooks/use-auth';
+import { useActiveSigningKey } from '@/hooks/use-auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import type { SignedTransaction } from '@/lib/steem/types';
 import { Button } from '@/components/ui/button';
@@ -44,7 +44,7 @@ export function TransferForm({
   const tCommon = useTranslations('common');
   const router = useRouter();
   const username = useSelector((state: RootState) => state.auth.username);
-  const privateKey = usePrivateKey();
+  const signingKey = useActiveSigningKey();
   const [isPending, startTransition] = useTransition();
 
   const [transferType, setTransferType] = useState<WalletTransferType>(initialTransferType);
@@ -54,8 +54,11 @@ export function TransferForm({
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    setTransferType(initialTransferType);
-    setAsset(initialAsset === 'SBD' ? 'SBD' : 'STEEM');
+    const id = requestAnimationFrame(() => {
+      setTransferType(initialTransferType);
+      setAsset(initialAsset === 'SBD' ? 'SBD' : 'STEEM');
+    });
+    return () => cancelAnimationFrame(id);
   }, [initialAsset, initialTransferType]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,7 +75,7 @@ export function TransferForm({
     setError('');
     setIsLoading(true);
 
-    if (!username || !privateKey) {
+    if (!username || !signingKey) {
       setError('Not authenticated');
       setIsLoading(false);
       return;
@@ -106,7 +109,7 @@ export function TransferForm({
           formData.to.trim(),
           amountStr,
           formData.memo,
-          privateKey
+          signingKey
         );
       } else if (transferType === 'savings') {
         signedTx = SteemSigner.signTransferToSavings(
@@ -114,7 +117,7 @@ export function TransferForm({
           username,
           amountStr,
           formData.memo,
-          privateKey
+          signingKey
         );
       } else if (transferType === 'savings_withdraw') {
         const requestId = Date.now() >>> 0;
@@ -124,14 +127,14 @@ export function TransferForm({
           amountStr,
           formData.memo,
           requestId,
-          privateKey
+          signingKey
         );
       } else if (transferType === 'power_up') {
         signedTx = SteemSigner.signTransferToVesting(
           username,
           username,
           amountStr,
-          privateKey
+          signingKey
         );
       } else {
         setError('Unsupported operation');

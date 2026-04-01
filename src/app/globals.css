@@ -295,12 +295,6 @@
 
 /* UserWallet balance rows: use Tailwind py-4 px-4 on WalletBalanceRowShell only — avoid global .UserWallet__balance padding; unlayered CSS overrides @layer utilities. */
 
-/* WalletSubMenu */
-.WalletSubMenu a.active {
-  font-weight: 700;
-  color: var(--foreground);
-}
-
 /* Wallet dropdown - match legacy style */
 .Wallet_dropdown {
   cursor: pointer;

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
-import { usePrivateKey } from '@/hooks/use-auth';
+import { useActiveSigningKey } from '@/hooks/use-auth';
 import { useAccountData } from '@/hooks/use-account-data';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,7 @@ export function PowerDownForm({ variant = 'page', onSuccess }: PowerDownFormProp
   const tCommon = useTranslations('common');
   const router = useRouter();
   const username = useSelector((state: RootState) => state.auth.username);
-  const privateKey = usePrivateKey();
+  const signingKey = useActiveSigningKey();
   const [isPending, startTransition] = useTransition();
 
   const { data: account, refetch } = useAccountData();
@@ -58,7 +58,7 @@ export function PowerDownForm({ variant = 'page', onSuccess }: PowerDownFormProp
     setError('');
     setIsLoading(true);
 
-    if (!username || !privateKey) {
+    if (!username || !signingKey) {
       setError('Not authenticated');
       setIsLoading(false);
       return;
@@ -73,7 +73,7 @@ export function PowerDownForm({ variant = 'page', onSuccess }: PowerDownFormProp
       }
 
       const vests = `${shareValue.toFixed(6)} VESTS`;
-      const signedTx = SteemSigner.signPowerDown(username, vests, privateKey);
+      const signedTx = SteemSigner.signPowerDown(username, vests, signingKey);
       const response = await apiClient.broadcastPowerDown(signedTx, username);
 
       if (!response.success) {
@@ -91,7 +91,7 @@ export function PowerDownForm({ variant = 'page', onSuccess }: PowerDownFormProp
   };
 
   const handleCancelPowerDown = async () => {
-    if (!username || !privateKey) {
+    if (!username || !signingKey) {
       setError('Not authenticated');
       return;
     }
@@ -101,7 +101,7 @@ export function PowerDownForm({ variant = 'page', onSuccess }: PowerDownFormProp
 
     try {
       const vests = '0.000000 VESTS';
-      const signedTx = SteemSigner.signPowerDown(username, vests, privateKey);
+      const signedTx = SteemSigner.signPowerDown(username, vests, signingKey);
       const response = await apiClient.broadcastPowerDown(signedTx, username);
 
       if (!response.success) {
