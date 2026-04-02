@@ -46,7 +46,7 @@ export function LanguageSwitcher({ onLocaleSelected }: { onLocaleSelected?: () =
   };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"

@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSyncExternalStore } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/lib/store';
+import { getRememberedDeviceUsername } from '@/lib/auth/browser-storage';
 import { SteemLogo } from './steem-logo';
 import { useTheme } from '@/lib/theme';
 import { useTranslations } from 'next-intl';
@@ -27,8 +29,18 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
   const t = useTranslations('auth');
   const router = useRouter();
   const { theme, cycleTheme } = useTheme();
-  const username = useSelector((state: RootState) => state.auth.username);
+  const reduxUsername = useSelector((state: RootState) => state.auth.username);
 
+  // Check localStorage for remembered device user (client-only, SSR-safe).
+  // Mirrors wallet-legacy's autopost2 restore in Main.js — the avatar should
+  // be visible whenever the device remembers a username, even before full auth.
+  const rememberedUsername = useSyncExternalStore(
+    () => () => {},
+    () => getRememberedDeviceUsername(),
+    () => null
+  );
+
+  const username = reduxUsername ?? rememberedUsername;
   const isLoggedIn = !!username;
   const signupUrl = process.env.NEXT_PUBLIC_SIGNUP_URL ?? 'https://signup.steemit.com';
 
@@ -86,7 +98,7 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
 
           {/* Logged In: User Avatar Dropdown */}
           {isLoggedIn && (
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon-lg" className="rounded-full">
                   <Avatar size="lg">
