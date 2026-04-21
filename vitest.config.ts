@@ -1,7 +1,6 @@
-import { defineConfig } from 'vitest/config';
 import path from 'path';
 
-export default defineConfig({
+const config = {
   test: {
     globals: true,
     environment: 'jsdom',
@@ -30,4 +29,6 @@ export default defineConfig({
       '@steemit/steem-js': path.resolve(__dirname, './tests/mocks/steem-js.ts'),
     },
   },
-});
+};
+
+export default config;

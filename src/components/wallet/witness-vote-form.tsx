@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useMemo, useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
@@ -27,7 +27,6 @@ export function WitnessVoteForm() {
   const { data: account } = useAccountData();
 
   const [witnesses, setWitnesses] = useState<Witness[]>([]);
-  const [filteredWitnesses, setFilteredWitnesses] = useState<Witness[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -47,7 +46,6 @@ export function WitnessVoteForm() {
           return;
         }
         setWitnesses(response.witnesses as Witness[]);
-        setFilteredWitnesses(response.witnesses as Witness[]);
       } catch (err) {
         console.error('Fetch witnesses error:', err);
         setError('Failed to fetch witnesses');
@@ -59,18 +57,13 @@ export function WitnessVoteForm() {
     fetchWitnesses();
   }, []);
 
-  // Filter witnesses based on search query
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredWitnesses(witnesses);
-      return;
-    }
+  const filteredWitnesses = useMemo(() => {
+    if (!searchQuery.trim()) return witnesses;
 
     const query = searchQuery.toLowerCase();
-    const filtered = witnesses.filter(
+    return witnesses.filter(
       (w) => w.owner.toLowerCase().includes(query) || w.url?.toLowerCase().includes(query)
     );
-    setFilteredWitnesses(filtered);
   }, [searchQuery, witnesses]);
 
   // Check if user has voted for a witness

@@ -12,9 +12,11 @@ export function useSteemWalletBalances(username: string, refreshNonce = 0) {
 
   useEffect(() => {
     if (!username?.trim()) {
-      setBalance(null);
-      setGlobalProps(null);
-      setLoading(false);
+      void Promise.resolve().then(() => {
+        setBalance(null);
+        setGlobalProps(null);
+        setLoading(false);
+      });
       return;
     }
 

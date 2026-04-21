@@ -37,7 +37,7 @@ export function useAccountData() {
   }, [username]);
 
   useEffect(() => {
-    refetch();
+    void Promise.resolve().then(refetch);
   }, [refetch]);
 
   return { data, loading, error, refetch };

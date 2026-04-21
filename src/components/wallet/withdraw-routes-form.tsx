@@ -77,7 +77,7 @@ export function WithdrawRoutesForm({
   }, [accountUsername]);
 
   useEffect(() => {
-    void loadRoutes();
+    void Promise.resolve().then(loadRoutes);
   }, [loadRoutes]);
 
   const totalRoutedChain = routes.reduce((sum, r) => sum + r.percent, 0);
