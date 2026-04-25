@@ -31,9 +31,9 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
   const { theme, cycleTheme } = useTheme();
   const reduxUsername = useSelector((state: RootState) => state.auth.username);
 
-  // Check localStorage for remembered device user (client-only, SSR-safe).
-  // Mirrors wallet-legacy's autopost2 restore in Main.js — the avatar should
-  // be visible whenever the device remembers a username, even before full auth.
+  // getServerSnapshot returns null so server and hydration renders both produce
+  // null (isLoggedIn = false). React detects the post-hydration snapshot diff
+  // and schedules a sync re-render to show the avatar without a mismatch.
   const rememberedUsername = useSyncExternalStore(
     () => () => {},
     () => getRememberedDeviceUsername(),
