@@ -17,9 +17,24 @@ const DEFAULT_THEME: LegacyTheme = 'light';
 let _theme: LegacyTheme = DEFAULT_THEME;
 const _listeners = new Set<() => void>();
 
+function _notify() {
+  // Snapshot the set before iterating so a listener that calls unsubscribe
+  // (deleting itself from _listeners mid-loop) doesn't skip subsequent entries.
+  Array.from(_listeners).forEach((l) => l());
+}
+
 if (typeof window !== 'undefined') {
   const stored = localStorage.getItem(THEME_KEY) as LegacyTheme;
   if (stored && validThemes.includes(stored)) _theme = stored;
+
+  // Keep tabs in sync: when another tab writes to THEME_KEY, update the
+  // module store and notify all subscribers in this tab.
+  window.addEventListener('storage', (e) => {
+    if (e.key === THEME_KEY && e.newValue && validThemes.includes(e.newValue as LegacyTheme)) {
+      _theme = e.newValue as LegacyTheme;
+      _notify();
+    }
+  });
 }
 
 function _subscribeTheme(cb: () => void) {
@@ -36,7 +51,9 @@ function _getThemeServerSnapshot(): LegacyTheme { return DEFAULT_THEME; }
 export function useTheme() {
   const theme = useSyncExternalStore(_subscribeTheme, _getThemeSnapshot, _getThemeServerSnapshot);
 
-  // Apply theme class before paint to avoid FOUC.
+  // Safety net: ensures the correct class is on <html> at mount and whenever
+  // theme changes (e.g. cross-tab sync). changeTheme also applies the class
+  // synchronously to prevent FOUC — the duplication is intentional.
   useLayoutEffect(() => {
     document.documentElement.classList.remove('theme-original', 'theme-light', 'theme-dark');
     document.documentElement.classList.add(`theme-${theme}`);
@@ -49,19 +66,22 @@ export function useTheme() {
     }
     _theme = newTheme;
     localStorage.setItem(THEME_KEY, newTheme);
-    // Apply immediately so the class change is synchronous (avoids FOUC between
-    // the store mutation and the useLayoutEffect running after React re-renders).
+    // Apply immediately to avoid FOUC between this call and the useLayoutEffect
+    // that fires after React processes the re-render triggered by _notify().
     document.documentElement.classList.remove('theme-original', 'theme-light', 'theme-dark');
     document.documentElement.classList.add(`theme-${newTheme}`);
-    _listeners.forEach((l) => l());
+    _notify();
   }, []);
 
+  // Reads _theme directly from the module store so this callback is stable —
+  // it doesn't close over the `theme` snapshot and won't invalidate memoized
+  // children that receive cycleTheme as a prop.
   const cycleTheme = useCallback(() => {
-    const currentIndex = validThemes.indexOf(theme);
+    const currentIndex = validThemes.indexOf(_theme);
     const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % validThemes.length : 0;
     const nextTheme = validThemes[nextIndex];
     if (nextTheme) changeTheme(nextTheme);
-  }, [theme, changeTheme]);
+  }, [changeTheme]);
 
   return {
     theme,
