@@ -31,9 +31,11 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
   const { theme, cycleTheme } = useTheme();
   const reduxUsername = useSelector((state: RootState) => state.auth.username);
 
-  // getServerSnapshot returns null so server and hydration renders both produce
-  // null (isLoggedIn = false). React detects the post-hydration snapshot diff
-  // and schedules a sync re-render to show the avatar without a mismatch.
+  // useSyncExternalStore is used here purely as an SSR-safe initializer:
+  // getServerSnapshot returns null so server and hydration renders match,
+  // then React detects the post-hydration snapshot diff and re-renders once
+  // to show the avatar. The subscribe is intentionally a no-op — ongoing
+  // login state is owned by Redux; this value is only meaningful at mount.
   const rememberedUsername = useSyncExternalStore(
     () => () => {},
     () => getRememberedDeviceUsername(),
