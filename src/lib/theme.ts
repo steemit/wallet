@@ -95,10 +95,7 @@ export function useTheme() {
  * Utility function to get the current theme (for SSR compatibility)
  */
 export function getCurrentTheme(): LegacyTheme {
-  if (typeof window === 'undefined') return DEFAULT_THEME;
-
-  const stored = localStorage.getItem(THEME_KEY) as LegacyTheme;
-  return stored && validThemes.includes(stored) ? stored : DEFAULT_THEME;
+  return _theme;
 }
 
 /**
