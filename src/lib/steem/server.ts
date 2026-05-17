@@ -195,6 +195,181 @@ export class SteemService {
   }
 
   /**
+   * STEEM/SBD USD prices for wallet estimated account value (matches wallet-legacy TransactionSaga).
+   */
+  static async getWalletPrices(): Promise<{ steemPrice: number; sbdPrice: number }> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        getFeedHistoryAsync: () => Promise<{
+          price_history?: { base: string; quote: string }[];
+        }>;
+        /**
+         * Jussi expects `params` as a single args object for many AppBase methods
+         * (e.g. `{ limit: 10 }`), not `[{ limit: 10 }]`, which triggers bad_cast_exception.
+         */
+        callAsync: (method: string, params: unknown) => Promise<unknown>;
+      };
+
+      let steemPrice = 0;
+      const feedHistory = await api.getFeedHistoryAsync();
+      const history = feedHistory?.price_history ?? [];
+      const latest = history[history.length - 1];
+      if (latest) {
+        const base = parseFloat(latest.base.split(' ')[0] || '0');
+        const quote = parseFloat(latest.quote.split(' ')[0] || '0');
+        if (quote > 0) {
+          steemPrice = base / quote;
+        }
+      }
+
+      let sbdPrice = 0;
+      const tradesData = (await api.callAsync('market_history_api.get_recent_trades', {
+        limit: 10,
+      })) as {
+        trades?: {
+          current_pays: { amount: string; precision: number; nai: string };
+          open_pays: { amount: string; precision: number; nai: string };
+        }[];
+      };
+
+      let highest: number | null = null;
+      let lowest: number | null = null;
+      for (const trade of tradesData?.trades ?? []) {
+        const currentAmount =
+          parseFloat(trade.current_pays.amount) / 10 ** trade.current_pays.precision;
+        const openAmount = parseFloat(trade.open_pays.amount) / 10 ** trade.open_pays.precision;
+        let steemAmount = 0;
+        let sbdAmount = 0;
+        if (trade.current_pays.nai === '@@000000021') {
+          steemAmount = currentAmount;
+          sbdAmount = openAmount;
+        } else if (trade.open_pays.nai === '@@000000021') {
+          steemAmount = openAmount;
+          sbdAmount = currentAmount;
+        } else {
+          continue;
+        }
+        if (steemAmount === 0) continue;
+        const price = sbdAmount / steemAmount;
+        if (highest === null || price > highest) highest = price;
+        if (lowest === null || price < lowest) lowest = price;
+      }
+
+      if (highest !== null && steemPrice > 0 && highest > 0) {
+        sbdPrice = (1 / highest) * steemPrice;
+      }
+
+      return { steemPrice, sbdPrice };
+    }).catch((error) => {
+      console.error('Error fetching wallet prices:', error);
+      throw new Error(`Failed to fetch wallet prices: ${(error as Error).message}`);
+    });
+  }
+
+  /**
+   * Pending savings withdrawals, open orders, and SBD conversions for estimate extras.
+   */
+  static async getWalletEstimateExtras(
+    username: string,
+    options: { includeOpenOrders?: boolean } = {}
+  ): Promise<{
+    savingsPendingSteem: number;
+    savingsPendingSbd: number;
+    conversionTotalSbd: number;
+    steemOrders: number;
+    sbdOrders: number;
+  }> {
+    const assetPrecision = 1000;
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        getSavingsWithdrawToAsync: (account: string) => Promise<{ amount: string }[]>;
+        getSavingsWithdrawFromAsync: (account: string) => Promise<{ amount: string }[]>;
+        getOpenOrdersAsync: (owner: string) => Promise<
+          { for_sale: number; sell_price: { base: string } }[]
+        >;
+        callAsync: (method: string, params: unknown) => Promise<unknown>;
+      };
+
+      const [toWithdraws, fromWithdraws] = await Promise.all([
+        api.getSavingsWithdrawToAsync(username),
+        api.getSavingsWithdrawFromAsync(username),
+      ]);
+
+      const withdrawMap = new Map<string, { amount: string }>();
+      for (const w of [...toWithdraws, ...fromWithdraws]) {
+        const id = (w as { id?: number }).id;
+        if (id !== undefined) withdrawMap.set(String(id), w);
+      }
+
+      let savingsPendingSteem = 0;
+      let savingsPendingSbd = 0;
+      for (const withdraw of withdrawMap.values()) {
+        const [amountStr, asset] = withdraw.amount.split(' ');
+        const amount = parseFloat(amountStr || '0');
+        if (asset === 'STEEM') savingsPendingSteem += amount;
+        else if (asset === 'SBD') savingsPendingSbd += amount;
+      }
+
+      let conversionTotalSbd = 0;
+      const now = Date.now();
+      try {
+        const conversionResult = (await api.callAsync(
+          'database_api.find_sbd_conversion_requests',
+          { account: username }
+        )) as {
+          requests?: {
+            conversion_date: string;
+            amount: { amount: string; precision: number };
+          }[];
+        };
+        for (const request of conversionResult?.requests ?? []) {
+          const rawTimestamp = request.conversion_date;
+          const iso = rawTimestamp.endsWith('Z') ? rawTimestamp : `${rawTimestamp}Z`;
+          const finishTime = new Date(iso).getTime();
+          if (finishTime < now) continue;
+          const amount =
+            parseFloat(request.amount.amount) / 10 ** request.amount.precision;
+          if (!Number.isNaN(amount)) conversionTotalSbd += amount;
+        }
+      } catch (err) {
+        console.warn('find_sbd_conversion_requests failed:', err);
+      }
+
+      let steemOrders = 0;
+      let sbdOrders = 0;
+      if (options.includeOpenOrders) {
+        try {
+          const openOrders = await api.getOpenOrdersAsync(username);
+          for (const order of openOrders) {
+            if (order.sell_price.base.indexOf('SBD') !== -1) {
+              sbdOrders += order.for_sale;
+            } else if (order.sell_price.base.indexOf('STEEM') !== -1) {
+              steemOrders += order.for_sale;
+            }
+          }
+          steemOrders /= assetPrecision;
+          sbdOrders /= assetPrecision;
+        } catch (err) {
+          console.warn('getOpenOrders failed:', err);
+        }
+      }
+
+      return {
+        savingsPendingSteem,
+        savingsPendingSbd,
+        conversionTotalSbd,
+        steemOrders,
+        sbdOrders,
+      };
+    }).catch((error) => {
+      console.error('Error fetching wallet estimate extras:', error);
+      throw new Error(`Failed to fetch wallet estimate extras: ${(error as Error).message}`);
+    });
+  }
+
+  /**
    * Broadcast a signed transaction
    */
   static async broadcastTransaction(signedTx: SignedTransaction): Promise<BroadcastResult> {
