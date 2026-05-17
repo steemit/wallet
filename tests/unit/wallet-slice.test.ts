@@ -1,20 +1,18 @@
 /**
  * Wallet Redux slice unit tests
+ *
+ * Only covers reducers with side effects beyond a single field assignment:
+ *   - setBalance: writes balance AND clears loading + error
+ *   - setError:   writes error AND clears loading
+ *   - clearWallet: full reset
  */
 
 import { describe, it, expect } from 'vitest';
 import walletReducer, {
   setBalance,
-  setLoading,
   setError,
   clearWallet,
 } from '@/lib/store/slices/wallet';
-
-const initialState = {
-  balance: null,
-  loading: false,
-  error: null,
-};
 
 const sampleBalance = {
   steem: '100.000 STEEM',
@@ -23,41 +21,28 @@ const sampleBalance = {
 };
 
 describe('Wallet Slice', () => {
-  it('returns the initial state for an unknown action', () => {
-    expect(walletReducer(undefined, { type: 'unknown' })).toEqual(initialState);
-  });
-
-  it('setBalance stores the balance and clears loading/error', () => {
-    const loadingState = { ...initialState, loading: true, error: 'previous' };
-    const next = walletReducer(loadingState, setBalance(sampleBalance));
-
-    expect(next.balance).toEqual(sampleBalance);
-    expect(next.loading).toBe(false);
-    expect(next.error).toBeNull();
-  });
-
-  it('setLoading toggles the loading flag without touching balance/error', () => {
-    const seeded = { ...initialState, balance: sampleBalance, error: 'x' };
-
-    const loading = walletReducer(seeded, setLoading(true));
-    expect(loading.loading).toBe(true);
-    expect(loading.balance).toEqual(sampleBalance);
-    expect(loading.error).toBe('x');
-
-    const done = walletReducer(loading, setLoading(false));
-    expect(done.loading).toBe(false);
+  it('setBalance stores the balance and clears loading/error in one shot', () => {
+    const next = walletReducer(
+      { balance: null, loading: true, error: 'previous' },
+      setBalance(sampleBalance),
+    );
+    expect(next).toEqual({ balance: sampleBalance, loading: false, error: null });
   });
 
   it('setError stores the message and clears loading', () => {
-    const loadingState = { ...initialState, loading: true };
-    const next = walletReducer(loadingState, setError('boom'));
-
+    const next = walletReducer(
+      { balance: null, loading: true, error: null },
+      setError('boom'),
+    );
     expect(next.error).toBe('boom');
     expect(next.loading).toBe(false);
   });
 
-  it('clearWallet resets balance, loading, and error', () => {
-    const dirty = { balance: sampleBalance, loading: true, error: 'x' };
-    expect(walletReducer(dirty, clearWallet())).toEqual(initialState);
+  it('clearWallet resets every field to its initial value', () => {
+    const next = walletReducer(
+      { balance: sampleBalance, loading: true, error: 'x' },
+      clearWallet(),
+    );
+    expect(next).toEqual({ balance: null, loading: false, error: null });
   });
 });

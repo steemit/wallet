@@ -1,539 +1,315 @@
 /**
- * Steem client module unit tests
- * Note: SteemSigner methods rely on @steemit/steem-js which is an external library.
- * We test the API client methods which can be properly mocked.
+ * Steem client module unit tests.
+ *
+ * For SteemSigner we only assert what the module itself produces — the operations
+ * array passed to `steem.auth.signTransaction` — instead of inspecting the mock's
+ * return value (which would just be the mock echoing itself).
+ *
+ * For apiClient we drive every broadcast/query through a single it.each table so
+ * each call's URL, method, headers (CSRF), and body are verified consistently.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SignedTransaction } from '@/lib/steem/types';
-
-// Mock fetch
-global.fetch = vi.fn();
-
 import { steem } from '@steemit/steem-js';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
 
-describe('SteemSigner - Basic Structure', () => {
-  // Just verify the class has the expected methods
-  it('should have signTransfer method', () => {
-    expect(SteemSigner.signTransfer).toBeInstanceOf(Function);
+global.fetch = vi.fn();
+
+const mockTx: SignedTransaction = {
+  ref_block_num: 1,
+  ref_block_prefix: 1,
+  expiration: '2020-01-01T00:00:00',
+  operations: [],
+  extensions: [],
+  signatures: ['SIG123'],
+};
+
+function setCSRFCookie(token: string | null) {
+  Object.defineProperty(global, 'document', {
+    value: { cookie: token ? `csrf_token=${token}` : '' },
+    configurable: true,
   });
+}
 
-  it('should have signPowerDown method', () => {
-    expect(SteemSigner.signPowerDown).toBeInstanceOf(Function);
-  });
-
-  it('should have signDelegate method', () => {
-    expect(SteemSigner.signDelegate).toBeInstanceOf(Function);
-  });
-
-  it('should have signWitnessVote method', () => {
-    expect(SteemSigner.signWitnessVote).toBeInstanceOf(Function);
-  });
-
-  it('should have generateChallenge method', () => {
-    expect(SteemSigner.generateChallenge).toBeInstanceOf(Function);
-  });
-
-  it('should generate a unique challenge string', () => {
-    const challenge1 = SteemSigner.generateChallenge();
-    const challenge2 = SteemSigner.generateChallenge();
-
-    expect(challenge1).toMatch(/^\d+-[a-z0-9]+$/);
-    expect(challenge2).toMatch(/^\d+-[a-z0-9]+$/);
-    expect(challenge1).not.toBe(challenge2);
-  });
-
-  it('should sign transfer and return signed tx', () => {
-    const signed = SteemSigner.signTransfer('alice', 'bob', '1.000 STEEM', 'memo', '5Jkey');
-    expect(signed).toEqual(expect.objectContaining({ signatures: ['SIG'], operations: [] }));
-  });
-
-  it('should sign power down and return signed tx', () => {
-    const signed = SteemSigner.signPowerDown('alice', '100.000000 VESTS', '5Jkey');
-    expect(signed).toEqual(expect.objectContaining({ signatures: ['SIG'], operations: [] }));
-  });
-
-  it('should sign delegate and return signed tx', () => {
-    const signed = SteemSigner.signDelegate('alice', 'bob', '100.000000 VESTS', '5Jkey');
-    expect(signed).toEqual(expect.objectContaining({ signatures: ['SIG'], operations: [] }));
-  });
-
-  it('should sign vote and return signed tx', () => {
-    const signed = SteemSigner.signVote('voter', 'author', 'permlink', 10000, '5Jkey');
-    expect(signed).toEqual(expect.objectContaining({ signatures: ['SIG'], operations: [] }));
-  });
-
-  it('should sign witness vote and return signed tx', () => {
-    const signed = SteemSigner.signWitnessVote('alice', 'witness1', true, '5Jkey');
-    expect(signed).toEqual(expect.objectContaining({ signatures: ['SIG'], operations: [] }));
-  });
-
-  it('should return public key from private key', () => {
-    const pub = SteemSigner.privateKeyToPublicKey('5Jkey');
-    expect(pub).toBe('STM5Jkey');
-  });
-
-  it('should derive role key from password', () => {
-    const wif = SteemSigner.derivePrivateKeyFromPassword('user', 'pass', 'active');
-    expect(wif).toBe('5Jmock');
-  });
-
-  it('should return all role keys from master password', () => {
-    const keys = SteemSigner.getPrivateKeysFromMasterPassword('user', 'pass');
-    expect(keys).toMatchObject({ owner: '5Jo', active: '5Ja', posting: '5Jp', memo: '5Jm' });
-  });
-
-  it('should sign challenge', () => {
-    const sig = SteemSigner.signChallenge('challenge', '5Jkey');
-    expect(sig).toBe('signed');
-  });
-
-  it('should verify private key matches public key', () => {
-    const ok = SteemSigner.verifyPrivateKey('5Jkey', 'STM5Jkey');
-    expect(ok).toBe(true);
-  });
-
-  it('should validate WIF format', () => {
-    expect(SteemSigner.isValidPrivateKey('5Jkey')).toBe(true);
-  });
-
-  it('should sign set_withdraw_vesting_route with expected operation payload', () => {
-    vi.mocked(steem.auth.signTransaction).mockImplementationOnce((trx: unknown) => {
-      const tx = trx as { operations: unknown[]; extensions: unknown[] };
-      return { ...tx, signatures: ['SIG'] } as SignedTransaction;
-    });
-    const signed = SteemSigner.signSetWithdrawVestingRoute('alice', 'bob', 5000, true, '5Jkey');
-    expect(signed.operations).toEqual([
-      [
-        'set_withdraw_vesting_route',
-        { from_account: 'alice', to_account: 'bob', percent: 5000, auto_vest: true },
-      ],
-    ]);
-  });
-
-  it('should sign convert with expected operation payload', () => {
-    vi.mocked(steem.auth.signTransaction).mockImplementationOnce((trx: unknown) => {
-      const tx = trx as { operations: unknown[]; extensions: unknown[] };
-      return { ...tx, signatures: ['SIG'] } as SignedTransaction;
-    });
-    const signed = SteemSigner.signConvert('alice', 1710000000, '10.500 SBD', '5Jkey');
-    expect(signed.operations).toEqual([
-      ['convert', { owner: 'alice', requestid: 1710000000, amount: '10.500 SBD' }],
-    ]);
+beforeEach(() => {
+  vi.clearAllMocks();
+  setCSRFCookie('test-token');
+  (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ok: true,
+    json: async () => ({ success: true }),
   });
 });
 
-describe('apiClient', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+describe('SteemSigner.signXxx — produces the expected operations payload', () => {
+  it.each<{
+    name: string;
+    call: () => unknown;
+    operations: unknown[];
+    keys: string[];
+  }>([
+    {
+      name: 'signTransfer',
+      call: () => SteemSigner.signTransfer('alice', 'bob', '1.000 STEEM', 'note', '5Jactive'),
+      operations: [
+        ['transfer', { from: 'alice', to: 'bob', amount: '1.000 STEEM', memo: 'note' }],
+      ],
+      keys: ['5Jactive'],
+    },
+    {
+      name: 'signTransferToSavings (memo defaults to empty)',
+      call: () =>
+        SteemSigner.signTransferToSavings('alice', 'alice', '1.000 STEEM', '', '5Jactive'),
+      operations: [
+        ['transfer_to_savings', { from: 'alice', to: 'alice', amount: '1.000 STEEM', memo: '' }],
+      ],
+      keys: ['5Jactive'],
+    },
+    {
+      name: 'signTransferFromSavings (carries request_id)',
+      call: () =>
+        SteemSigner.signTransferFromSavings(
+          'alice',
+          'alice',
+          '1.000 STEEM',
+          'm',
+          42,
+          '5Jactive',
+        ),
+      operations: [
+        [
+          'transfer_from_savings',
+          {
+            from: 'alice',
+            to: 'alice',
+            amount: '1.000 STEEM',
+            memo: 'm',
+            request_id: 42,
+          },
+        ],
+      ],
+      keys: ['5Jactive'],
+    },
+    {
+      name: 'signTransferToVesting (power up)',
+      call: () =>
+        SteemSigner.signTransferToVesting('alice', 'alice', '5.000 STEEM', '5Jactive'),
+      operations: [
+        ['transfer_to_vesting', { from: 'alice', to: 'alice', amount: '5.000 STEEM' }],
+      ],
+      keys: ['5Jactive'],
+    },
+    {
+      name: 'signPowerDown',
+      call: () => SteemSigner.signPowerDown('alice', '100.000000 VESTS', '5Jactive'),
+      operations: [
+        ['withdraw_vesting', { account: 'alice', vesting_shares: '100.000000 VESTS' }],
+      ],
+      keys: ['5Jactive'],
+    },
+    {
+      name: 'signDelegate',
+      call: () => SteemSigner.signDelegate('alice', 'bob', '100.000000 VESTS', '5Jactive'),
+      operations: [
+        [
+          'delegate_vesting_shares',
+          { delegator: 'alice', delegatee: 'bob', vesting_shares: '100.000000 VESTS' },
+        ],
+      ],
+      keys: ['5Jactive'],
+    },
+    {
+      name: 'signVote (uses posting key)',
+      call: () => SteemSigner.signVote('voter', 'author', 'permlink', 10000, '5Jposting'),
+      operations: [
+        ['vote', { voter: 'voter', author: 'author', permlink: 'permlink', weight: 10000 }],
+      ],
+      keys: ['5Jposting'],
+    },
+    {
+      name: 'signWitnessVote',
+      call: () => SteemSigner.signWitnessVote('alice', 'witness1', true, '5Jactive'),
+      operations: [
+        ['account_witness_vote', { account: 'alice', witness: 'witness1', approve: true }],
+      ],
+      keys: ['5Jactive'],
+    },
+    {
+      name: 'signSetWithdrawVestingRoute',
+      call: () =>
+        SteemSigner.signSetWithdrawVestingRoute('alice', 'bob', 5000, true, '5Jactive'),
+      operations: [
+        [
+          'set_withdraw_vesting_route',
+          { from_account: 'alice', to_account: 'bob', percent: 5000, auto_vest: true },
+        ],
+      ],
+      keys: ['5Jactive'],
+    },
+    {
+      name: 'signConvert',
+      call: () => SteemSigner.signConvert('alice', 1710000000, '10.500 SBD', '5Jactive'),
+      operations: [
+        ['convert', { owner: 'alice', requestid: 1710000000, amount: '10.500 SBD' }],
+      ],
+      keys: ['5Jactive'],
+    },
+  ])('$name', ({ call, operations, keys }) => {
+    call();
+    const calls = vi.mocked(steem.auth.signTransaction).mock.calls;
+    const [tx, signingKeys] = calls[calls.length - 1]!;
+    expect((tx as { operations: unknown[] }).operations).toEqual(operations);
+    expect(signingKeys).toEqual(keys);
+  });
+});
+
+describe('SteemSigner.generateChallenge', () => {
+  it('returns a unique <timestamp>-<random> string', () => {
+    const a = SteemSigner.generateChallenge();
+    const b = SteemSigner.generateChallenge();
+    expect(a).toMatch(/^\d+-[a-z0-9]+$/);
+    expect(a).not.toBe(b);
+  });
+});
+
+describe('apiClient.getChallenge', () => {
+  it('GETs /api/auth/challenge with the encoded username', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ challenge: 'login-test-123' }),
+    });
+    const result = await apiClient.getChallenge('alice/bob');
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/auth/challenge?username=alice%2Fbob',
+    );
+    expect(result).toEqual({ challenge: 'login-test-123' });
   });
 
-  describe('getChallenge', () => {
-    it('should fetch login challenge', async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ challenge: 'login-test-123' }),
-      });
-
-      const result = await apiClient.getChallenge('alice');
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/auth/challenge?username=alice');
-      expect(result).toEqual({ challenge: 'login-test-123' });
-    });
-
-    it('should throw on failed response', async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: false });
-
-      await expect(apiClient.getChallenge('alice')).rejects.toThrow('Failed to get challenge');
-    });
+  it('throws on a non-ok response', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: false });
+    await expect(apiClient.getChallenge('alice')).rejects.toThrow('Failed to get challenge');
   });
+});
 
-  describe('login', () => {
-    it('should send login request with CSRF header when cookie is present', async () => {
-      Object.defineProperty(global, 'document', {
-        value: { cookie: 'csrf_token=test-token' },
-        configurable: true,
-      });
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
-
-      const result = await apiClient.login('alice', 'signed-challenge', 'STM123');
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': 'test-token',
-        },
-        body: JSON.stringify({
-          username: 'alice',
-          signedChallenge: 'signed-challenge',
-          publicKey: 'STM123',
-        }),
-      });
-      expect(result).toEqual({ success: true });
-    });
-  });
-
-  describe('logout', () => {
-    it('should send logout request with CSRF header when cookie is present', async () => {
-      Object.defineProperty(global, 'document', {
-        value: { cookie: 'csrf_token=test-token' },
-        configurable: true,
-      });
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
-
-      const result = await apiClient.logout();
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'X-CSRF-Token': 'test-token' },
-      });
-      expect(result).toEqual({ success: true });
-    });
-  });
-
-  describe('broadcastTransfer', () => {
-    it('should broadcast transfer transaction with CSRF header', async () => {
-      const mockTx: SignedTransaction = {
-        ref_block_num: 1,
-        ref_block_prefix: 1,
-        expiration: '2020-01-01T00:00:00',
-        operations: [],
-        extensions: [],
-        signatures: ['SIG123'],
-      };
-      Object.defineProperty(global, 'document', {
-        value: { cookie: 'csrf_token=test-token' },
-        configurable: true,
-      });
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true, result: { id: 'tx123' } }),
-      });
-
-      const result = await apiClient.broadcastTransfer(mockTx, 'alice');
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/transfer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': 'test-token',
-        },
-        body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
-      });
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('broadcastPowerDown', () => {
-    it('should broadcast power down transaction with CSRF header', async () => {
-      const mockTx: SignedTransaction = {
-        ref_block_num: 1,
-        ref_block_prefix: 1,
-        expiration: '2020-01-01T00:00:00',
-        operations: [],
-        extensions: [],
-        signatures: ['SIG123'],
-      };
-      Object.defineProperty(global, 'document', {
-        value: { cookie: 'csrf_token=test-token' },
-        configurable: true,
-      });
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
-
-      const result = await apiClient.broadcastPowerDown(mockTx, 'alice');
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/power-down', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': 'test-token',
-        },
-        body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
-      });
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('broadcastDelegate', () => {
-    it('should broadcast delegate transaction with CSRF header', async () => {
-      const mockTx: SignedTransaction = {
-        ref_block_num: 1,
-        ref_block_prefix: 1,
-        expiration: '2020-01-01T00:00:00',
-        operations: [],
-        extensions: [],
-        signatures: ['SIG123'],
-      };
-      Object.defineProperty(global, 'document', {
-        value: { cookie: 'csrf_token=test-token' },
-        configurable: true,
-      });
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
-
-      const result = await apiClient.broadcastDelegate(mockTx, 'alice');
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/delegate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': 'test-token',
-        },
-        body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
-      });
-      expect(result.success).toBe(true);
+describe('apiClient.login / logout — CSRF header propagation', () => {
+  it('login posts credentials and forwards csrf_token cookie as X-CSRF-Token', async () => {
+    await apiClient.login('alice', 'signed-challenge', 'STM123');
+    expect(global.fetch).toHaveBeenCalledWith('/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': 'test-token',
+      },
+      body: JSON.stringify({
+        username: 'alice',
+        signedChallenge: 'signed-challenge',
+        publicKey: 'STM123',
+      }),
     });
   });
 
-  describe('broadcastVote', () => {
-    it('should broadcast vote transaction with CSRF header', async () => {
-      const mockTx: SignedTransaction = {
-        ref_block_num: 1,
-        ref_block_prefix: 1,
-        expiration: '2020-01-01T00:00:00',
-        operations: [],
-        extensions: [],
-        signatures: ['SIG123'],
-      };
-      Object.defineProperty(global, 'document', {
-        value: { cookie: 'csrf_token=test-token' },
-        configurable: true,
-      });
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
-
-      const result = await apiClient.broadcastVote(mockTx, 'alice');
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/vote', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': 'test-token',
-        },
-        body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
-      });
-      expect(result.success).toBe(true);
+  it('logout omits the CSRF header when no csrf_token cookie is set', async () => {
+    setCSRFCookie(null);
+    await apiClient.logout();
+    expect(global.fetch).toHaveBeenCalledWith('/api/auth/logout', {
+      method: 'POST',
+      headers: {},
     });
   });
+});
 
-  describe('broadcastWitnessVote', () => {
-    it('should broadcast witness vote transaction with CSRF header', async () => {
-      const mockTx: SignedTransaction = {
-        ref_block_num: 1,
-        ref_block_prefix: 1,
-        expiration: '2020-01-01T00:00:00',
-        operations: [],
-        extensions: [],
-        signatures: ['SIG123'],
-      };
-      Object.defineProperty(global, 'document', {
-        value: { cookie: 'csrf_token=test-token' },
-        configurable: true,
-      });
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
-
-      const result = await apiClient.broadcastWitnessVote(mockTx, 'alice');
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/witness-vote', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': 'test-token',
-        },
-        body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
-      });
-      expect(result.success).toBe(true);
+describe('apiClient broadcasts — every method posts the signed tx to its endpoint', () => {
+  it.each<{
+    name: string;
+    endpoint: string;
+    call: () => Promise<unknown>;
+  }>([
+    {
+      name: 'broadcastTransfer',
+      endpoint: '/api/broadcast/transfer',
+      call: () => apiClient.broadcastTransfer(mockTx, 'alice'),
+    },
+    {
+      name: 'broadcastPowerDown',
+      endpoint: '/api/broadcast/power-down',
+      call: () => apiClient.broadcastPowerDown(mockTx, 'alice'),
+    },
+    {
+      name: 'broadcastDelegate',
+      endpoint: '/api/broadcast/delegate',
+      call: () => apiClient.broadcastDelegate(mockTx, 'alice'),
+    },
+    {
+      name: 'broadcastVote',
+      endpoint: '/api/broadcast/vote',
+      call: () => apiClient.broadcastVote(mockTx, 'alice'),
+    },
+    {
+      name: 'broadcastWitnessVote',
+      endpoint: '/api/broadcast/witness-vote',
+      call: () => apiClient.broadcastWitnessVote(mockTx, 'alice'),
+    },
+    {
+      name: 'broadcastSetWithdrawVestingRoute',
+      endpoint: '/api/broadcast/set-withdraw-vesting-route',
+      call: () => apiClient.broadcastSetWithdrawVestingRoute(mockTx, 'alice'),
+    },
+    {
+      name: 'broadcastConvert',
+      endpoint: '/api/broadcast/convert',
+      call: () => apiClient.broadcastConvert(mockTx, 'alice'),
+    },
+  ])('$name → POST $endpoint with CSRF + signedTx', async ({ endpoint, call }) => {
+    await call();
+    expect(global.fetch).toHaveBeenCalledWith(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': 'test-token',
+      },
+      body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
     });
   });
+});
 
-  describe('getAccounts', () => {
-    it('should fetch account information', async () => {
-      const mockAccounts = [
-        { name: 'alice', balance: '1000.000 STEEM' },
-        { name: 'bob', balance: '500.000 STEEM' },
-      ];
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ accounts: mockAccounts }),
-      });
-
-      const result = await apiClient.getAccounts(['alice', 'bob']);
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/query/accounts?names=alice,bob');
-      expect(result.accounts).toEqual(mockAccounts);
-    });
-  });
-
-  describe('getHistory', () => {
-    it('should fetch account history', async () => {
-      const mockHistory = [['1', { type: 'transfer' }]];
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ history: mockHistory }),
-      });
-
-      const result = await apiClient.getHistory('alice', 50);
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/query/history?username=alice&limit=50');
-      expect(result.history).toEqual(mockHistory);
-    });
-  });
-
-  describe('getWitnesses', () => {
-    it('should fetch witnesses list', async () => {
-      const mockWitnesses = [
-        { owner: 'witness1', votes: '1000000' },
-        { owner: 'witness2', votes: '900000' },
-      ];
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ witnesses: mockWitnesses }),
-      });
-
-      const result = await apiClient.getWitnesses(50);
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/query/witnesses?limit=50');
-      expect(result.witnesses).toEqual(mockWitnesses);
-    });
-  });
-
-  describe('getGlobalProps', () => {
-    it('should fetch global properties', async () => {
-      const mockProps = { head_block_number: 12345, total_vesting_shares: '1000000' };
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ props: mockProps }),
-      });
-
-      const result = await apiClient.getGlobalProps();
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/query/global-props');
-      expect(result.props).toEqual(mockProps);
-    });
-  });
-
-  describe('getWithdrawRoutes', () => {
-    it('should fetch outgoing withdraw routes', async () => {
-      const mockRoutes = [{ to_account: 'bob', percent: 2500, auto_vest: false }];
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ routes: mockRoutes }),
-      });
-
-      const result = await apiClient.getWithdrawRoutes('alice');
-
-      expect(global.fetch).toHaveBeenCalledWith(
-        `/api/query/withdraw-routes?username=${encodeURIComponent('alice')}`
-      );
-      expect(result.routes).toEqual(mockRoutes);
-    });
-  });
-
-  describe('getMedianHistoryPrice', () => {
-    it('should fetch median history price', async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ base: '1.234 SBD', quote: '5.000 STEEM' }),
-      });
-
-      const result = await apiClient.getMedianHistoryPrice();
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/query/median-history-price');
-      expect(result.base).toBe('1.234 SBD');
-      expect(result.quote).toBe('5.000 STEEM');
-    });
-  });
-
-  describe('broadcastSetWithdrawVestingRoute', () => {
-    it('should POST signed route transaction with CSRF header', async () => {
-      const mockTx: SignedTransaction = {
-        ref_block_num: 1,
-        ref_block_prefix: 1,
-        expiration: '2020-01-01T00:00:00',
-        operations: [],
-        extensions: [],
-        signatures: ['SIG123'],
-      };
-      Object.defineProperty(global, 'document', {
-        value: { cookie: 'csrf_token=test-token' },
-        configurable: true,
-      });
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
-
-      const result = await apiClient.broadcastSetWithdrawVestingRoute(mockTx, 'alice');
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/set-withdraw-vesting-route', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': 'test-token',
-        },
-        body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
-      });
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('broadcastConvert', () => {
-    it('should POST signed convert transaction with CSRF header', async () => {
-      const mockTx: SignedTransaction = {
-        ref_block_num: 1,
-        ref_block_prefix: 1,
-        expiration: '2020-01-01T00:00:00',
-        operations: [],
-        extensions: [],
-        signatures: ['SIG123'],
-      };
-      Object.defineProperty(global, 'document', {
-        value: { cookie: 'csrf_token=test-token' },
-        configurable: true,
-      });
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
-
-      const result = await apiClient.broadcastConvert(mockTx, 'alice');
-
-      expect(global.fetch).toHaveBeenCalledWith('/api/broadcast/convert', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': 'test-token',
-        },
-        body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
-      });
-      expect(result.success).toBe(true);
-    });
+describe('apiClient queries — GET endpoints', () => {
+  it.each<{
+    name: string;
+    call: () => Promise<unknown>;
+    url: string;
+  }>([
+    {
+      name: 'getAccounts',
+      call: () => apiClient.getAccounts(['alice', 'bob']),
+      url: '/api/query/accounts?names=alice,bob',
+    },
+    {
+      name: 'getHistory (defaults to limit=50 caller arg)',
+      call: () => apiClient.getHistory('alice', 50),
+      url: '/api/query/history?username=alice&limit=50',
+    },
+    {
+      name: 'getWitnesses',
+      call: () => apiClient.getWitnesses(50),
+      url: '/api/query/witnesses?limit=50',
+    },
+    {
+      name: 'getGlobalProps',
+      call: () => apiClient.getGlobalProps(),
+      url: '/api/query/global-props',
+    },
+    {
+      name: 'getWithdrawRoutes (encodes username)',
+      call: () => apiClient.getWithdrawRoutes('alice/bob'),
+      url: '/api/query/withdraw-routes?username=alice%2Fbob',
+    },
+    {
+      name: 'getMedianHistoryPrice',
+      call: () => apiClient.getMedianHistoryPrice(),
+      url: '/api/query/median-history-price',
+    },
+  ])('$name → GET $url', async ({ call, url }) => {
+    await call();
+    expect(global.fetch).toHaveBeenCalledWith(url);
   });
 });

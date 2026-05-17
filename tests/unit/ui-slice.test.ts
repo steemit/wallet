@@ -1,46 +1,27 @@
 /**
  * UI Redux slice unit tests
+ *
+ * Only covers behavior that isn't a one-line `state.x = payload` setter:
+ *   - initial state shape (catches accidental defaults change)
+ *   - toggleSidebar (only reducer with computed next state)
  */
 
 import { describe, it, expect } from 'vitest';
-import uiReducer, {
-  toggleSidebar,
-  setSidebarOpen,
-  setTheme,
-  setLocale,
-} from '@/lib/store/slices/ui';
-
-const initialState = {
-  sidebarOpen: true,
-  theme: 'light' as const,
-  locale: 'en',
-};
+import uiReducer, { toggleSidebar } from '@/lib/store/slices/ui';
 
 describe('UI Slice', () => {
-  it('returns the initial state for an unknown action', () => {
-    expect(uiReducer(undefined, { type: 'unknown' })).toEqual(initialState);
+  it('seeds the default UI state', () => {
+    expect(uiReducer(undefined, { type: 'init' })).toEqual({
+      sidebarOpen: true,
+      theme: 'light',
+      locale: 'en',
+    });
   });
 
-  it('toggleSidebar flips sidebarOpen', () => {
-    const next = uiReducer(initialState, toggleSidebar());
-    expect(next.sidebarOpen).toBe(false);
-
-    const back = uiReducer(next, toggleSidebar());
-    expect(back.sidebarOpen).toBe(true);
-  });
-
-  it('setSidebarOpen sets sidebarOpen to the payload value', () => {
-    expect(uiReducer(initialState, setSidebarOpen(false)).sidebarOpen).toBe(false);
-    expect(uiReducer(initialState, setSidebarOpen(true)).sidebarOpen).toBe(true);
-  });
-
-  it('setTheme updates the theme', () => {
-    expect(uiReducer(initialState, setTheme('dark')).theme).toBe('dark');
-    expect(uiReducer(initialState, setTheme('light')).theme).toBe('light');
-  });
-
-  it('setLocale updates the locale', () => {
-    expect(uiReducer(initialState, setLocale('zh')).locale).toBe('zh');
-    expect(uiReducer(initialState, setLocale('en')).locale).toBe('en');
+  it('toggleSidebar flips the open flag', () => {
+    const open = uiReducer(undefined, { type: 'init' });
+    const closed = uiReducer(open, toggleSidebar());
+    expect(closed.sidebarOpen).toBe(false);
+    expect(uiReducer(closed, toggleSidebar()).sidebarOpen).toBe(true);
   });
 });
