@@ -25,19 +25,13 @@ export function sumCurationRewardsLastWeek(
   items: SteemHistoryItem[],
   now: Date = new Date()
 ): number {
-  const yesterday = now.getTime() - ONE_DAY_MS;
   const lastWeek = now.getTime() - 7 * ONE_DAY_MS;
   let rewardsWeek = 0;
 
   for (const item of items) {
     if (item.op[0] !== 'curation_reward') continue;
-    const ts = timestampMs(item.timestamp);
-    const vest = parseAssetAmount(item.op[1].reward as string | undefined);
-    if (ts > yesterday) {
-      rewardsWeek += vest;
-    } else if (ts > lastWeek) {
-      rewardsWeek += vest;
-    }
+    if (timestampMs(item.timestamp) <= lastWeek) continue;
+    rewardsWeek += parseAssetAmount(item.op[1].reward as string | undefined);
   }
 
   return rewardsWeek;
