@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
+import { withCache } from '@/lib/cache/server-cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,19 +11,23 @@ export async function GET(request: NextRequest) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const prices = await SteemService.getWalletPrices();
+    const result = await withCache('cache:query:wallet-prices', 60, 600, () =>
+      SteemService.getWalletPrices()
+    );
 
     const response = NextResponse.json({
       success: true,
-      ...prices,
+      ...result.data,
+      ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
     });
     response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    if (result.degraded) response.headers.set('X-Degraded', 'true');
     return response;
   } catch (error) {
     console.error('wallet-prices query error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch wallet prices', details: (error as Error).message },
-      { status: 500 }
+      { error: 'Failed to fetch wallet prices', degraded: true },
+      { status: 503 }
     );
   }
 }

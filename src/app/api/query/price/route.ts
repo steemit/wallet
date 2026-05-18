@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
+import { withCache } from '@/lib/cache/server-cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,38 +14,46 @@ export async function GET(request: NextRequest) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const feedHistory = await SteemService.getFeedHistory();
+    const result = await withCache('cache:query:price', 60, 600, async () => {
+      const feedHistory = await SteemService.getFeedHistory();
 
-    // Calculate current price from feed history
-    // The base is the median price in SBD
-    // The quote is 1 STEEM
-    const history = feedHistory as Record<string, unknown> | undefined;
-    const medianHistory = history?.current_median_history as Record<string, unknown> | undefined;
-    const currentPrice = (medianHistory?.base_quote as string) || '0.000 SBD';
+      // Calculate current price from feed history
+      // The base is the median price in SBD
+      // The quote is 1 STEEM
+      const history = feedHistory as Record<string, unknown> | undefined;
+      const medianHistory = history?.current_median_history as Record<string, unknown> | undefined;
+      const currentPrice = (medianHistory?.base_quote as string) || '0.000 SBD';
 
-    // Parse price (format: "1.234 SBD")
-    const priceMatch = currentPrice.match(/[\d.]+/);
-    const price = priceMatch ? parseFloat(priceMatch[0]) : 0;
+      // Parse price (format: "1.234 SBD")
+      const priceMatch = currentPrice.match(/[\d.]+/);
+      const price = priceMatch ? parseFloat(priceMatch[0]) : 0;
 
-    // Get previous prices for history
-    const priceHistory = (history?.price_history as unknown[]) || [];
+      // Get previous prices for history
+      const priceHistory = (history?.price_history as unknown[]) || [];
+
+      return {
+        price: {
+          sbd: price,
+          base: currentPrice,
+          timestamp: new Date().toISOString(),
+        },
+        history: priceHistory.slice(0, 7), // Last 7 days
+      };
+    });
 
     const response = NextResponse.json({
       success: true,
-      price: {
-        sbd: price,
-        base: currentPrice,
-        timestamp: new Date().toISOString(),
-      },
-      history: priceHistory.slice(0, 7), // Last 7 days
+      ...result.data,
+      ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
     });
     response.headers.set('Cache-Control', 'public, s-maxage=60');
+    if (result.degraded) response.headers.set('X-Degraded', 'true');
     return response;
   } catch (error) {
     console.error('Error fetching price:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch price', details: (error as Error).message },
-      { status: 500 }
+      { error: 'Failed to fetch price', degraded: true },
+      { status: 503 }
     );
   }
 }

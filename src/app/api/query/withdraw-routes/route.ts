@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
+import { withCache } from '@/lib/cache/server-cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,14 +17,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing username' }, { status: 400 });
     }
 
-    const routes = await SteemService.getWithdrawRoutesOutgoing(username);
+    try {
+      const result = await withCache(
+        `cache:query:withdraw-routes:${username}`,
+        60,
+        600,
+        () => SteemService.getWithdrawRoutesOutgoing(username)
+      );
 
-    const response = NextResponse.json({
-      success: true,
-      routes,
-    });
-    response.headers.set('Cache-Control', 'public, s-maxage=60');
-    return response;
+      const response = NextResponse.json({
+        success: true,
+        routes: result.data,
+        ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
+      });
+      response.headers.set('Cache-Control', 'public, s-maxage=60');
+      if (result.degraded) response.headers.set('X-Degraded', 'true');
+      return response;
+    } catch (error) {
+      console.error('withdraw-routes query error:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch withdraw routes', degraded: true },
+        { status: 503 }
+      );
+    }
   } catch (error) {
     console.error('withdraw-routes query error:', error);
     return NextResponse.json(
