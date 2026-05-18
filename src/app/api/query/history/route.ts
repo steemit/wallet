@@ -25,9 +25,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (limit < 1 || limit > 1000) {
+    if (limit < 1 || limit > 100) {
       return NextResponse.json(
-        { error: 'Limit must be between 1 and 1000' },
+        { error: 'Limit must be between 1 and 100' },
         { status: 400 }
       );
     }

@@ -2,7 +2,8 @@ import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
 import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
 
 export const REWARDS_HISTORY_PAGE_SIZE = 10;
-export const REWARDS_HISTORY_FETCH_LIMIT = 1000;
+/** Steemit/Jussi account history endpoints cap batch size at 100. */
+export const REWARDS_HISTORY_FETCH_LIMIT = 100;
 const ONE_DAY_MS = 86400 * 1000;
 
 export function filterHistoryByOpType(
