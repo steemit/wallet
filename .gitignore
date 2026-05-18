@@ -44,3 +44,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI (local IDE noise; shared Cursor rules live under .cursor/rules)
+.claude
+.cursor/*
+!.cursor/rules/
