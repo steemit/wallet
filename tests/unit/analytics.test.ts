@@ -1,5 +1,9 @@
 /**
  * Analytics module unit tests
+ *
+ * Focus: every public tracker must POST to /api/analytics/event with the right
+ * event name AND properties. The previous suite only asserted "fetch was called";
+ * those tests passed even if the payload was wrong.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -11,11 +15,10 @@ vi.mock('mixpanel-browser', () => ({
     track: vi.fn(),
     identify: vi.fn(),
     reset: vi.fn(),
-    people: {
-      set: vi.fn(),
-    },
+    people: { set: vi.fn() },
   },
 }));
+
 import {
   trackEvent,
   trackPageView,
@@ -30,272 +33,193 @@ import {
   resetUser,
 } from '@/lib/analytics';
 
-// Mock fetch
 global.fetch = vi.fn();
 
-describe('Analytics Module', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Set development mode to enable console logging
+type AnalyticsPostBody = {
+  event: string;
+  properties: Record<string, unknown>;
+  timestamp: string;
+};
+
+function lastFetchBody(): AnalyticsPostBody {
+  const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+  expect(calls.length).toBeGreaterThan(0);
+  const last = calls[calls.length - 1] as [string, RequestInit];
+  expect(last[0]).toBe('/api/analytics/event');
+  expect(last[1]?.method).toBe('POST');
+  return JSON.parse(last[1].body as string) as AnalyticsPostBody;
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ok: true,
+    json: async () => ({ success: true }),
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe('trackEvent (transport contract)', () => {
+  it('POSTs event + properties + ISO timestamp to the analytics endpoint', async () => {
+    await trackEvent('login_success', { username: 'alice' });
+    const body = lastFetchBody();
+    expect(body.event).toBe('login_success');
+    expect(body.properties).toEqual({ username: 'alice' });
+    expect(body).toHaveProperty('timestamp');
+    expect(body.timestamp as string).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('logs a JSON line to console in development', async () => {
     vi.stubEnv('NODE_ENV', 'development');
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  describe('trackEvent', () => {
-    it('should log event to console in development', async () => {
-      const consoleSpy = vi.spyOn(console, 'log');
-
-      await trackEvent('page_view', { page: '/wallet', username: 'testuser' });
-
-      const loggedValue = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string);
-      expect(loggedValue).toMatchObject({
-        type: 'analytics',
-        event: 'page_view',
-        properties: { page: '/wallet', username: 'testuser' },
-      });
-      expect(loggedValue.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/); // ISO timestamp format
-    });
-
-    it('should send event to server-side analytics endpoint', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackEvent('login_success', { username: 'testuser' });
-
-      expect(fetchSpy).toHaveBeenCalledWith('/api/analytics/event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: expect.stringContaining('login_success'),
-      });
-    });
-
-    it('should handle fetch errors gracefully', async () => {
-      vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Network error'));
-
-      // Should not throw
-      await expect(trackEvent('page_view', {})).resolves.toBeUndefined();
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await trackEvent('page_view', { page: '/wallet' });
+    const logged = JSON.parse(logSpy.mock.calls[0]?.[0] as string);
+    expect(logged).toMatchObject({
+      type: 'analytics',
+      event: 'page_view',
+      properties: { page: '/wallet' },
     });
   });
 
-  describe('trackPageView', () => {
-    it('should track page view event', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackPageView('/wallet', 'testuser', { locale: 'en' });
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
+  it('swallows fetch errors so callers never throw', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network'));
+    await expect(trackEvent('page_view', {})).resolves.toBeUndefined();
   });
+});
 
-  describe('trackLogin', () => {
-    it('should track successful login', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackLogin('testuser', true);
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-
-    it('should track failed login', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackLogin('testuser', false, 'Invalid signature');
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
+describe('typed wrappers route to the correct event + payload', () => {
+  it.each<{
+    name: string;
+    call: () => Promise<void>;
+    event: string;
+    properties: Record<string, unknown>;
+  }>([
+    {
+      name: 'trackPageView',
+      call: () => trackPageView('/wallet', 'alice', { locale: 'en' }),
+      event: 'page_view',
+      properties: { page: '/wallet', username: 'alice', locale: 'en' },
+    },
+    {
+      name: 'trackLogin success',
+      call: () => trackLogin('alice', true),
+      event: 'login_success',
+      properties: { username: 'alice' },
+    },
+    {
+      name: 'trackLogin failure',
+      call: () => trackLogin('alice', false, 'Invalid signature'),
+      event: 'login_failure',
+      properties: { username: 'alice', error: 'Invalid signature' },
+    },
+    {
+      name: 'trackLogout',
+      call: () => trackLogout('alice'),
+      event: 'logout',
+      properties: { username: 'alice' },
+    },
+    {
+      name: 'trackTransfer success',
+      call: () => trackTransfer('alice', '1.000 STEEM', 'bob', true),
+      event: 'transfer_success',
+      properties: { username: 'alice', amount: '1.000 STEEM', recipient: 'bob' },
+    },
+    {
+      name: 'trackTransfer failure',
+      call: () => trackTransfer('alice', '1.000 STEEM', 'bob', false, 'Insufficient'),
+      event: 'transfer_failure',
+      properties: {
+        username: 'alice',
+        amount: '1.000 STEEM',
+        recipient: 'bob',
+        error: 'Insufficient',
+      },
+    },
+    {
+      name: 'trackPowerDown initiated',
+      call: () => trackPowerDown('alice', '1.000000 VESTS', 'initiated'),
+      event: 'power_down_initiated',
+      properties: { username: 'alice', amount: '1.000000 VESTS' },
+    },
+    {
+      name: 'trackPowerDown cancelled',
+      call: () => trackPowerDown('alice', '0.000000 VESTS', 'cancelled'),
+      event: 'power_down_cancelled',
+      properties: { username: 'alice', amount: '0.000000 VESTS' },
+    },
+    {
+      name: 'trackPowerDown success',
+      call: () => trackPowerDown('alice', '1.000000 VESTS', 'success'),
+      event: 'power_down_success',
+      properties: { username: 'alice', amount: '1.000000 VESTS' },
+    },
+    {
+      name: 'trackPowerDown failure',
+      call: () => trackPowerDown('alice', '1.000000 VESTS', 'failure', 'Invalid vests'),
+      event: 'power_down_failure',
+      properties: { username: 'alice', amount: '1.000000 VESTS', error: 'Invalid vests' },
+    },
+    {
+      name: 'trackDelegate success',
+      call: () => trackDelegate('alice', 'bob', '1.000000 VESTS', true),
+      event: 'delegate_success',
+      properties: { username: 'alice', delegatee: 'bob', amount: '1.000000 VESTS' },
+    },
+    {
+      name: 'trackDelegate failure',
+      call: () => trackDelegate('alice', 'bob', '1.000000 VESTS', false, 'Insufficient'),
+      event: 'delegate_failure',
+      properties: {
+        username: 'alice',
+        delegatee: 'bob',
+        amount: '1.000000 VESTS',
+        error: 'Insufficient',
+      },
+    },
+    {
+      name: 'trackWitnessVote vote',
+      call: () => trackWitnessVote('alice', 'w1', true, true),
+      event: 'witness_vote',
+      properties: { username: 'alice', witness: 'w1', approve: true },
+    },
+    {
+      name: 'trackWitnessVote unvote',
+      call: () => trackWitnessVote('alice', 'w1', false, true),
+      event: 'witness_unvote',
+      properties: { username: 'alice', witness: 'w1', approve: false },
+    },
+    {
+      name: 'trackWitnessVote failure',
+      call: () => trackWitnessVote('alice', 'w1', true, false, 'Net err'),
+      event: 'witness_vote_failure',
+      properties: { username: 'alice', witness: 'w1', approve: true, error: 'Net err' },
+    },
+    {
+      name: 'trackError with username',
+      call: () => trackError('alice', 'network_error', 'Failed to fetch', { endpoint: '/x' }),
+      event: 'error_occurred',
+      properties: {
+        username: 'alice',
+        errorType: 'network_error',
+        errorMessage: 'Failed to fetch',
+        endpoint: '/x',
+      },
+    },
+  ])('$name', async ({ call, event, properties }) => {
+    await call();
+    const body = lastFetchBody();
+    expect(body.event).toBe(event);
+    // Use objectContaining so undefined-valued optional fields don't break asserts.
+    expect(body.properties).toEqual(expect.objectContaining(properties));
   });
+});
 
-  describe('trackLogout', () => {
-    it('should track logout event', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackLogout('testuser');
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('trackTransfer', () => {
-    it('should track successful transfer', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackTransfer('testuser', '1.000 STEEM', 'recipient', true);
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-
-    it('should track failed transfer', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackTransfer('testuser', '1.000 STEEM', 'recipient', false, 'Insufficient balance');
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('trackPowerDown', () => {
-    it('should track power down initiated', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackPowerDown('testuser', '1000000.000000 VESTS', 'initiated');
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-
-    it('should track power down cancelled', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackPowerDown('testuser', '0.000000 VESTS', 'cancelled');
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-
-    it('should track power down success', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackPowerDown('testuser', '1000000.000000 VESTS', 'success');
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-
-    it('should track power down failure', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackPowerDown('testuser', '1000000.000000 VESTS', 'failure', 'Invalid vests');
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('trackDelegate', () => {
-    it('should track successful delegation', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackDelegate('testuser', 'delegatee', '1000000.000000 VESTS', true);
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-
-    it('should track failed delegation', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackDelegate('testuser', 'delegatee', '1000000.000000 VESTS', false, 'Insufficient vests');
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('trackWitnessVote', () => {
-    it('should track witness vote', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackWitnessVote('testuser', 'witness', true, true);
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-
-    it('should track witness unvote', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackWitnessVote('testuser', 'witness', false, true);
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-
-    it('should track witness vote failure', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackWitnessVote('testuser', 'witness', true, false, 'Network error');
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('trackError', () => {
-    it('should track error event', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackError(
-        'testuser',
-        'network_error',
-        'Failed to fetch',
-        { endpoint: '/api/query/accounts' }
-      );
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-
-    it('should track error without username', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      } as Response);
-
-      await trackError(undefined, 'validation_error', 'Invalid input');
-
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('identifyUser and resetUser', () => {
-    it('should not throw when mixpanel is not available', () => {
-      // These functions should not throw even if mixpanel is not initialized
-      expect(() => identifyUser('testuser', { name: 'Test User' })).not.toThrow();
-      expect(() => resetUser()).not.toThrow();
-    });
+describe('identifyUser / resetUser', () => {
+  it('do not throw when mixpanel was never initialized', () => {
+    expect(() => identifyUser('alice', { plan: 'free' })).not.toThrow();
+    expect(() => resetUser()).not.toThrow();
   });
 });

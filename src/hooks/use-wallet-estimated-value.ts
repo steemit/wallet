@@ -27,10 +27,11 @@ export function useWalletEstimatedValue({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!enabled) {
-      setLoading(false);
-      return;
-    }
+    // Bail without writing state: the returned `loading: loading && enabled`
+    // already hides any stale `true` while the hook is disabled, and writing
+    // state synchronously at the top of an effect trips
+    // react-hooks/set-state-in-effect.
+    if (!enabled) return;
 
     let cancelled = false;
 
