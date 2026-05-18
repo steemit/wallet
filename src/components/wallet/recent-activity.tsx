@@ -166,10 +166,10 @@ export function RecentActivity({
       <Separator className="mb-6" />
       <h4 className="text-lg font-medium mb-2 px-4">{t('history', { defaultMessage: 'History' })}</h4>
       <div className="secondary mb-4 px-4">
-        <span>Beware of spam and phishing links in transfer memos. </span>
-        <span>Do not open links from users you do not trust. </span>
-        <span>Do not provide your private keys to any third party websites. </span>
-        <span>Transactions will not show until they are confirmed on the blockchain, which may take a few minutes.</span>
+        <span>{t('memoWarningSpam')} </span>
+        <span>{t('memoWarningLinks')} </span>
+        <span>{t('memoWarningKeys')} </span>
+        <span>{t('memoWarningConfirmation')}</span>
       </div>
       <Table>
         <TableBody>
