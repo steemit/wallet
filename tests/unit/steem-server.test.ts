@@ -17,9 +17,26 @@ import { steem } from '@steemit/steem-js';
 import { SteemService, checkSteemNodeHealth } from '@/lib/steem/server';
 import type { SignedTransaction } from '@/lib/steem/types';
 
-// Typed accessors so call sites stay readable. Runtime is just the mock object.
-const api = steem.api as unknown as Record<string, ReturnType<typeof vi.fn>>;
-const authMock = steem.auth as unknown as { verifySignature: ReturnType<typeof vi.fn> };
+// Typed accessors so call sites stay readable. Runtime is just the mock object,
+// but listing each method explicitly keeps `noUncheckedIndexedAccess` happy
+// (a Record<string, …> index would return `Mock | undefined`).
+type Mock = ReturnType<typeof vi.fn>;
+interface MockApi {
+  setOptions: Mock;
+  getAccountsAsync: Mock;
+  getAccountHistoryAsync: Mock;
+  getWitnessesByVoteAsync: Mock;
+  getWitnessByAccountAsync: Mock;
+  getDynamicGlobalPropertiesAsync: Mock;
+  getFeedHistoryAsync: Mock;
+  broadcastTransactionAsync: Mock;
+  callAsync: Mock;
+  getSavingsWithdrawToAsync: Mock;
+  getSavingsWithdrawFromAsync: Mock;
+  getOpenOrdersAsync: Mock;
+}
+const api = steem.api as unknown as MockApi;
+const authMock = steem.auth as unknown as { verifySignature: Mock };
 
 beforeEach(() => {
   vi.clearAllMocks();
