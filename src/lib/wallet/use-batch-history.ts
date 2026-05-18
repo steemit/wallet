@@ -93,7 +93,10 @@ export function useBatchHistory({
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
   const filterRef = useRef(filter);
-  filterRef.current = filter;
+
+  useEffect(() => {
+    filterRef.current = filter;
+  }, [filter]);
 
   useEffect(() => {
     if (!enabled) return;

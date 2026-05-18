@@ -1,17 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
+
+function noopSubscribe(): () => void {
+  return () => {};
+}
 
 /**
- * Returns true only after the component has mounted in the browser.
- * Use to defer client-only data fetching (never runs during SSR).
+ * Returns false during SSR (getServerSnapshot) and true in the browser.
+ * Use to defer client-only data fetching; pair with dynamic ssr:false if output differs.
  */
 export function useLazyEnabled(): boolean {
-  const [enabled, setEnabled] = useState(false);
-
-  useEffect(() => {
-    setEnabled(true);
-  }, []);
-
-  return enabled;
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
 }
