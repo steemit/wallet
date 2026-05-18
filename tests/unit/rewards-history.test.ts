@@ -87,4 +87,62 @@ describe('rewards-history', () => {
     expect(second.canGoNewer).toBe(true);
     expect(second.canGoOlder).toBe(olderIndex < items.length - 10);
   });
+
+  it('handles an empty history', () => {
+    const result = paginateReversedHistory([], 0);
+    expect(result.page).toHaveLength(0);
+    expect(result.total).toBe(0);
+    expect(result.canGoNewer).toBe(false);
+    expect(result.canGoOlder).toBe(false);
+  });
+
+  it('clamps when historyIndex exceeds total - pageSize', () => {
+    const items = Array.from({ length: 12 }, (_, i) =>
+      item('curation_reward', `2026-05-${String(i + 1).padStart(2, '0')}T10:00:00`)
+    );
+    const overshot = paginateReversedHistory(items, 999);
+    // limitedIndex pinned to total - pageSize = 2 → page shows items 2..11 reversed.
+    expect(overshot.page).toHaveLength(10);
+    expect(overshot.canGoOlder).toBe(false);
+    expect(overshot.canGoNewer).toBe(true);
+  });
+
+  it('returns all items and disables navigation when items.length < pageSize', () => {
+    const items = Array.from({ length: 4 }, (_, i) =>
+      item('curation_reward', `2026-05-${String(i + 1).padStart(2, '0')}T10:00:00`)
+    );
+    const result = paginateReversedHistory(items, 0);
+    expect(result.page).toHaveLength(4);
+    expect(result.canGoNewer).toBe(false);
+    expect(result.canGoOlder).toBe(false);
+  });
+
+  it('nextHistoryIndex never returns negative', () => {
+    expect(nextHistoryIndex(0, 'newer')).toBe(0);
+    expect(nextHistoryIndex(5, 'newer')).toBe(0);
+    expect(nextHistoryIndex(20, 'newer')).toBe(10);
+    expect(nextHistoryIndex(0, 'older')).toBe(10);
+  });
+
+  it('treats missing reward asset as zero', () => {
+    const items = [
+      item('curation_reward', '2026-05-17T10:00:00', {}),
+      item('curation_reward', '2026-05-17T11:00:00', { reward: undefined }),
+      item('curation_reward', '2026-05-17T12:00:00', { reward: '1.000000 VESTS' }),
+    ];
+    expect(sumCurationRewardsLastWeek(items, now)).toBe(1);
+  });
+
+  it('treats author_reward with missing payouts as zero', () => {
+    const items = [
+      item('author_reward', '2026-05-17T10:00:00', {}),
+      item('author_reward', '2026-05-17T11:00:00', {
+        vesting_payout: '2.000000 VESTS',
+      }),
+    ];
+    const totals = sumAuthorRewardsLastWeek(items, now);
+    expect(totals.vests).toBe(2);
+    expect(totals.steem).toBe(0);
+    expect(totals.sbd).toBe(0);
+  });
 });
