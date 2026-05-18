@@ -7,6 +7,7 @@ function makeItems(count: number): SteemHistoryItem[] {
   return Array.from({ length: count }, (_, i) => ({
     index: i,
     timestamp: '2026-05-18T10:00:00',
+    block: i,
     trx_id: `trx-${i}`,
     op: ['transfer', { amount: '1 STEEM', from: 'a', to: 'b' }] as SteemHistoryItem['op'],
   }));

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useLazyEnabled } from '@/hooks/use-lazy-enabled';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
