@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
 import {
   filterHistoryByOpType,
+  canFetchMoreHistory,
   nextHistoryIndex,
   paginateReversedHistory,
   sumAuthorRewardsLastWeek,
@@ -115,6 +116,12 @@ describe('rewards-history', () => {
     expect(result.page).toHaveLength(4);
     expect(result.canGoNewer).toBe(false);
     expect(result.canGoOlder).toBe(false);
+  });
+
+  it('canFetchMoreHistory is true until exhausted without error', () => {
+    expect(canFetchMoreHistory(false, null)).toBe(true);
+    expect(canFetchMoreHistory(true, null)).toBe(false);
+    expect(canFetchMoreHistory(true, 'timeout')).toBe(true);
   });
 
   it('nextHistoryIndex never returns negative', () => {

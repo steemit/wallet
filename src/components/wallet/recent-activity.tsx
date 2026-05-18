@@ -1,8 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/steem/client';
 import { useTranslations } from 'next-intl';
+import { useLazyEnabled } from '@/hooks/use-lazy-enabled';
+import { useActivityHistory } from '@/lib/wallet/use-activity-history';
+import { useRewardsHistoryPager } from '@/lib/wallet/use-rewards-history-pager';
+import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
+import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
+import { RewardsHistoryPager } from '@/components/wallet/rewards-history-pager';
 import {
   Table,
   TableBody,
@@ -11,11 +15,6 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
-import {
-  normalizeSteemHistoryEntry,
-  type SteemHistoryItem,
-} from '@/lib/wallet/normalize-history';
 
 function formatTransferRow(item: SteemHistoryItem, context: string) {
   const [type, data] = item.op;
@@ -97,52 +96,33 @@ function formatTransferRow(item: SteemHistoryItem, context: string) {
 
 export function RecentActivity({
   username,
-  refreshNonce = 0,
+  refreshNonce,
 }: {
   username: string;
   refreshNonce?: number;
 }) {
   const t = useTranslations('wallet');
-  const [history, setHistory] = useState<SteemHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const lazyEnabled = useLazyEnabled();
+  const historyState = useActivityHistory(username, refreshNonce, lazyEnabled);
+  const {
+    history,
+    loading,
+    totalFetched,
+    error,
+  } = historyState;
+  const {
+    page,
+    canGoNewer,
+    canGoOlder,
+    onNewer,
+    onOlder,
+    loadingOlder,
+    canFetchMore,
+  } = useRewardsHistoryPager(historyState, `${username}:${refreshNonce ?? 0}`);
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        setLoading(true);
-        const response = await apiClient.getHistory(username);
-        if (response.error) {
-          console.error('Failed to fetch history:', response.error);
-          return;
-        }
-        // Filter out rewards and null-payout items
-        const transfers = (response.history || [])
-          .filter((item: unknown) => {
-            const i = item as unknown as {
-              op?: [string, unknown];
-              1?: { op?: [string, unknown] };
-            };
-            const type = i.op?.[0] || i[1]?.op?.[0];
-            if (!type) return false;
-            if (type === 'curation_reward' || type === 'author_reward' || type === 'comment_benefactor_reward') {
-              return false;
-            }
-            return true;
-          })
-          .map((item: unknown) => normalizeSteemHistoryEntry(item))
-          .filter((entry): entry is SteemHistoryItem => entry != null)
-          .reverse();
-
-        setHistory(transfers);
-      } catch (err) {
-        console.error('Error fetching history:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHistory();
-  }, [username, refreshNonce]);
+  if (!lazyEnabled) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -157,9 +137,11 @@ export function RecentActivity({
     );
   }
 
-  if (!history.length) {
+  if (!history.length && !canFetchMore) {
     return null;
   }
+
+  const showEmptyHint = history.length === 0 && totalFetched > 0;
 
   return (
     <div className="mt-8">
@@ -171,12 +153,28 @@ export function RecentActivity({
         <span>{t('memoWarningKeys')} </span>
         <span>{t('memoWarningConfirmation')}</span>
       </div>
+      {showEmptyHint && (
+        <p className="text-sm text-muted-foreground px-4">
+          {t('activityNoMatchesHint', {
+            count: totalFetched,
+            defaultMessage: 'No matching activity in the latest {count} records. Load more to keep looking.',
+          })}
+        </p>
+      )}
+      {error && (
+        <p className="text-sm text-destructive px-4">
+          {t('activityFetchError', {
+            error,
+            defaultMessage: 'Failed to load activity: {error}. Tap Load more to retry.',
+          })}
+        </p>
+      )}
       <Table>
         <TableBody>
-          {history.map((item, index) => {
+          {page.map((item, index) => {
             const row = formatTransferRow(item, username);
             return (
-              <TableRow key={index}>
+              <TableRow key={`${item.trx_id}-${index}`}>
                 <TableCell className="w-8 text-lg">{row.icon}</TableCell>
                 <TableCell>
                   <div className="font-medium text-sm">{row.description}</div>
@@ -194,6 +192,15 @@ export function RecentActivity({
           })}
         </TableBody>
       </Table>
+      {(history.length > 0 || canFetchMore) && (
+        <RewardsHistoryPager
+          canGoNewer={canGoNewer}
+          canGoOlder={canGoOlder}
+          loadingOlder={loadingOlder}
+          onNewer={onNewer}
+          onOlder={onOlder}
+        />
+      )}
     </div>
   );
 }

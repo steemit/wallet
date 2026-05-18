@@ -1,22 +1,19 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useLazyEnabled } from '@/hooks/use-lazy-enabled';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
-import {
-  nextHistoryIndex,
-  paginateReversedHistory,
-  sumAuthorRewardsLastWeek,
-} from '@/lib/wallet/rewards-history';
+import { sumAuthorRewardsLastWeek } from '@/lib/wallet/rewards-history';
 import { useRewardsHistory } from '@/lib/wallet/use-rewards-history';
+import { useRewardsHistoryPager } from '@/lib/wallet/use-rewards-history-pager';
 import {
   formatSteemPowerDisplay,
   steemPowerFromVests,
 } from '@/lib/wallet/vest-steem';
 import type { GlobalPropsData } from '@/lib/wallet/wallet-balance-types';
 import { RewardsHistoryPager } from '@/components/wallet/rewards-history-pager';
-import { RewardsLoadMore } from '@/components/wallet/rewards-load-more';
 import { RewardsPostLink } from '@/components/wallet/rewards-post-link';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -67,16 +64,23 @@ export function AuthorRewardsSection({
 }) {
   const t = useTranslations('wallet');
   const locale = useLocale();
-  const [historyIndex, setHistoryIndex] = useState(0);
+  const lazyEnabled = useLazyEnabled();
+  const historyState = useRewardsHistory(username, 'author_reward', lazyEnabled);
   const {
     history: authorHistory,
     loading,
-    loadingMore,
-    exhausted,
     totalFetched,
     error,
-    loadMore,
-  } = useRewardsHistory(username, 'author_reward');
+  } = historyState;
+  const {
+    page,
+    canGoNewer,
+    canGoOlder,
+    onNewer,
+    onOlder,
+    loadingOlder,
+    canFetchMore,
+  } = useRewardsHistoryPager(historyState, username);
 
   const weekTotals = useMemo(() => sumAuthorRewardsLastWeek(authorHistory), [authorHistory]);
 
@@ -91,9 +95,7 @@ export function AuthorRewardsSection({
     return lines;
   }, [globalProps, weekTotals]);
 
-  const { page, canGoNewer, canGoOlder } = paginateReversedHistory(authorHistory, historyIndex);
-
-  if (loading) {
+  if (!lazyEnabled || loading) {
     return (
       <div className="UserWallet space-y-4">
         <Skeleton className="h-10 w-full max-w-xl" />
@@ -106,8 +108,6 @@ export function AuthorRewardsSection({
 
   const isEmpty = authorHistory.length === 0;
   const showEmptyHint = isEmpty && totalFetched > 0;
-  const canLoadMore = !exhausted || error != null;
-
   return (
     <div className="UserWallet author-rewards space-y-4">
       <div className="UserWallet__balance UserReward__row grid gap-2 sm:grid-cols-[1fr_auto] sm:items-baseline">
@@ -186,15 +186,15 @@ export function AuthorRewardsSection({
             </TableBody>
           </Table>
         )}
-        {authorHistory.length > 0 && (
+        {(authorHistory.length > 0 || canFetchMore) && (
           <RewardsHistoryPager
             canGoNewer={canGoNewer}
             canGoOlder={canGoOlder}
-            onNewer={() => setHistoryIndex((i) => nextHistoryIndex(i, 'newer'))}
-            onOlder={() => setHistoryIndex((i) => nextHistoryIndex(i, 'older'))}
+            loadingOlder={loadingOlder}
+            onNewer={onNewer}
+            onOlder={onOlder}
           />
         )}
-        {canLoadMore && <RewardsLoadMore loading={loadingMore} onClick={loadMore} />}
       </div>
     </div>
   );

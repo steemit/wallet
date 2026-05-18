@@ -37,6 +37,20 @@ describe('useRewardsHistory', () => {
     mockGetHistory.mockReset();
   });
 
+  it('does not fetch until enabled', async () => {
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useRewardsHistory('alice', 'curation_reward', enabled),
+      { initialProps: { enabled: false } }
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(mockGetHistory).not.toHaveBeenCalled();
+
+    rerender({ enabled: true });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(mockGetHistory).toHaveBeenCalled();
+  });
+
   it('stops auto-fetching as soon as 10 matches are accumulated', async () => {
     // Batch 1 already has 10 curation rewards → loop must stop after first batch.
     const items = Array.from({ length: 100 }, (_, i) =>
