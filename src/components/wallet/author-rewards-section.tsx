@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
 import {
@@ -66,6 +66,7 @@ export function AuthorRewardsSection({
   socialUrl?: string;
 }) {
   const t = useTranslations('wallet');
+  const locale = useLocale();
   const [historyIndex, setHistoryIndex] = useState(0);
   const {
     history: authorHistory,
@@ -156,7 +157,7 @@ export function AuthorRewardsSection({
                 return (
                   <TableRow key={`${item.trx_id}-${index}`}>
                     <TableCell className="whitespace-nowrap align-top text-sm text-muted-foreground">
-                      {formatTimeAgo(item.timestamp)}
+                      {formatTimeAgo(item.timestamp, locale)}
                     </TableCell>
                     <TableCell className="max-w-[40rem] align-top text-sm">
                       {t('authorRewardRow', {
