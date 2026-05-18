@@ -18,9 +18,11 @@ export function RewardsPostLink({
     return <span>{label}</span>;
   }
 
+  const href = `${base}/@${encodeURIComponent(author)}/${encodeURIComponent(permlink)}`;
+
   return (
     <a
-      href={`${base}/@${author}/${permlink}`}
+      href={href}
       target="_blank"
       rel="noopener noreferrer"
       className="text-primary underline-offset-4 hover:underline"
