@@ -94,14 +94,18 @@ export function AccountWalletNav({
                       : 'text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground data-[state=open]:bg-accent/80 data-[state=open]:text-accent-foreground data-[state=open]:hover:bg-accent'
                   )}
                 >
-                  Rewards <ChevronDown className="size-3 opacity-70" />
+                  {t('rewards')} <ChevronDown className="size-3 opacity-70" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                   <DropdownMenuItem asChild>
-                    <a href={`/@${accountname}/curation-rewards`}>Curation Rewards</a>
+                    <Link href={`/@${accountname}/curation-rewards`}>
+                      {t('curationRewards')}
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <a href={`/@${accountname}/author-rewards`}>Author Rewards</a>
+                    <Link href={`/@${accountname}/author-rewards`}>
+                      {t('authorRewards')}
+                    </Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
