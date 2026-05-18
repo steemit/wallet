@@ -1,4 +1,5 @@
 import { clientCache } from './client-cache';
+import { setDegraded } from './degradation-state';
 
 export interface CachedFetchOptions {
   /** Milliseconds until data becomes stale (eligible for background refresh) */
@@ -47,16 +48,20 @@ export async function cachedFetch<T>(
   // No cache at all → must wait for fetch
   const res = await fetch(url);
   const data = (await res.json()) as T;
+  const isDegraded = res.headers.get('X-Degraded') === 'true';
   handleCacheInvalidation(res);
+  setDegraded(isDegraded);
   clientCache.set(url, data, opts.staleMs, opts.maxAgeMs);
-  return { data, stale: false, degraded: res.headers.get('X-Degraded') === 'true' || undefined };
+  return { data, stale: false, degraded: isDegraded || undefined };
 }
 
 function backgroundRefresh(url: string, opts: CachedFetchOptions): void {
   fetch(url)
     .then(async (res) => {
       const data = await res.json();
+      const isDegraded = res.headers.get('X-Degraded') === 'true';
       handleCacheInvalidation(res);
+      setDegraded(isDegraded);
       clientCache.set(url, data, opts.staleMs, opts.maxAgeMs);
     })
     .catch(() => {});

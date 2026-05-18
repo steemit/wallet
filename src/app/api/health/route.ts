@@ -2,6 +2,7 @@
 // Health check endpoint for container orchestration
 import { NextResponse } from 'next/server';
 import { checkSteemNodeHealth } from '@/lib/steem/server';
+import { markSteemHealthy, markSteemUnhealthy } from '@/lib/cache/health-monitor';
 
 export async function GET() {
   try {
@@ -9,6 +10,13 @@ export async function GET() {
     const steemHealth = await checkSteemNodeHealth();
 
     const isHealthy = steemHealth.healthy;
+
+    // Persist health status to Redis for other routes to check
+    if (isHealthy) {
+      await markSteemHealthy(steemHealth.blockNumber, steemHealth.latency);
+    } else {
+      await markSteemUnhealthy(steemHealth.error);
+    }
 
     return NextResponse.json(
       {
@@ -26,6 +34,8 @@ export async function GET() {
       { status: isHealthy ? 200 : 503 }
     );
   } catch (error) {
+    await markSteemUnhealthy((error as Error).message);
+
     return NextResponse.json(
       {
         status: 'unhealthy',
