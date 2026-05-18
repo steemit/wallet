@@ -11,27 +11,13 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
+import {
+  normalizeSteemHistoryEntry,
+  type SteemHistoryItem,
+} from '@/lib/wallet/normalize-history';
 
-interface TransferHistoryItem {
-  op: [string, Record<string, unknown>];
-  timestamp: string;
-  block: number;
-  trx_id: string;
-}
-
-function formatTimeAgo(dateStr: string): string {
-  const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
-  const now = new Date();
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  return date.toLocaleDateString();
-}
-
-function formatTransferRow(item: TransferHistoryItem, context: string) {
+function formatTransferRow(item: SteemHistoryItem, context: string) {
   const [type, data] = item.op;
 
   switch (type) {
@@ -117,7 +103,7 @@ export function RecentActivity({
   refreshNonce?: number;
 }) {
   const t = useTranslations('wallet');
-  const [history, setHistory] = useState<TransferHistoryItem[]>([]);
+  const [history, setHistory] = useState<SteemHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -143,22 +129,8 @@ export function RecentActivity({
             }
             return true;
           })
-          .map((item: unknown) => {
-            // Handle different history formats
-            const i = item as unknown as
-              | TransferHistoryItem
-              | [unknown, { op: TransferHistoryItem['op']; timestamp: string; block: number; trx_id: string }];
-            if (typeof i === 'object' && i !== null && 'op' in i) {
-              return i as TransferHistoryItem;
-            }
-            const entry = (i as [unknown, { op: TransferHistoryItem['op']; timestamp: string; block: number; trx_id: string }])[1];
-            return {
-              op: entry.op,
-              timestamp: entry.timestamp,
-              block: entry.block,
-              trx_id: entry.trx_id,
-            } as TransferHistoryItem;
-          })
+          .map((item: unknown) => normalizeSteemHistoryEntry(item))
+          .filter((entry): entry is SteemHistoryItem => entry != null)
           .reverse();
 
         setHistory(transfers);
@@ -194,10 +166,10 @@ export function RecentActivity({
       <Separator className="mb-6" />
       <h4 className="text-lg font-medium mb-2 px-4">{t('history', { defaultMessage: 'History' })}</h4>
       <div className="secondary mb-4 px-4">
-        <span>Beware of spam and phishing links in transfer memos. </span>
-        <span>Do not open links from users you do not trust. </span>
-        <span>Do not provide your private keys to any third party websites. </span>
-        <span>Transactions will not show until they are confirmed on the blockchain, which may take a few minutes.</span>
+        <span>{t('memoWarningSpam')} </span>
+        <span>{t('memoWarningLinks')} </span>
+        <span>{t('memoWarningKeys')} </span>
+        <span>{t('memoWarningConfirmation')}</span>
       </div>
       <Table>
         <TableBody>

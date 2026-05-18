@@ -13,6 +13,8 @@ import { AccountWalletNav } from '@/components/layout/account-wallet-nav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WalletTransfersModals } from '@/components/wallet/wallet-transfers-modals';
 import { WalletSectionPlaceholder } from '@/components/wallet/wallet-section-placeholder';
+import { CurationRewardsSection } from '@/components/wallet/curation-rewards-section';
+import { AuthorRewardsSection } from '@/components/wallet/author-rewards-section';
 import { normalizeProfile } from '@/lib/steem/normalize-profile';
 import { canManageBalanceForPageUrl } from '@/lib/auth/browser-storage';
 
@@ -137,6 +139,8 @@ export default function WalletPage() {
   const isPermissionsPath = pathname?.includes('/permissions') ?? false;
   const isPasswordPath = pathname?.includes('/password') ?? false;
   const isCommunitiesPath = pathname?.includes('/communities') ?? false;
+  const isCurationRewardsPath = pathname?.includes('/curation-rewards') ?? false;
+  const isAuthorRewardsPath = pathname?.includes('/author-rewards') ?? false;
 
   return (
     <div>
@@ -179,6 +183,22 @@ export default function WalletPage() {
         {isPermissionsPath && <WalletSectionPlaceholder titleKey="keysAndPermissions" />}
         {isPasswordPath && <WalletSectionPlaceholder titleKey="changePassword" />}
         {isCommunitiesPath && <WalletSectionPlaceholder titleKey="communities" />}
+        {isCurationRewardsPath && (
+          <CurationRewardsSection
+            key={`curation-${urlUsername}`}
+            username={urlUsername}
+            globalProps={globalProps}
+            globalPropsLoading={balanceLoading}
+          />
+        )}
+        {isAuthorRewardsPath && (
+          <AuthorRewardsSection
+            key={`author-${urlUsername}`}
+            username={urlUsername}
+            globalProps={globalProps}
+            globalPropsLoading={balanceLoading}
+          />
+        )}
       </div>
 
       <Suspense fallback={null}>

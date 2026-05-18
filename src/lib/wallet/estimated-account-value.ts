@@ -1,4 +1,5 @@
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
+import { steemPowerFromVests } from '@/lib/wallet/vest-steem';
 import type { GlobalPropsData, WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 
 export interface WalletEstimateExtras {
@@ -14,13 +15,6 @@ export interface WalletPrices {
   sbdPrice: number;
 }
 
-function vestingSteemFromVests(vests: number, globalProps: GlobalPropsData): number {
-  const totalVests = parseAssetAmount(globalProps.total_vesting_shares);
-  const totalVestSteem = parseAssetAmount(globalProps.total_vesting_fund_steem);
-  if (totalVests <= 0) return 0;
-  return totalVestSteem * (vests / totalVests);
-}
-
 export function computeEstimatedAccountValueUsd(
   balance: WalletBalanceData,
   globalProps: GlobalPropsData,
@@ -28,7 +22,7 @@ export function computeEstimatedAccountValueUsd(
   extras: WalletEstimateExtras = {}
 ): number | null {
   const vestingShares = parseAssetAmount(balance.vesting_shares);
-  const vestingSteem = vestingSteemFromVests(vestingShares, globalProps);
+  const vestingSteem = steemPowerFromVests(vestingShares, globalProps);
 
   const totalSteem =
     vestingSteem +

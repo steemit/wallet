@@ -17,6 +17,8 @@ export async function GET(request: NextRequest) {
     const username = searchParams.get('username');
     const limitParam = searchParams.get('limit');
     const limit = limitParam ? parseInt(limitParam, 10) : 100;
+    const fromParam = searchParams.get('from');
+    const from = fromParam !== null ? parseInt(fromParam, 10) : -1;
 
     if (!username) {
       return NextResponse.json(
@@ -25,14 +27,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (limit < 1 || limit > 1000) {
+    if (limit < 1 || limit > 100) {
       return NextResponse.json(
-        { error: 'Limit must be between 1 and 1000' },
+        { error: 'Limit must be between 1 and 100' },
         { status: 400 }
       );
     }
 
-    const history = await SteemService.getAccountHistory(username, limit);
+    if (fromParam !== null && (!Number.isFinite(from) || from < -1)) {
+      return NextResponse.json(
+        { error: 'Invalid from parameter' },
+        { status: 400 }
+      );
+    }
+
+    const history = await SteemService.getAccountHistory(username, limit, from);
 
     return NextResponse.json({
       success: true,
