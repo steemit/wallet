@@ -13,6 +13,20 @@ export function filterHistoryByOpType(
   return items.filter((item) => item.op[0] === opType);
 }
 
+export const EXCLUDED_ACTIVITY_TYPES = [
+  'curation_reward',
+  'author_reward',
+  'comment_benefactor_reward',
+] as const;
+
+export function filterHistoryExcludingTypes(
+  items: SteemHistoryItem[],
+  excluded: readonly string[]
+): SteemHistoryItem[] {
+  const excludedSet = new Set(excluded);
+  return items.filter((item) => !excludedSet.has(item.op[0]));
+}
+
 function timestampMs(timestamp: string): number {
   // Steem RPC returns UTC timestamps without a `Z` suffix; appending it
   // prevents the local timezone from shifting the parsed instant.

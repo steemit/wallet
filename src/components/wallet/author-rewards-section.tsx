@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useLazyEnabled } from '@/hooks/use-lazy-enabled';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
 import {
@@ -67,6 +68,7 @@ export function AuthorRewardsSection({
 }) {
   const t = useTranslations('wallet');
   const locale = useLocale();
+  const lazyEnabled = useLazyEnabled();
   const [historyIndex, setHistoryIndex] = useState(0);
   const {
     history: authorHistory,
@@ -76,7 +78,7 @@ export function AuthorRewardsSection({
     totalFetched,
     error,
     loadMore,
-  } = useRewardsHistory(username, 'author_reward');
+  } = useRewardsHistory(username, 'author_reward', lazyEnabled);
 
   const weekTotals = useMemo(() => sumAuthorRewardsLastWeek(authorHistory), [authorHistory]);
 
@@ -93,7 +95,7 @@ export function AuthorRewardsSection({
 
   const { page, canGoNewer, canGoOlder } = paginateReversedHistory(authorHistory, historyIndex);
 
-  if (loading) {
+  if (!lazyEnabled || loading) {
     return (
       <div className="UserWallet space-y-4">
         <Skeleton className="h-10 w-full max-w-xl" />

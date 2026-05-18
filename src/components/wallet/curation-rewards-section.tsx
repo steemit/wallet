@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useLazyEnabled } from '@/hooks/use-lazy-enabled';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
 import {
@@ -45,6 +46,7 @@ export function CurationRewardsSection({
 }) {
   const t = useTranslations('wallet');
   const locale = useLocale();
+  const lazyEnabled = useLazyEnabled();
   const [historyIndex, setHistoryIndex] = useState(0);
   const {
     history: curationHistory,
@@ -54,7 +56,7 @@ export function CurationRewardsSection({
     totalFetched,
     error,
     loadMore,
-  } = useRewardsHistory(username, 'curation_reward');
+  } = useRewardsHistory(username, 'curation_reward', lazyEnabled);
 
   const rewardsWeekVests = useMemo(
     () => sumCurationRewardsLastWeek(curationHistory),
@@ -71,7 +73,7 @@ export function CurationRewardsSection({
     historyIndex
   );
 
-  if (loading) {
+  if (!lazyEnabled || loading) {
     return (
       <div className="UserWallet space-y-4">
         <Skeleton className="h-10 w-full max-w-xl" />

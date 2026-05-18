@@ -21,6 +21,31 @@ export const RecentActivityLazy = dynamic(
   }
 );
 
+const RewardsSectionFallback = () => (
+  <div className="UserWallet space-y-4">
+    <Skeleton className="h-10 w-full max-w-xl" />
+    <Skeleton className="h-px w-full" />
+    <Skeleton className="h-6 w-48" />
+    <Skeleton className="h-40 w-full" />
+  </div>
+);
+
+export const CurationRewardsSectionLazy = dynamic(
+  () =>
+    import('@/components/wallet/curation-rewards-section').then((mod) => ({
+      default: mod.CurationRewardsSection,
+    })),
+  { loading: RewardsSectionFallback, ssr: false }
+);
+
+export const AuthorRewardsSectionLazy = dynamic(
+  () =>
+    import('@/components/wallet/author-rewards-section').then((mod) => ({
+      default: mod.AuthorRewardsSection,
+    })),
+  { loading: RewardsSectionFallback, ssr: false }
+);
+
 export const WitnessesPageClient = dynamic(
   () => import('@/components/wallet/witness-vote-form').then((mod) => ({ default: mod.WitnessVoteForm })),
   {

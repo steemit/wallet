@@ -13,8 +13,10 @@ import { AccountWalletNav } from '@/components/layout/account-wallet-nav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WalletTransfersModals } from '@/components/wallet/wallet-transfers-modals';
 import { WalletSectionPlaceholder } from '@/components/wallet/wallet-section-placeholder';
-import { CurationRewardsSection } from '@/components/wallet/curation-rewards-section';
-import { AuthorRewardsSection } from '@/components/wallet/author-rewards-section';
+import {
+  AuthorRewardsSectionLazy,
+  CurationRewardsSectionLazy,
+} from '@/components/wallet/client-wrappers';
 import { normalizeProfile } from '@/lib/steem/normalize-profile';
 import { canManageBalanceForPageUrl } from '@/lib/auth/browser-storage';
 
@@ -184,7 +186,7 @@ export default function WalletPage() {
         {isPasswordPath && <WalletSectionPlaceholder titleKey="changePassword" />}
         {isCommunitiesPath && <WalletSectionPlaceholder titleKey="communities" />}
         {isCurationRewardsPath && (
-          <CurationRewardsSection
+          <CurationRewardsSectionLazy
             key={`curation-${urlUsername}`}
             username={urlUsername}
             globalProps={globalProps}
@@ -192,7 +194,7 @@ export default function WalletPage() {
           />
         )}
         {isAuthorRewardsPath && (
-          <AuthorRewardsSection
+          <AuthorRewardsSectionLazy
             key={`author-${urlUsername}`}
             username={urlUsername}
             globalProps={globalProps}
