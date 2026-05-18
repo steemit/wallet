@@ -486,10 +486,12 @@ export const apiClient = {
     limit: number = 100,
     from?: number
   ): Promise<{ history: unknown[]; error?: string }> {
-    const fromSegment = typeof from === 'number' ? `&from=${from}` : '';
-    const response = await fetch(
-      `/api/query/history?username=${username}&limit=${limit}${fromSegment}`
-    );
+    const params = new URLSearchParams({
+      username,
+      limit: String(limit),
+    });
+    if (typeof from === 'number') params.set('from', String(from));
+    const response = await fetch(`/api/query/history?${params.toString()}`);
     return response.json();
   },
 
