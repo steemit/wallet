@@ -84,20 +84,21 @@ export function useRewardsHistory(
   const requestIdRef = useRef(0);
 
   useEffect(() => {
-    if (!username) {
-      setLoading(false);
-      return;
-    }
     const requestId = ++requestIdRef.current;
 
-    setLoading(true);
-    setError(null);
-    setHistory([]);
-    setOldestIndex(null);
-    setExhausted(false);
-    setTotalFetched(0);
-
     (async () => {
+      setLoading(true);
+      setError(null);
+      setHistory([]);
+      setOldestIndex(null);
+      setExhausted(false);
+      setTotalFetched(0);
+
+      if (!username) {
+        setLoading(false);
+        return;
+      }
+
       const accumulated: SteemHistoryItem[] = [];
       let localOldest: number | null = null;
       let totalRaw = 0;
