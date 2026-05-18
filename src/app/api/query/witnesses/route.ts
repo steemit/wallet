@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
+import { withCache } from '@/lib/cache/server-cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,14 +25,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const witnesses = await SteemService.getWitnessesByVote(limit);
+    try {
+      const result = await withCache(
+        `cache:query:witnesses:${limit}`,
+        600,
+        1800,
+        () => SteemService.getWitnessesByVote(limit)
+      );
 
-    const response = NextResponse.json({
-      success: true,
-      witnesses,
-    });
-    response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1800');
-    return response;
+      const response = NextResponse.json({
+        success: true,
+        witnesses: result.data,
+        ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
+      });
+      response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1800');
+      if (result.degraded) response.headers.set('X-Degraded', 'true');
+      return response;
+    } catch (error) {
+      console.error('Error fetching witnesses:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch witnesses', degraded: true },
+        { status: 503 }
+      );
+    }
   } catch (error) {
     console.error('Error fetching witnesses:', error);
     return NextResponse.json(

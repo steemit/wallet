@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
+import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
 
 export async function POST(request: NextRequest) {
@@ -40,10 +41,14 @@ export async function POST(request: NextRequest) {
     // Broadcast the transaction
     const result = await SteemService.broadcastTransaction(signedTx);
 
-    return NextResponse.json({
-      success: true,
-      result,
-    });
+    // Invalidate Redis caches for this user
+    await cacheDeleteByPrefix('cache:query:accounts');
+    await cacheDeleteByPrefix(`cache:query:wallet-estimate-extras:${username}`);
+    await cacheDeleteByPrefix(`cache:query:withdraw-routes:${username}`);
+
+    const response = NextResponse.json({ success: true, result });
+    response.headers.set('X-Cache-Invalidate', username);
+    return response;
   } catch (error) {
     console.error('Broadcast power down error:', error);
     return NextResponse.json(

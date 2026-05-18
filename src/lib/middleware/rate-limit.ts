@@ -1,68 +1,120 @@
 // Rate limiting middleware
+// Uses Redis when available, falls back to in-memory Map
+
 import { NextRequest, NextResponse } from 'next/server';
+import { getRedis } from '@/lib/cache/redis';
 
 export interface RateLimitConfig {
   maxRequests: number;
   windowSeconds: number;
 }
 
-// In-memory rate limit store
-// In production, use Redis or similar
+// In-memory fallback for when Redis is unavailable
 interface RateLimitEntry {
   count: number;
   resetAt: number;
 }
 
-const rateLimitStore = new Map<string, RateLimitEntry>();
+const memoryStore = new Map<string, RateLimitEntry>();
 
-/**
- * Clean up expired entries from the store
- */
 function cleanupExpiredEntries(): void {
   const now = Date.now();
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (now > entry.resetAt) {
-      rateLimitStore.delete(key);
-    }
+  for (const [key, entry] of memoryStore.entries()) {
+    if (now > entry.resetAt) memoryStore.delete(key);
   }
 }
 
-// Run cleanup every 5 minutes
 if (typeof setInterval !== 'undefined') {
   setInterval(cleanupExpiredEntries, 5 * 60 * 1000);
 }
 
-/**
- * Get client IP address from request
- */
 function getClientIP(request: NextRequest): string {
-  // Check various headers for IP
   const forwardedFor = request.headers.get('x-forwarded-for');
   const realIP = request.headers.get('x-real-ip');
   const cfConnectingIP = request.headers.get('cf-connecting-ip');
 
   if (forwardedFor) {
-    // x-forwarded-for can contain multiple IPs, take the first one
     const parts = forwardedFor.split(',');
     return parts[0]?.trim() || 'unknown';
   }
-
-  if (realIP) {
-    return realIP;
-  }
-
-  if (cfConnectingIP) {
-    return cfConnectingIP;
-  }
-
-  // Fallback to a generic identifier
+  if (realIP) return realIP;
+  if (cfConnectingIP) return cfConnectingIP;
   return 'unknown';
 }
 
-/**
- * Rate limit by IP address
- * Returns error response if limit exceeded, null if OK
- */
+async function redisRateLimit(
+  key: string,
+  config: RateLimitConfig
+): Promise<NextResponse | null> {
+  const redis = getRedis();
+  if (!redis) return null;
+
+  try {
+    const windowStart = Math.floor(Date.now() / (config.windowSeconds * 1000));
+    const redisKey = `ratelimit:${key}:${windowStart}`;
+
+    const count = await redis.incr(redisKey);
+    if (count === 1) {
+      await redis.expire(redisKey, config.windowSeconds + 1);
+    }
+
+    if (count > config.maxRequests) {
+      const retryAfter = config.windowSeconds;
+      return NextResponse.json(
+        { error: 'Too many requests', retryAfter },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': retryAfter.toString(),
+            'X-RateLimit-Limit': config.maxRequests.toString(),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      );
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function memoryRateLimit(
+  key: string,
+  config: RateLimitConfig
+): NextResponse | null {
+  const now = Date.now();
+  const windowMs = config.windowSeconds * 1000;
+
+  let entry = memoryStore.get(key);
+
+  if (!entry || now > entry.resetAt) {
+    entry = { count: 1, resetAt: now + windowMs };
+    memoryStore.set(key, entry);
+    return null;
+  }
+
+  entry.count++;
+
+  if (entry.count > config.maxRequests) {
+    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+    return NextResponse.json(
+      { error: 'Too many requests', retryAfter },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': retryAfter.toString(),
+          'X-RateLimit-Limit': config.maxRequests.toString(),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': new Date(entry.resetAt).toISOString(),
+        },
+      }
+    );
+  }
+
+  return null;
+}
+
 export async function rateLimit(
   request: NextRequest,
   action: string,
@@ -70,139 +122,53 @@ export async function rateLimit(
 ): Promise<NextResponse | null> {
   const ip = getClientIP(request);
   const key = `${ip}:${action}`;
-  const now = Date.now();
-  const windowMs = config.windowSeconds * 1000;
 
-  // Get or create entry
-  let entry = rateLimitStore.get(key);
+  // Try Redis first
+  const redisResult = await redisRateLimit(key, config);
+  if (redisResult) return redisResult;
 
-  if (!entry || now > entry.resetAt) {
-    // Create new entry
-    entry = {
-      count: 1,
-      resetAt: now + windowMs,
-    };
-    rateLimitStore.set(key, entry);
-    return null;
-  }
+  // Fallback to in-memory (also used when Redis is available but didn't block)
+  const memoryResult = memoryRateLimit(key, config);
+  if (memoryResult) return memoryResult;
 
-  // Increment counter
-  entry.count++;
-
-  // Check if limit exceeded
-  if (entry.count > config.maxRequests) {
-    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
-    return NextResponse.json(
-      {
-        error: 'Too many requests',
-        retryAfter,
-      },
-      {
-        status: 429,
-        headers: {
-          'Retry-After': retryAfter.toString(),
-          'X-RateLimit-Limit': config.maxRequests.toString(),
-          'X-RateLimit-Remaining': '0',
-          'X-RateLimit-Reset': new Date(entry.resetAt).toISOString(),
-        },
-      }
-    );
-  }
-
-  // Update entry
-  rateLimitStore.set(key, entry);
-
-  // Add rate limit headers to successful requests
   return null;
 }
 
-/**
- * Rate limit by username (for authenticated users)
- * Returns error response if limit exceeded, null if OK
- */
 export async function rateLimitByUser(
   username: string | null,
   action: string,
   config: RateLimitConfig
 ): Promise<NextResponse | null> {
-  if (!username) {
-    // Fall back to IP-based rate limiting if no username
-    return null;
-  }
+  if (!username) return null;
 
   const key = `user:${username}:${action}`;
-  const now = Date.now();
-  const windowMs = config.windowSeconds * 1000;
 
-  // Get or create entry
-  let entry = rateLimitStore.get(key);
+  const redisResult = await redisRateLimit(key, config);
+  if (redisResult) return redisResult;
 
-  if (!entry || now > entry.resetAt) {
-    // Create new entry
-    entry = {
-      count: 1,
-      resetAt: now + windowMs,
-    };
-    rateLimitStore.set(key, entry);
-    return null;
-  }
-
-  // Increment counter
-  entry.count++;
-
-  // Check if limit exceeded
-  if (entry.count > config.maxRequests) {
-    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
-    return NextResponse.json(
-      {
-        error: 'Too many requests',
-        retryAfter,
-      },
-      {
-        status: 429,
-        headers: {
-          'Retry-After': retryAfter.toString(),
-          'X-RateLimit-Limit': config.maxRequests.toString(),
-          'X-RateLimit-Remaining': '0',
-          'X-RateLimit-Reset': new Date(entry.resetAt).toISOString(),
-        },
-      }
-    );
-  }
-
-  // Update entry
-  rateLimitStore.set(key, entry);
-
-  return null;
+  return memoryRateLimit(key, config);
 }
 
-/**
- * Get rate limit info for a key
- */
 export function getRateLimitInfo(
   request: NextRequest,
   action: string
 ): { limit: number; remaining: number; resetAt: Date } | null {
   const ip = getClientIP(request);
   const key = `${ip}:${action}`;
-  const entry = rateLimitStore.get(key);
-
-  if (!entry) {
-    return null;
-  }
+  const entry = memoryStore.get(key);
+  if (!entry) return null;
 
   return {
     limit: entry.count,
-    remaining: Math.max(0, entry.count),
+    remaining: Math.max(0, config_maxRequests - entry.count),
     resetAt: new Date(entry.resetAt),
   };
 }
 
-/**
- * Reset rate limit for a key (admin function)
- */
+const config_maxRequests = 100;
+
 export function resetRateLimit(request: NextRequest, action: string): void {
   const ip = getClientIP(request);
   const key = `${ip}:${action}`;
-  rateLimitStore.delete(key);
+  memoryStore.delete(key);
 }

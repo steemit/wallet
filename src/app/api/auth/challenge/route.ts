@@ -3,6 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { setCSRFToken } from '@/lib/middleware';
+import { getRedis } from '@/lib/cache/redis';
+
+const CHALLENGE_TTL = 300; // 5 minutes
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,6 +29,17 @@ export async function GET(request: NextRequest) {
 
     // Generate challenge
     const challenge = SteemService.generateChallenge(username);
+
+    // Store challenge in Redis for later verification
+    const redis = getRedis();
+    if (redis) {
+      await redis.set(
+        `auth:challenge:${username}`,
+        JSON.stringify({ challenge, createdAt: Date.now() }),
+        'EX',
+        CHALLENGE_TTL
+      );
+    }
 
     const response = NextResponse.json({
       success: true,

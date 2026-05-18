@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
+import { withCache } from '@/lib/cache/server-cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,14 +13,29 @@ export async function GET(request: NextRequest) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const price = await SteemService.getCurrentMedianHistoryPrice();
+    try {
+      const result = await withCache(
+        'cache:query:median-history-price',
+        60,
+        600,
+        () => SteemService.getCurrentMedianHistoryPrice()
+      );
 
-    const response = NextResponse.json({
-      success: true,
-      ...price,
-    });
-    response.headers.set('Cache-Control', 'public, s-maxage=60');
-    return response;
+      const response = NextResponse.json({
+        success: true,
+        ...result.data,
+        ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
+      });
+      response.headers.set('Cache-Control', 'public, s-maxage=60');
+      if (result.degraded) response.headers.set('X-Degraded', 'true');
+      return response;
+    } catch (error) {
+      console.error('median-history-price query error:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch median history price', degraded: true },
+        { status: 503 }
+      );
+    }
   } catch (error) {
     console.error('median-history-price query error:', error);
     return NextResponse.json(
