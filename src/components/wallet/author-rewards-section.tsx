@@ -50,7 +50,7 @@ function formatAuthorRowAmounts(
   return {
     sp,
     steem: steemPayout && steemPayout !== '0.000 STEEM' ? steemPayout : '',
-    sbd: sbdPayout ?? '',
+    sbd: sbdPayout && sbdPayout !== '0.000 SBD' ? sbdPayout : '',
   };
 }
 
@@ -150,7 +150,8 @@ export function AuthorRewardsSection({
                 const author = String(data.author ?? '');
                 const permlink = String(data.permlink ?? '');
                 const { sp, steem, sbd } = formatAuthorRowAmounts(data, globalProps);
-                const steemPart = steem ? `, ${steem}` : '';
+                const monetary = [sbd, steem].filter(Boolean).join(', ');
+                const prefix = monetary ? `${monetary} ${t('authorRewardJoin')} ` : '';
 
                 return (
                   <TableRow key={`${item.trx_id}-${index}`}>
@@ -159,8 +160,7 @@ export function AuthorRewardsSection({
                     </TableCell>
                     <TableCell className="max-w-[40rem] align-top text-sm">
                       {t('authorRewardRow', {
-                        sbdPayout: sbd,
-                        steemPayout: steemPart,
+                        prefix,
                         authorReward: sp,
                       })}{' '}
                       <RewardsPostLink
