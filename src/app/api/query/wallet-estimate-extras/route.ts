@@ -22,10 +22,12 @@ export async function GET(request: NextRequest) {
       includeOpenOrders,
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       ...extras,
     });
+    response.headers.set('Cache-Control', 'public, s-maxage=60');
+    return response;
   } catch (error) {
     console.error('wallet-estimate-extras query error:', error);
     return NextResponse.json(

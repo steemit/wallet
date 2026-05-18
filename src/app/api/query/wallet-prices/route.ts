@@ -12,10 +12,12 @@ export async function GET(request: NextRequest) {
 
     const prices = await SteemService.getWalletPrices();
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       ...prices,
     });
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    return response;
   } catch (error) {
     console.error('wallet-prices query error:', error);
     return NextResponse.json(

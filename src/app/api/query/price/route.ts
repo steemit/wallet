@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // Get previous prices for history
     const priceHistory = (history?.price_history as unknown[]) || [];
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       price: {
         sbd: price,
@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) {
       },
       history: priceHistory.slice(0, 7), // Last 7 days
     });
+    response.headers.set('Cache-Control', 'public, s-maxage=60');
+    return response;
   } catch (error) {
     console.error('Error fetching price:', error);
     return NextResponse.json(

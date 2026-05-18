@@ -15,10 +15,12 @@ export async function GET(request: NextRequest) {
 
     const props = await SteemService.getGlobalProperties();
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       props,
     });
+    response.headers.set('Cache-Control', 'public, s-maxage=3');
+    return response;
   } catch (error) {
     console.error('Error fetching global properties:', error);
     return NextResponse.json(
