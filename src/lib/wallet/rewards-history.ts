@@ -14,7 +14,10 @@ export function filterHistoryByOpType(
 }
 
 function timestampMs(timestamp: string): number {
-  return new Date(timestamp).getTime();
+  // Steem RPC returns UTC timestamps without a `Z` suffix; appending it
+  // prevents the local timezone from shifting the parsed instant.
+  const iso = timestamp.endsWith('Z') ? timestamp : `${timestamp}Z`;
+  return new Date(iso).getTime();
 }
 
 /** Sum curation_reward VESTS in the last 7 days (legacy CurationRewards rewardsWeek). */

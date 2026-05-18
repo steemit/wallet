@@ -32,6 +32,16 @@ describe('rewards-history', () => {
     expect(filterHistoryByOpType(items, 'curation_reward')).toHaveLength(1);
   });
 
+  it('parses RPC timestamps as UTC even without Z suffix', () => {
+    // 2026-05-11T13:00:00 UTC == now - (7d - 1h), still inside the window.
+    // Without the Z fix this would be parsed as local time and the assertion
+    // would only pass in UTC environments.
+    const items = [
+      item('curation_reward', '2026-05-11T13:00:00', { reward: '3.000000 VESTS' }),
+    ];
+    expect(sumCurationRewardsLastWeek(items, now)).toBe(3);
+  });
+
   it('sums curation rewards in the last week', () => {
     const items = [
       item('curation_reward', '2026-05-17T10:00:00', { reward: '2.000000 VESTS' }),
