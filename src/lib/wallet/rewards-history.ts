@@ -119,3 +119,8 @@ export function nextHistoryIndex(
   const delta = direction === 'older' ? pageSize : -pageSize;
   return Math.max(0, historyIndex + delta);
 }
+
+/** True when the chain may still have older ops to fetch (or retry after error). */
+export function canFetchMoreHistory(exhausted: boolean, error: string | null): boolean {
+  return !exhausted || error != null;
+}

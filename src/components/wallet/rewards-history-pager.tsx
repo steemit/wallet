@@ -7,13 +7,15 @@ import { cn } from '@/lib/utils';
 export function RewardsHistoryPager({
   canGoNewer,
   canGoOlder,
+  loadingOlder = false,
   onNewer,
   onOlder,
 }: {
   canGoNewer: boolean;
   canGoOlder: boolean;
+  loadingOlder?: boolean;
   onNewer: () => void;
-  onOlder: () => void;
+  onOlder: () => void | Promise<void>;
 }) {
   const t = useTranslations('wallet');
 
@@ -24,7 +26,7 @@ export function RewardsHistoryPager({
         variant="outline"
         size="sm"
         className={cn('h-8', !canGoNewer && 'pointer-events-none opacity-50')}
-        disabled={!canGoNewer}
+        disabled={!canGoNewer || loadingOlder}
         onClick={onNewer}
         aria-label="Previous"
       >
@@ -35,11 +37,12 @@ export function RewardsHistoryPager({
         variant="outline"
         size="sm"
         className={cn('ml-auto h-8', !canGoOlder && 'pointer-events-none opacity-50')}
-        disabled={!canGoOlder}
-        onClick={onOlder}
+        disabled={!canGoOlder || loadingOlder}
+        onClick={() => void onOlder()}
         aria-label="Next"
+        aria-busy={loadingOlder}
       >
-        {t('rewardsOlder')} →
+        {loadingOlder ? t('rewardsLoadingMore') : `${t('rewardsOlder')} →`}
       </Button>
     </nav>
   );

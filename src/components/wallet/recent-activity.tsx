@@ -1,17 +1,12 @@
 'use client';
 
-import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useLazyEnabled } from '@/hooks/use-lazy-enabled';
-import {
-  nextHistoryIndex,
-  paginateReversedHistory,
-} from '@/lib/wallet/rewards-history';
 import { useActivityHistory } from '@/lib/wallet/use-activity-history';
+import { useRewardsHistoryPager } from '@/lib/wallet/use-rewards-history-pager';
 import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
 import { RewardsHistoryPager } from '@/components/wallet/rewards-history-pager';
-import { RewardsLoadMore } from '@/components/wallet/rewards-load-more';
 import {
   Table,
   TableBody,
@@ -108,18 +103,22 @@ export function RecentActivity({
 }) {
   const t = useTranslations('wallet');
   const lazyEnabled = useLazyEnabled();
-  const [historyIndex, setHistoryIndex] = useState(0);
+  const historyState = useActivityHistory(username, refreshNonce, lazyEnabled);
   const {
     history,
     loading,
-    loadingMore,
-    exhausted,
     totalFetched,
     error,
-    loadMore,
-  } = useActivityHistory(username, refreshNonce, lazyEnabled);
-
-  const { page, canGoNewer, canGoOlder } = paginateReversedHistory(history, historyIndex);
+  } = historyState;
+  const {
+    page,
+    canGoNewer,
+    canGoOlder,
+    onNewer,
+    onOlder,
+    loadingOlder,
+    canFetchMore,
+  } = useRewardsHistoryPager(historyState, `${username}:${refreshNonce ?? 0}`);
 
   if (!lazyEnabled) {
     return null;
@@ -138,12 +137,11 @@ export function RecentActivity({
     );
   }
 
-  if (!history.length) {
+  if (!history.length && !canFetchMore) {
     return null;
   }
 
-  const canLoadMore = !exhausted || error != null;
-  const showEmptyHint = page.length === 0 && totalFetched > 0;
+  const showEmptyHint = history.length === 0 && totalFetched > 0;
 
   return (
     <div className="mt-8">
@@ -194,15 +192,15 @@ export function RecentActivity({
           })}
         </TableBody>
       </Table>
-      {history.length > 0 && (
+      {(history.length > 0 || canFetchMore) && (
         <RewardsHistoryPager
           canGoNewer={canGoNewer}
           canGoOlder={canGoOlder}
-          onNewer={() => setHistoryIndex((i) => nextHistoryIndex(i, 'newer'))}
-          onOlder={() => setHistoryIndex((i) => nextHistoryIndex(i, 'older'))}
+          loadingOlder={loadingOlder}
+          onNewer={onNewer}
+          onOlder={onOlder}
         />
       )}
-      {canLoadMore && <RewardsLoadMore loading={loadingMore} onClick={loadMore} />}
     </div>
   );
 }

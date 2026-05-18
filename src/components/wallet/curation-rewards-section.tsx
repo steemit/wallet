@@ -1,23 +1,19 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useLazyEnabled } from '@/hooks/use-lazy-enabled';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
-import {
-  nextHistoryIndex,
-  paginateReversedHistory,
-  sumCurationRewardsLastWeek,
-} from '@/lib/wallet/rewards-history';
+import { sumCurationRewardsLastWeek } from '@/lib/wallet/rewards-history';
 import { useRewardsHistory } from '@/lib/wallet/use-rewards-history';
+import { useRewardsHistoryPager } from '@/lib/wallet/use-rewards-history-pager';
 import {
   formatSteemPowerDisplay,
   steemPowerFromVests,
 } from '@/lib/wallet/vest-steem';
 import type { GlobalPropsData } from '@/lib/wallet/wallet-balance-types';
 import { RewardsHistoryPager } from '@/components/wallet/rewards-history-pager';
-import { RewardsLoadMore } from '@/components/wallet/rewards-load-more';
 import { RewardsPostLink } from '@/components/wallet/rewards-post-link';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,16 +43,22 @@ export function CurationRewardsSection({
   const t = useTranslations('wallet');
   const locale = useLocale();
   const lazyEnabled = useLazyEnabled();
-  const [historyIndex, setHistoryIndex] = useState(0);
+  const historyState = useRewardsHistory(username, 'curation_reward', lazyEnabled);
   const {
     history: curationHistory,
     loading,
-    loadingMore,
-    exhausted,
     totalFetched,
     error,
-    loadMore,
-  } = useRewardsHistory(username, 'curation_reward', lazyEnabled);
+  } = historyState;
+  const {
+    page,
+    canGoNewer,
+    canGoOlder,
+    onNewer,
+    onOlder,
+    loadingOlder,
+    canFetchMore,
+  } = useRewardsHistoryPager(historyState, username);
 
   const rewardsWeekVests = useMemo(
     () => sumCurationRewardsLastWeek(curationHistory),
@@ -67,11 +69,6 @@ export function CurationRewardsSection({
     globalProps != null
       ? formatSteemPowerDisplay(steemPowerFromVests(rewardsWeekVests, globalProps))
       : '—';
-
-  const { page, canGoNewer, canGoOlder } = paginateReversedHistory(
-    curationHistory,
-    historyIndex
-  );
 
   if (!lazyEnabled || loading) {
     return (
@@ -86,8 +83,6 @@ export function CurationRewardsSection({
 
   const isEmpty = curationHistory.length === 0;
   const showEmptyHint = isEmpty && totalFetched > 0;
-  const canLoadMore = !exhausted || error != null;
-
   return (
     <div className="UserWallet curation-rewards space-y-4">
       <div className="UserWallet__balance UserReward__row grid gap-2 sm:grid-cols-[1fr_auto] sm:items-baseline">
@@ -167,15 +162,15 @@ export function CurationRewardsSection({
             </TableBody>
           </Table>
         )}
-        {curationHistory.length > 0 && (
+        {(curationHistory.length > 0 || canFetchMore) && (
           <RewardsHistoryPager
             canGoNewer={canGoNewer}
             canGoOlder={canGoOlder}
-            onNewer={() => setHistoryIndex((i) => nextHistoryIndex(i, 'newer'))}
-            onOlder={() => setHistoryIndex((i) => nextHistoryIndex(i, 'older'))}
+            loadingOlder={loadingOlder}
+            onNewer={onNewer}
+            onOlder={onOlder}
           />
         )}
-        {canLoadMore && <RewardsLoadMore loading={loadingMore} onClick={loadMore} />}
       </div>
     </div>
   );
