@@ -99,6 +99,7 @@
     "rewardsLoadMore": "Cargar más",
     "rewardsLoadingMore": "Cargando…",
     "rewardsNoMatchesHint": "No se encontraron recompensas en los últimos {count} registros. Carga más para seguir buscando.",
+    "rewardsFetchError": "No se pudo cargar el historial: {error}. Pulsa Cargar más para reintentar.",
     "curationRewardRow": "{amount} por",
     "authorRewardRow": "{prefix}{authorReward} por",
     "authorRewardJoin": "y",

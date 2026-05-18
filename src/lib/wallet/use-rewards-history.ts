@@ -158,16 +158,27 @@ export function useRewardsHistory(
   }, [username, opType]);
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || loading || exhausted) return;
-    if (oldestIndex === null || oldestIndex <= 0) {
+    if (loadingMore || loading) return;
+    // When there is no oldestIndex we have no anchor — this is the "retry"
+    // path after an initial-fetch failure, so re-fetch the latest slice.
+    // When oldestIndex is set but already at the floor, we are truly out
+    // of history.
+    if (oldestIndex !== null && oldestIndex <= 0) {
       setExhausted(true);
       return;
     }
+    if (exhausted && oldestIndex !== null) return;
+
     const requestId = ++requestIdRef.current;
     setLoadingMore(true);
+    setError(null);
     try {
-      const from = oldestIndex - 1;
-      const limit = Math.min(REWARDS_HISTORY_FETCH_LIMIT, Math.max(1, from));
+      const isRetry = oldestIndex === null;
+      const from = isRetry ? undefined : oldestIndex - 1;
+      const limit =
+        from !== undefined
+          ? Math.min(REWARDS_HISTORY_FETCH_LIMIT, Math.max(1, from))
+          : REWARDS_HISTORY_FETCH_LIMIT;
       const result = await fetchBatch(username, opType, from, limit);
       if (requestId !== requestIdRef.current) return;
 
@@ -175,11 +186,10 @@ export function useRewardsHistory(
       setTotalFetched((prev) => prev + result.normalizedCount);
       if (result.oldestIn !== null) {
         setOldestIndex(result.oldestIn);
-        if (result.oldestIn <= 0) setExhausted(true);
+        setExhausted(result.oldestIn <= 0 || result.normalizedCount === 0);
       } else {
         setExhausted(true);
       }
-      if (result.normalizedCount === 0) setExhausted(true);
     } catch (err) {
       if (requestId === requestIdRef.current) {
         console.error(`Error loading more ${opType} history:`, err);

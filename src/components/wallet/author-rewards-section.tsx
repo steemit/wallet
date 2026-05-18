@@ -74,6 +74,7 @@ export function AuthorRewardsSection({
     loadingMore,
     exhausted,
     totalFetched,
+    error,
     loadMore,
   } = useRewardsHistory(username, 'author_reward');
 
@@ -104,7 +105,8 @@ export function AuthorRewardsSection({
   }
 
   const isEmpty = authorHistory.length === 0;
-  const showEmptyHint = isEmpty && totalFetched > 0 && !exhausted;
+  const showEmptyHint = isEmpty && totalFetched > 0;
+  const canLoadMore = !exhausted || error != null;
 
   return (
     <div className="UserWallet author-rewards space-y-4">
@@ -133,6 +135,11 @@ export function AuthorRewardsSection({
             {showEmptyHint && (
               <p className="text-sm text-muted-foreground">
                 {t('rewardsNoMatchesHint', { count: totalFetched })}
+              </p>
+            )}
+            {error && (
+              <p className="text-sm text-destructive">
+                {t('rewardsFetchError', { error })}
               </p>
             )}
           </div>
@@ -187,7 +194,7 @@ export function AuthorRewardsSection({
             onOlder={() => setHistoryIndex((i) => nextHistoryIndex(i, 'older'))}
           />
         )}
-        {!exhausted && <RewardsLoadMore loading={loadingMore} onClick={loadMore} />}
+        {canLoadMore && <RewardsLoadMore loading={loadingMore} onClick={loadMore} />}
       </div>
     </div>
   );

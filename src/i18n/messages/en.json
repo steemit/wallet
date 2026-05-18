@@ -112,6 +112,7 @@
     "rewardsLoadMore": "Load more",
     "rewardsLoadingMore": "Loading…",
     "rewardsNoMatchesHint": "No matching rewards in the latest {count} records. Load more to keep looking.",
+    "rewardsFetchError": "Failed to load history: {error}. Tap Load more to retry.",
     "curationRewardRow": "{amount} for",
     "authorRewardRow": "{prefix}{authorReward} for",
     "authorRewardJoin": "and",

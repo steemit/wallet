@@ -52,6 +52,7 @@ export function CurationRewardsSection({
     loadingMore,
     exhausted,
     totalFetched,
+    error,
     loadMore,
   } = useRewardsHistory(username, 'curation_reward');
 
@@ -82,7 +83,8 @@ export function CurationRewardsSection({
   }
 
   const isEmpty = curationHistory.length === 0;
-  const showEmptyHint = isEmpty && totalFetched > 0 && !exhausted;
+  const showEmptyHint = isEmpty && totalFetched > 0;
+  const canLoadMore = !exhausted || error != null;
 
   return (
     <div className="UserWallet curation-rewards space-y-4">
@@ -111,6 +113,11 @@ export function CurationRewardsSection({
             {showEmptyHint && (
               <p className="text-sm text-muted-foreground">
                 {t('rewardsNoMatchesHint', { count: totalFetched })}
+              </p>
+            )}
+            {error && (
+              <p className="text-sm text-destructive">
+                {t('rewardsFetchError', { error })}
               </p>
             )}
           </div>
@@ -166,7 +173,7 @@ export function CurationRewardsSection({
             onOlder={() => setHistoryIndex((i) => nextHistoryIndex(i, 'older'))}
           />
         )}
-        {!exhausted && <RewardsLoadMore loading={loadingMore} onClick={loadMore} />}
+        {canLoadMore && <RewardsLoadMore loading={loadingMore} onClick={loadMore} />}
       </div>
     </div>
   );

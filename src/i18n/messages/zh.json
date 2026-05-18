@@ -112,6 +112,7 @@
     "rewardsLoadMore": "加载更多",
     "rewardsLoadingMore": "加载中…",
     "rewardsNoMatchesHint": "最近 {count} 条记录中没有找到符合的奖励，是否拉取更多？",
+    "rewardsFetchError": "加载历史失败：{error}。点击「加载更多」可重试。",
     "curationRewardRow": "{amount}，来自",
     "authorRewardRow": "{prefix}{authorReward}，来自",
     "authorRewardJoin": "以及",
