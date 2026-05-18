@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/lib/steem/client';
+import { clientCache } from '@/lib/cache/client-cache';
 import {
   normalizeSteemHistoryList,
   type SteemHistoryItem,
@@ -83,6 +84,9 @@ export function useRewardsHistory(
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
 
+  /** Check for cached accumulated results from a previous mount */
+  const cacheKey = username ? `rewards:${username}:${opType}` : '';
+
   useEffect(() => {
     const requestId = ++requestIdRef.current;
 
@@ -95,6 +99,22 @@ export function useRewardsHistory(
       setTotalFetched(0);
 
       if (!username) {
+        setLoading(false);
+        return;
+      }
+
+      // Try to restore from client cache
+      const cached = cacheKey
+        ? clientCache.get<{ history: SteemHistoryItem[]; oldestIndex: number | null; totalFetched: number }>(cacheKey)
+        : null;
+      if (cached) {
+        setHistory(cached.data.history);
+        setOldestIndex(cached.data.oldestIndex);
+        setTotalFetched(cached.data.totalFetched);
+        // Still need to check if there are newer items — but for now serve cached
+        if (cached.data.oldestIndex !== null && cached.data.oldestIndex <= 0) {
+          setExhausted(true);
+        }
         setLoading(false);
         return;
       }
@@ -155,7 +175,23 @@ export function useRewardsHistory(
       // Bump the request id so any in-flight batch resolves into a no-op.
       requestIdRef.current += 1;
     };
-  }, [username, opType]);
+    // cacheKey is derived from username + opType; included to satisfy exhaustive-deps
+  }, [username, opType, cacheKey]);
+
+  // Save accumulated results to client cache on unmount
+  useEffect(() => {
+    return () => {
+      if (cacheKey && history.length > 0) {
+        clientCache.set(
+          cacheKey,
+          { history, oldestIndex, totalFetched },
+          30_000, // 30s stale
+          120_000  // 2min max age
+        );
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheKey]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || loading) return;

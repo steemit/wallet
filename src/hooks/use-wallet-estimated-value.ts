@@ -8,6 +8,7 @@ import {
   type WalletPrices,
 } from '@/lib/wallet/estimated-account-value';
 import type { GlobalPropsData, WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
+import { cachedFetch } from '@/lib/cache/client-fetch';
 
 export function useWalletEstimatedValue({
   username,
@@ -38,23 +39,30 @@ export function useWalletEstimatedValue({
     (async () => {
       setLoading(true);
       try {
-        const [pricesRes, extrasRes] = await Promise.all([
-          fetch('/api/query/wallet-prices', { cache: 'no-store' }),
+        const [pricesResult, extrasResult] = await Promise.all([
+          cachedFetch<{
+            success?: boolean;
+            steemPrice?: number;
+            sbdPrice?: number;
+          }>('/api/query/wallet-prices', { staleMs: 30_000, maxAgeMs: 120_000 }),
           username
-            ? fetch(
+            ? cachedFetch<{
+                success?: boolean;
+                savingsPendingSteem?: number;
+                savingsPendingSbd?: number;
+                conversionTotalSbd?: number;
+                steemOrders?: number;
+                sbdOrders?: number;
+              }>(
                 `/api/query/wallet-estimate-extras?username=${encodeURIComponent(username)}&includeOpenOrders=${includeOpenOrders}`,
-                { cache: 'no-store' }
+                { staleMs: 30_000, maxAgeMs: 120_000 }
               )
             : Promise.resolve(null),
         ]);
 
         if (cancelled) return;
 
-        const pricesData = (await pricesRes.json()) as {
-          success?: boolean;
-          steemPrice?: number;
-          sbdPrice?: number;
-        };
+        const pricesData = pricesResult.data;
         if (pricesData.success) {
           setPrices({
             steemPrice: pricesData.steemPrice ?? 0,
@@ -64,15 +72,8 @@ export function useWalletEstimatedValue({
           setPrices(null);
         }
 
-        if (extrasRes) {
-          const extrasData = (await extrasRes.json()) as {
-            success?: boolean;
-            savingsPendingSteem?: number;
-            savingsPendingSbd?: number;
-            conversionTotalSbd?: number;
-            steemOrders?: number;
-            sbdOrders?: number;
-          };
+        if (extrasResult) {
+          const extrasData = extrasResult.data;
           if (extrasData.success) {
             setExtras({
               savingsPendingSteem: extrasData.savingsPendingSteem ?? 0,

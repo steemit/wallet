@@ -26,10 +26,12 @@ export async function GET(request: NextRequest) {
 
     const witnesses = await SteemService.getWitnessesByVote(limit);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       witnesses,
     });
+    response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1800');
+    return response;
   } catch (error) {
     console.error('Error fetching witnesses:', error);
     return NextResponse.json(

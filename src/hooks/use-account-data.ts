@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
-import { apiClient } from '@/lib/steem/client';
+import { cachedFetch } from '@/lib/cache/client-fetch';
 import type { SteemAccount } from '@/lib/steem/types';
 
 export type AccountInfo = SteemAccount;
@@ -20,7 +20,10 @@ export function useAccountData() {
     try {
       setLoading(true);
       setError('');
-      const response = await apiClient.getAccounts([username]);
+      const { data: response } = await cachedFetch<{ accounts: SteemAccount[]; error?: string }>(
+        `/api/query/accounts?names=${encodeURIComponent(username)}`,
+        { staleMs: 10_000, maxAgeMs: 60_000, noStore: true }
+      );
 
       if (response.error || !response.accounts || response.accounts.length === 0) {
         setError(response.error || 'Failed to fetch account data');

@@ -14,10 +14,12 @@ export async function GET(request: NextRequest) {
 
     const price = await SteemService.getCurrentMedianHistoryPrice();
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       ...price,
     });
+    response.headers.set('Cache-Control', 'public, s-maxage=60');
+    return response;
   } catch (error) {
     console.error('median-history-price query error:', error);
     return NextResponse.json(

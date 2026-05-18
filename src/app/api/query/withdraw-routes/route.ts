@@ -18,10 +18,12 @@ export async function GET(request: NextRequest) {
 
     const routes = await SteemService.getWithdrawRoutesOutgoing(username);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       routes,
     });
+    response.headers.set('Cache-Control', 'public, s-maxage=60');
+    return response;
   } catch (error) {
     console.error('withdraw-routes query error:', error);
     return NextResponse.json(
