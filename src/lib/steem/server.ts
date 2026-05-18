@@ -70,14 +70,15 @@ export class SteemService {
    */
   static async getAccountHistory(
     username: string,
-    limit: number = 10
+    limit: number = 10,
+    from: number = -1
   ): Promise<unknown[]> {
     return withFailover(async () => {
       ensureConfigured();
       const api = steem.api as unknown as {
         getAccountHistoryAsync: (account: string, index: number, limit: number) => Promise<unknown[]>;
       };
-      return await api.getAccountHistoryAsync(username, -1, limit);
+      return await api.getAccountHistoryAsync(username, from, limit);
     }).catch((error) => {
       console.error('Error fetching account history:', error);
       throw new Error(`Failed to fetch history: ${(error as Error).message}`);

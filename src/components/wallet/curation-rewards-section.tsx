@@ -1,24 +1,22 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { apiClient } from '@/lib/steem/client';
-import { normalizeSteemHistoryList } from '@/lib/wallet/normalize-history';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
 import {
-  filterHistoryByOpType,
   nextHistoryIndex,
   paginateReversedHistory,
-  REWARDS_HISTORY_FETCH_LIMIT,
   sumCurationRewardsLastWeek,
 } from '@/lib/wallet/rewards-history';
+import { useRewardsHistory } from '@/lib/wallet/use-rewards-history';
 import {
   formatSteemPowerDisplay,
   steemPowerFromVests,
 } from '@/lib/wallet/vest-steem';
 import type { GlobalPropsData } from '@/lib/wallet/wallet-balance-types';
 import { RewardsHistoryPager } from '@/components/wallet/rewards-history-pager';
+import { RewardsLoadMore } from '@/components/wallet/rewards-load-more';
 import { RewardsPostLink } from '@/components/wallet/rewards-post-link';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,39 +45,14 @@ export function CurationRewardsSection({
 }) {
   const t = useTranslations('wallet');
   const [historyIndex, setHistoryIndex] = useState(0);
-  const [curationHistory, setCurationHistory] = useState<ReturnType<typeof filterHistoryByOpType>>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const response = await apiClient.getHistory(username, REWARDS_HISTORY_FETCH_LIMIT);
-        if (cancelled) return;
-        if (response.error) {
-          console.error('Failed to fetch curation history:', response.error);
-          setCurationHistory([]);
-          setHistoryIndex(0);
-          return;
-        }
-        const normalized = normalizeSteemHistoryList(response.history || []);
-        setCurationHistory(filterHistoryByOpType(normalized, 'curation_reward'));
-        setHistoryIndex(0);
-      } catch (err) {
-        console.error('Error fetching curation history:', err);
-        if (!cancelled) {
-          setCurationHistory([]);
-          setHistoryIndex(0);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [username]);
+  const {
+    history: curationHistory,
+    loading,
+    loadingMore,
+    exhausted,
+    totalFetched,
+    loadMore,
+  } = useRewardsHistory(username, 'curation_reward');
 
   const rewardsWeekVests = useMemo(
     () => sumCurationRewardsLastWeek(curationHistory),
@@ -107,6 +80,9 @@ export function CurationRewardsSection({
     );
   }
 
+  const isEmpty = curationHistory.length === 0;
+  const showEmptyHint = isEmpty && totalFetched > 0 && !exhausted;
+
   return (
     <div className="UserWallet curation-rewards space-y-4">
       <div className="UserWallet__balance UserReward__row grid gap-2 sm:grid-cols-[1fr_auto] sm:items-baseline">
@@ -128,8 +104,15 @@ export function CurationRewardsSection({
 
       <div>
         <h4 className="mb-3 text-lg font-medium">{t('curationRewardsHistory')}</h4>
-        {page.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('noRewardsHistory')}</p>
+        {isEmpty ? (
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">{t('noRewardsHistory')}</p>
+            {showEmptyHint && (
+              <p className="text-sm text-muted-foreground">
+                {t('rewardsNoMatchesHint', { count: totalFetched })}
+              </p>
+            )}
+          </div>
         ) : (
           <Table>
             <TableHeader className="hidden md:table-header-group">
@@ -182,6 +165,7 @@ export function CurationRewardsSection({
             onOlder={() => setHistoryIndex((i) => nextHistoryIndex(i, 'older'))}
           />
         )}
+        {!exhausted && <RewardsLoadMore loading={loadingMore} onClick={loadMore} />}
       </div>
     </div>
   );

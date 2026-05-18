@@ -3,6 +3,8 @@ export interface SteemHistoryItem {
   timestamp: string;
   block: number;
   trx_id: string;
+  /** Account history index (when known); required for older-than pagination. */
+  index?: number;
 }
 
 type RawHistoryTuple = [
@@ -24,11 +26,15 @@ export function normalizeSteemHistoryEntry(item: unknown): SteemHistoryItem | nu
   const entry = tuple[1];
   if (!entry?.op || !entry.timestamp) return null;
 
+  const rawIndex = tuple[0];
+  const index = typeof rawIndex === 'number' ? rawIndex : undefined;
+
   return {
     op: entry.op,
     timestamp: entry.timestamp,
     block: entry.block,
     trx_id: entry.trx_id,
+    ...(index !== undefined ? { index } : {}),
   };
 }
 

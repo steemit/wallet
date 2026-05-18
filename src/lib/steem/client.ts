@@ -478,10 +478,18 @@ export const apiClient = {
   },
 
   /**
-   * Get account history
+   * Get account history. `from` defaults to the latest history index; pass a
+   * positive integer (paired with `limit <= from`) to page into older entries.
    */
-  async getHistory(username: string, limit: number = 100): Promise<{ history: unknown[]; error?: string }> {
-    const response = await fetch(`/api/query/history?username=${username}&limit=${limit}`);
+  async getHistory(
+    username: string,
+    limit: number = 100,
+    from?: number
+  ): Promise<{ history: unknown[]; error?: string }> {
+    const fromSegment = typeof from === 'number' ? `&from=${from}` : '';
+    const response = await fetch(
+      `/api/query/history?username=${username}&limit=${limit}${fromSegment}`
+    );
     return response.json();
   },
 
