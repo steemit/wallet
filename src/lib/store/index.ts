@@ -34,22 +34,22 @@ export const makeStore = () =>
             // except that live key values are replaced before they reach the
             // extension, so a developer's own keys are never shown in plain text.
             stateSanitizer: (state) => {
-              const { auth, ...rest } = state as { auth: AuthState };
-              const sanitizedAuth: AuthState = { ...auth };
+              const s = state as unknown as { auth: AuthState; [k: string]: unknown };
+              const sanitizedAuth: AuthState = { ...s.auth };
               for (const field of AUTH_KEY_FIELDS) {
-                if (sanitizedAuth[field] != null) {
+                if (sanitizedAuth[field] != null)
                   (sanitizedAuth as Record<AuthKeyField, string | null>)[field] = '[REDACTED]';
-                }
               }
-              return { ...rest, auth: sanitizedAuth };
+              return { ...s, auth: sanitizedAuth } as typeof state;
             },
             actionSanitizer: (action) => {
               if (action.type !== 'auth/setCredentials') return action;
-              const payload = { ...(action as { type: string; payload: Partial<Record<AuthKeyField, string | null>> }).payload };
+              const a = action as unknown as { type: string; payload: Partial<Record<AuthKeyField, string | null>> };
+              const payload = { ...a.payload };
               for (const field of AUTH_KEY_FIELDS) {
                 if (payload[field] != null) payload[field] = '[REDACTED]';
               }
-              return { ...action, payload };
+              return { ...action, payload } as typeof action;
             },
           },
   });
