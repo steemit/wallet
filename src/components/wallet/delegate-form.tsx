@@ -68,7 +68,7 @@ export function DelegateForm({
       }
 
       const vests = `${shareValue.toFixed(6)} VESTS`;
-      const signedTx = SteemSigner.signDelegate(username, delegatee.trim(), vests, signingKey);
+      const signedTx = await SteemSigner.signDelegate(username, delegatee.trim(), vests, signingKey);
       const response = await apiClient.broadcastDelegate(signedTx, username);
 
       if (!response.success) {

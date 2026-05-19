@@ -10,24 +10,68 @@ import type {
   BroadcastResult,
 } from './types';
 
+export type TransactionHeaderFields = {
+  ref_block_num: number;
+  ref_block_prefix: number;
+  expiration: string;
+};
+
+async function fetchTransactionHeader(): Promise<TransactionHeaderFields> {
+  const response = await fetch('/api/query/transaction-header');
+  const data = (await response.json()) as {
+    success?: boolean;
+    ref_block_num?: unknown;
+    ref_block_prefix?: unknown;
+    expiration?: unknown;
+    error?: string;
+  };
+
+  if (!response.ok || !data.success) {
+    throw new Error(
+      typeof data.error === 'string' ? data.error : 'Failed to get transaction header'
+    );
+  }
+
+  if (
+    typeof data.ref_block_num !== 'number' ||
+    !Number.isFinite(data.ref_block_num) ||
+    typeof data.ref_block_prefix !== 'number' ||
+    !Number.isFinite(data.ref_block_prefix) ||
+    typeof data.expiration !== 'string' ||
+    data.expiration.length === 0
+  ) {
+    throw new Error(
+      typeof data.error === 'string' ? data.error : 'Failed to get transaction header'
+    );
+  }
+
+  return {
+    ref_block_num: data.ref_block_num,
+    ref_block_prefix: data.ref_block_prefix,
+    expiration: data.expiration,
+  };
+}
+
 /**
  * SteemSigner - Client-side transaction signing module
  * IMPORTANT: Private keys NEVER leave the browser
  */
 export class SteemSigner {
   /**
-   * Sign a transaction with private keys (client-side only)
+   * Sign a transaction with private keys (client-side only).
+   * Fetches ref block + expiration from the server (same rules as steem-js broadcast prep).
    */
-  static signTransaction(
+  static async signTransaction(
     operations: Operation[],
     privateKeys: string[]
-  ): SignedTransaction {
+  ): Promise<SignedTransaction> {
+    const header = await fetchTransactionHeader();
     const tx = {
+      ...header,
       operations,
-      extensions: [],
+      extensions: [] as unknown[],
     };
 
-    // Use steem-js to sign
     const signed = steem.auth.signTransaction(tx, privateKeys);
     return signed as SignedTransaction;
   }
@@ -35,13 +79,13 @@ export class SteemSigner {
   /**
    * Sign a transfer operation
    */
-  static signTransfer(
+  static async signTransfer(
     from: string,
     to: string,
     amount: string,
     memo: string,
     activeKey: string
-  ): SignedTransaction {
+  ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
         'transfer',
@@ -54,19 +98,19 @@ export class SteemSigner {
       ],
     ];
 
-    return this.signTransaction(operations, [activeKey]);
+    return await this.signTransaction(operations, [activeKey]);
   }
 
   /**
    * Move liquid STEEM/SBD into savings (transfer_to_savings).
    */
-  static signTransferToSavings(
+  static async signTransferToSavings(
     from: string,
     to: string,
     amount: string,
     memo: string,
     activeKey: string
-  ): SignedTransaction {
+  ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
         'transfer_to_savings',
@@ -78,20 +122,20 @@ export class SteemSigner {
         },
       ],
     ];
-    return this.signTransaction(operations, [activeKey]);
+    return await this.signTransaction(operations, [activeKey]);
   }
 
   /**
    * Withdraw from savings to liquid (transfer_from_savings).
    */
-  static signTransferFromSavings(
+  static async signTransferFromSavings(
     from: string,
     to: string,
     amount: string,
     memo: string,
     requestId: number,
     activeKey: string
-  ): SignedTransaction {
+  ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
         'transfer_from_savings',
@@ -104,18 +148,18 @@ export class SteemSigner {
         },
       ],
     ];
-    return this.signTransaction(operations, [activeKey]);
+    return await this.signTransaction(operations, [activeKey]);
   }
 
   /**
    * Power up: move liquid STEEM to own vesting (transfer_to_vesting).
    */
-  static signTransferToVesting(
+  static async signTransferToVesting(
     from: string,
     to: string,
     amount: string,
     activeKey: string
-  ): SignedTransaction {
+  ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
         'transfer_to_vesting',
@@ -126,17 +170,17 @@ export class SteemSigner {
         },
       ],
     ];
-    return this.signTransaction(operations, [activeKey]);
+    return await this.signTransaction(operations, [activeKey]);
   }
 
   /**
    * Sign a power down operation
    */
-  static signPowerDown(
+  static async signPowerDown(
     account: string,
     vestingShares: string,
     activeKey: string
-  ): SignedTransaction {
+  ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
         'withdraw_vesting',
@@ -147,18 +191,18 @@ export class SteemSigner {
       ],
     ];
 
-    return this.signTransaction(operations, [activeKey]);
+    return await this.signTransaction(operations, [activeKey]);
   }
 
   /**
    * Sign a delegate vesting shares operation
    */
-  static signDelegate(
+  static async signDelegate(
     delegator: string,
     delegatee: string,
     vestingShares: string,
     activeKey: string
-  ): SignedTransaction {
+  ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
         'delegate_vesting_shares',
@@ -170,19 +214,19 @@ export class SteemSigner {
       ],
     ];
 
-    return this.signTransaction(operations, [activeKey]);
+    return await this.signTransaction(operations, [activeKey]);
   }
 
   /**
    * Sign a vote operation
    */
-  static signVote(
+  static async signVote(
     voter: string,
     author: string,
     permlink: string,
     weight: number,
     postingKey: string
-  ): SignedTransaction {
+  ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
         'vote',
@@ -195,18 +239,18 @@ export class SteemSigner {
       ],
     ];
 
-    return this.signTransaction(operations, [postingKey]);
+    return await this.signTransaction(operations, [postingKey]);
   }
 
   /**
    * Sign a witness vote operation
    */
-  static signWitnessVote(
+  static async signWitnessVote(
     account: string,
     witness: string,
     approve: boolean,
     activeKey: string
-  ): SignedTransaction {
+  ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
         'account_witness_vote',
@@ -218,20 +262,20 @@ export class SteemSigner {
       ],
     ];
 
-    return this.signTransaction(operations, [activeKey]);
+    return await this.signTransaction(operations, [activeKey]);
   }
 
   /**
    * Set power-down withdraw routing (set_withdraw_vesting_route).
    * `percent` is chain units (legacy: Math.round(uiPercent * 100)).
    */
-  static signSetWithdrawVestingRoute(
+  static async signSetWithdrawVestingRoute(
     fromAccount: string,
     toAccount: string,
     percent: number,
     autoVest: boolean,
     activeKey: string
-  ): SignedTransaction {
+  ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
         'set_withdraw_vesting_route',
@@ -243,18 +287,18 @@ export class SteemSigner {
         },
       ],
     ];
-    return this.signTransaction(operations, [activeKey]);
+    return await this.signTransaction(operations, [activeKey]);
   }
 
   /**
    * Request SBD to STEEM conversion over the feed delay (convert).
    */
-  static signConvert(
+  static async signConvert(
     owner: string,
     requestid: number,
     amount: string,
     activeKey: string
-  ): SignedTransaction {
+  ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
         'convert',
@@ -265,7 +309,7 @@ export class SteemSigner {
         },
       ],
     ];
-    return this.signTransaction(operations, [activeKey]);
+    return await this.signTransaction(operations, [activeKey]);
   }
 
   /**
@@ -392,6 +436,13 @@ export const apiClient = {
       headers: withCSRFHeader(),
     });
     return response.json();
+  },
+
+  /**
+   * Ref block + expiration for signing (GET, no CSRF).
+   */
+  async getTransactionHeader(): Promise<TransactionHeaderFields> {
+    return fetchTransactionHeader();
   },
 
   /**

@@ -91,7 +91,7 @@ export function WithdrawRoutesForm({
     setBroadcasting(true);
     setError('');
     try {
-      const signedTx: SignedTransaction = SteemSigner.signSetWithdrawVestingRoute(
+      const signedTx: SignedTransaction = await SteemSigner.signSetWithdrawVestingRoute(
         accountUsername,
         toAccount,
         chainPercent,

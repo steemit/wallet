@@ -35,16 +35,30 @@ function setCSRFCookie(token: string | null) {
 beforeEach(() => {
   vi.clearAllMocks();
   setCSRFCookie('test-token');
-  (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-    ok: true,
-    json: async () => ({ success: true }),
+  (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url.includes('/api/query/transaction-header')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          success: true,
+          ref_block_num: 99,
+          ref_block_prefix: 3704360964,
+          expiration: '2030-01-01T12:00:00.123',
+        }),
+      });
+    }
+    return Promise.resolve({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
   });
 });
 
 describe('SteemSigner.signXxx — produces the expected operations payload', () => {
   it.each<{
     name: string;
-    call: () => unknown;
+    call: () => Promise<unknown>;
     operations: unknown[];
     keys: string[];
   }>([
@@ -154,11 +168,12 @@ describe('SteemSigner.signXxx — produces the expected operations payload', () 
       ],
       keys: ['5Jactive'],
     },
-  ])('$name', ({ call, operations, keys }) => {
-    call();
+  ])('$name', async ({ call, operations, keys }) => {
+    await call();
     const calls = vi.mocked(steem.auth.signTransaction).mock.calls;
     const [tx, signingKeys] = calls[calls.length - 1]!;
     expect((tx as { operations: unknown[] }).operations).toEqual(operations);
+    expect((tx as { ref_block_num: number }).ref_block_num).toBe(99);
     expect(signingKeys).toEqual(keys);
   });
 });
@@ -297,6 +312,11 @@ describe('apiClient queries — GET endpoints', () => {
       name: 'getGlobalProps',
       call: () => apiClient.getGlobalProps(),
       url: '/api/query/global-props',
+    },
+    {
+      name: 'getTransactionHeader',
+      call: () => apiClient.getTransactionHeader(),
+      url: '/api/query/transaction-header',
     },
     {
       name: 'getWithdrawRoutes (encodes username)',
