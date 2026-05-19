@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/steem/client';
+import { cachedFetch } from '@/lib/cache/client-fetch';
 import type { SteemAccount } from '@/lib/steem/types';
 import type { GlobalPropsData, WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 
@@ -24,10 +24,19 @@ export function useSteemWalletBalances(username: string, refreshNonce = 0) {
       try {
         setLoading(true);
 
-        const [accountsResponse, propsResponse] = await Promise.all([
-          apiClient.getAccounts([username]),
-          apiClient.getGlobalProps(),
+        const [accountsResult, propsResult] = await Promise.all([
+          cachedFetch<{ accounts: SteemAccount[]; error?: string }>(
+            `/api/query/accounts?names=${encodeURIComponent(username)}`,
+            { staleMs: 10_000, maxAgeMs: 60_000 }
+          ),
+          cachedFetch<{ props: GlobalPropsData; error?: string }>(
+            '/api/query/global-props',
+            { staleMs: 3_000, maxAgeMs: 30_000 }
+          ),
         ]);
+
+        const accountsResponse = accountsResult.data;
+        const propsResponse = propsResult.data;
 
         if (accountsResponse.error || !accountsResponse.accounts?.length) {
           console.error(accountsResponse.error || 'Failed to fetch balance');

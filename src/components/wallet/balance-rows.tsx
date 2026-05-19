@@ -25,6 +25,7 @@ import {
   WalletBalanceRowColumns,
   WalletBalanceRowShell,
 } from '@/components/wallet/wallet-balance-row-layout';
+import { useWalletEstimatedValue } from '@/hooks/use-wallet-estimated-value';
 import type { GlobalPropsData, WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 
 function numberWithCommas(x: string): string {
@@ -51,6 +52,15 @@ export function BalanceRows({
   showBalanceActions?: boolean;
 }) {
   const t = useTranslations('wallet');
+
+  const { display: estimatedValueDisplay, loading: estimatedValueLoading } =
+    useWalletEstimatedValue({
+      username,
+      balance,
+      globalProps,
+      includeOpenOrders: showBalanceActions,
+      enabled: !loading && !!balance && !!globalProps,
+    });
 
   const formatBalance = (value: string | undefined) => {
     if (!value) return '0.000';
@@ -301,14 +311,14 @@ export function BalanceRows({
           left={
             <>
               <div className="font-medium">{t('estimatedValue', { defaultMessage: 'Estimated Account Value' })}</div>
-              <div className="secondary">
-                The estimated value is based on an average value of Steem in US dollars.
-              </div>
+              <div className="secondary">{t('estimatedValueDesc')}</div>
             </>
           }
           right={
             <div>
-              <div className="font-medium text-lg">---</div>
+              <div className="font-medium text-lg tabular-nums">
+                {estimatedValueLoading ? '---' : estimatedValueDisplay}
+              </div>
             </div>
           }
         />

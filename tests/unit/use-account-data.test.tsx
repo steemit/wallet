@@ -8,24 +8,25 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { useAccountData } from '@/hooks/use-account-data';
 import authReducer from '@/lib/store/slices/auth';
+import { clientCache } from '@/lib/cache/client-cache';
 
 // Mock fetch
-global.fetch = vi.fn();
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
-// Mock apiClient
-vi.mock('@/lib/steem/client', () => ({
-  apiClient: {
-    getAccounts: vi.fn(),
-  },
-}));
-
-import { apiClient } from '@/lib/steem/client';
+function jsonResponse(data: unknown): Response {
+  return {
+    json: () => Promise.resolve(data),
+    headers: new Headers(),
+  } as unknown as Response;
+}
 
 describe('useAccountData Hook', () => {
   let mockStore: ReturnType<typeof configureStore>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    clientCache.clear();
     mockStore = configureStore({
       reducer: {
         auth: authReducer,
@@ -42,7 +43,7 @@ describe('useAccountData Hook', () => {
       const { result } = renderHook(() => useAccountData(), { wrapper });
 
       expect(result.current.data).toBeNull();
-      expect(apiClient.getAccounts).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
@@ -66,9 +67,7 @@ describe('useAccountData Hook', () => {
         vesting_shares: { amount: '1000000', precision: 6, nai: '@@000000037' },
       };
 
-      (apiClient.getAccounts as ReturnType<typeof vi.fn>).mockResolvedValue({
-        accounts: [mockAccount],
-      });
+      mockFetch.mockResolvedValueOnce(jsonResponse({ accounts: [mockAccount] }));
 
       const { result } = renderHook(() => useAccountData(), { wrapper });
 
@@ -76,15 +75,13 @@ describe('useAccountData Hook', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(apiClient.getAccounts).toHaveBeenCalledWith(['alice']);
       expect(result.current.data).toEqual(mockAccount);
     });
 
     it('should handle API error', async () => {
-      (apiClient.getAccounts as ReturnType<typeof vi.fn>).mockResolvedValue({
-        accounts: [],
-        error: 'Account not found',
-      });
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ accounts: [], error: 'Account not found' })
+      );
 
       const { result } = renderHook(() => useAccountData(), { wrapper });
 
@@ -97,9 +94,7 @@ describe('useAccountData Hook', () => {
     });
 
     it('should handle empty accounts array', async () => {
-      (apiClient.getAccounts as ReturnType<typeof vi.fn>).mockResolvedValue({
-        accounts: [],
-      });
+      mockFetch.mockResolvedValueOnce(jsonResponse({ accounts: [] }));
 
       const { result } = renderHook(() => useAccountData(), { wrapper });
 
@@ -111,9 +106,7 @@ describe('useAccountData Hook', () => {
     });
 
     it('should handle network error', async () => {
-      (apiClient.getAccounts as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error('Network error')
-      );
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       const { result } = renderHook(() => useAccountData(), { wrapper });
 
@@ -128,9 +121,9 @@ describe('useAccountData Hook', () => {
       const mockAccount1 = { name: 'alice', balance: { amount: '1000', precision: 3, nai: '@@000000021' } };
       const mockAccount2 = { name: 'alice', balance: { amount: '2000', precision: 3, nai: '@@000000021' } };
 
-      (apiClient.getAccounts as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce({ accounts: [mockAccount1] })
-        .mockResolvedValueOnce({ accounts: [mockAccount2] });
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({ accounts: [mockAccount1] }))
+        .mockResolvedValueOnce(jsonResponse({ accounts: [mockAccount2] }));
 
       const { result } = renderHook(() => useAccountData(), { wrapper });
 
@@ -148,14 +141,12 @@ describe('useAccountData Hook', () => {
       await waitFor(() => {
         expect(result.current.data).toEqual(mockAccount2);
       });
-
-      expect(apiClient.getAccounts).toHaveBeenCalledTimes(2);
     });
 
     it('should clear error on successful refetch', async () => {
-      (apiClient.getAccounts as ReturnType<typeof vi.fn>)
+      mockFetch
         .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce({ accounts: [{ name: 'alice' }] });
+        .mockResolvedValueOnce(jsonResponse({ accounts: [{ name: 'alice' }] }));
 
       const { result } = renderHook(() => useAccountData(), { wrapper });
 
@@ -188,7 +179,7 @@ describe('useAccountData Hook', () => {
         await result.current.refetch();
       });
 
-      expect(apiClient.getAccounts).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 });

@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
+import { withCache } from '@/lib/cache/server-cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,16 +40,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const accounts = await SteemService.getAccounts(usernames);
+    const cacheKey = `cache:query:accounts:${namesParam.length > 200 ? namesParam.substring(0, 200) : namesParam}`;
+    const result = await withCache(cacheKey, 10, 300, () =>
+      SteemService.getAccounts(usernames)
+    );
 
-    const response = NextResponse.json({ success: true, accounts });
+    const response = NextResponse.json({
+      success: true,
+      accounts: result.data,
+      ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
+    });
     response.headers.set('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=60');
+    if (result.degraded) response.headers.set('X-Degraded', 'true');
     return response;
   } catch (error) {
     console.error('Error fetching accounts:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch accounts', details: (error as Error).message },
-      { status: 500 }
+      { error: 'Failed to fetch accounts', degraded: true },
+      { status: 503 }
     );
   }
 }

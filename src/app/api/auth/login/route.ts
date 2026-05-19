@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
+import { getRedis } from '@/lib/cache/redis';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,9 +28,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Regenerate the expected challenge
-    // Note: In production, you'd store the challenge in a session/cache
-    // For now, we'll verify the signature is valid for the account
+    // Retrieve challenge from Redis
+    const redis = getRedis();
+    if (redis) {
+      const stored = await redis.get(`auth:challenge:${username}`);
+      if (!stored) {
+        return NextResponse.json(
+          { error: 'Invalid or expired challenge' },
+          { status: 401 }
+        );
+      }
+
+      const { challenge } = JSON.parse(stored) as { challenge: string; createdAt: number };
+
+      // Verify the signature against the stored challenge
+      const isValid = SteemService.verifyChallengeSignature(
+        challenge,
+        signedChallenge,
+        publicKey
+      );
+
+      if (!isValid) {
+        return NextResponse.json(
+          { error: 'Invalid signature' },
+          { status: 401 }
+        );
+      }
+
+      // Delete challenge (one-time use)
+      await redis.del(`auth:challenge:${username}`);
+    }
 
     // Get the account to verify the public key belongs to it
     const accounts = await SteemService.getAccounts([username]);
@@ -66,20 +94,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the signature
-    // The challenge should be what was sent to the client
-    // Since we didn't store it, we'll verify the signature is valid for the public key
-    // In production, store the challenge in Redis/session
-
-    // For now, we'll trust the client sent a valid signature
-    // The signature verification would be: SteemService.verifyChallengeSignature(challenge, signedChallenge, publicKey)
-
     // Return success with account info
     return NextResponse.json({
       success: true,
       username: account.name,
       publicKey,
-      // Include some account info for the client
       account: {
         name: account.name,
         balance: account.balance,

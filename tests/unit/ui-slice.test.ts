@@ -1,5 +1,8 @@
 /**
  * UI Redux slice unit tests
+ *
+ * Covers initial state shape and all reducers to maintain branch coverage threshold.
+ * toggleSidebar is the only reducer with computed (non-trivial) next state.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -10,37 +13,37 @@ import uiReducer, {
   setLocale,
 } from '@/lib/store/slices/ui';
 
-const initialState = {
-  sidebarOpen: true,
-  theme: 'light' as const,
-  locale: 'en',
-};
-
 describe('UI Slice', () => {
-  it('returns the initial state for an unknown action', () => {
-    expect(uiReducer(undefined, { type: 'unknown' })).toEqual(initialState);
+  it('seeds the default UI state', () => {
+    expect(uiReducer(undefined, { type: 'init' })).toEqual({
+      sidebarOpen: true,
+      theme: 'light',
+      locale: 'en',
+    });
   });
 
-  it('toggleSidebar flips sidebarOpen', () => {
-    const next = uiReducer(initialState, toggleSidebar());
-    expect(next.sidebarOpen).toBe(false);
-
-    const back = uiReducer(next, toggleSidebar());
-    expect(back.sidebarOpen).toBe(true);
+  it('toggleSidebar flips the open flag', () => {
+    const open = uiReducer(undefined, { type: 'init' });
+    const closed = uiReducer(open, toggleSidebar());
+    expect(closed.sidebarOpen).toBe(false);
+    expect(uiReducer(closed, toggleSidebar()).sidebarOpen).toBe(true);
   });
 
   it('setSidebarOpen sets sidebarOpen to the payload value', () => {
-    expect(uiReducer(initialState, setSidebarOpen(false)).sidebarOpen).toBe(false);
-    expect(uiReducer(initialState, setSidebarOpen(true)).sidebarOpen).toBe(true);
+    const state = uiReducer(undefined, { type: 'init' });
+    expect(uiReducer(state, setSidebarOpen(false)).sidebarOpen).toBe(false);
+    expect(uiReducer(state, setSidebarOpen(true)).sidebarOpen).toBe(true);
   });
 
   it('setTheme updates the theme', () => {
-    expect(uiReducer(initialState, setTheme('dark')).theme).toBe('dark');
-    expect(uiReducer(initialState, setTheme('light')).theme).toBe('light');
+    const state = uiReducer(undefined, { type: 'init' });
+    expect(uiReducer(state, setTheme('dark')).theme).toBe('dark');
+    expect(uiReducer(state, setTheme('light')).theme).toBe('light');
   });
 
   it('setLocale updates the locale', () => {
-    expect(uiReducer(initialState, setLocale('zh')).locale).toBe('zh');
-    expect(uiReducer(initialState, setLocale('en')).locale).toBe('en');
+    const state = uiReducer(undefined, { type: 'init' });
+    expect(uiReducer(state, setLocale('zh')).locale).toBe('zh');
+    expect(uiReducer(state, setLocale('en')).locale).toBe('en');
   });
 });

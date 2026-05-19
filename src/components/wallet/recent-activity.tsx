@@ -1,8 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/steem/client';
 import { useTranslations } from 'next-intl';
+import { useLazyEnabled } from '@/hooks/use-lazy-enabled';
+import { useActivityHistory } from '@/lib/wallet/use-activity-history';
+import { useRewardsHistoryPager } from '@/lib/wallet/use-rewards-history-pager';
+import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
+import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
+import { RewardsHistoryPager } from '@/components/wallet/rewards-history-pager';
 import {
   Table,
   TableBody,
@@ -12,26 +16,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 
-interface TransferHistoryItem {
-  op: [string, Record<string, unknown>];
-  timestamp: string;
-  block: number;
-  trx_id: string;
-}
-
-function formatTimeAgo(dateStr: string): string {
-  const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
-  const now = new Date();
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  return date.toLocaleDateString();
-}
-
-function formatTransferRow(item: TransferHistoryItem, context: string) {
+function formatTransferRow(item: SteemHistoryItem, context: string) {
   const [type, data] = item.op;
 
   switch (type) {
@@ -111,66 +96,33 @@ function formatTransferRow(item: TransferHistoryItem, context: string) {
 
 export function RecentActivity({
   username,
-  refreshNonce = 0,
+  refreshNonce,
 }: {
   username: string;
   refreshNonce?: number;
 }) {
   const t = useTranslations('wallet');
-  const [history, setHistory] = useState<TransferHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const lazyEnabled = useLazyEnabled();
+  const historyState = useActivityHistory(username, refreshNonce, lazyEnabled);
+  const {
+    history,
+    loading,
+    totalFetched,
+    error,
+  } = historyState;
+  const {
+    page,
+    canGoNewer,
+    canGoOlder,
+    onNewer,
+    onOlder,
+    loadingOlder,
+    canFetchMore,
+  } = useRewardsHistoryPager(historyState, `${username}:${refreshNonce ?? 0}`);
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        setLoading(true);
-        const response = await apiClient.getHistory(username);
-        if (response.error) {
-          console.error('Failed to fetch history:', response.error);
-          return;
-        }
-        // Filter out rewards and null-payout items
-        const transfers = (response.history || [])
-          .filter((item: unknown) => {
-            const i = item as unknown as {
-              op?: [string, unknown];
-              1?: { op?: [string, unknown] };
-            };
-            const type = i.op?.[0] || i[1]?.op?.[0];
-            if (!type) return false;
-            if (type === 'curation_reward' || type === 'author_reward' || type === 'comment_benefactor_reward') {
-              return false;
-            }
-            return true;
-          })
-          .map((item: unknown) => {
-            // Handle different history formats
-            const i = item as unknown as
-              | TransferHistoryItem
-              | [unknown, { op: TransferHistoryItem['op']; timestamp: string; block: number; trx_id: string }];
-            if (typeof i === 'object' && i !== null && 'op' in i) {
-              return i as TransferHistoryItem;
-            }
-            const entry = (i as [unknown, { op: TransferHistoryItem['op']; timestamp: string; block: number; trx_id: string }])[1];
-            return {
-              op: entry.op,
-              timestamp: entry.timestamp,
-              block: entry.block,
-              trx_id: entry.trx_id,
-            } as TransferHistoryItem;
-          })
-          .reverse();
-
-        setHistory(transfers);
-      } catch (err) {
-        console.error('Error fetching history:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHistory();
-  }, [username, refreshNonce]);
+  if (!lazyEnabled) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -185,26 +137,44 @@ export function RecentActivity({
     );
   }
 
-  if (!history.length) {
+  if (!history.length && !canFetchMore) {
     return null;
   }
+
+  const showEmptyHint = history.length === 0 && totalFetched > 0;
 
   return (
     <div className="mt-8">
       <Separator className="mb-6" />
       <h4 className="text-lg font-medium mb-2 px-4">{t('history', { defaultMessage: 'History' })}</h4>
       <div className="secondary mb-4 px-4">
-        <span>Beware of spam and phishing links in transfer memos. </span>
-        <span>Do not open links from users you do not trust. </span>
-        <span>Do not provide your private keys to any third party websites. </span>
-        <span>Transactions will not show until they are confirmed on the blockchain, which may take a few minutes.</span>
+        <span>{t('memoWarningSpam')} </span>
+        <span>{t('memoWarningLinks')} </span>
+        <span>{t('memoWarningKeys')} </span>
+        <span>{t('memoWarningConfirmation')}</span>
       </div>
+      {showEmptyHint && (
+        <p className="text-sm text-muted-foreground px-4">
+          {t('activityNoMatchesHint', {
+            count: totalFetched,
+            defaultMessage: 'No matching activity in the latest {count} records. Load more to keep looking.',
+          })}
+        </p>
+      )}
+      {error && (
+        <p className="text-sm text-destructive px-4">
+          {t('activityFetchError', {
+            error,
+            defaultMessage: 'Failed to load activity: {error}. Tap Load more to retry.',
+          })}
+        </p>
+      )}
       <Table>
         <TableBody>
-          {history.map((item, index) => {
+          {page.map((item, index) => {
             const row = formatTransferRow(item, username);
             return (
-              <TableRow key={index}>
+              <TableRow key={`${item.trx_id}-${index}`}>
                 <TableCell className="w-8 text-lg">{row.icon}</TableCell>
                 <TableCell>
                   <div className="font-medium text-sm">{row.description}</div>
@@ -222,6 +192,15 @@ export function RecentActivity({
           })}
         </TableBody>
       </Table>
+      {(history.length > 0 || canFetchMore) && (
+        <RewardsHistoryPager
+          canGoNewer={canGoNewer}
+          canGoOlder={canGoOlder}
+          loadingOlder={loadingOlder}
+          onNewer={onNewer}
+          onOlder={onOlder}
+        />
+      )}
     </div>
   );
 }
