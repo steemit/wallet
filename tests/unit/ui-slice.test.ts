@@ -1,13 +1,17 @@
 /**
  * UI Redux slice unit tests
  *
- * Only covers behavior that isn't a one-line `state.x = payload` setter:
- *   - initial state shape (catches accidental defaults change)
- *   - toggleSidebar (only reducer with computed next state)
+ * Covers initial state shape and all reducers to maintain branch coverage threshold.
+ * toggleSidebar is the only reducer with computed (non-trivial) next state.
  */
 
 import { describe, it, expect } from 'vitest';
-import uiReducer, { toggleSidebar } from '@/lib/store/slices/ui';
+import uiReducer, {
+  toggleSidebar,
+  setSidebarOpen,
+  setTheme,
+  setLocale,
+} from '@/lib/store/slices/ui';
 
 describe('UI Slice', () => {
   it('seeds the default UI state', () => {
@@ -23,5 +27,23 @@ describe('UI Slice', () => {
     const closed = uiReducer(open, toggleSidebar());
     expect(closed.sidebarOpen).toBe(false);
     expect(uiReducer(closed, toggleSidebar()).sidebarOpen).toBe(true);
+  });
+
+  it('setSidebarOpen sets sidebarOpen to the payload value', () => {
+    const state = uiReducer(undefined, { type: 'init' });
+    expect(uiReducer(state, setSidebarOpen(false)).sidebarOpen).toBe(false);
+    expect(uiReducer(state, setSidebarOpen(true)).sidebarOpen).toBe(true);
+  });
+
+  it('setTheme updates the theme', () => {
+    const state = uiReducer(undefined, { type: 'init' });
+    expect(uiReducer(state, setTheme('dark')).theme).toBe('dark');
+    expect(uiReducer(state, setTheme('light')).theme).toBe('light');
+  });
+
+  it('setLocale updates the locale', () => {
+    const state = uiReducer(undefined, { type: 'init' });
+    expect(uiReducer(state, setLocale('zh')).locale).toBe('zh');
+    expect(uiReducer(state, setLocale('en')).locale).toBe('en');
   });
 });

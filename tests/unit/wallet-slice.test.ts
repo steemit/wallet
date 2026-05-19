@@ -3,6 +3,7 @@
  *
  * Only covers reducers with side effects beyond a single field assignment:
  *   - setBalance: writes balance AND clears loading + error
+ *   - setLoading:  writes loading without touching balance/error
  *   - setError:   writes error AND clears loading
  *   - clearWallet: full reset
  */
@@ -10,6 +11,7 @@
 import { describe, it, expect } from 'vitest';
 import walletReducer, {
   setBalance,
+  setLoading,
   setError,
   clearWallet,
 } from '@/lib/store/slices/wallet';
@@ -27,6 +29,15 @@ describe('Wallet Slice', () => {
       setBalance(sampleBalance),
     );
     expect(next).toEqual({ balance: sampleBalance, loading: false, error: null });
+  });
+
+  it('setLoading toggles loading without touching balance or error', () => {
+    const seeded = { balance: sampleBalance, loading: false, error: 'x' };
+    const loading = walletReducer(seeded, setLoading(true));
+    expect(loading.loading).toBe(true);
+    expect(loading.balance).toEqual(sampleBalance);
+    expect(loading.error).toBe('x');
+    expect(walletReducer(loading, setLoading(false)).loading).toBe(false);
   });
 
   it('setError stores the message and clears loading', () => {
