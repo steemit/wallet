@@ -94,6 +94,21 @@ export interface GlobalProperties {
   vote_power_reserve_rate: number;
 }
 
+export interface VestingDelegation {
+  delegator: string;
+  delegatee: string;
+  vesting_shares: string;
+  min_delegation_time: string;
+}
+
+export interface ExpiringVestingDelegation {
+  id: number;
+  delegator: string;
+  delegatee: string;
+  vesting_shares: string;
+  expiration: string;
+}
+
 export interface Witness {
   id: number;
   owner: string;

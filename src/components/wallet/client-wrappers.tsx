@@ -46,6 +46,14 @@ export const AuthorRewardsSectionLazy = dynamic(
   { loading: RewardsSectionFallback, ssr: false }
 );
 
+export const DelegationsSectionLazy = dynamic(
+  () =>
+    import('@/components/wallet/delegations-section').then((mod) => ({
+      default: mod.DelegationsSection,
+    })),
+  { loading: RewardsSectionFallback, ssr: false }
+);
+
 export const WitnessesPageClient = dynamic(
   () => import('@/components/wallet/witness-vote-form').then((mod) => ({ default: mod.WitnessVoteForm })),
   {
