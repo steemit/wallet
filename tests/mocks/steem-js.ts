@@ -32,6 +32,8 @@ export const steem = {
     getSavingsWithdrawToAsync: vi.fn(),
     getSavingsWithdrawFromAsync: vi.fn(),
     getOpenOrdersAsync: vi.fn(),
+    getBlockAsync: vi.fn(),
+    getBlockHeaderAsync: vi.fn(),
   },
 };
 

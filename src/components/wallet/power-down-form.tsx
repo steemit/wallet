@@ -73,7 +73,7 @@ export function PowerDownForm({ variant = 'page', onSuccess }: PowerDownFormProp
       }
 
       const vests = `${shareValue.toFixed(6)} VESTS`;
-      const signedTx = SteemSigner.signPowerDown(username, vests, signingKey);
+      const signedTx = await SteemSigner.signPowerDown(username, vests, signingKey);
       const response = await apiClient.broadcastPowerDown(signedTx, username);
 
       if (!response.success) {
@@ -101,7 +101,7 @@ export function PowerDownForm({ variant = 'page', onSuccess }: PowerDownFormProp
 
     try {
       const vests = '0.000000 VESTS';
-      const signedTx = SteemSigner.signPowerDown(username, vests, signingKey);
+      const signedTx = await SteemSigner.signPowerDown(username, vests, signingKey);
       const response = await apiClient.broadcastPowerDown(signedTx, username);
 
       if (!response.success) {

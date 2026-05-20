@@ -34,6 +34,8 @@ interface MockApi {
   getSavingsWithdrawToAsync: Mock;
   getSavingsWithdrawFromAsync: Mock;
   getOpenOrdersAsync: Mock;
+  getBlockAsync: Mock;
+  getBlockHeaderAsync: Mock;
 }
 const api = steem.api as unknown as MockApi;
 const authMock = steem.auth as unknown as { verifySignature: Mock };
@@ -90,10 +92,21 @@ describe('SteemService.verifySignature (shape check only)', () => {
     expect(await SteemService.verifySignature(validTx)).toBe(true);
   });
 
+  it('accepts ref_block_num === 0 and ref_block_prefix === 0 (valid on-chain refs)', async () => {
+    const tx: SignedTransaction = {
+      ...validTx,
+      ref_block_num: 0,
+      ref_block_prefix: 0,
+    };
+    expect(await SteemService.verifySignature(tx)).toBe(true);
+  });
+
   it.each<{ label: string; tx: SignedTransaction }>([
-    { label: 'no signatures',    tx: { ...validTx, signatures: [] } },
-    { label: 'no operations',    tx: { ...validTx, operations: [] } },
-    { label: 'empty expiration', tx: { ...validTx, expiration: '' } },
+    { label: 'no signatures',      tx: { ...validTx, signatures: [] } },
+    { label: 'no operations',      tx: { ...validTx, operations: [] } },
+    { label: 'empty expiration',   tx: { ...validTx, expiration: '' } },
+    { label: 'ref_block_num NaN',  tx: { ...validTx, ref_block_num: NaN } },
+    { label: 'missing ref prefix', tx: { ...validTx, ref_block_prefix: NaN } },
   ])('rejects: $label', async ({ tx }) => {
     expect(await SteemService.verifySignature(tx)).toBe(false);
   });
@@ -114,6 +127,38 @@ describe('SteemService.verifyChallengeSignature', () => {
 });
 
 // ---------- Single-URL network methods ----------
+
+describe('SteemService.prepareTransactionHeader', () => {
+  it('matches steem-js broadcast prep using LIB block previous id', async () => {
+    api.getDynamicGlobalPropertiesAsync.mockResolvedValueOnce({
+      time: '2020-01-01T00:00:00',
+      last_irreversible_block_num: 100,
+    });
+    api.getBlockAsync.mockResolvedValueOnce({
+      previous: '0123456789abcdef0123456789abcdef01234567',
+    });
+
+    const header = await SteemService.prepareTransactionHeader();
+    expect(header.ref_block_num).toBe((100 - 1) & 0xffff);
+    const expectedPrefix = Buffer.from(
+      '0123456789abcdef0123456789abcdef01234567',
+      'hex',
+    ).readUInt32LE(4);
+    expect(header.ref_block_prefix).toBe(expectedPrefix);
+    expect(header.expiration).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('falls back to zero previous id when block fetch fails', async () => {
+    api.getDynamicGlobalPropertiesAsync.mockResolvedValueOnce({
+      time: '2020-01-01T00:00:00',
+      last_irreversible_block_num: 50,
+    });
+    api.getBlockAsync.mockRejectedValueOnce(new Error('rpc'));
+
+    const header = await SteemService.prepareTransactionHeader();
+    expect(header.ref_block_prefix).toBe(0);
+  });
+});
 
 describe('SteemService.getAccounts', () => {
   it('configures the RPC URL and returns the node response', async () => {

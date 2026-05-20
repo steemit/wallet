@@ -131,7 +131,7 @@ export function ConvertSbdForm({
     try {
       const amountStr = `${amountNum.toFixed(3)} SBD`;
       const requestid = Math.floor(Date.now() / 1000);
-      const signedTx: SignedTransaction = SteemSigner.signConvert(
+      const signedTx: SignedTransaction = await SteemSigner.signConvert(
         accountUsername,
         requestid,
         amountStr,

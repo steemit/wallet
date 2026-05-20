@@ -81,7 +81,7 @@ export function WitnessVoteForm() {
     setIsLoading(true);
     try {
       // Sign transaction
-      const signedTx = SteemSigner.signWitnessVote(username, witness.owner, approve, signingKey);
+      const signedTx = await SteemSigner.signWitnessVote(username, witness.owner, approve, signingKey);
 
       // Broadcast
       const response = await apiClient.broadcastWitnessVote(signedTx, username);

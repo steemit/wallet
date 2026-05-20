@@ -104,7 +104,7 @@ export function TransferForm({
           setIsLoading(false);
           return;
         }
-        signedTx = SteemSigner.signTransfer(
+        signedTx = await SteemSigner.signTransfer(
           username,
           formData.to.trim(),
           amountStr,
@@ -112,7 +112,7 @@ export function TransferForm({
           signingKey
         );
       } else if (transferType === 'savings') {
-        signedTx = SteemSigner.signTransferToSavings(
+        signedTx = await SteemSigner.signTransferToSavings(
           username,
           username,
           amountStr,
@@ -121,7 +121,7 @@ export function TransferForm({
         );
       } else if (transferType === 'savings_withdraw') {
         const requestId = Date.now() >>> 0;
-        signedTx = SteemSigner.signTransferFromSavings(
+        signedTx = await SteemSigner.signTransferFromSavings(
           username,
           username,
           amountStr,
@@ -130,7 +130,7 @@ export function TransferForm({
           signingKey
         );
       } else if (transferType === 'power_up') {
-        signedTx = SteemSigner.signTransferToVesting(
+        signedTx = await SteemSigner.signTransferToVesting(
           username,
           username,
           amountStr,

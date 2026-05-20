@@ -135,6 +135,73 @@ export class SteemService {
   }
 
   /**
+   * Transaction header fields for client-side signing (matches `@steemit/steem-js` broadcast `_prepareTransaction`).
+   * Without these on the signed JSON, server validation and chain broadcast fail.
+   */
+  static async prepareTransactionHeader(): Promise<{
+    ref_block_num: number;
+    ref_block_prefix: number;
+    expiration: string;
+  }> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        getDynamicGlobalPropertiesAsync: () => Promise<GlobalProperties>;
+        getBlockHeaderAsync?: (blockNum: number) => Promise<{ previous?: string }>;
+        getBlockAsync?: (blockNum: number) => Promise<{ previous?: string }>;
+        callAsync?: (method: string, params: unknown[]) => Promise<unknown>;
+      };
+
+      const properties = await api.getDynamicGlobalPropertiesAsync();
+      const timeRaw = properties.time;
+      const chainDate = new Date(timeRaw.endsWith('Z') ? timeRaw : `${timeRaw}Z`);
+      const refBlockNum = (properties.last_irreversible_block_num - 1) & 0xffff;
+      const lib = properties.last_irreversible_block_num;
+
+      let block: { previous?: string } | null = null;
+      try {
+        if (typeof api.getBlockHeaderAsync === 'function') {
+          block = (await api.getBlockHeaderAsync(lib)) as { previous?: string } | null;
+        }
+      } catch {
+        block = null;
+      }
+      if (!block?.previous) {
+        try {
+          if (typeof api.getBlockAsync === 'function') {
+            block = (await api.getBlockAsync(lib)) as { previous?: string };
+          }
+        } catch {
+          block = null;
+        }
+      }
+      if (!block?.previous && typeof api.callAsync === 'function') {
+        try {
+          block = (await api.callAsync('database_api.get_block_header', [
+            lib,
+          ])) as { previous?: string };
+        } catch {
+          block = null;
+        }
+      }
+
+      const headBlockId =
+        block?.previous ?? '0000000000000000000000000000000000000000';
+      const refBlockPrefix = Buffer.from(headBlockId, 'hex').readUInt32LE(4);
+      const expiration = new Date(chainDate.getTime() + 600 * 1000).toISOString().replace('Z', '');
+
+      return {
+        ref_block_num: refBlockNum,
+        ref_block_prefix: refBlockPrefix,
+        expiration,
+      };
+    }).catch((error) => {
+      console.error('Error preparing transaction header:', error);
+      throw new Error(`Failed to prepare transaction header: ${(error as Error).message}`);
+    });
+  }
+
+  /**
    * Outgoing power-down withdraw routes (condenser_api.get_withdraw_routes).
    */
   static async getWithdrawRoutesOutgoing(
@@ -395,12 +462,20 @@ export class SteemService {
         return false;
       }
 
-      // Check if transaction has required fields
+      // Numeric refs must be finite numbers — do NOT use truthiness: ref_block_num is
+      // `head_block_number & 0xffff` and is legitimately 0 every 65536 blocks.
+      const refNumOk =
+        typeof signedTx.ref_block_num === 'number' && Number.isFinite(signedTx.ref_block_num);
+      const refPrefixOk =
+        typeof signedTx.ref_block_prefix === 'number' &&
+        Number.isFinite(signedTx.ref_block_prefix);
+
       if (
-        !signedTx.ref_block_num ||
-        !signedTx.ref_block_prefix ||
-        !signedTx.expiration ||
-        !signedTx.operations ||
+        !refNumOk ||
+        !refPrefixOk ||
+        typeof signedTx.expiration !== 'string' ||
+        signedTx.expiration.length === 0 ||
+        !Array.isArray(signedTx.operations) ||
         signedTx.operations.length === 0
       ) {
         return false;
