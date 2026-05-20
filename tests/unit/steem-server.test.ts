@@ -432,3 +432,107 @@ describe('withFailover (multi-URL)', () => {
     );
   });
 });
+
+// ---------- Vesting Delegations ----------
+
+describe('SteemService.getVestingDelegations', () => {
+  it('returns all delegations when under 1000', async () => {
+    api.callAsync.mockResolvedValueOnce([
+      { delegator: 'alice', delegatee: 'bob', vesting_shares: '1000.000000 VESTS', min_delegation_time: '2024-01-01T00:00:00' },
+    ]);
+    const result = await SteemService.getVestingDelegations('alice');
+    expect(result).toEqual([
+      { delegator: 'alice', delegatee: 'bob', vesting_shares: '1000.000000 VESTS', min_delegation_time: '2024-01-01T00:00:00' },
+    ]);
+    expect(api.callAsync).toHaveBeenCalledWith('condenser_api.get_vesting_delegations', [
+      'alice', '', 1000,
+    ]);
+  });
+
+  it('pages recursively when result equals limit', async () => {
+    const batch1 = Array.from({ length: 1000 }, (_, i) => ({
+      delegator: 'alice',
+      delegatee: `user${i}`,
+      vesting_shares: '1.000000 VESTS',
+      min_delegation_time: '2024-01-01T00:00:00',
+    }));
+    const batch2 = [
+      { delegator: 'alice', delegatee: 'last', vesting_shares: '1.000000 VESTS', min_delegation_time: '2024-01-01T00:00:00' },
+    ];
+    api.callAsync
+      .mockResolvedValueOnce(batch1)
+      .mockResolvedValueOnce(batch2);
+
+    const result = await SteemService.getVestingDelegations('alice');
+    expect(result).toHaveLength(1001);
+    expect(api.callAsync).toHaveBeenCalledTimes(2);
+    expect(api.callAsync).toHaveBeenLastCalledWith('condenser_api.get_vesting_delegations', [
+      'alice', 'user999', 1000,
+    ]);
+  });
+
+  it('stops accumulating once maxItems is reached after a batch', async () => {
+    const batch1 = Array.from({ length: 1000 }, (_, i) => ({
+      delegator: 'alice',
+      delegatee: `user${i}`,
+      vesting_shares: '1.000000 VESTS',
+      min_delegation_time: '2024-01-01T00:00:00',
+    }));
+    const batch2 = Array.from({ length: 500 }, (_, i) => ({
+      delegator: 'alice',
+      delegatee: `extra${i}`,
+      vesting_shares: '1.000000 VESTS',
+      min_delegation_time: '2024-01-02T00:00:00',
+    }));
+    // Third batch should never be requested since maxItems=1500 is hit after batch2.
+    api.callAsync
+      .mockResolvedValueOnce(batch1)
+      .mockResolvedValueOnce(batch2);
+
+    const result = await SteemService.getVestingDelegations('alice', { maxItems: 1500 });
+    expect(result).toHaveLength(1500);
+    expect(api.callAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns empty when node returns empty', async () => {
+    api.callAsync.mockResolvedValueOnce([]);
+    const result = await SteemService.getVestingDelegations('alice');
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty when node returns non-array', async () => {
+    api.callAsync.mockResolvedValueOnce(null);
+    const result = await SteemService.getVestingDelegations('alice');
+    expect(result).toEqual([]);
+  });
+});
+
+describe('SteemService.getExpiringVestingDelegations', () => {
+  it('maps delegation fields from database_api response', async () => {
+    api.callAsync.mockResolvedValueOnce({
+      delegations: [
+        { id: 1, delegator: 'alice', delegatee: 'bob', vesting_shares: '500.000000 VESTS', expiration: '2024-06-01T00:00:00' },
+      ],
+    });
+    const result = await SteemService.getExpiringVestingDelegations('alice');
+    expect(result).toEqual([
+      { id: 1, delegator: 'alice', delegatee: 'bob', vesting_shares: '500.000000 VESTS', expiration: '2024-06-01T00:00:00' },
+    ]);
+    expect(api.callAsync).toHaveBeenCalledWith(
+      'database_api.find_vesting_delegation_expirations',
+      { account: 'alice' },
+    );
+  });
+
+  it('returns [] when response has no delegations field', async () => {
+    api.callAsync.mockResolvedValueOnce(null);
+    const result = await SteemService.getExpiringVestingDelegations('alice');
+    expect(result).toEqual([]);
+  });
+
+  it('returns [] when delegations array is missing', async () => {
+    api.callAsync.mockResolvedValueOnce({});
+    const result = await SteemService.getExpiringVestingDelegations('alice');
+    expect(result).toEqual([]);
+  });
+});

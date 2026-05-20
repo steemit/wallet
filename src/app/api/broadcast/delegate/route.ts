@@ -45,6 +45,8 @@ export async function POST(request: NextRequest) {
     await cacheDeleteByPrefix('cache:query:accounts');
     await cacheDeleteByPrefix(`cache:query:wallet-estimate-extras:${username}`);
     await cacheDeleteByPrefix(`cache:query:withdraw-routes:${username}`);
+    await cacheDeleteByPrefix(`cache:query:vesting-delegations:${username}`);
+    await cacheDeleteByPrefix(`cache:query:expiring-vesting-delegations:${username}`);
 
     const response = NextResponse.json({ success: true, result });
     response.headers.set('X-Cache-Invalidate', username);
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Broadcast delegate error:', error);
     return NextResponse.json(
-      { error: 'Failed to broadcast transaction', details: (error as Error).message },
+      { error: 'Failed to broadcast transaction' },
       { status: 500 }
     );
   }
