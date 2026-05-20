@@ -40,6 +40,11 @@ type SortField = 'delegatee' | 'date' | 'amount';
 type SortDir = 'asc' | 'desc';
 const PAGE_SIZE = 20;
 
+function formatVestsDisplay(vestsAsset: string): string {
+  const n = parseAssetAmount(vestsAsset);
+  return `${n.toLocaleString('en-US', { maximumFractionDigits: 6 })} VESTS`;
+}
+
 export function DelegationsSection({
   username,
   globalProps,
@@ -318,7 +323,7 @@ function OutgoingDelegationsTable({
                         : item.vesting_shares
                     )
                   }
-                  title={`${parseAssetAmount(item.vesting_shares).toFixed(6)} VESTS`}
+                  title={formatVestsDisplay(item.vesting_shares)}
                 >
                   {globalPropsLoading ? (
                     <Skeleton className="ml-auto h-4 w-20" />
@@ -383,13 +388,15 @@ function OutgoingDelegationsTable({
                     : item.vesting_shares
                 )
               }
-              title={`${parseAssetAmount(item.vesting_shares).toFixed(6)} VESTS`}
             >
               {globalPropsLoading
                 ? '...'
                 : globalProps
                   ? `${formatSteemPowerFromVestsString(item.vesting_shares, globalProps)} SP`
                   : item.vesting_shares}
+              <span className="ml-1 text-xs text-muted-foreground">
+                ({formatVestsDisplay(item.vesting_shares)})
+              </span>
             </div>
           </div>
         ))}
@@ -549,7 +556,7 @@ function ExpiringDelegationsTable({
                         : item.vesting_shares
                     )
                   }
-                  title={`${parseAssetAmount(item.vesting_shares).toFixed(6)} VESTS`}
+                  title={formatVestsDisplay(item.vesting_shares)}
                 >
                   {globalPropsLoading ? (
                     <Skeleton className="ml-auto h-4 w-20" />
@@ -579,22 +586,26 @@ function ExpiringDelegationsTable({
             >
               {formatTimeAgo(item.expiration, locale)}
             </div>
-            <div
-              className="cursor-pointer text-sm font-medium"
-              onClick={() =>
-                copyToClipboard(
-                  globalProps
+            <div className="text-right">
+              <div
+                className="cursor-pointer text-sm font-medium"
+                onClick={() =>
+                  copyToClipboard(
+                    globalProps
+                      ? `${formatSteemPowerFromVestsString(item.vesting_shares, globalProps)} SP`
+                      : item.vesting_shares
+                  )
+                }
+              >
+                {globalPropsLoading
+                  ? '...'
+                  : globalProps
                     ? `${formatSteemPowerFromVestsString(item.vesting_shares, globalProps)} SP`
-                    : item.vesting_shares
-                )
-              }
-              title={`${parseAssetAmount(item.vesting_shares).toFixed(6)} VESTS`}
-            >
-              {globalPropsLoading
-                ? '...'
-                : globalProps
-                  ? `${formatSteemPowerFromVestsString(item.vesting_shares, globalProps)} SP`
-                  : item.vesting_shares}
+                    : item.vesting_shares}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {formatVestsDisplay(item.vesting_shares)}
+              </span>
             </div>
           </div>
         ))}
