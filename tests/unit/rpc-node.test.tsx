@@ -64,7 +64,7 @@ describe('useRpcNode hook', () => {
   });
 
   it('setNode ignores a URL not in RPC_NODES', async () => {
-    const { useRpcNode, RPC_NODES } = await import('@/lib/rpc-node');
+    const { useRpcNode } = await import('@/lib/rpc-node');
     const { result } = renderHook(() => useRpcNode());
     const before = result.current.node;
     act(() => {
