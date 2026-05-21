@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { applyRpcOverride } from '@/lib/api/with-rpc-override';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,11 +21,13 @@ export async function GET(request: NextRequest) {
       request.nextUrl.searchParams.get('includeOpenOrders') === 'true';
 
     try {
-      const result = await withCache(
-        `cache:query:wallet-estimate-extras:${username}:${includeOpenOrders}`,
-        60,
-        600,
-        () => SteemService.getWalletEstimateExtras(username, { includeOpenOrders })
+      const result = await applyRpcOverride(request, () =>
+        withCache(
+          `cache:query:wallet-estimate-extras:${username}:${includeOpenOrders}`,
+          60,
+          600,
+          () => SteemService.getWalletEstimateExtras(username, { includeOpenOrders })
+        )
       );
 
       const response = NextResponse.json({

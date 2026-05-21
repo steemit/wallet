@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { applyRpcOverride } from '@/lib/api/with-rpc-override';
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,11 +27,10 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const result = await withCache(
-        `cache:query:witnesses:${limit}`,
-        600,
-        1800,
-        () => SteemService.getWitnessesByVote(limit)
+      const result = await applyRpcOverride(request, () =>
+        withCache(`cache:query:witnesses:${limit}`, 600, 1800, () =>
+          SteemService.getWitnessesByVote(limit)
+        )
       );
 
       const response = NextResponse.json({

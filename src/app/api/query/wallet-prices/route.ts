@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { applyRpcOverride } from '@/lib/api/with-rpc-override';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,8 +12,8 @@ export async function GET(request: NextRequest) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const result = await withCache('cache:query:wallet-prices', 60, 600, () =>
-      SteemService.getWalletPrices()
+    const result = await applyRpcOverride(request, () =>
+      withCache('cache:query:wallet-prices', 60, 600, () => SteemService.getWalletPrices())
     );
 
     const response = NextResponse.json({

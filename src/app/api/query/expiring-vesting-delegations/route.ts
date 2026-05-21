@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { applyRpcOverride } from '@/lib/api/with-rpc-override';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,8 +21,8 @@ export async function GET(request: NextRequest) {
     }
 
     const cacheKey = `cache:query:expiring-vesting-delegations:${account}`;
-    const result = await withCache(cacheKey, 15, 120, () =>
-      SteemService.getExpiringVestingDelegations(account)
+    const result = await applyRpcOverride(request, () =>
+      withCache(cacheKey, 15, 120, () => SteemService.getExpiringVestingDelegations(account))
     );
 
     const response = NextResponse.json({

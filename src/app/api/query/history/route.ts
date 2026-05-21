@@ -5,6 +5,7 @@ import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { getRedis } from '@/lib/cache/redis';
 import { isSteemKnownDown, markSteemHealthy, markSteemUnhealthy } from '@/lib/cache/health-monitor';
+import { applyRpcOverride } from '@/lib/api/with-rpc-override';
 
 const FALLBACK_TTL = 300; // 5 minutes
 
@@ -54,7 +55,9 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const history = await SteemService.getAccountHistory(username, limit, from);
+      const history = await applyRpcOverride(request, () =>
+        SteemService.getAccountHistory(username, limit, from)
+      );
       await markSteemHealthy();
 
       // Store successful response as fallback (only for first page / from=-1)

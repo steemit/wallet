@@ -22,8 +22,10 @@ import {
   ChartCandlestick,
   LogIn,
   UserPlus,
+  Server,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useRpcNode } from '@/lib/rpc-node';
 
 interface SidePanelProps {
   open: boolean;
@@ -36,6 +38,7 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
   const pathname = usePathname();
   const username = useSelector((state: RootState) => state.auth.username);
   const isLoggedIn = !!username;
+  const { node: selectedRpc, setNode, nodes: rpcNodes } = useRpcNode();
 
   const socialUrl = 'https://steemit.com';
   const signupUrl = process.env.NEXT_PUBLIC_SIGNUP_URL ?? 'https://signup.steemit.com';
@@ -62,6 +65,36 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
           <div className="px-2 py-1">
             <LanguageSwitcher onLocaleSelected={() => onOpenChange(false)} />
           </div>
+
+          {rpcNodes.length > 1 && (
+            <div className="px-2 py-1">
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Server className="size-3" />
+                RPC Node
+              </p>
+              <div className="flex flex-col gap-0.5">
+                {rpcNodes.map((url) => {
+                  const label = url.replace(/^https?:\/\//, '');
+                  const isSelected = url === selectedRpc;
+                  return (
+                    <button
+                      key={url}
+                      onClick={() => setNode(url)}
+                      className={cn(
+                        'w-full truncate rounded px-2 py-1 text-left text-xs transition-colors',
+                        isSelected
+                          ? 'bg-accent font-semibold text-accent-foreground'
+                          : 'text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground'
+                      )}
+                      title={url}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {isLoggedIn && (
             <>

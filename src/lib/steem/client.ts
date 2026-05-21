@@ -1,6 +1,7 @@
 'use client';
 
 import { steem } from '@steemit/steem-js';
+import { getSelectedRpcNode } from '@/lib/rpc-node';
 
 import type {
   Operation,
@@ -380,6 +381,11 @@ export class SteemSigner {
   }
 }
 
+function getRpcHeader(): Record<string, string> {
+  const node = getSelectedRpcNode();
+  return node ? { 'X-Steem-RPC': node } : {};
+}
+
 function getCSRFCookie(): string | null {
   if (typeof document === 'undefined') return null;
   const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
@@ -389,12 +395,15 @@ function getCSRFCookie(): string | null {
 
 function withCSRFHeader(baseHeaders: HeadersInit = {}): HeadersInit {
   const token = getCSRFCookie();
-  if (!token) return baseHeaders;
-
   return {
     ...baseHeaders,
-    'X-CSRF-Token': token,
+    ...getRpcHeader(),
+    ...(token ? { 'X-CSRF-Token': token } : {}),
   };
+}
+
+function withRpcHeader(baseHeaders: HeadersInit = {}): HeadersInit {
+  return { ...baseHeaders, ...getRpcHeader() };
 }
 
 /**
@@ -524,7 +533,9 @@ export const apiClient = {
    * Get account information
    */
   async getAccounts(usernames: string[]): Promise<{ accounts: SteemAccount[]; error?: string }> {
-    const response = await fetch(`/api/query/accounts?names=${usernames.join(',')}`);
+    const response = await fetch(`/api/query/accounts?names=${usernames.join(',')}`, {
+      headers: withRpcHeader(),
+    });
     return response.json();
   },
 
@@ -542,7 +553,9 @@ export const apiClient = {
       limit: String(limit),
     });
     if (typeof from === 'number') params.set('from', String(from));
-    const response = await fetch(`/api/query/history?${params.toString()}`);
+    const response = await fetch(`/api/query/history?${params.toString()}`, {
+      headers: withRpcHeader(),
+    });
     return response.json();
   },
 
@@ -550,7 +563,9 @@ export const apiClient = {
    * Get witnesses list
    */
   async getWitnesses(limit: number = 100): Promise<{ witnesses: unknown[]; error?: string }> {
-    const response = await fetch(`/api/query/witnesses?limit=${limit}`);
+    const response = await fetch(`/api/query/witnesses?limit=${limit}`, {
+      headers: withRpcHeader(),
+    });
     return response.json();
   },
 
@@ -558,7 +573,7 @@ export const apiClient = {
    * Get global properties
    */
   async getGlobalProps(): Promise<{ props: GlobalProperties; error?: string }> {
-    const response = await fetch('/api/query/global-props');
+    const response = await fetch('/api/query/global-props', { headers: withRpcHeader() });
     return response.json();
   },
 
@@ -573,7 +588,8 @@ export const apiClient = {
     error?: string;
   }> {
     const response = await fetch(
-      `/api/query/withdraw-routes?username=${encodeURIComponent(username)}`
+      `/api/query/withdraw-routes?username=${encodeURIComponent(username)}`,
+      { headers: withRpcHeader() }
     );
     return response.json();
   },
@@ -587,7 +603,7 @@ export const apiClient = {
     quote?: string;
     error?: string;
   }> {
-    const response = await fetch('/api/query/median-history-price');
+    const response = await fetch('/api/query/median-history-price', { headers: withRpcHeader() });
     return response.json();
   },
 

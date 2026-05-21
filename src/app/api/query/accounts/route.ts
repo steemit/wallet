@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { applyRpcOverride } from '@/lib/api/with-rpc-override';
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,8 +42,8 @@ export async function GET(request: NextRequest) {
     }
 
     const cacheKey = `cache:query:accounts:${namesParam.length > 200 ? namesParam.substring(0, 200) : namesParam}`;
-    const result = await withCache(cacheKey, 10, 300, () =>
-      SteemService.getAccounts(usernames)
+    const result = await applyRpcOverride(request, () =>
+      withCache(cacheKey, 10, 300, () => SteemService.getAccounts(usernames))
     );
 
     const response = NextResponse.json({

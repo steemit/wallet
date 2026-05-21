@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { applyRpcOverride } from '@/lib/api/with-rpc-override';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,32 +15,24 @@ export async function GET(request: NextRequest) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const result = await withCache('cache:query:price', 60, 600, async () => {
-      const feedHistory = await SteemService.getFeedHistory();
+    const result = await applyRpcOverride(request, () =>
+      withCache('cache:query:price', 60, 600, async () => {
+        const feedHistory = await SteemService.getFeedHistory();
 
-      // Calculate current price from feed history
-      // The base is the median price in SBD
-      // The quote is 1 STEEM
-      const history = feedHistory as Record<string, unknown> | undefined;
-      const medianHistory = history?.current_median_history as Record<string, unknown> | undefined;
-      const currentPrice = (medianHistory?.base_quote as string) || '0.000 SBD';
+        const history = feedHistory as Record<string, unknown> | undefined;
+        const medianHistory = history?.current_median_history as Record<string, unknown> | undefined;
+        const currentPrice = (medianHistory?.base_quote as string) || '0.000 SBD';
 
-      // Parse price (format: "1.234 SBD")
-      const priceMatch = currentPrice.match(/[\d.]+/);
-      const price = priceMatch ? parseFloat(priceMatch[0]) : 0;
+        const priceMatch = currentPrice.match(/[\d.]+/);
+        const price = priceMatch ? parseFloat(priceMatch[0]) : 0;
+        const priceHistory = (history?.price_history as unknown[]) || [];
 
-      // Get previous prices for history
-      const priceHistory = (history?.price_history as unknown[]) || [];
-
-      return {
-        price: {
-          sbd: price,
-          base: currentPrice,
-          timestamp: new Date().toISOString(),
-        },
-        history: priceHistory.slice(0, 7), // Last 7 days
-      };
-    });
+        return {
+          price: { sbd: price, base: currentPrice, timestamp: new Date().toISOString() },
+          history: priceHistory.slice(0, 7),
+        };
+      })
+    );
 
     const response = NextResponse.json({
       success: true,

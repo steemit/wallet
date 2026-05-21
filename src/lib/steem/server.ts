@@ -1,6 +1,7 @@
 // Server-side Steem service
 // All communication with Steem nodes happens here
 
+import { AsyncLocalStorage } from 'async_hooks';
 import { steem } from '@steemit/steem-js';
 
 import type {
@@ -18,30 +19,42 @@ const STEEM_RPC_URLS = (process.env.STEEM_RPC_URL || 'https://api.steemit.com')
   .map((u) => u.trim())
   .filter(Boolean);
 
-let currentUrlIndex = 0;
-function getCurrentRpcUrl(): string {
-  return STEEM_RPC_URLS[currentUrlIndex % STEEM_RPC_URLS.length] ?? STEEM_RPC_URLS[0]!;
+// Per-request preferred RPC override (set via request header, scoped to async context).
+const _rpcOverride = new AsyncLocalStorage<string>();
+
+/**
+ * Run `fn` with a preferred RPC node tried first in the failover chain.
+ * Called by API route handlers after validating the X-Steem-RPC request header.
+ */
+export function withRpcOverride<T>(preferred: string, fn: () => Promise<T>): Promise<T> {
+  return _rpcOverride.run(preferred, fn);
 }
 
 function ensureConfigured(url?: string) {
-  const rpcUrl = url ?? getCurrentRpcUrl();
+  const rpcUrl = url ?? STEEM_RPC_URLS[0] ?? 'https://api.steemit.com';
   if (steem?.api?.setOptions) {
     steem.api.setOptions({ url: rpcUrl });
   }
 }
 
 async function withFailover<T>(fn: () => Promise<T>): Promise<T> {
-  const startIndex = currentUrlIndex;
+  const override = _rpcOverride.getStore() ?? null;
+  // Put the user-preferred node first; fall back to env-configured list.
+  const urls =
+    override && STEEM_RPC_URLS.includes(override)
+      ? [override, ...STEEM_RPC_URLS.filter((u) => u !== override)]
+      : [...STEEM_RPC_URLS];
+
   let lastError: Error | null = null;
-  for (let i = 0; i < STEEM_RPC_URLS.length; i++) {
-    currentUrlIndex = (startIndex + i) % STEEM_RPC_URLS.length;
-    ensureConfigured(getCurrentRpcUrl());
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i]!;
+    ensureConfigured(url);
     try {
       return await fn();
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      if (i < STEEM_RPC_URLS.length - 1) {
-        console.warn(`Steem RPC ${getCurrentRpcUrl()} failed, trying next:`, lastError.message);
+      if (i < urls.length - 1) {
+        console.warn(`Steem RPC ${url} failed, trying ${urls[i + 1]}:`, lastError.message);
       }
     }
   }
