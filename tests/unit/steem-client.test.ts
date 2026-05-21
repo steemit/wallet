@@ -14,6 +14,9 @@ import type { SignedTransaction } from '@/lib/steem/types';
 import { steem } from '@steemit/steem-js';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
 
+// Default RPC node used when NEXT_PUBLIC_RPC_NODES is not set in the test env.
+const DEFAULT_RPC_NODE = 'https://api.steemit.com';
+
 global.fetch = vi.fn();
 
 const mockTx: SignedTransaction = {
@@ -228,7 +231,7 @@ describe('apiClient.login / logout — CSRF header propagation', () => {
     await apiClient.logout();
     expect(global.fetch).toHaveBeenCalledWith('/api/auth/logout', {
       method: 'POST',
-      headers: {},
+      headers: {},  // auth endpoints do not include X-Steem-RPC
     });
   });
 });
@@ -274,12 +277,13 @@ describe('apiClient broadcasts — every method posts the signed tx to its endpo
       endpoint: '/api/broadcast/convert',
       call: () => apiClient.broadcastConvert(mockTx, 'alice'),
     },
-  ])('$name → POST $endpoint with CSRF + signedTx', async ({ endpoint, call }) => {
+  ])('$name → POST $endpoint with CSRF + RPC + signedTx', async ({ endpoint, call }) => {
     await call();
     expect(global.fetch).toHaveBeenCalledWith(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-Steem-RPC': DEFAULT_RPC_NODE,
         'X-CSRF-Token': 'test-token',
       },
       body: JSON.stringify({ signedTx: mockTx, username: 'alice' }),
@@ -330,6 +334,8 @@ describe('apiClient queries — GET endpoints', () => {
     },
   ])('$name → GET $url', async ({ call, url }) => {
     await call();
-    expect(global.fetch).toHaveBeenCalledWith(url);
+    expect(global.fetch).toHaveBeenCalledWith(url, {
+      headers: { 'X-Steem-RPC': DEFAULT_RPC_NODE },
+    });
   });
 });

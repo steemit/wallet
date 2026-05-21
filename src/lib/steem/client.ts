@@ -18,7 +18,7 @@ export type TransactionHeaderFields = {
 };
 
 async function fetchTransactionHeader(): Promise<TransactionHeaderFields> {
-  const response = await fetch('/api/query/transaction-header');
+  const response = await fetch('/api/query/transaction-header', { headers: withRpcHeader() });
   const data = (await response.json()) as {
     success?: boolean;
     ref_block_num?: unknown;
@@ -395,11 +395,8 @@ function getCSRFCookie(): string | null {
 
 function withCSRFHeader(baseHeaders: HeadersInit = {}): HeadersInit {
   const token = getCSRFCookie();
-  return {
-    ...baseHeaders,
-    ...getRpcHeader(),
-    ...(token ? { 'X-CSRF-Token': token } : {}),
-  };
+  if (!token) return { ...baseHeaders };
+  return { ...baseHeaders, 'X-CSRF-Token': token };
 }
 
 function withRpcHeader(baseHeaders: HeadersInit = {}): HeadersInit {
@@ -463,7 +460,7 @@ export const apiClient = {
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/transfer', {
       method: 'POST',
-      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      headers: withCSRFHeader(withRpcHeader({ 'Content-Type': 'application/json' })),
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();
@@ -478,7 +475,7 @@ export const apiClient = {
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/power-down', {
       method: 'POST',
-      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      headers: withCSRFHeader(withRpcHeader({ 'Content-Type': 'application/json' })),
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();
@@ -493,7 +490,7 @@ export const apiClient = {
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/delegate', {
       method: 'POST',
-      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      headers: withCSRFHeader(withRpcHeader({ 'Content-Type': 'application/json' })),
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();
@@ -508,7 +505,7 @@ export const apiClient = {
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/vote', {
       method: 'POST',
-      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      headers: withCSRFHeader(withRpcHeader({ 'Content-Type': 'application/json' })),
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();
@@ -523,7 +520,7 @@ export const apiClient = {
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/witness-vote', {
       method: 'POST',
-      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      headers: withCSRFHeader(withRpcHeader({ 'Content-Type': 'application/json' })),
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();
@@ -613,7 +610,7 @@ export const apiClient = {
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/set-withdraw-vesting-route', {
       method: 'POST',
-      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      headers: withCSRFHeader(withRpcHeader({ 'Content-Type': 'application/json' })),
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();
@@ -625,7 +622,7 @@ export const apiClient = {
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/convert', {
       method: 'POST',
-      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      headers: withCSRFHeader(withRpcHeader({ 'Content-Type': 'application/json' })),
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();
