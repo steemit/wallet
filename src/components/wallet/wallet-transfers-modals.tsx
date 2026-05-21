@@ -120,6 +120,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
           <>
             <DialogHeader className="sr-only">
               <DialogTitle>Transfer</DialogTitle>
+              <DialogDescription>Transfer STEEM or SBD to another account</DialogDescription>
             </DialogHeader>
             <TransferForm
               key={`${asset ?? 'STEEM'}-${transferType ?? 'transfer'}`}
@@ -135,6 +136,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
           <>
             <DialogHeader className="sr-only">
               <DialogTitle>Power down</DialogTitle>
+              <DialogDescription>Convert vesting shares back to liquid STEEM</DialogDescription>
             </DialogHeader>
             <PowerDownForm variant="dialog" onSuccess={handleSuccess} />
           </>
@@ -143,6 +145,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
           <>
             <DialogHeader className="sr-only">
               <DialogTitle>Delegate vesting shares</DialogTitle>
+              <DialogDescription>Delegate your vesting shares to another account</DialogDescription>
             </DialogHeader>
             <DelegateForm variant="dialog" onSuccess={handleSuccess} onCancel={clearWalletQuery} />
           </>

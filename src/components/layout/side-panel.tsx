@@ -54,7 +54,7 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[280px] sm:w-[320px]">
+      <SheetContent side="right" className="w-[280px] sm:w-[320px]" aria-describedby={undefined}>
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <SteemLogo />
