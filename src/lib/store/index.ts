@@ -8,6 +8,29 @@ import type { AuthState } from './slices/auth';
 const AUTH_KEY_FIELDS = ['ownerKey', 'activeKey', 'postingKey', 'memoKey', 'privateKey'] as const;
 type AuthKeyField = (typeof AUTH_KEY_FIELDS)[number];
 
+type StoreState = { auth: AuthState; [k: string]: unknown };
+type CredentialsAction = { type: string; payload: Partial<Record<AuthKeyField, string | null>> };
+
+export function devStateSanitizer(state: unknown): unknown {
+  const s = state as StoreState;
+  const sanitizedAuth: AuthState = { ...s.auth };
+  for (const field of AUTH_KEY_FIELDS) {
+    if (sanitizedAuth[field] != null)
+      (sanitizedAuth as Record<AuthKeyField, string | null>)[field] = '[REDACTED]';
+  }
+  return { ...s, auth: sanitizedAuth };
+}
+
+export function devActionSanitizer(action: unknown): unknown {
+  const a = action as CredentialsAction;
+  if (a.type !== 'auth/setCredentials') return action;
+  const payload = { ...a.payload };
+  for (const field of AUTH_KEY_FIELDS) {
+    if (payload[field] != null) payload[field] = '[REDACTED]';
+  }
+  return { ...a, payload };
+}
+
 export const makeStore = () =>
   configureStore({
     reducer: {
@@ -33,24 +56,8 @@ export const makeStore = () =>
             // In development DevTools remain fully functional for every slice
             // except that live key values are replaced before they reach the
             // extension, so a developer's own keys are never shown in plain text.
-            stateSanitizer: (state) => {
-              const s = state as unknown as { auth: AuthState; [k: string]: unknown };
-              const sanitizedAuth: AuthState = { ...s.auth };
-              for (const field of AUTH_KEY_FIELDS) {
-                if (sanitizedAuth[field] != null)
-                  (sanitizedAuth as Record<AuthKeyField, string | null>)[field] = '[REDACTED]';
-              }
-              return { ...s, auth: sanitizedAuth } as typeof state;
-            },
-            actionSanitizer: (action) => {
-              if (action.type !== 'auth/setCredentials') return action;
-              const a = action as unknown as { type: string; payload: Partial<Record<AuthKeyField, string | null>> };
-              const payload = { ...a.payload };
-              for (const field of AUTH_KEY_FIELDS) {
-                if (payload[field] != null) payload[field] = '[REDACTED]';
-              }
-              return { ...action, payload } as typeof action;
-            },
+            stateSanitizer: (state) => devStateSanitizer(state) as typeof state,
+            actionSanitizer: (action) => devActionSanitizer(action) as typeof action,
           },
   });
 
