@@ -8,6 +8,8 @@ import type {
   SignedTransaction,
   BroadcastResult,
   GlobalProperties,
+  VestingDelegation,
+  ExpiringVestingDelegation,
 } from './types';
 
 // Steem configuration from environment; support multiple URLs for failover
@@ -434,6 +436,75 @@ export class SteemService {
     }).catch((error) => {
       console.error('Error fetching wallet estimate extras:', error);
       throw new Error(`Failed to fetch wallet estimate extras: ${(error as Error).message}`);
+    });
+  }
+
+  /**
+   * Get outgoing vesting delegations (condenser_api.get_vesting_delegations).
+   * Recursively pages until all delegations are fetched (max 5000).
+   */
+  static async getVestingDelegations(
+    account: string,
+    options: { maxItems?: number } = {}
+  ): Promise<VestingDelegation[]> {
+    const maxItems = options.maxItems ?? 5000;
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        callAsync: (method: string, params: unknown[]) => Promise<unknown>;
+      };
+      const all: VestingDelegation[] = [];
+      let start = '';
+      const limit = 1000;
+      let delay = 250;
+      while (true) {
+        const batch = (await api.callAsync('condenser_api.get_vesting_delegations', [
+          account,
+          start,
+          limit,
+        ])) as VestingDelegation[];
+        if (!Array.isArray(batch) || batch.length === 0) break;
+        all.push(...batch);
+        if (batch.length < limit || all.length >= maxItems) break;
+        start = batch[batch.length - 1]!.delegatee;
+        await new Promise((r) => setTimeout(r, delay));
+        delay = Math.min(delay * 1.2, 3000);
+      }
+      return all;
+    }).catch((error) => {
+      console.error('Error fetching vesting delegations:', error);
+      throw new Error(`Failed to fetch vesting delegations: ${(error as Error).message}`);
+    });
+  }
+
+  /**
+   * Get expiring vesting delegation objects (database_api.find_vesting_delegation_expirations).
+   */
+  static async getExpiringVestingDelegations(
+    account: string
+  ): Promise<ExpiringVestingDelegation[]> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        callAsync: (method: string, params: unknown) => Promise<unknown>;
+      };
+      const result = (await api.callAsync(
+        'database_api.find_vesting_delegation_expirations',
+        { account }
+      )) as { delegations?: ExpiringVestingDelegation[] } | null;
+      if (!result || !Array.isArray(result.delegations)) return [];
+      return result.delegations.map((d) => ({
+        id: d.id,
+        delegator: d.delegator,
+        delegatee: d.delegatee,
+        vesting_shares: d.vesting_shares,
+        expiration: d.expiration,
+      }));
+    }).catch((error) => {
+      console.error('Error fetching expiring vesting delegations:', error);
+      throw new Error(
+        `Failed to fetch expiring vesting delegations: ${(error as Error).message}`
+      );
     });
   }
 

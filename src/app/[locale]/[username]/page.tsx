@@ -16,6 +16,7 @@ import { WalletSectionPlaceholder } from '@/components/wallet/wallet-section-pla
 import {
   AuthorRewardsSectionLazy,
   CurationRewardsSectionLazy,
+  DelegationsSectionLazy,
 } from '@/components/wallet/client-wrappers';
 import { normalizeProfile } from '@/lib/steem/normalize-profile';
 import { canManageBalanceForPageUrl } from '@/lib/auth/browser-storage';
@@ -181,7 +182,15 @@ export default function WalletPage() {
             <RecentActivityLazy username={urlUsername} refreshNonce={walletRefreshNonce} />
           </>
         )}
-        {isDelegationsPath && <WalletSectionPlaceholder titleKey="delegations" />}
+        {isDelegationsPath && (
+          <DelegationsSectionLazy
+            key={`delegations-${urlUsername}`}
+            username={urlUsername}
+            globalProps={globalProps}
+            globalPropsLoading={balanceLoading}
+            isMyAccount={isMyAccount}
+          />
+        )}
         {isPermissionsPath && <WalletSectionPlaceholder titleKey="keysAndPermissions" />}
         {isPasswordPath && <WalletSectionPlaceholder titleKey="changePassword" />}
         {isCommunitiesPath && <WalletSectionPlaceholder titleKey="communities" />}
