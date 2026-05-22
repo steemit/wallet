@@ -15,6 +15,7 @@ import { WalletTransfersModals } from '@/components/wallet/wallet-transfers-moda
 import { WalletSectionPlaceholder } from '@/components/wallet/wallet-section-placeholder';
 import {
   AuthorRewardsSectionLazy,
+  CommunitiesSectionLazy,
   CurationRewardsSectionLazy,
   DelegationsSectionLazy,
   PermissionsSectionLazy,
@@ -200,7 +201,13 @@ export default function WalletPage() {
           />
         )}
         {isPasswordPath && <WalletSectionPlaceholder titleKey="changePassword" />}
-        {isCommunitiesPath && <WalletSectionPlaceholder titleKey="communities" />}
+        {isCommunitiesPath && (
+          <CommunitiesSectionLazy
+            key={`communities-${urlUsername}`}
+            username={urlUsername}
+            isMyAccount={isMyAccount}
+          />
+        )}
         {isCurationRewardsPath && (
           <CurationRewardsSectionLazy
             key={`curation-${urlUsername}`}
