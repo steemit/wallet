@@ -431,3 +431,9 @@
   border-bottom: 1px solid var(--border);
   background-color: var(--card);
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

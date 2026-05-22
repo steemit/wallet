@@ -162,6 +162,88 @@
       "invalidPercent": "请输入 0 到 {max} 之间的有效百分比。",
       "broadcastFailed": "交易失败，请检查私钥后重试。"
     },
+    "permissions": {
+      "pageTitle": "密钥与权限",
+      "intro1": "密码或密钥使用时间越长，安全隐患就越高。因此 Steem 采用等级制密钥系统来保证您的账户安全。您将分别获得不同权限的 Steem 密钥。例如「发帖密钥」用于安全要求较低的社交操作；「活跃密钥」用于钱包相关操作，需要更谨慎保管。",
+      "intro2": "请记录下方您的 Steem 密钥。建议使用密码管理软件（如 1Password、LastPass），或用离线方式安全保存（如纸质备份或 U 盘文件）。",
+      "learnMore": "了解更多",
+      "learnMoreLink": "理解私钥（第一部分）",
+      "print": "打印",
+      "loadError": "加载账户密钥失败。",
+      "reveal": "显示",
+      "revealLoginHint": "使用私钥或主密码登录以显示与本账户匹配的密钥。",
+      "showQr": "显示二维码",
+      "qrPublicTitle": "公开 {type} 密钥",
+      "qrPrivateTitle": "私有 {type} 密钥",
+      "publicKeyTitle": "公开 {type} 密钥",
+      "privateKeyMasked": "私钥",
+      "authTypePosting": "发帖",
+      "authTypeActive": "活跃",
+      "authTypeOwner": "拥有者",
+      "authTypeMemo": "备注",
+      "postingTab": "发帖密钥",
+      "activeTab": "活跃密钥",
+      "ownerTab": "拥有者密钥",
+      "memoTab": "备注密钥",
+      "publicTab": "公钥",
+      "postingPrivateTitle": "您的私人发帖密钥",
+      "activePrivateTitle": "您的私人活跃密钥",
+      "ownerPrivateTitle": "您的私人拥有者密钥",
+      "memoPrivateTitle": "您的私人备注密钥",
+      "postingPermissionsTitle": "发帖密钥权限",
+      "postingPermissionsIntro": "您的发帖密钥可用于：",
+      "postingPermissionItems": [
+        "发布帖子或评论",
+        "编辑帖子或评论",
+        "投支持或反对票",
+        "分享内容",
+        "关注用户",
+        "关闭通知"
+      ],
+      "activePermissionsTitle": "活跃密钥权限",
+      "activePermissionsIntro": "您的活跃密钥可用于：",
+      "activePermissionItems": [
+        "代币转账",
+        "Power up 或 power down STEEM",
+        "SBD 转换",
+        "为见证人投票",
+        "在交易所下单",
+        "部分个人档案修改",
+        "发布见证人喂价",
+        "创建新用户"
+      ],
+      "ownerPermissionsTitle": "拥有者密钥权限",
+      "ownerPermissionsIntro": "您的拥有者密钥可用于：",
+      "ownerPermissionItems": [
+        "重置拥有者、活跃及发帖密钥",
+        "找回您的账号",
+        "拒绝投票权"
+      ],
+      "memoPermissionsTitle": "备注密钥权限",
+      "memoPermissionsIntro": "您的备注密钥可用于：",
+      "memoPermissionItems": [
+        "发送加密消息",
+        "查看加密消息"
+      ],
+      "posting": {
+        "desc1": "该密钥用于发帖、评论和投票等社交操作。权限有限，不适用于资金操作；他人获得该密钥也不会影响您的财产。",
+        "desc2": "可用于登录 Steemit、Busy、eSteem 等 Steem 社交平台。请妥善保管。"
+      },
+      "active": {
+        "desc1": "此密钥拥有转账、代币交易等资金操作权限。",
+        "desc2": "执行钱包相关操作时系统会提示使用活跃密钥验证。请仅在信任的应用中输入；拥有此密钥者可提取您的代币。请妥善保管。"
+      },
+      "owner": {
+        "desc": "拥有者密钥用于修改其他密钥，可恢复账户或修改其他密钥。这是最重要的密钥，应离线安全存储。"
+      },
+      "memo": {
+        "desc": "备注密钥用于对区块链上的私人消息加密和解密。解密私人消息时应使用所需授权最少的密钥，即备注密钥。"
+      },
+      "public": {
+        "desc1": "每个 Steem 密钥都有公钥和私钥。公钥与用户名关联，可用于查询链上交易。登录 Steemit.com 不需要公钥，也无需特意保存。",
+        "desc2": "在 SteemDB 查看此账户的公钥信息（「授权」模块）："
+      }
+    },
     "convertSbd": {
       "title": "将 SBD 转为 STEEM",
       "dialogDescription": "按中位价请求将 SBD 转为 STEEM。",
