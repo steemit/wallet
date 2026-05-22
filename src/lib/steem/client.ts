@@ -531,17 +531,21 @@ export const apiClient = {
   /**
    * Get account history. `from` defaults to the latest history index; pass a
    * positive integer (paired with `limit <= from`) to page into older entries.
+   * Pass `ops` to request server-side filtering — the API returns only those
+   * op types, already normalized, plus `nextFrom` and `exhausted` for pagination.
    */
   async getHistory(
     username: string,
     limit: number = 100,
-    from?: number
-  ): Promise<{ history: unknown[]; error?: string }> {
+    from?: number,
+    ops?: string[]
+  ): Promise<{ history: unknown[]; nextFrom?: number | null; exhausted?: boolean; error?: string }> {
     const params = new URLSearchParams({
       username,
       limit: String(limit),
     });
     if (typeof from === 'number') params.set('from', String(from));
+    if (ops && ops.length > 0) params.set('ops', ops.join(','));
     const response = await fetch(`/api/query/history?${params.toString()}`);
     return response.json();
   },

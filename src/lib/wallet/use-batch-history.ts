@@ -3,39 +3,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/lib/steem/client';
 import { clientCache } from '@/lib/cache/client-cache';
-import {
-  normalizeSteemHistoryList,
-  type SteemHistoryItem,
-} from '@/lib/wallet/normalize-history';
+import { type SteemHistoryItem } from '@/lib/wallet/normalize-history';
 import { REWARDS_HISTORY_FETCH_LIMIT } from '@/lib/wallet/rewards-history';
 
 /** Stop the initial auto-fetch loop once we have at least this many matches. */
 const MIN_MATCHED_TO_STOP = 10;
-/** Maximum batches pulled automatically on first load (5 × 100 = 500 ops). */
+/** Maximum batches pulled automatically on first load (5 × 100 = 500 ops scanned). */
 const INITIAL_AUTO_BATCHES = 5;
-
-type HistoryFilter = (items: SteemHistoryItem[]) => SteemHistoryItem[];
 
 interface BatchResult {
   filtered: SteemHistoryItem[];
   normalizedCount: number;
-  oldestIn: number | null;
+  nextFrom: number | null;
+  exhausted: boolean;
 }
 
 interface CachedData {
   history: SteemHistoryItem[];
-  oldestIndex: number | null;
+  nextCursor: number | null;
   totalFetched: number;
-}
-
-function oldestIndexIn(items: SteemHistoryItem[]): number | null {
-  let oldest: number | null = null;
-  for (const it of items) {
-    if (typeof it.index === 'number') {
-      if (oldest === null || it.index < oldest) oldest = it.index;
-    }
-  }
-  return oldest;
 }
 
 function sortByIndexAscending(items: SteemHistoryItem[]): SteemHistoryItem[] {
@@ -44,24 +30,26 @@ function sortByIndexAscending(items: SteemHistoryItem[]): SteemHistoryItem[] {
 
 async function fetchBatch(
   username: string,
-  filter: HistoryFilter,
+  ops: string[],
   from: number | undefined,
   limit: number
 ): Promise<BatchResult> {
-  const response = await apiClient.getHistory(username, limit, from);
+  const response = await apiClient.getHistory(username, limit, from, ops);
   if (response.error) throw new Error(response.error);
-  const normalized = normalizeSteemHistoryList(response.history || []);
+  // Server returns already-normalized, already-filtered SteemHistoryItem[]
+  const items = (response.history ?? []) as SteemHistoryItem[];
   return {
-    filtered: filter(normalized),
-    normalizedCount: normalized.length,
-    oldestIn: oldestIndexIn(normalized),
+    filtered: items,
+    normalizedCount: items.length,
+    nextFrom: response.nextFrom ?? null,
+    exhausted: response.exhausted ?? false,
   };
 }
 
 export interface UseBatchHistoryOptions {
   username: string;
   cacheKey: string;
-  filter: HistoryFilter;
+  ops: string[];
   refreshNonce?: number | undefined;
   /** When false, no fetch runs (e.g. until client mount). Default true. */
   enabled?: boolean;
@@ -80,23 +68,23 @@ export interface UseBatchHistoryResult {
 export function useBatchHistory({
   username,
   cacheKey,
-  filter,
+  ops,
   refreshNonce,
   enabled = true,
 }: UseBatchHistoryOptions): UseBatchHistoryResult {
   const [history, setHistory] = useState<SteemHistoryItem[]>([]);
-  const [oldestIndex, setOldestIndex] = useState<number | null>(null);
+  const [nextCursor, setNextCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [exhausted, setExhausted] = useState(false);
   const [totalFetched, setTotalFetched] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
-  const filterRef = useRef(filter);
+  const opsRef = useRef(ops);
 
   useEffect(() => {
-    filterRef.current = filter;
-  }, [filter]);
+    opsRef.current = ops;
+  }, [ops]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -107,7 +95,7 @@ export function useBatchHistory({
       setLoading(true);
       setError(null);
       setHistory([]);
-      setOldestIndex(null);
+      setNextCursor(null);
       setExhausted(false);
       setTotalFetched(0);
 
@@ -116,60 +104,46 @@ export function useBatchHistory({
         return;
       }
 
-      const cached = cacheKey
-        ? clientCache.get<CachedData>(cacheKey)
-        : null;
+      const cached = cacheKey ? clientCache.get<CachedData>(cacheKey) : null;
       if (cached) {
         setHistory(cached.data.history);
-        setOldestIndex(cached.data.oldestIndex);
+        setNextCursor(cached.data.nextCursor);
         setTotalFetched(cached.data.totalFetched);
-        if (cached.data.oldestIndex !== null && cached.data.oldestIndex <= 0) {
-          setExhausted(true);
-        }
+        if (cached.data.nextCursor === null) setExhausted(true);
         setLoading(false);
         return;
       }
 
       const accumulated: SteemHistoryItem[] = [];
-      let localOldest: number | null = null;
+      let cursor: number | null = null; // null = "fetch from latest"
       let totalRaw = 0;
       let isExhausted = false;
 
       try {
         for (let i = 0; i < INITIAL_AUTO_BATCHES; i++) {
-          const from = localOldest !== null ? localOldest - 1 : undefined;
-          if (from !== undefined && from < 0) {
-            isExhausted = true;
-            break;
-          }
-          const limit =
-            from !== undefined
-              ? Math.min(REWARDS_HISTORY_FETCH_LIMIT, Math.max(1, from))
-              : REWARDS_HISTORY_FETCH_LIMIT;
-
-          const result = await fetchBatch(username, filterRef.current, from, limit);
+          const result = await fetchBatch(
+            username,
+            opsRef.current,
+            cursor !== null ? cursor : undefined,
+            REWARDS_HISTORY_FETCH_LIMIT
+          );
           if (requestId !== requestIdRef.current) return;
 
           accumulated.push(...result.filtered);
           totalRaw += result.normalizedCount;
-          if (result.oldestIn === null) {
+
+          if (result.exhausted || result.nextFrom === null) {
             isExhausted = true;
             break;
           }
-          localOldest =
-            localOldest === null
-              ? result.oldestIn
-              : Math.min(localOldest, result.oldestIn);
-          if (localOldest <= 0 || result.normalizedCount === 0) {
-            isExhausted = true;
-            break;
-          }
+          cursor = result.nextFrom;
+
           if (accumulated.length >= MIN_MATCHED_TO_STOP) break;
         }
 
         if (requestId !== requestIdRef.current) return;
         setHistory(sortByIndexAscending(accumulated));
-        setOldestIndex(localOldest);
+        setNextCursor(cursor);
         setExhausted(isExhausted);
         setTotalFetched(totalRaw);
       } catch (err) {
@@ -191,7 +165,7 @@ export function useBatchHistory({
       if (cacheKey && history.length > 0) {
         clientCache.set(
           cacheKey,
-          { history, oldestIndex, totalFetched },
+          { history, nextCursor, totalFetched },
           30_000,
           120_000
         );
@@ -202,32 +176,25 @@ export function useBatchHistory({
 
   const loadMore = useCallback(async () => {
     if (loadingMore || loading) return;
-    if (oldestIndex !== null && oldestIndex <= 0) {
-      setExhausted(true);
-      return;
-    }
-    if (exhausted && oldestIndex !== null) return;
+    if (exhausted && nextCursor === null) return;
 
     const requestId = ++requestIdRef.current;
     setLoadingMore(true);
     setError(null);
     try {
-      const isRetry = oldestIndex === null;
-      const from = isRetry ? undefined : oldestIndex - 1;
-      const limit =
-        from !== undefined
-          ? Math.min(REWARDS_HISTORY_FETCH_LIMIT, Math.max(1, from))
-          : REWARDS_HISTORY_FETCH_LIMIT;
-      const result = await fetchBatch(username, filterRef.current, from, limit);
+      const from = nextCursor !== null ? nextCursor : undefined;
+      const result = await fetchBatch(username, opsRef.current, from, REWARDS_HISTORY_FETCH_LIMIT);
       if (requestId !== requestIdRef.current) return;
 
       setHistory((prev) => sortByIndexAscending([...result.filtered, ...prev]));
       setTotalFetched((prev) => prev + result.normalizedCount);
-      if (result.oldestIn !== null) {
-        setOldestIndex(result.oldestIn);
-        setExhausted(result.oldestIn <= 0 || result.normalizedCount === 0);
-      } else {
+
+      if (result.exhausted || result.nextFrom === null) {
+        setNextCursor(null);
         setExhausted(true);
+      } else {
+        setNextCursor(result.nextFrom);
+        setExhausted(false);
       }
     } catch (err) {
       if (requestId === requestIdRef.current) {
@@ -237,7 +204,7 @@ export function useBatchHistory({
     } finally {
       if (requestId === requestIdRef.current) setLoadingMore(false);
     }
-  }, [loadingMore, loading, exhausted, oldestIndex, username]);
+  }, [loadingMore, loading, exhausted, nextCursor, username]);
 
   return { history, loading, loadingMore, exhausted, totalFetched, error, loadMore };
 }

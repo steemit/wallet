@@ -1,10 +1,7 @@
 'use client';
 
 import { useBatchHistory, type UseBatchHistoryResult } from '@/lib/wallet/use-batch-history';
-import {
-  filterHistoryExcludingTypes,
-  EXCLUDED_ACTIVITY_TYPES,
-} from '@/lib/wallet/rewards-history';
+import { ACTIVITY_OP_TYPES } from '@/lib/steem/history-ops';
 
 export type UseActivityHistoryResult = UseBatchHistoryResult;
 
@@ -16,7 +13,7 @@ export function useActivityHistory(
   return useBatchHistory({
     username,
     cacheKey: username ? `activity:${username}` : '',
-    filter: (items) => filterHistoryExcludingTypes(items, EXCLUDED_ACTIVITY_TYPES),
+    ops: ACTIVITY_OP_TYPES,
     refreshNonce,
     enabled,
   });
