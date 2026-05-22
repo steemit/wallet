@@ -14,8 +14,7 @@ import { WALLET_OP_TYPES } from '@/lib/steem/history-ops';
 
 const FALLBACK_TTL = 300; // 5 minutes
 const ALLOWED_OPS = new Set<string>(WALLET_OP_TYPES);
-const MAX_BATCHES = 20; // max 2,000 ops scanned per filtered request
-const BATCH_SIZE = 100; // Steem API hard cap
+const BATCH_SIZE = 100; // Steem API hard cap — one batch per request
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +32,7 @@ export async function GET(request: NextRequest) {
     const from = fromParam !== null ? parseInt(fromParam, 10) : -1;
     const opsParam = searchParams.get('ops');
     const requestedOps: string[] | null = opsParam
-      ? opsParam.split(',').map((s) => s.trim()).filter(Boolean)
+      ? [...new Set(opsParam.split(',').map((s) => s.trim()).filter(Boolean))]
       : null;
 
     if (!username) {
@@ -54,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     // ── Filtered path ────────────────────────────────────────────────────────
     if (requestedOps) {
-      return handleFilteredRequest(username, limit, from, requestedOps);
+      return handleFilteredRequest(username, from, requestedOps);
     }
 
     // ── Legacy path (no ops param) ───────────────────────────────────────────
@@ -87,7 +86,6 @@ export async function GET(request: NextRequest) {
 
 async function handleFilteredRequest(
   username: string,
-  limit: number,
   from: number,
   requestedOps: string[]
 ): Promise<NextResponse> {
@@ -101,7 +99,7 @@ async function handleFilteredRequest(
   }
 
   try {
-    const { history, nextFrom, exhausted } = await fetchFiltered(username, limit, from, requestedOps);
+    const { history, nextFrom, exhausted } = await fetchFiltered(username, from, requestedOps);
     await markSteemHealthy();
     if (from === -1) await saveFilteredFallback(cacheKey, { history, nextFrom, exhausted });
     return NextResponse.json({ success: true, history, nextFrom, exhausted });
@@ -121,72 +119,34 @@ interface FilteredResult {
 
 async function fetchFiltered(
   username: string,
-  limit: number,
   from: number,
   requestedOps: string[]
 ): Promise<FilteredResult> {
   const opSet = new Set(requestedOps);
-  const accumulated: SteemHistoryItem[] = [];
-  let cursor = from;
-  let isExhausted = false;
+  // One Steem RPC call per HTTP request — client controls the outer loop.
+  // Clamp: never request more than the cursor index (avoids duplicates near history start).
+  const fetchLimit = from === -1 ? BATCH_SIZE : Math.min(BATCH_SIZE, Math.max(1, from));
 
-  for (let batch = 0; batch < MAX_BATCHES; batch++) {
-    // Clamp fetchLimit: never request more than the cursor index (avoids duplicates near history start)
-    const fetchLimit = cursor === -1 ? BATCH_SIZE : Math.min(BATCH_SIZE, Math.max(1, cursor));
+  const raw = await SteemService.getAccountHistory(username, fetchLimit, from);
+  const normalized = normalizeSteemHistoryList(raw);
 
-    const raw = await SteemService.getAccountHistory(username, fetchLimit, cursor);
-    const normalized = normalizeSteemHistoryList(raw);
+  const matching = normalized.filter((item) => opSet.has(item.op[0]));
 
-    if (normalized.length === 0) {
-      isExhausted = true;
-      break;
-    }
-
-    const matching = normalized.filter((item) => opSet.has(item.op[0]));
-    accumulated.push(...matching);
-
-    // Advance cursor using oldest index in the WHOLE batch (not just matching),
-    // so non-matching ops near the bottom don't stall progress.
-    let oldestInBatch: number | undefined;
-    for (const item of normalized) {
-      if (typeof item.index === 'number') {
-        if (oldestInBatch === undefined || item.index < oldestInBatch) {
-          oldestInBatch = item.index;
-        }
-      }
-    }
-
-    if (oldestInBatch === undefined) {
-      isExhausted = true;
-      break;
-    }
-
-    cursor = oldestInBatch - 1;
-    if (cursor < 0) {
-      isExhausted = true;
-      break;
-    }
-
-    if (accumulated.length >= limit) break;
-  }
-
-  const result = accumulated.slice(0, limit);
-
-  let oldestInResult: number | undefined;
-  for (const item of result) {
+  // Advance cursor using oldest index in the WHOLE batch (not just matching),
+  // so non-matching ops near the bottom don't stall progress.
+  let oldestInBatch: number | undefined;
+  for (const item of normalized) {
     if (typeof item.index === 'number') {
-      if (oldestInResult === undefined || item.index < oldestInResult) {
-        oldestInResult = item.index;
+      if (oldestInBatch === undefined || item.index < oldestInBatch) {
+        oldestInBatch = item.index;
       }
     }
   }
 
-  const nextFrom =
-    isExhausted || oldestInResult === undefined || oldestInResult <= 0
-      ? null
-      : oldestInResult - 1;
+  const exhausted = normalized.length === 0 || oldestInBatch === undefined || oldestInBatch <= 0;
+  const nextFrom = exhausted ? null : oldestInBatch! - 1;
 
-  return { history: result, nextFrom, exhausted: isExhausted };
+  return { history: matching, nextFrom, exhausted };
 }
 
 // ── Cache helpers ─────────────────────────────────────────────────────────────

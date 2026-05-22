@@ -59,45 +59,40 @@ describe('GET /api/query/history — filtered path', () => {
     expect(body.error).toMatch(/Unknown op type/);
   });
 
-  it('finds limit matches in a single batch and returns correct nextFrom', async () => {
-    // Batch: 100 items, indices 900-999, all transfer ops.
-    mockGetAccountHistory.mockResolvedValue(makeTuples(900, 100, 'transfer'));
+  it('returns all matching ops from one batch and correct nextFrom', async () => {
+    // Batch: 5 transfers at indices 900-904.
+    mockGetAccountHistory.mockResolvedValue(makeTuples(900, 5, 'transfer'));
 
-    const req = makeRequest({ username: 'alice', limit: '5', ops: 'transfer' });
+    const req = makeRequest({ username: 'alice', ops: 'transfer' });
     const res = await GET(req);
     expect(res.status).toBe(200);
 
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(body.history).toHaveLength(5);
-    // Oldest index in result is 900; nextFrom = 900 - 1 = 899.
+    // Oldest index in batch = 900; nextFrom = 899.
     expect(body.nextFrom).toBe(899);
     expect(body.exhausted).toBe(false);
     expect(mockGetAccountHistory).toHaveBeenCalledTimes(1);
   });
 
-  it('advances cursor using oldest index in whole batch, not just matching items', async () => {
-    // Batch has 98 non-matching ops (indices 2-99) + 2 matching ops (indices 100-101).
-    // Cursor must advance to min(all indices) - 1 = 2 - 1 = 1, not min(matching) - 1.
-    const nonMatching = makeTuples(2, 98, 'vote');
-    const matching = makeTuples(100, 2, 'transfer');
-    const batch = [...nonMatching, ...matching];
-    // First batch: mixed; second batch: empty → exhausted
-    mockGetAccountHistory
-      .mockResolvedValueOnce(batch)
-      .mockResolvedValueOnce([]);
+  it('advances nextFrom using oldest index in whole batch, not just matching items', async () => {
+    // Batch: 98 non-matching ops (indices 2-99) + 2 matching ops (indices 100-101).
+    // nextFrom must be min(ALL indices) - 1 = 2 - 1 = 1, not min(matching) - 1 = 99.
+    const batch = [
+      ...makeTuples(2, 98, 'vote'),
+      ...makeTuples(100, 2, 'transfer'),
+    ];
+    mockGetAccountHistory.mockResolvedValue(batch);
 
-    const req = makeRequest({ username: 'alice', limit: '10', ops: 'transfer' });
+    const req = makeRequest({ username: 'alice', ops: 'transfer' });
     const res = await GET(req);
     const body = await res.json();
 
-    // Should have fetched 2 batches: first found 2 matches, cursor advanced to 1.
-    // Second call with cursor=1: fetchLimit = min(100, max(1,1)) = 1.
-    expect(mockGetAccountHistory).toHaveBeenCalledTimes(2);
-    const secondCall = mockGetAccountHistory.mock.calls[1] as [string, number, number];
-    expect(secondCall[2]).toBe(1); // cursor after first batch = min(2,98,100,101) - 1 = 1
-    expect(body.exhausted).toBe(true);
+    expect(mockGetAccountHistory).toHaveBeenCalledTimes(1);
     expect(body.history).toHaveLength(2);
+    expect(body.nextFrom).toBe(1); // oldest in WHOLE batch = 2 → nextFrom = 1
+    expect(body.exhausted).toBe(false);
   });
 
   it('reports exhausted when history is fully consumed before limit is met', async () => {
@@ -117,24 +112,13 @@ describe('GET /api/query/history — filtered path', () => {
     expect(body.history).toHaveLength(3);
   });
 
-  it('respects MAX_BATCHES cap (20 batches)', async () => {
-    // Mock returns 100 non-matching ops with index range decreasing each batch.
-    let callCount = 0;
-    mockGetAccountHistory.mockImplementation(() => {
-      callCount += 1;
-      const start = 10000 - callCount * 100;
-      return Promise.resolve(makeTuples(start, 100, 'vote'));
-    });
+  it('makes exactly one Steem RPC call per HTTP request', async () => {
+    mockGetAccountHistory.mockResolvedValue(makeTuples(900, 100, 'vote'));
 
     const req = makeRequest({ username: 'alice', limit: '10', ops: 'transfer' });
-    const res = await GET(req);
-    const body = await res.json();
+    await GET(req);
 
-    // Must stop at MAX_BATCHES = 20 even though no matches were found.
-    expect(mockGetAccountHistory).toHaveBeenCalledTimes(20);
-    expect(body.history).toHaveLength(0);
-    // Not marked exhausted (ran out of batches, not history).
-    expect(body.exhausted).toBe(false);
+    expect(mockGetAccountHistory).toHaveBeenCalledTimes(1);
   });
 
   it('legacy path (no ops param) returns raw history unchanged', async () => {
@@ -152,25 +136,16 @@ describe('GET /api/query/history — filtered path', () => {
     expect(body.exhausted).toBeUndefined();
   });
 
-  it('clamps fetchLimit to cursor value to avoid duplicates near history start', async () => {
-    // First batch: 2 matching transfers (indices 3-4) + 48 non-matching votes (indices 5-52).
-    // Only 2 matches accumulated (< limit 10), so the loop continues.
-    // Oldest index in the whole batch = 3 → cursor = 2.
-    // Second call must use fetchLimit = min(100, max(1, 2)) = 2.
-    const firstBatch = [
-      ...makeTuples(3, 2, 'transfer'),
-      ...makeTuples(5, 48, 'vote'),
-    ];
-    mockGetAccountHistory
-      .mockResolvedValueOnce(firstBatch)
-      .mockResolvedValueOnce([]); // empty → exhausted
+  it('clamps fetchLimit to the from value when near history start', async () => {
+    // When from=3, fetchLimit must be min(100, max(1, 3)) = 3, not 100.
+    mockGetAccountHistory.mockResolvedValue(makeTuples(1, 3, 'transfer'));
 
-    const req = makeRequest({ username: 'alice', limit: '10', ops: 'transfer' });
+    const req = makeRequest({ username: 'alice', from: '3', ops: 'transfer' });
     await GET(req);
 
-    expect(mockGetAccountHistory).toHaveBeenCalledTimes(2);
-    const secondCall = mockGetAccountHistory.mock.calls[1] as [string, number, number];
-    expect(secondCall[1]).toBe(2); // fetchLimit = min(100, max(1, cursor=2)) = 2
-    expect(secondCall[2]).toBe(2); // from = cursor = 2
+    expect(mockGetAccountHistory).toHaveBeenCalledTimes(1);
+    const call = mockGetAccountHistory.mock.calls[0] as [string, number, number];
+    expect(call[1]).toBe(3); // fetchLimit = min(100, max(1, from=3)) = 3
+    expect(call[2]).toBe(3); // from = 3
   });
 });
