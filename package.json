@@ -29,6 +29,7 @@
     "radix-ui": "^1.4.3",
     "react": "19.2.5",
     "react-dom": "19.2.5",
+    "react-qr-code": "^2.0.21",
     "react-redux": "^9.2.0",
     "shadcn": "^4.3.1",
     "tailwind-merge": "^3.5.0",
