@@ -56,6 +56,26 @@
     "keysAndPermissions": "Claves y permisos",
     "changePassword": "Cambiar contraseña",
     "communities": "Comunidades",
+    "communitiesPage": {
+      "createHeading": "CREAR UNA COMUNIDAD",
+      "titleLabel": "Título",
+      "aboutLabel": "Acerca de",
+      "titleMustStartWithLetter": "Debe comenzar con una letra.",
+      "next": "Siguiente",
+      "ownerCredentials": "Nombre del propietario / contraseña",
+      "savedConfirm": "He guardado de forma segura el nombre y la contraseña del propietario.",
+      "createButton": "Crear comunidad",
+      "confirmCreate": "Esta operación costará {fee}. ¿Desea continuar?",
+      "accountCreateFailed": "Error al crear la cuenta.",
+      "settingsFailed": "Error al actualizar la configuración.",
+      "genericFailed": "Error. Informe de este problema.",
+      "activeKeyRequired": "Esta acción requiere tu clave activa. Inicia sesión con tu contraseña maestra o clave privada activa.",
+      "settingAdmin": "Cuenta creada. Configurando a @{username} como administrador…",
+      "creating": "Se está creando su comunidad…",
+      "createdSuccess": "¡Su comunidad fue creada!",
+      "getStarted": "Comenzar.",
+      "viewOnly": "Inicie sesión con esta cuenta para crear una comunidad."
+    },
     "sectionPlaceholderHint": "Esta página es provisional. La función completa se añadirá más adelante.",
     "witnesses": "Testigos",
     "witnessVoting": "Votación de Testigos",
@@ -152,6 +172,88 @@
       "enterDestination": "Introduce un nombre de usuario de destino.",
       "invalidPercent": "Introduce un porcentaje válido entre 0 y {max}.",
       "broadcastFailed": "La transacción falló. Revisa tu clave e inténtalo de nuevo."
+    },
+    "permissions": {
+      "pageTitle": "Claves y permisos",
+      "intro1": "Cuantas más veces se usa una contraseña o clave, más probable es que se comprometa. Por eso Steem usa un sistema jerárquico de claves. La clave de publicación tiene permisos limitados para acciones sociales; la clave activa permite operaciones de billetera y requiere más cuidado.",
+      "intro2": "Anote sus claves Steem que aparecen abajo. Use un gestor de contraseñas (1Password, LastPass) o guarde una copia offline de forma segura.",
+      "learnMore": "Más información",
+      "learnMoreLink": "Entender las claves privadas (parte 1)",
+      "print": "Imprimir",
+      "loadError": "No se pudieron cargar las claves de la cuenta.",
+      "reveal": "Mostrar",
+      "revealLoginHint": "Inicia sesión con tu clave privada o contraseña maestra para mostrar las claves de esta cuenta.",
+      "showQr": "Mostrar código QR",
+      "qrPublicTitle": "Clave pública {type}",
+      "qrPrivateTitle": "Clave privada {type}",
+      "publicKeyTitle": "Clave pública {type}",
+      "privateKeyMasked": "Clave privada",
+      "authTypePosting": "Publicación",
+      "authTypeActive": "Activa",
+      "authTypeOwner": "Propietario",
+      "authTypeMemo": "Memo",
+      "postingTab": "Clave de publicación",
+      "activeTab": "Clave activa",
+      "ownerTab": "Clave de propietario",
+      "memoTab": "Clave memo",
+      "publicTab": "Claves públicas",
+      "postingPrivateTitle": "Tu clave privada de publicación",
+      "activePrivateTitle": "Tu clave privada activa",
+      "ownerPrivateTitle": "Tu clave privada de propietario",
+      "memoPrivateTitle": "Tu clave privada memo",
+      "postingPermissionsTitle": "Permisos de la clave de publicación",
+      "postingPermissionsIntro": "Usa tu clave de publicación para:",
+      "postingPermissionItems": [
+        "Publicar o comentar",
+        "Editar publicación o comentario",
+        "Votar a favor o en contra",
+        "Resteem",
+        "Seguir usuarios",
+        "Silenciar cuentas"
+      ],
+      "activePermissionsTitle": "Permisos de la clave activa",
+      "activePermissionsIntro": "Usa tu clave activa para:",
+      "activePermissionItems": [
+        "Transferir tokens",
+        "Power up o power down STEEM",
+        "Conversión SBD",
+        "Votar testigos",
+        "Orden en un exchange",
+        "Cambios de perfil",
+        "Publicar feed de precio de testigo",
+        "Crear un usuario nuevo"
+      ],
+      "ownerPermissionsTitle": "Permisos de la clave de propietario",
+      "ownerPermissionsIntro": "Usa tu clave de propietario para:",
+      "ownerPermissionItems": [
+        "Restablecer claves owner, active y posting",
+        "Recuperar tu cuenta",
+        "Rechazar derechos de voto"
+      ],
+      "memoPermissionsTitle": "Permisos de la clave memo",
+      "memoPermissionsIntro": "Usa tu clave memo para:",
+      "memoPermissionItems": [
+        "Enviar mensaje cifrado",
+        "Ver mensaje cifrado"
+      ],
+      "posting": {
+        "desc1": "Usa esta clave para publicar, comentar y votar. No permite acciones monetarias.",
+        "desc2": "Úsala para iniciar sesión en redes Steem como Steemit, Busy y eSteem. Guárdala con seguridad."
+      },
+      "active": {
+        "desc1": "Tiene permisos para transferencias y operaciones sensibles con tokens.",
+        "desc2": "Solo introduce tu clave activa en aplicaciones de confianza; quien la tenga puede tomar tus tokens."
+      },
+      "owner": {
+        "desc": "Necesaria para cambiar otras claves y recuperar la cuenta. Debe guardarse offline de forma segura."
+      },
+      "memo": {
+        "desc": "Cifra y descifra mensajes privados en la cadena. Para descifrar, usa la clave con la autoridad mínima: la memo."
+      },
+      "public": {
+        "desc1": "Cada clave Steem tiene parte pública y privada. Las públicas no son necesarias para iniciar sesión en Steemit.",
+        "desc2": "Ver información de claves públicas de esta cuenta (módulo «Authorities»):"
+      }
     },
     "convertSbd": {
       "title": "Convertir SBD a STEEM",

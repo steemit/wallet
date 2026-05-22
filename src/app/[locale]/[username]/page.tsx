@@ -15,8 +15,10 @@ import { WalletTransfersModals } from '@/components/wallet/wallet-transfers-moda
 import { WalletSectionPlaceholder } from '@/components/wallet/wallet-section-placeholder';
 import {
   AuthorRewardsSectionLazy,
+  CommunitiesSectionLazy,
   CurationRewardsSectionLazy,
   DelegationsSectionLazy,
+  PermissionsSectionLazy,
 } from '@/components/wallet/client-wrappers';
 import { normalizeProfile } from '@/lib/steem/normalize-profile';
 import { canManageBalanceForPageUrl } from '@/lib/auth/browser-storage';
@@ -191,9 +193,21 @@ export default function WalletPage() {
             isMyAccount={isMyAccount}
           />
         )}
-        {isPermissionsPath && <WalletSectionPlaceholder titleKey="keysAndPermissions" />}
+        {isPermissionsPath && (
+          <PermissionsSectionLazy
+            key={`permissions-${urlUsername}`}
+            username={urlUsername}
+            isMyAccount={isMyAccount}
+          />
+        )}
         {isPasswordPath && <WalletSectionPlaceholder titleKey="changePassword" />}
-        {isCommunitiesPath && <WalletSectionPlaceholder titleKey="communities" />}
+        {isCommunitiesPath && (
+          <CommunitiesSectionLazy
+            key={`communities-${urlUsername}`}
+            username={urlUsername}
+            isMyAccount={isMyAccount}
+          />
+        )}
         {isCurationRewardsPath && (
           <CurationRewardsSectionLazy
             key={`curation-${urlUsername}`}
