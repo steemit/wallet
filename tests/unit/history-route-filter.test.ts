@@ -148,4 +148,33 @@ describe('GET /api/query/history — filtered path', () => {
     expect(call[1]).toBe(3); // fetchLimit = min(100, max(1, from=3)) = 3
     expect(call[2]).toBe(3); // from = 3
   });
+
+  it('uses full BATCH_SIZE when from is large (load-more request)', async () => {
+    // from=500 is well above BATCH_SIZE=100, so fetchLimit = min(100, max(1, 500)) = 100.
+    mockGetAccountHistory.mockResolvedValue(makeTuples(400, 100, 'transfer'));
+
+    const req = makeRequest({ username: 'alice', from: '500', ops: 'transfer' });
+    await GET(req);
+
+    expect(mockGetAccountHistory).toHaveBeenCalledTimes(1);
+    const call = mockGetAccountHistory.mock.calls[0] as [string, number, number];
+    expect(call[1]).toBe(100); // fetchLimit = min(100, max(1, 500)) = 100
+    expect(call[2]).toBe(500); // from passed through unchanged
+  });
+
+  it('treats empty ops param as no filter (legacy path)', async () => {
+    // ops= (empty string) is falsy → requestedOps is null → legacy path.
+    const rawHistory = makeTuples(900, 5, 'transfer');
+    mockGetAccountHistory.mockResolvedValue(rawHistory);
+
+    const req = makeRequest({ username: 'alice', ops: '' });
+    const res = await GET(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.history).toHaveLength(5);
+    // Legacy path does not add nextFrom or exhausted to the response.
+    expect(body.nextFrom).toBeUndefined();
+    expect(body.exhausted).toBeUndefined();
+  });
 });
