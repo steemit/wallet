@@ -7,6 +7,8 @@ const auth = {
   getPublicKey: vi.fn((wif: string) => (wif ? 'STM' + wif.slice(-8) : 'STM')),
   privateToPublic: vi.fn(),
   toWif: vi.fn(() => '5Jmock'),
+  wifToPublic: vi.fn(() => 'STMmockPublicKey'),
+  getPrivateKey: vi.fn(() => '5JrandomOwnerWif'),
   getPrivateKeys: vi.fn(() => ({ owner: '5Jo', active: '5Ja', posting: '5Jp', memo: '5Jm' })),
   isWif: vi.fn(() => true),
   signatureVerify: vi.fn(),

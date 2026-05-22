@@ -168,6 +168,34 @@ describe('SteemSigner.signXxx — produces the expected operations payload', () 
       ],
       keys: ['5Jactive'],
     },
+    {
+      name: 'signAccountCreate',
+      call: () =>
+        SteemSigner.signAccountCreate('alice', 'hive-123456', 'Psecret', '5Jactive'),
+      operations: [
+        [
+          'account_create',
+          expect.objectContaining({
+            fee: '3.000 STEEM',
+            creator: 'alice',
+            new_account_name: 'hive-123456',
+          }),
+        ],
+      ],
+      keys: ['5Jactive'],
+    },
+    {
+      name: 'signOperations',
+      call: () =>
+        SteemSigner.signOperations(
+          [['custom_json', { required_posting_auths: ['alice'], id: 'community', json: '[]' }]],
+          ['5Jposting']
+        ),
+      operations: [
+        ['custom_json', { required_posting_auths: ['alice'], id: 'community', json: '[]' }],
+      ],
+      keys: ['5Jposting'],
+    },
   ])('$name', async ({ call, operations, keys }) => {
     await call();
     const calls = vi.mocked(steem.auth.signTransaction).mock.calls;
@@ -273,6 +301,16 @@ describe('apiClient broadcasts — every method posts the signed tx to its endpo
       name: 'broadcastConvert',
       endpoint: '/api/broadcast/convert',
       call: () => apiClient.broadcastConvert(mockTx, 'alice'),
+    },
+    {
+      name: 'broadcastAccountCreate',
+      endpoint: '/api/broadcast/account-create',
+      call: () => apiClient.broadcastAccountCreate(mockTx, 'alice'),
+    },
+    {
+      name: 'broadcastCustomJson',
+      endpoint: '/api/broadcast/custom-json',
+      call: () => apiClient.broadcastCustomJson(mockTx, 'alice'),
     },
   ])('$name → POST $endpoint with CSRF + signedTx', async ({ endpoint, call }) => {
     await call();

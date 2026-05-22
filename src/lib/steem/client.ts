@@ -9,6 +9,7 @@ import type {
   GlobalProperties,
   BroadcastResult,
 } from './types';
+import { buildAccountCreateOperation } from '@/lib/wallet/community';
 
 export type TransactionHeaderFields = {
   ref_block_num: number;
@@ -312,6 +313,28 @@ export class SteemSigner {
     return await this.signTransaction(operations, [activeKey]);
   }
 
+  static async signAccountCreate(
+    creator: string,
+    communityOwnerName: string,
+    communityOwnerPassword: string,
+    activeKey: string
+  ): Promise<SignedTransaction> {
+    const operation = buildAccountCreateOperation(
+      creator,
+      communityOwnerName,
+      communityOwnerPassword
+    );
+    const operations: Operation[] = [['account_create', operation]];
+    return await this.signTransaction(operations, [activeKey]);
+  }
+
+  static async signOperations(
+    operations: Operation[],
+    privateKeys: string[]
+  ): Promise<SignedTransaction> {
+    return await this.signTransaction(operations, privateKeys);
+  }
+
   /**
    * Get public key from private key
    */
@@ -608,6 +631,30 @@ export const apiClient = {
     username: string
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/convert', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
+    return response.json();
+  },
+
+  async broadcastAccountCreate(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+    const response = await fetch('/api/broadcast/account-create', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
+    return response.json();
+  },
+
+  async broadcastCustomJson(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+    const response = await fetch('/api/broadcast/custom-json', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ signedTx, username }),
