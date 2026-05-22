@@ -35,25 +35,25 @@ export function useSteemWalletBalances(username: string, refreshNonce = 0) {
           ),
         ]);
 
-        const accountsResponse = accountsResult.data;
-        const propsResponse = propsResult.data;
+        const accountsResponse = accountsResult?.data;
+        const propsResponse = propsResult?.data;
 
-        if (accountsResponse.error || !accountsResponse.accounts?.length) {
-          console.error(accountsResponse.error || 'Failed to fetch balance');
+        if (accountsResponse?.error || !accountsResponse?.accounts?.length) {
+          console.warn(accountsResponse?.error || 'Failed to fetch balance');
           setBalance(null);
           return;
         }
 
         const account = accountsResponse.accounts[0] as SteemAccount;
         setBalance(account as unknown as WalletBalanceData);
-        if (propsResponse.error) {
-          console.error(propsResponse.error);
+        if (propsResponse?.error || !propsResponse?.props) {
+          console.warn(propsResponse?.error || 'Failed to fetch global props');
           setGlobalProps(null);
           return;
         }
         setGlobalProps(propsResponse.props as unknown as GlobalPropsData);
       } catch (err) {
-        console.error('Error fetching balance:', err);
+        console.warn('Error fetching balance:', err);
         setBalance(null);
         setGlobalProps(null);
       } finally {
