@@ -12,13 +12,13 @@ import { UserProfileBanner } from '@/components/layout/user-profile-banner';
 import { AccountWalletNav } from '@/components/layout/account-wallet-nav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WalletTransfersModals } from '@/components/wallet/wallet-transfers-modals';
-import { WalletSectionPlaceholder } from '@/components/wallet/wallet-section-placeholder';
 import {
   AuthorRewardsSectionLazy,
   CommunitiesSectionLazy,
   CurationRewardsSectionLazy,
   DelegationsSectionLazy,
   PermissionsSectionLazy,
+  ChangePasswordSectionLazy,
 } from '@/components/wallet/client-wrappers';
 import { normalizeProfile } from '@/lib/steem/normalize-profile';
 import { canManageBalanceForPageUrl } from '@/lib/auth/browser-storage';
@@ -200,7 +200,13 @@ export default function WalletPage() {
             isMyAccount={isMyAccount}
           />
         )}
-        {isPasswordPath && <WalletSectionPlaceholder titleKey="changePassword" />}
+        {isPasswordPath && (
+          <ChangePasswordSectionLazy
+            key={`password-${urlUsername}`}
+            username={urlUsername}
+            isMyAccount={isMyAccount}
+          />
+        )}
         {isCommunitiesPath && (
           <CommunitiesSectionLazy
             key={`communities-${urlUsername}`}

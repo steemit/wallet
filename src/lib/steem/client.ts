@@ -74,7 +74,9 @@ export class SteemSigner {
     };
 
     const signed = steem.auth.signTransaction(tx, privateKeys);
-    return signed as SignedTransaction;
+    return steem.auth.normalizeTransactionForBroadcast(
+      signed as unknown as Record<string, unknown>
+    ) as unknown as SignedTransaction;
   }
 
   /**
@@ -333,6 +335,15 @@ export class SteemSigner {
     privateKeys: string[]
   ): Promise<SignedTransaction> {
     return await this.signTransaction(operations, privateKeys);
+  }
+
+  /** Sign an account_update operation (password / authority rotation). */
+  static async signAccountUpdate(
+    operation: Operation,
+    ownerKey: string
+  ): Promise<SignedTransaction> {
+    const normalized = steem.auth.normalizeOperationForBroadcast(operation) as Operation;
+    return await this.signTransaction([normalized], [ownerKey]);
   }
 
   /**
@@ -660,5 +671,33 @@ export const apiClient = {
       body: JSON.stringify({ signedTx, username }),
     });
     return response.json();
+  },
+
+  async broadcastAccountUpdate(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{
+    success: boolean;
+    result?: BroadcastResult;
+    error?: string;
+    details?: string;
+  }> {
+    const response = await fetch('/api/broadcast/account-update', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
+    const data = (await response.json()) as {
+      success?: boolean;
+      result?: BroadcastResult;
+      error?: string;
+      details?: string;
+    };
+    return {
+      success: Boolean(data.success),
+      ...(data.result !== undefined ? { result: data.result } : {}),
+      ...(data.error !== undefined ? { error: data.error } : {}),
+      ...(data.details !== undefined ? { details: data.details } : {}),
+    };
   },
 };

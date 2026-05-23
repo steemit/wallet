@@ -1,7 +1,23 @@
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { vi } from 'vitest';
+
+// Vitest aliases @steemit/steem-js to this file; load real auth helpers from node_modules.
+const realSteemJsPath = path.resolve(
+  process.cwd(),
+  'node_modules/@steemit/steem-js/dist/index.js'
+);
+const realSteemJs = await import(pathToFileURL(realSteemJsPath).href);
+const realAuth = realSteemJs.steem.auth;
 
 // Mock for @steemit/steem-js (1.0.x); client uses named import: import { steem } from '@steemit/steem-js'
 const auth = {
+  normalizeOperationForBroadcast: realAuth.normalizeOperationForBroadcast,
+  normalizeTransactionForBroadcast: realAuth.normalizeTransactionForBroadcast,
+  normalizeChainJsonMetadata: realAuth.normalizeChainJsonMetadata,
+  sanitizeAccountUpdatePayload: realAuth.sanitizeAccountUpdatePayload,
+  resolveAuthorityForSerialize: realAuth.resolveAuthorityForSerialize,
+  normalizeAuthoritySource: realAuth.normalizeAuthoritySource,
   signTransaction: vi.fn(() => ({ signatures: ['SIG'], operations: [] })),
   sign: vi.fn(() => 'signed'),
   getPublicKey: vi.fn((wif: string) => (wif ? 'STM' + wif.slice(-8) : 'STM')),

@@ -187,12 +187,13 @@ describe('SteemService.broadcastTransaction', () => {
   };
 
   it('returns the broadcast result on success', async () => {
-    api.broadcastTransactionAsync.mockResolvedValueOnce({ id: 'tx123' });
+    api.callAsync.mockResolvedValueOnce({ id: 'tx123' });
     expect(await SteemService.broadcastTransaction(validTx)).toEqual({ id: 'tx123' });
+    expect(api.callAsync).toHaveBeenCalledWith('condenser_api.broadcast_transaction', [validTx]);
   });
 
   it('wraps errors with "Failed to broadcast: <message>"', async () => {
-    api.broadcastTransactionAsync.mockRejectedValueOnce(new Error('bad'));
+    api.callAsync.mockRejectedValueOnce(new Error('bad'));
     await expect(SteemService.broadcastTransaction(validTx)).rejects.toThrow(
       'Failed to broadcast: bad',
     );

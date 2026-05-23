@@ -70,6 +70,14 @@ export const CommunitiesSectionLazy = dynamic(
   { loading: RewardsSectionFallback, ssr: false }
 );
 
+export const ChangePasswordSectionLazy = dynamic(
+  () =>
+    import('@/components/wallet/change-password-section').then((mod) => ({
+      default: mod.ChangePasswordSection,
+    })),
+  { loading: RewardsSectionFallback, ssr: false }
+);
+
 export const WitnessesPageClient = dynamic(
   () => import('@/components/wallet/witness-vote-form').then((mod) => ({ default: mod.WitnessVoteForm })),
   {
