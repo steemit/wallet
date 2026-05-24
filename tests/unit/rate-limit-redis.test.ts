@@ -11,6 +11,7 @@ const mockGetRedis = vi.fn();
 
 vi.mock('@/lib/cache/redis', () => ({
   getRedis: () => mockGetRedis(),
+  redisKey: (k: string) => `wallet:${k}`,
   cacheGet: vi.fn(),
   cacheSet: vi.fn(),
   cacheDeleteByPrefix: vi.fn(),

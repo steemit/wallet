@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 
 export type ServiceHealthStatus = 'healthy' | 'degraded' | 'outage' | 'unknown';
 
-const POLL_INTERVAL = 30_000;
+const POLL_INTERVAL = 60_000;
 
 export function useServiceHealth() {
   const [status, setStatus] = useState<ServiceHealthStatus>('unknown');
@@ -13,15 +13,13 @@ export function useServiceHealth() {
   const check = useCallback(async () => {
     try {
       const res = await fetch('/api/health');
-      if (!res.ok) {
-        setStatus('outage');
-        return;
-      }
-      const data = await res.json();
+      const data = (await res.json()) as { status?: string };
       if (data.status === 'healthy') {
         setStatus('healthy');
-      } else {
+      } else if (data.status === 'degraded') {
         setStatus('degraded');
+      } else {
+        setStatus('outage');
       }
     } catch {
       setStatus('outage');

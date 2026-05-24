@@ -16,11 +16,10 @@ vi.mock('@/lib/middleware', () => ({
 }));
 vi.mock('@/lib/cache/redis', () => ({
   getRedis: vi.fn().mockReturnValue(null),
+  redisKey: (k: string) => `wallet:${k}`,
 }));
 vi.mock('@/lib/cache/health-monitor', () => ({
   isSteemKnownDown: vi.fn().mockResolvedValue(false),
-  markSteemHealthy: vi.fn().mockResolvedValue(undefined),
-  markSteemUnhealthy: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { GET } from '@/app/api/query/history/route';

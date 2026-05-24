@@ -267,9 +267,9 @@ Tracks Steem RPC health in Redis so all EC2 instances share the same view.
 | Function | Description |
 |----------|-------------|
 | `getSteemHealth(): Promise<SteemHealthStatus \| null>` | Reads current health from Redis |
-| `markSteemHealthy(blockNumber?, latency?): Promise<void>` | Marks Steem as healthy with optional metadata |
-| `markSteemUnhealthy(error?: string): Promise<void>` | Marks Steem as unhealthy with error message |
-| `isSteemKnownDown(): Promise<boolean>` | Returns `true` if health exists and `healthy === false` |
+| `markSteemHealthy(blockNumber?, latency?): Promise<void>` | Marks Steem as healthy ( **`GET /api/health` only** ) |
+| `markSteemUnhealthy(error?: string): Promise<void>` | Marks Steem as unhealthy ( **`GET /api/health` only** ) |
+| `isSteemKnownDown(): Promise<boolean>` | Returns `true` if health exists and `healthy === false` (read-only for query routes) |
 
 **Health status structure:**
 ```typescript
@@ -300,7 +300,7 @@ Checks Steem node connectivity and persists the result to Redis.
 
 **File:** `src/hooks/use-service-health.ts`
 
-Polls `/api/health` every 30 seconds to drive the degradation banner.
+Polls `/api/health` every 60 seconds to drive the degradation banner. Maps HTTP 503 with `status: "degraded"` to the amber banner (not full outage).
 
 | Parameter | Value |
 |-----------|-------|

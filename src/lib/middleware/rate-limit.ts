@@ -2,7 +2,7 @@
 // Uses Redis when available, falls back to in-memory Map
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getRedis } from '@/lib/cache/redis';
+import { getRedis, redisKey } from '@/lib/cache/redis';
 
 export interface RateLimitConfig {
   maxRequests: number;
@@ -51,11 +51,12 @@ async function redisRateLimit(
 
   try {
     const windowStart = Math.floor(Date.now() / (config.windowSeconds * 1000));
-    const redisKey = `ratelimit:${key}:${windowStart}`;
+    const rawKey = `ratelimit:${key}:${windowStart}`;
+    const fullKey = redisKey(rawKey);
 
-    const count = await redis.incr(redisKey);
+    const count = await redis.incr(fullKey);
     if (count === 1) {
-      await redis.expire(redisKey, config.windowSeconds + 1);
+      await redis.expire(fullKey, config.windowSeconds + 1);
     }
 
     if (count > config.maxRequests) {
