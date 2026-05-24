@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
 
   // Compress responses
   compress: true,
+
+  async redirects() {
+    return [
+      { source: '/faq.html', destination: '/faq', permanent: true },
+      { source: '/privacy.html', destination: '/privacy', permanent: true },
+      { source: '/tos.html', destination: '/tos', permanent: true },
+      { source: '/about.html', destination: '/about', permanent: true },
+      { source: '/~witnesses', destination: '/witnesses', permanent: true },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);
