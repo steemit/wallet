@@ -7,6 +7,16 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
+function containsSheetDescription(node: React.ReactNode): boolean {
+  if (node == null || typeof node === "boolean") return false
+  if (Array.isArray(node)) return node.some(containsSheetDescription)
+  if (!React.isValidElement(node)) return false
+
+  const props = node.props as { "data-slot"?: string; children?: React.ReactNode }
+  if (props["data-slot"] === "sheet-description") return true
+  return containsSheetDescription(props.children)
+}
+
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
 }
@@ -50,11 +60,20 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  "aria-describedby": ariaDescribedBy,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
 }) {
+  const hasDescription = containsSheetDescription(children)
+  const describedByProps =
+    ariaDescribedBy !== undefined
+      ? { "aria-describedby": ariaDescribedBy }
+      : hasDescription
+        ? {}
+        : { "aria-describedby": undefined }
+
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -66,6 +85,7 @@ function SheetContent({
           className
         )}
         {...props}
+        {...describedByProps}
       >
         {children}
         {showCloseButton && (
