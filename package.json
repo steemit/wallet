@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",
-    "@steemit/steem-js": "^1.0.17",
+    "@steemit/steem-js": "^1.0.19",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "ioredis": "^5.10.1",

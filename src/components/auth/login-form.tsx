@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '@/lib/store';
@@ -42,18 +42,34 @@ export function LoginForm(props: LoginFormProps = {}) {
   const tCommon = useTranslations('common');
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const accountFromQuery =
+    !embedded && !fixedUsername ? searchParams.get('account') : null;
 
   const [formData, setFormData] = useState<LoginFormData>(() => ({
-    username: fixedUsername ? normalizeSteemUsername(fixedUsername) : '',
+    username: fixedUsername
+      ? normalizeSteemUsername(fixedUsername)
+      : accountFromQuery
+        ? normalizeSteemUsername(accountFromQuery)
+        : '',
     password: '',
   }));
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [rememberUser, setRememberUser] = useState(false);
 
+  const passwordUpdatedNotice = useMemo(() => {
+    if (embedded || searchParams.get('msg') !== 'passwordupdated') return null;
+    const displayName = accountFromQuery
+      ? normalizeSteemUsername(accountFromQuery)
+      : formData.username;
+    if (!displayName) return null;
+    return t('passwordUpdateSuccess', { username: displayName });
+  }, [embedded, accountFromQuery, formData.username, t]);
+
   useEffect(() => {
-    if (embedded || fixedUsername) return;
+    if (embedded || fixedUsername || accountFromQuery) return;
     const id = requestAnimationFrame(() => {
       try {
         const saved = localStorage.getItem(REMEMBERED_USERNAME_KEY) ?? '';
@@ -66,7 +82,7 @@ export function LoginForm(props: LoginFormProps = {}) {
       }
     });
     return () => cancelAnimationFrame(id);
-  }, [embedded, fixedUsername]);
+  }, [embedded, fixedUsername, accountFromQuery]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -91,7 +107,7 @@ export function LoginForm(props: LoginFormProps = {}) {
         return;
       }
 
-      const accountsResp = await apiClient.getAccounts([username]);
+      const accountsResp = await apiClient.getAccounts([username], { fresh: true });
       const account = accountsResp.accounts?.[0];
       if (!account) {
         setError(t('invalidUsername'));
@@ -284,6 +300,17 @@ export function LoginForm(props: LoginFormProps = {}) {
         }
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          {passwordUpdatedNotice && (
+            <div
+              className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-4"
+              role="status"
+            >
+              <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+                {passwordUpdatedNotice}
+              </p>
+            </div>
+          )}
+
           {/* Username Input with @ prefix */}
           <div className="flex flex-col gap-2">
             <Label htmlFor={usernameInputId} className="text-sm font-semibold text-foreground">

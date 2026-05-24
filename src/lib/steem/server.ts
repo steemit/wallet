@@ -512,9 +512,25 @@ export class SteemService {
    * Broadcast a signed transaction
    */
   static async broadcastTransaction(signedTx: SignedTransaction): Promise<BroadcastResult> {
+    const op0 = signedTx.operations?.[0];
+    let txForBroadcast = signedTx;
+    if (Array.isArray(op0) && op0.length === 2 && op0[0] === 'account_update') {
+      txForBroadcast = steem.auth.normalizeTransactionForBroadcast(
+        signedTx as unknown as Record<string, unknown>
+      ) as unknown as SignedTransaction;
+    }
+
     return withFailover(async () => {
       ensureConfigured();
-      const result = await steem.api.broadcastTransactionAsync(signedTx);
+      const api = steem.api as unknown as {
+        callAsync?: (method: string, params: unknown[]) => Promise<unknown>;
+      };
+      if (typeof api.callAsync !== 'function') {
+        throw new Error('Steem API callAsync is not available');
+      }
+      // condenser_api legacy JSON (tuple key_auths). steem.api.broadcastTransactionAsync
+      // hits network_broadcast_api and fails with bad_cast on steemitdev.
+      const result = await api.callAsync('condenser_api.broadcast_transaction', [txForBroadcast]);
       return result as BroadcastResult;
     }).catch((error) => {
       console.error('Error broadcasting transaction:', error);

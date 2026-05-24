@@ -11,6 +11,16 @@ export function normalizeSteemUsername(raw: string): string {
 }
 
 /** Read remembered username from localStorage (client only). */
+/** Remove saved posting key (e.g. after password rotation invalidates the old key). */
+export function clearRememberedPostingKey(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(REMEMBERED_POSTING_KEY_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function getRememberedDeviceUsername(): string | null {
   if (typeof window === 'undefined') return null;
   try {

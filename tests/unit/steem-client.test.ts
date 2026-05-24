@@ -196,6 +196,38 @@ describe('SteemSigner.signXxx — produces the expected operations payload', () 
       ],
       keys: ['5Jposting'],
     },
+    {
+      name: 'signAccountUpdate',
+      call: () =>
+        SteemSigner.signAccountUpdate(
+          [
+            'account_update',
+            {
+              account: 'alice',
+              owner: { weight_threshold: 1, account_auths: [], key_auths: [['STMowner', 1]] },
+              active: { weight_threshold: 1, account_auths: [], key_auths: [['STMactive', 1]] },
+              posting: { weight_threshold: 1, account_auths: [], key_auths: [['STMpost', 1]] },
+              memo_key: 'STMmemo',
+              json_metadata: '{}',
+            },
+          ],
+          '5Jowner'
+        ),
+      operations: [
+        [
+          'account_update',
+          {
+            account: 'alice',
+            owner: { weight_threshold: 1, account_auths: [], key_auths: [['STMowner', 1]] },
+            active: { weight_threshold: 1, account_auths: [], key_auths: [['STMactive', 1]] },
+            posting: { weight_threshold: 1, account_auths: [], key_auths: [['STMpost', 1]] },
+            memo_key: 'STMmemo',
+            json_metadata: '{}',
+          },
+        ],
+      ],
+      keys: ['5Jowner'],
+    },
   ])('$name', async ({ call, operations, keys }) => {
     await call();
     const calls = vi.mocked(steem.auth.signTransaction).mock.calls;
@@ -312,6 +344,11 @@ describe('apiClient broadcasts — every method posts the signed tx to its endpo
       endpoint: '/api/broadcast/custom-json',
       call: () => apiClient.broadcastCustomJson(mockTx, 'alice'),
     },
+    {
+      name: 'broadcastAccountUpdate',
+      endpoint: '/api/broadcast/account-update',
+      call: () => apiClient.broadcastAccountUpdate(mockTx, 'alice'),
+    },
   ])('$name → POST $endpoint with CSRF + signedTx', async ({ endpoint, call }) => {
     await call();
     expect(global.fetch).toHaveBeenCalledWith(endpoint, {
@@ -369,5 +406,12 @@ describe('apiClient queries — GET endpoints', () => {
   ])('$name → GET $url', async ({ call, url }) => {
     await call();
     expect(global.fetch).toHaveBeenCalledWith(url);
+  });
+
+  it('getAccounts with fresh: true bypasses HTTP cache', async () => {
+    await apiClient.getAccounts(['alice'], { fresh: true });
+    expect(global.fetch).toHaveBeenCalledWith('/api/query/accounts?names=alice', {
+      cache: 'no-store',
+    });
   });
 });
