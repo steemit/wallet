@@ -1,5 +1,3 @@
-'use client';
-
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -10,8 +8,14 @@ interface HelpMarkdownProps {
   className?: string;
 }
 
+export function normalizeHelpMarkdown(content: string): string {
+  return content.replace(/^<span id="disable_router_nav_history_direction_check"><\/span>\s*/i, '');
+}
+
 /** Renders legacy wallet help markdown (FAQ, Terms of Service). */
 export function HelpMarkdown({ content, className }: HelpMarkdownProps) {
+  const normalized = normalizeHelpMarkdown(content);
+
   return (
     <article
       className={cn(
@@ -30,7 +34,7 @@ export function HelpMarkdown({ content, className }: HelpMarkdownProps) {
       )}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-        {content}
+        {normalized}
       </ReactMarkdown>
     </article>
   );

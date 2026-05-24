@@ -21,6 +21,12 @@
   margin: 1.25rem 0 0.5rem;
 }
 
+.privacy-policy h4 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem;
+}
+
 .privacy-policy p {
   margin-bottom: 1rem;
 }
