@@ -8,7 +8,6 @@ import { useTranslations } from 'next-intl';
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
@@ -100,7 +99,6 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
           <SheetTitle className="flex items-center gap-2">
             <SteemLogo />
           </SheetTitle>
-          <SheetDescription className="sr-only">{t('sidePanelDescription')}</SheetDescription>
         </SheetHeader>
 
         <nav className="mt-6 flex flex-col gap-1 pb-6">
