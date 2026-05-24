@@ -11,6 +11,16 @@ import {
 } from "@/components/ui/modal-form-actions"
 import { XIcon } from "lucide-react"
 
+function containsDialogDescription(node: React.ReactNode): boolean {
+  if (node == null || typeof node === "boolean") return false
+  if (Array.isArray(node)) return node.some(containsDialogDescription)
+  if (!React.isValidElement(node)) return false
+
+  const props = node.props as { "data-slot"?: string; children?: React.ReactNode }
+  if (props["data-slot"] === "dialog-description") return true
+  return containsDialogDescription(props.children)
+}
+
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -55,10 +65,19 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  "aria-describedby": ariaDescribedBy,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  const hasDescription = containsDialogDescription(children)
+  const describedByProps =
+    ariaDescribedBy !== undefined
+      ? { "aria-describedby": ariaDescribedBy }
+      : hasDescription
+        ? {}
+        : { "aria-describedby": undefined }
+
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -69,6 +88,7 @@ function DialogContent({
           className
         )}
         {...props}
+        {...describedByProps}
       >
         {children}
         {showCloseButton && (
