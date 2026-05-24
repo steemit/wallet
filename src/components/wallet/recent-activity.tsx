@@ -23,7 +23,6 @@ function formatTransferRow(item: SteemHistoryItem, context: string) {
     case 'transfer': {
       const isReceive = data.to === context;
       return {
-        icon: isReceive ? '↓' : '↑',
         description: isReceive
           ? `Received ${data.amount} from ${data.from}`
           : `Transferred ${data.amount} to ${data.to}`,
@@ -33,7 +32,6 @@ function formatTransferRow(item: SteemHistoryItem, context: string) {
     }
     case 'transfer_to_vesting':
       return {
-        icon: '⚡',
         description: data.from === data.to
           ? `Powered up ${data.amount}`
           : `${data.from} powered up ${data.amount} to ${data.to}`,
@@ -42,42 +40,36 @@ function formatTransferRow(item: SteemHistoryItem, context: string) {
       };
     case 'withdraw_vesting':
       return {
-        icon: '🔻',
         description: `Started power down of ${data.vesting_shares}`,
         memo: '',
         time: formatTimeAgo(item.timestamp),
       };
     case 'fill_vesting_withdraw':
       return {
-        icon: '💧',
         description: `Withdrew ${data.deposited}`,
         memo: '',
         time: formatTimeAgo(item.timestamp),
       };
     case 'claim_reward_balance':
       return {
-        icon: '🎁',
         description: `Claimed rewards: ${data.reward_steem} ${data.reward_sbd} ${data.reward_vests}`,
         memo: '',
         time: formatTimeAgo(item.timestamp),
       };
     case 'transfer_to_savings':
       return {
-        icon: '🏦',
         description: `Transfer to savings: ${data.amount}`,
         memo: typeof data.memo === 'string' ? data.memo : '',
         time: formatTimeAgo(item.timestamp),
       };
     case 'transfer_from_savings':
       return {
-        icon: '🏧',
         description: `Withdraw from savings: ${data.amount}`,
         memo: typeof data.memo === 'string' ? data.memo : '',
         time: formatTimeAgo(item.timestamp),
       };
     case 'delegate_vesting_shares':
       return {
-        icon: '📤',
         description: data.delegator === context
           ? `Delegated ${data.vesting_shares} to ${data.delegatee}`
           : `Received delegation of ${data.vesting_shares} from ${data.delegator}`,
@@ -86,7 +78,6 @@ function formatTransferRow(item: SteemHistoryItem, context: string) {
       };
     default:
       return {
-        icon: '📋',
         description: type.replace(/_/g, ' '),
         memo: '',
         time: formatTimeAgo(item.timestamp),
@@ -175,7 +166,6 @@ export function RecentActivity({
             const row = formatTransferRow(item, username);
             return (
               <TableRow key={`${item.trx_id}-${index}`}>
-                <TableCell className="w-8 text-lg">{row.icon}</TableCell>
                 <TableCell>
                   <div className="font-medium text-sm">{row.description}</div>
                   {row.memo && (

@@ -6,6 +6,7 @@ export const REWARDS_HISTORY_PAGE_SIZE = 10;
 export const REWARDS_HISTORY_FETCH_LIMIT = 100;
 const ONE_DAY_MS = 86400 * 1000;
 
+/** @deprecated Use ops-based server filtering via useBatchHistory. */
 export function filterHistoryByOpType(
   items: SteemHistoryItem[],
   opType: string
@@ -19,6 +20,7 @@ export const EXCLUDED_ACTIVITY_TYPES = [
   'comment_benefactor_reward',
 ] as const;
 
+/** @deprecated Use ops-based server filtering via useBatchHistory. */
 export function filterHistoryExcludingTypes(
   items: SteemHistoryItem[],
   excluded: readonly string[]

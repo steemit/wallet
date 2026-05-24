@@ -379,6 +379,11 @@ describe('apiClient queries — GET endpoints', () => {
       url: '/api/query/history?username=alice&limit=50',
     },
     {
+      name: 'getHistory with ops filter',
+      call: () => apiClient.getHistory('alice', 50, undefined, ['transfer', 'author_reward']),
+      url: '/api/query/history?username=alice&limit=50&ops=transfer%2Cauthor_reward',
+    },
+    {
       name: 'getWitnesses',
       call: () => apiClient.getWitnesses(50),
       url: '/api/query/witnesses?limit=50',
