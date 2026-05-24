@@ -4,7 +4,8 @@ import { FormEvent, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
-import { Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
+import { clearRememberedPostingKey } from '@/lib/auth/browser-storage';
 import { useAuth } from '@/hooks/use-auth';
 import { useSteemAccount } from '@/hooks/use-steem-account';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
@@ -39,6 +40,7 @@ export function ChangePasswordSection({ username, isMyAccount }: ChangePasswordS
   const [confirmSaved, setConfirmSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [changeSuccess, setChangeSuccess] = useState(false);
 
   const currentPasswordError = useMemo(() => {
     if (!currentPassword.trim()) return null;
@@ -106,8 +108,9 @@ export function ChangePasswordSection({ username, isMyAccount }: ChangePasswordS
         return;
       }
 
+      clearRememberedPostingKey();
+      setChangeSuccess(true);
       await logout();
-      router.push(`/login?account=${encodeURIComponent(username)}&msg=passwordupdated`);
     } catch (err) {
       const message = err instanceof Error ? err.message : t('broadcastFailed');
       if (/missing owner authority/i.test(message)) {
@@ -137,6 +140,34 @@ export function ChangePasswordSection({ username, isMyAccount }: ChangePasswordS
       <p className="text-destructive text-sm" role="alert">
         {error || t('loadError')}
       </p>
+    );
+  }
+
+  if (changeSuccess) {
+    return (
+      <div className="ChangePasswordPage max-w-2xl space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h1>
+          <p className="text-muted-foreground mt-2 text-sm">{t('resetIntro', { username })}</p>
+        </div>
+        <div
+          className="flex gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-900 dark:text-emerald-100"
+          role="status"
+        >
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+          <p>{t('successMessage')}</p>
+        </div>
+        <Button
+          type="button"
+          onClick={() => {
+            router.push(
+              `/login?account=${encodeURIComponent(username)}&msg=passwordupdated`
+            );
+          }}
+        >
+          {t('continueToSignIn')}
+        </Button>
+      </div>
     );
   }
 

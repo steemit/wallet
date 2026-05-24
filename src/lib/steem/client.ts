@@ -557,8 +557,14 @@ export const apiClient = {
   /**
    * Get account information
    */
-  async getAccounts(usernames: string[]): Promise<{ accounts: SteemAccount[]; error?: string }> {
-    const response = await fetch(`/api/query/accounts?names=${usernames.join(',')}`);
+  async getAccounts(
+    usernames: string[],
+    options?: { fresh?: boolean }
+  ): Promise<{ accounts: SteemAccount[]; error?: string }> {
+    const url = `/api/query/accounts?names=${usernames.join(',')}`;
+    const response = options?.fresh
+      ? await fetch(url, { cache: 'no-store' })
+      : await fetch(url);
     return response.json();
   },
 

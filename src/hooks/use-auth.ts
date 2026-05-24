@@ -28,7 +28,7 @@ export function useAuth(): UseAuthReturn {
       }
 
       // Fetch account to resolve keys/roles
-      const accountsResp = await apiClient.getAccounts([usernameTrimmed]);
+      const accountsResp = await apiClient.getAccounts([usernameTrimmed], { fresh: true });
       const account = accountsResp.accounts?.[0];
       if (!account) {
         return false;

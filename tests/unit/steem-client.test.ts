@@ -407,4 +407,11 @@ describe('apiClient queries — GET endpoints', () => {
     await call();
     expect(global.fetch).toHaveBeenCalledWith(url);
   });
+
+  it('getAccounts with fresh: true bypasses HTTP cache', async () => {
+    await apiClient.getAccounts(['alice'], { fresh: true });
+    expect(global.fetch).toHaveBeenCalledWith('/api/query/accounts?names=alice', {
+      cache: 'no-store',
+    });
+  });
 });

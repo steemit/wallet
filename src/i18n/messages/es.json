@@ -44,7 +44,8 @@
     "notAuthenticated": "Inicie sesión para continuar",
     "rememberUsername": "Recordar usuario en este dispositivo",
     "rememberUserTooltip": "Recordar nombre de usuario y clave Posting Key en este dispositivo (si existe)",
-    "keepLoggedIn": "Mantener la sesión iniciada"
+    "keepLoggedIn": "Mantener la sesión iniciada",
+    "passwordUpdateSuccess": "La contraseña de {username} se actualizó correctamente. Inicie sesión con la nueva contraseña."
   },
   "wallet": {
     "title": "Billetera",
@@ -99,6 +100,8 @@
       "wrongPasswordHint": "Esta es la contraseña incorrecta. ¿Necesita",
       "recoverAccount": "recuperar su cuenta",
       "broadcastFailed": "Error al actualizar la contraseña. Compruebe su contraseña actual e inténtelo de nuevo.",
+      "successMessage": "Su contraseña se actualizó correctamente. Inicie sesión con la nueva contraseña.",
+      "continueToSignIn": "Continuar al inicio de sesión",
       "rule1": "La primera regla de Steem Wallet es: no pierda su contraseña.",
       "rule2": "La segunda regla de Steem Wallet es: no pierda su contraseña.",
       "rule3": "La tercera regla de Steem Wallet es: no podemos recuperar su contraseña.",

@@ -44,7 +44,8 @@
     "notAuthenticated": "Please login to continue",
     "rememberUsername": "Remember user on this device",
     "rememberUserTooltip": "Remember username and Posting Key on this device (when available)",
-    "keepLoggedIn": "Keep me logged in"
+    "keepLoggedIn": "Keep me logged in",
+    "passwordUpdateSuccess": "The password for {username} was successfully updated. Please sign in with your new password."
   },
   "wallet": {
     "title": "Wallet",
@@ -99,6 +100,8 @@
       "wrongPasswordHint": "This is the wrong password. Do you need to",
       "recoverAccount": "recover your account",
       "broadcastFailed": "Password update failed. Check your current password and try again.",
+      "successMessage": "Your password was updated successfully. Sign in with your new password.",
+      "continueToSignIn": "Continue to sign in",
       "rule1": "The first rule of Steem Wallet is: Do not lose your password.",
       "rule2": "The second rule of Steem Wallet is: Do not lose your password.",
       "rule3": "The third rule of Steem Wallet is: We cannot recover your password.",

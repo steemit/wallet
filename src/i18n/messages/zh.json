@@ -44,7 +44,8 @@
     "notAuthenticated": "请先登录",
     "rememberUsername": "在本设备记住用户",
     "rememberUserTooltip": "在本设备记住用户名和 Posting Key (如果存在)",
-    "keepLoggedIn": "保持登录状态"
+    "keepLoggedIn": "保持登录状态",
+    "passwordUpdateSuccess": "{username} 的密码已成功更新，请使用新密码登录。"
   },
   "wallet": {
     "title": "钱包",
@@ -99,6 +100,8 @@
       "wrongPasswordHint": "密码错误。是否需要",
       "recoverAccount": "恢复您的账户",
       "broadcastFailed": "密码更新失败。请检查当前密码后重试。",
+      "successMessage": "密码已成功更新，请使用新密码登录。",
+      "continueToSignIn": "前往登录",
       "rule1": "Steem Wallet 第一条规则：不要丢失密码。",
       "rule2": "Steem Wallet 第二条规则：不要丢失密码。",
       "rule3": "Steem Wallet 第三条规则：我们无法恢复您的密码。",
