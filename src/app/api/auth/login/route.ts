@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
-import { getRedis } from '@/lib/cache/redis';
+import { getRedis, redisKey } from '@/lib/cache/redis';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Retrieve challenge from Redis
     const redis = getRedis();
     if (redis) {
-      const stored = await redis.get(`auth:challenge:${username}`);
+      const stored = await redis.get(redisKey(`auth:challenge:${username}`));
       if (!stored) {
         return NextResponse.json(
           { error: 'Invalid or expired challenge' },
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Delete challenge (one-time use)
-      await redis.del(`auth:challenge:${username}`);
+      await redis.del(redisKey(`auth:challenge:${username}`));
     }
 
     // Get the account to verify the public key belongs to it

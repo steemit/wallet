@@ -6,6 +6,12 @@ import Redis from 'ioredis';
 let redis: Redis | null = null;
 let redisUnavailable = false;
 
+const KEY_PREFIX = process.env.REDIS_KEY_PREFIX || 'wallet';
+
+export function redisKey(key: string): string {
+  return `${KEY_PREFIX}:${key}`;
+}
+
 export function getRedis(): Redis | null {
   if (redis) return redis;
   if (redisUnavailable) return null;
@@ -59,8 +65,8 @@ export async function cacheGet<T>(
 
   try {
     const [raw, remaining] = await Promise.all([
-      r.get(key),
-      r.ttl(key),
+      r.get(redisKey(key)),
+      r.ttl(redisKey(key)),
     ]);
 
     if (!raw || remaining < 0) return null;
@@ -90,7 +96,7 @@ export async function cacheSet<T>(
 
   try {
     const totalTtl = ttl + staleTtl;
-    await r.set(key, JSON.stringify(data), 'EX', totalTtl);
+    await r.set(redisKey(key), JSON.stringify(data), 'EX', totalTtl);
   } catch {
     // Cache write failure is non-critical
   }
@@ -103,7 +109,7 @@ export async function cacheDeleteByPrefix(prefix: string): Promise<void> {
   try {
     let cursor = '0';
     do {
-      const [next, keys] = await r.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', 100);
+      const [next, keys] = await r.scan(cursor, 'MATCH', `${redisKey(prefix)}*`, 'COUNT', 100);
       if (keys.length > 0) await r.del(...keys);
       cursor = next;
     } while (cursor !== '0');

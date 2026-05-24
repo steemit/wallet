@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 
 export type ServiceHealthStatus = 'healthy' | 'degraded' | 'outage' | 'unknown';
 
-const POLL_INTERVAL = 30_000;
+const POLL_INTERVAL = 60_000;
 
 export function useServiceHealth() {
   const [status, setStatus] = useState<ServiceHealthStatus>('unknown');

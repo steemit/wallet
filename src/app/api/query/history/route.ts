@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
-import { getRedis } from '@/lib/cache/redis';
+import { getRedis, redisKey } from '@/lib/cache/redis';
 import { isSteemKnownDown, markSteemHealthy, markSteemUnhealthy } from '@/lib/cache/health-monitor';
 import { normalizeSteemHistoryList, type SteemHistoryItem } from '@/lib/wallet/normalize-history';
 import { WALLET_OP_TYPES } from '@/lib/steem/history-ops';
@@ -90,7 +90,7 @@ async function handleFilteredRequest(
   requestedOps: string[]
 ): Promise<NextResponse> {
   const opsKey = [...requestedOps].sort().join('+');
-  const cacheKey = `cache:query:history-filtered:${username}:${opsKey}`;
+  const cacheKey = redisKey(`cache:query:history-filtered:${username}:${opsKey}`);
 
   if (await isSteemKnownDown()) {
     const fallback = await getFilteredFallback(cacheKey);
@@ -167,7 +167,7 @@ async function getLegacyFallback(username: string): Promise<unknown[] | null> {
   const redis = getRedis();
   if (!redis) return null;
   try {
-    const raw = await redis.get(`cache:query:history-fallback:${username}`);
+    const raw = await redis.get(redisKey(`cache:query:history-fallback:${username}`));
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -179,7 +179,7 @@ async function saveLegacyFallback(username: string, history: unknown): Promise<v
   if (!redis) return;
   try {
     await redis.set(
-      `cache:query:history-fallback:${username}`,
+      redisKey(`cache:query:history-fallback:${username}`),
       JSON.stringify(history),
       'EX',
       FALLBACK_TTL

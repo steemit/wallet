@@ -8,6 +8,7 @@ const mockRedisInstance = {
 
 vi.mock('@/lib/cache/redis', () => ({
   getRedis: () => mockRedisInstance,
+  redisKey: (k: string) => `wallet:${k}`,
   cacheGet: vi.fn(),
   cacheSet: vi.fn(),
   cacheDeleteByPrefix: vi.fn(),
@@ -54,7 +55,7 @@ describe('Health Monitor', () => {
     it('writes healthy status to Redis with TTL', async () => {
       await markSteemHealthy(12345, 50);
       expect(mockRedisInstance.set).toHaveBeenCalledWith(
-        'health:steem',
+        'wallet:health:steem',
         expect.any(String),
         'EX',
         60
