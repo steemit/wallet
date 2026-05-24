@@ -2,7 +2,7 @@
 // Uses Redis when available, falls back to direct fetcher execution
 
 import { cacheGet, cacheSet, getRedis } from './redis';
-import { isSteemKnownDown, markSteemHealthy, markSteemUnhealthy } from './health-monitor';
+import { isSteemKnownDown } from './health-monitor';
 
 export interface WithCacheResult<T> {
   data: T;
@@ -48,10 +48,8 @@ export async function withCache<T>(
   try {
     const fresh = await fetcher();
     await cacheSet(key, ttl, staleTtl, fresh);
-    await markSteemHealthy();
     return { data: fresh, degraded: false };
   } catch (error) {
-    await markSteemUnhealthy((error as Error).message);
     // Fresh fetch failed — serve stale if available
     if (cached) {
       return { data: cached.data, degraded: true, ...(cached.staleAge !== undefined && { staleAge: cached.staleAge }) };

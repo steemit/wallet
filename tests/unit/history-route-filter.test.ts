@@ -20,8 +20,6 @@ vi.mock('@/lib/cache/redis', () => ({
 }));
 vi.mock('@/lib/cache/health-monitor', () => ({
   isSteemKnownDown: vi.fn().mockResolvedValue(false),
-  markSteemHealthy: vi.fn().mockResolvedValue(undefined),
-  markSteemUnhealthy: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { GET } from '@/app/api/query/history/route';

@@ -1,5 +1,6 @@
-// Health monitor: tracks Steem RPC health in Redis
-// Routes check this before attempting RPC calls to avoid timeout delays
+// Health monitor: tracks Steem RPC health in Redis (shared across instances).
+// Only GET /api/health writes via markSteemHealthy / markSteemUnhealthy.
+// Other routes may read isSteemKnownDown() to skip RPC when the node is down.
 
 import { getRedis, redisKey } from './redis';
 

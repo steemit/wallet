@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { getRedis, redisKey } from '@/lib/cache/redis';
-import { isSteemKnownDown, markSteemHealthy, markSteemUnhealthy } from '@/lib/cache/health-monitor';
+import { isSteemKnownDown } from '@/lib/cache/health-monitor';
 import { normalizeSteemHistoryList, type SteemHistoryItem } from '@/lib/wallet/normalize-history';
 import { WALLET_OP_TYPES } from '@/lib/steem/history-ops';
 
@@ -64,11 +64,9 @@ export async function GET(request: NextRequest) {
 
     try {
       const history = await SteemService.getAccountHistory(username, limit, from);
-      await markSteemHealthy();
       if (from === -1) await saveLegacyFallback(username, history);
       return NextResponse.json({ success: true, history });
     } catch (error) {
-      await markSteemUnhealthy((error as Error).message);
       const fallback = await getLegacyFallback(username);
       if (fallback) return legacyDegradedResponse(fallback);
       throw error;
@@ -100,11 +98,9 @@ async function handleFilteredRequest(
 
   try {
     const { history, nextFrom, exhausted } = await fetchFiltered(username, from, requestedOps);
-    await markSteemHealthy();
     if (from === -1) await saveFilteredFallback(cacheKey, { history, nextFrom, exhausted });
     return NextResponse.json({ success: true, history, nextFrom, exhausted });
   } catch (error) {
-    await markSteemUnhealthy((error as Error).message);
     const fallback = await getFilteredFallback(cacheKey);
     if (fallback) return filteredDegradedResponse(fallback);
     throw error;
