@@ -170,7 +170,7 @@ export function BalanceRows({
                     asset: 'STEEM',
                     type: 'power_up',
                   },
-                  { label: 'Trade', external: true, href: 'https://poloniex.com/trade/STEEM_TRX/?type=spot' },
+                  { label: 'Trade', external: true, href: 'https://www.poloniex.com/zh-CN/trade/STEEM_USDT?type=spot' },
                   { label: 'Market', link: '/market' },
                 ]}
               />

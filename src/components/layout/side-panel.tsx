@@ -16,9 +16,7 @@ import { SteemLogo } from './steem-logo';
 import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 import {
   Wallet,
-  ExternalLink,
-  LogIn,
-  UserPlus,
+  ExternalLink as ExternalLinkIcon,
   HelpCircle,
   ChartCandlestick,
   ShieldAlert,
@@ -37,25 +35,31 @@ interface SidePanelProps {
 
 export function SidePanel({ open, onOpenChange }: SidePanelProps) {
   const t = useTranslations('wallet');
-  const tAuth = useTranslations('auth');
   const pathname = usePathname();
   const username = useSelector((state: RootState) => state.auth.username);
   const isLoggedIn = !!username;
 
   const socialUrl = 'https://steemit.com';
-  const signupUrl = process.env.NEXT_PUBLIC_SIGNUP_URL ?? 'https://signup.steemit.com';
 
   const navItemClassName =
     'flex items-center gap-2 rounded-md px-2 py-1.5 text-base font-medium text-foreground transition-colors outline-none hover:bg-accent/80 hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0';
   const activeNavItemClassName = 'bg-accent font-semibold text-accent-foreground';
   const externalNavItemClassName = cn(navItemClassName, 'justify-between');
 
-  const getNavItemClassName = (href: string, muted = false) => {
+  const getNavItemClassName = (href: string) => {
     const isActive = pathname === href || pathname.startsWith(`${href}/`);
-    return cn(navItemClassName, isActive && activeNavItemClassName, muted && 'text-muted-foreground');
+    return cn(navItemClassName, isActive && activeNavItemClassName);
   };
 
   const close = () => onOpenChange(false);
+
+  /** Prevent click-through to page links under the sheet when it closes (avoids multiple tabs). */
+  const openExternalAndClose = (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    window.open(href, '_blank', 'noopener,noreferrer');
+    requestAnimationFrame(() => close());
+  };
 
   const internalLinks = [
     { href: SIDE_PANEL_INTERNAL.faq, label: t('navFaq'), icon: HelpCircle },
@@ -82,7 +86,6 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
   const resourceExternalLinks = [
     { href: SIDE_PANEL_EXTERNAL.apiDocs, label: t('navApiDocs') },
     { href: SIDE_PANEL_EXTERNAL.bluepaper, label: t('navBluepaper') },
-    { href: SIDE_PANEL_EXTERNAL.smtWhitepaper, label: t('navSmtWhitepaper') },
     { href: SIDE_PANEL_EXTERNAL.whitepaper, label: t('navWhitepaper') },
   ] as const;
 
@@ -119,16 +122,14 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
                 <Wallet />
                 {t('title')}
               </Link>
-              <Link
+              <a
                 href={`${socialUrl}/@${username}`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={close}
+                onClick={(e) => openExternalAndClose(e, `${socialUrl}/@${username}`)}
                 className={navItemClassName}
               >
-                <ExternalLink />
+                <ExternalLinkIcon aria-hidden />
                 {t('blog')}
-              </Link>
+              </a>
               <Separator className="my-2" />
             </>
           )}
@@ -147,13 +148,12 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
             <a
               key={href}
               href={href}
-              target="_blank"
               rel="noopener noreferrer"
-              onClick={close}
+              onClick={(e) => openExternalAndClose(e, href)}
               className={externalNavItemClassName}
             >
               <span>{label}</span>
-              <ExternalLink className="text-muted-foreground" aria-hidden />
+              <ExternalLinkIcon className="pointer-events-none text-muted-foreground" aria-hidden />
             </a>
           ))}
 
@@ -163,16 +163,15 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
             <a
               key={href}
               href={href}
-              target="_blank"
               rel="noopener noreferrer"
-              onClick={close}
+              onClick={(e) => openExternalAndClose(e, href)}
               className={externalNavItemClassName}
             >
               <span className="flex items-center gap-2">
-                <BookOpen className="size-4 shrink-0" aria-hidden />
+                <BookOpen className="pointer-events-none size-4 shrink-0" aria-hidden />
                 {label}
               </span>
-              <ExternalLink className="text-muted-foreground" aria-hidden />
+              <ExternalLinkIcon className="pointer-events-none text-muted-foreground" aria-hidden />
             </a>
           ))}
 
@@ -181,29 +180,6 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
               {label}
             </Link>
           ))}
-
-          {!isLoggedIn && (
-            <>
-              <Separator className="my-2" />
-              <p className="px-2 pt-1 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                {t('navAccess')}
-              </p>
-              <Link href="/login" onClick={close} className={getNavItemClassName('/login', true)}>
-                <LogIn />
-                {tAuth('login')}
-              </Link>
-              <a
-                href={signupUrl}
-                target="_blank"
-                rel="noreferrer"
-                onClick={close}
-                className={cn(navItemClassName, 'text-muted-foreground')}
-              >
-                <UserPlus />
-                {tAuth('signUp')}
-              </a>
-            </>
-          )}
         </nav>
       </SheetContent>
     </Sheet>

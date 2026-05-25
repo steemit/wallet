@@ -1,10 +1,9 @@
 /** External URLs aligned with wallet-legacy SidePanel. */
 export const SIDE_PANEL_EXTERNAL = {
-  binance: 'https://www.binance.com/en/trade/STEEM_BTC',
-  poloniex: 'https://poloniex.com/trade/STEEM_TRX/?type=spot',
+  binance: 'https://www.binance.com/en/trade/STEEM_USDT?type=spot',
+  poloniex: 'https://www.poloniex.com/zh-CN/trade/STEEM_USDT?type=spot',
   apiDocs: 'https://developers.steem.io/',
   bluepaper: 'https://steem.io/steem-bluepaper.pdf',
-  smtWhitepaper: 'https://smt.steem.io/',
   whitepaper: 'https://steem.io/SteemWhitePaper.pdf',
 } as const;
 

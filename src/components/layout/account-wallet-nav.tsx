@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
-const POLONIEX_STEEM_TRX = 'https://poloniex.com/trade/STEEM_TRX/?type=spot';
+const POLONIEX_STEEM_USDT = 'https://www.poloniex.com/zh-CN/trade/STEEM_USDT?type=spot';
 
 const externalNavLinkClassName =
   'inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/80 hover:text-accent-foreground';
@@ -153,7 +153,7 @@ export function AccountWalletNav({
               <ExternalLink className="size-3.5 shrink-0 opacity-90" aria-hidden />
             </a>
             <a
-              href={POLONIEX_STEEM_TRX}
+              href={POLONIEX_STEEM_USDT}
               target="_blank"
               rel="noopener noreferrer"
               className={externalNavLinkClassName}
