@@ -144,6 +144,11 @@ export function AccountKeyRow({
                 ? t('qrPrivateTitle', { type: authTypeLabel })
                 : t('qrPublicTitle', { type: authTypeLabel })}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              {qrIsPrivate
+                ? t('qrPrivateTitle', { type: authTypeLabel })
+                : t('qrPublicTitle', { type: authTypeLabel })}
+            </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center rounded-md border border-border bg-white p-4">
             <QRCode value={qrText} size={180} />
