@@ -1,15 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useSyncExternalStore } from 'react';
-import { useSelector } from 'react-redux';
-import { RootState } from '@/lib/store';
-import { getRememberedDeviceUsername } from '@/lib/auth/browser-storage';
+import { useAuth } from '@/hooks/use-auth';
 import { SteemLogo } from './steem-logo';
 import { useTheme } from '@/lib/theme';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { LoginForm } from '@/components/auth/login-form';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +16,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Menu, Wallet, Key, Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
@@ -29,34 +35,30 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
   const t = useTranslations('auth');
   const router = useRouter();
   const { theme, cycleTheme } = useTheme();
-  const reduxUsername = useSelector((state: RootState) => state.auth.username);
+  const { username, isAuthenticated, logout } = useAuth();
+  const [loginOpen, setLoginOpen] = useState(false);
 
-  // useSyncExternalStore is used here purely as an SSR-safe initializer:
-  // getServerSnapshot returns null so server and hydration renders match,
-  // then React detects the post-hydration snapshot diff and re-renders once
-  // to show the avatar. The subscribe is intentionally a no-op — ongoing
-  // login state is owned by Redux; this value is only meaningful at mount.
-  const rememberedUsername = useSyncExternalStore(
-    () => () => {},
-    () => getRememberedDeviceUsername(),
-    () => null
-  );
-
-  const username = reduxUsername ?? rememberedUsername;
-  const isLoggedIn = !!username;
   const signupUrl = process.env.NEXT_PUBLIC_SIGNUP_URL ?? 'https://signup.steemit.com';
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await logout();
       router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
     }
   };
 
-  const themeIcon = theme === 'dark' ? <Moon data-icon="inline-start" /> : theme === 'light' ? <Sun data-icon="inline-start" /> : <Monitor data-icon="inline-start" />;
-  const themeLabel = theme === 'dark' ? 'Dark Mode' : theme === 'light' ? 'Light Mode' : 'Original Mode';
+  const themeIcon =
+    theme === 'dark' ? (
+      <Moon data-icon="inline-start" />
+    ) : theme === 'light' ? (
+      <Sun data-icon="inline-start" />
+    ) : (
+      <Monitor data-icon="inline-start" />
+    );
+  const themeLabel =
+    theme === 'dark' ? 'Dark Mode' : theme === 'light' ? 'Light Mode' : 'Original Mode';
 
   return (
     <header
@@ -65,7 +67,6 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
       )}
     >
       <nav className="flex h-16 items-center px-4 md:px-6">
-        {/* Logo - Left */}
         <div className="flex-shrink-0">
           <Link
             href="/"
@@ -75,31 +76,26 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
           </Link>
         </div>
 
-        {/* Right Side */}
         <div className="ml-auto flex h-16 items-center gap-2 md:gap-4">
-          {/* Not Logged In: Login + Sign Up */}
-          {!isLoggedIn && (
-            <div className="hidden md:flex items-center gap-4">
-              <Link
-                href="/login"
-                className="text-base font-medium transition-colors duration-200 hover:text-accent-foreground"
+          {!isAuthenticated && (
+            <div className="hidden items-center gap-4 md:flex">
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-base font-medium"
+                onClick={() => setLoginOpen(true)}
               >
                 {t('login')}
-              </Link>
+              </Button>
               <Button asChild>
-                <a
-                  href={signupUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <a href={signupUrl} target="_blank" rel="noopener noreferrer">
                   {t('signUp')}
                 </a>
               </Button>
             </div>
           )}
 
-          {/* Logged In: User Avatar Dropdown */}
-          {isLoggedIn && (
+          {isAuthenticated && username && (
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon-lg" className="rounded-full">
@@ -108,8 +104,8 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
                       src={`https://steemitimages.com/u/${username}/avatar`}
                       alt={username}
                     />
-                    <AvatarFallback className="bg-primary text-primary-foreground font-bold text-sm">
-                      {username?.charAt(0).toUpperCase()}
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
+                      {username.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -140,13 +136,12 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                   <LogOut data-icon="inline-start" />
-                  <span>Logout</span>
+                  <span>{t('logout')}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
 
-          {/* Hamburger Menu */}
           <Button
             variant="ghost"
             size="icon"
@@ -157,6 +152,16 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
           </Button>
         </div>
       </nav>
+
+      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('login')}</DialogTitle>
+            <DialogDescription className="sr-only">{t('login')}</DialogDescription>
+          </DialogHeader>
+          <LoginForm embedded onLoginSuccess={() => setLoginOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }

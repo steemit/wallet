@@ -3,6 +3,7 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { useEffect } from 'react';
 import type { RootState } from '@/lib/store';
+import { clearRememberedDeviceAuth } from '@/lib/auth/browser-storage';
 import { setCredentials, logout as authLogout } from '@/lib/store/slices/auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 
@@ -143,8 +144,8 @@ export function useAuth(): UseAuthReturn {
     } catch {
       // Ignore error
     } finally {
-      // Clear local state
       dispatch(authLogout());
+      clearRememberedDeviceAuth();
     }
   };
 

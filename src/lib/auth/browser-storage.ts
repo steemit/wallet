@@ -21,6 +21,22 @@ export function clearRememberedPostingKey(): void {
   }
 }
 
+/** Remove saved username from this device (e.g. on logout). */
+export function clearRememberedDeviceUsername(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(REMEMBERED_USERNAME_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/** Clear all device-persisted login convenience data. */
+export function clearRememberedDeviceAuth(): void {
+  clearRememberedDeviceUsername();
+  clearRememberedPostingKey();
+}
+
 export function getRememberedDeviceUsername(): string | null {
   if (typeof window === 'undefined') return null;
   try {

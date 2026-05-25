@@ -8,6 +8,10 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { useAuth, useRequireAuth, usePrivateKey } from '@/hooks/use-auth';
 import authReducer from '@/lib/store/slices/auth';
+import {
+  REMEMBERED_POSTING_KEY_KEY,
+  REMEMBERED_USERNAME_KEY,
+} from '@/lib/auth/browser-storage';
 
 // Mock SteemSigner and apiClient - factory function to avoid hoisting issues
 vi.mock('@/lib/steem/client', () => {
@@ -59,7 +63,7 @@ describe('useAuth Hook', () => {
 
   beforeEach(() => {
     mockStore = createTestStore();
-
+    localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -180,7 +184,9 @@ describe('useAuth Hook', () => {
 
   describe('logout', () => {
     it('should clear auth state on logout', async () => {
-      // Set up logged in state
+      localStorage.setItem(REMEMBERED_USERNAME_KEY, 'testuser');
+      localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, '5Jtest');
+
       mockStore.dispatch({
         type: 'auth/setCredentials',
         payload: {
@@ -201,6 +207,8 @@ describe('useAuth Hook', () => {
       expect(mockStore.getState().auth.username).toBeNull();
       expect(mockStore.getState().auth.isAuthenticated).toBe(false);
       expect(mockStore.getState().auth.privateKey).toBeNull();
+      expect(localStorage.getItem(REMEMBERED_USERNAME_KEY)).toBeNull();
+      expect(localStorage.getItem(REMEMBERED_POSTING_KEY_KEY)).toBeNull();
     });
 
     it('should clear auth state even if server logout fails', async () => {
