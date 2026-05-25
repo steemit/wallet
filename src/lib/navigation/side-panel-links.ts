@@ -11,7 +11,6 @@ export const SIDE_PANEL_INTERNAL = {
   faq: '/faq',
   market: '/market',
   recoverAccount: '/recover_account_step_1',
-  changePassword: '/change_password',
   witnesses: '/witnesses',
   proposals: '/proposals',
   about: '/about',

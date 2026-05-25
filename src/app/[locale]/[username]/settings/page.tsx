@@ -1,5 +1,5 @@
 import WalletPage from '../page';
 
-export default function CommunitiesPage() {
+export default function SettingsPage() {
   return <WalletPage />;
 }

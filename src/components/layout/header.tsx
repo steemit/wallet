@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Wallet, Key, Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
+import { Menu, Wallet, Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
 
 interface HeaderProps {
   onOpenSidePanel?: () => void;
@@ -120,12 +120,6 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
                 <DropdownMenuItem onClick={cycleTheme} className="cursor-pointer">
                   {themeIcon}
                   <span>{themeLabel}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={`/@${username}/password`} className="cursor-pointer">
-                    <Key data-icon="inline-start" />
-                    <span>Change Password</span>
-                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href={`/@${username}/settings`} className="cursor-pointer">

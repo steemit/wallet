@@ -110,6 +110,12 @@
       "rule6": "The sixth rule: Do not tell anyone your password.",
       "rule7": "The seventh rule: Always back up your password."
     },
+    "settingsPage": {
+      "pageTitle": "Settings",
+      "tabPassword": "Change Password",
+      "tabPermissions": "Keys & Permissions",
+      "tabCommunities": "Communities"
+    },
     "sectionPlaceholderHint": "This page is a placeholder. Full functionality will be added in a future update.",
     "witnesses": "Witnesses",
     "witnessVoting": "Witness Voting",

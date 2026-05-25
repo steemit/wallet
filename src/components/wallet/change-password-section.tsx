@@ -24,9 +24,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 export interface ChangePasswordSectionProps {
   username: string;
   isMyAccount: boolean;
+  /** When nested under Account Settings, omit the page-level title block. */
+  embedded?: boolean;
 }
 
-export function ChangePasswordSection({ username, isMyAccount }: ChangePasswordSectionProps) {
+export function ChangePasswordSection({
+  username,
+  isMyAccount,
+  embedded = false,
+}: ChangePasswordSectionProps) {
   const t = useTranslations('wallet.changePasswordPage');
   const tCommon = useTranslations('common');
   const router = useRouter();
@@ -174,7 +180,7 @@ export function ChangePasswordSection({ username, isMyAccount }: ChangePasswordS
   if (!isMyAccount) {
     return (
       <div className="ChangePasswordPage max-w-2xl space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h1>
+        {!embedded && <h1 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h1>}
         <p className="text-muted-foreground text-sm leading-relaxed">{t('viewOnly')}</p>
       </div>
     );
@@ -185,10 +191,15 @@ export function ChangePasswordSection({ username, isMyAccount }: ChangePasswordS
 
   return (
     <div className="ChangePasswordPage max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h1>
-        <p className="text-muted-foreground mt-2 text-sm">{t('resetIntro', { username })}</p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h1>
+          <p className="text-muted-foreground mt-2 text-sm">{t('resetIntro', { username })}</p>
+        </div>
+      )}
+      {embedded && (
+        <p className="text-muted-foreground text-sm">{t('resetIntro', { username })}</p>
+      )}
 
       <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm leading-relaxed">
         <hr className="border-border mb-4" />
