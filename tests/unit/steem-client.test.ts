@@ -185,6 +185,38 @@ describe('SteemSigner.signXxx — produces the expected operations payload', () 
       keys: ['5Jactive'],
     },
     {
+      name: 'signLimitOrderCreate',
+      call: () =>
+        SteemSigner.signLimitOrderCreate(
+          'alice',
+          '1.000 SBD',
+          '2.000 STEEM',
+          12345,
+          1710000000,
+          '5Jactive'
+        ),
+      operations: [
+        [
+          'limit_order_create',
+          {
+            owner: 'alice',
+            amount_to_sell: '1.000 SBD',
+            min_to_receive: '2.000 STEEM',
+            fill_or_kill: false,
+            expiration: '2024-03-09T16:00:00',
+            orderid: 12345,
+          },
+        ],
+      ],
+      keys: ['5Jactive'],
+    },
+    {
+      name: 'signLimitOrderCancel',
+      call: () => SteemSigner.signLimitOrderCancel('alice', 12345, '5Jactive'),
+      operations: [['limit_order_cancel', { owner: 'alice', orderid: 12345 }]],
+      keys: ['5Jactive'],
+    },
+    {
       name: 'signOperations',
       call: () =>
         SteemSigner.signOperations(
@@ -349,6 +381,16 @@ describe('apiClient broadcasts — every method posts the signed tx to its endpo
       endpoint: '/api/broadcast/account-update',
       call: () => apiClient.broadcastAccountUpdate(mockTx, 'alice'),
     },
+    {
+      name: 'broadcastLimitOrderCreate',
+      endpoint: '/api/broadcast/limit-order-create',
+      call: () => apiClient.broadcastLimitOrderCreate(mockTx, 'alice'),
+    },
+    {
+      name: 'broadcastLimitOrderCancel',
+      endpoint: '/api/broadcast/limit-order-cancel',
+      call: () => apiClient.broadcastLimitOrderCancel(mockTx, 'alice'),
+    },
   ])('$name → POST $endpoint with CSRF + signedTx', async ({ endpoint, call }) => {
     await call();
     expect(global.fetch).toHaveBeenCalledWith(endpoint, {
@@ -407,6 +449,16 @@ describe('apiClient queries — GET endpoints', () => {
       name: 'getMedianHistoryPrice',
       call: () => apiClient.getMedianHistoryPrice(),
       url: '/api/query/median-history-price',
+    },
+    {
+      name: 'getMarketData',
+      call: () => apiClient.getMarketData(),
+      url: '/api/query/market',
+    },
+    {
+      name: 'getMarketData with username and since',
+      call: () => apiClient.getMarketData({ username: 'alice', since: '2024-01-01T00:00:00' }),
+      url: '/api/query/market?username=alice&since=2024-01-01T00%3A00%3A00',
     },
   ])('$name → GET $url', async ({ call, url }) => {
     await call();

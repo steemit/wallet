@@ -3,6 +3,25 @@
 
 import { steem } from '@steemit/steem-js';
 
+import { formatSteemIsoTimestamp } from '@/lib/steem/chain-time';
+
+import {
+  ORDERBOOK_LIMIT,
+  RECENT_TRADES_LIMIT,
+} from '@/lib/market/constants';
+import {
+  parseOpenOrder,
+  parseOrderBook,
+  parseTicker,
+  parseTradeFill,
+} from '@/lib/market/parse';
+import type {
+  MarketOpenOrderRow,
+  MarketOrderRow,
+  MarketTicker,
+  MarketTradeRow,
+  RawOrderBookEntry,
+} from '@/lib/market/types';
 import type {
   SteemAccount,
   SignedTransaction,
@@ -190,7 +209,7 @@ export class SteemService {
       const headBlockId =
         block?.previous ?? '0000000000000000000000000000000000000000';
       const refBlockPrefix = Buffer.from(headBlockId, 'hex').readUInt32LE(4);
-      const expiration = new Date(chainDate.getTime() + 600 * 1000).toISOString().replace('Z', '');
+      const expiration = formatSteemIsoTimestamp(new Date(chainDate.getTime() + 600 * 1000));
 
       return {
         ref_block_num: refBlockNum,
@@ -643,6 +662,80 @@ export class SteemService {
     // This is a simplified check
     // In practice, you'd need to check the account's keys
     return 'active'; // Default to active for most operations
+  }
+
+  static async getMarketOrderBook(): Promise<{ bids: MarketOrderRow[]; asks: MarketOrderRow[] }> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        getOrderBookAsync: (limit: number) => Promise<{
+          bids?: unknown[];
+          asks?: unknown[];
+        }>;
+      };
+      const raw = await api.getOrderBookAsync(ORDERBOOK_LIMIT);
+      return parseOrderBook({
+        bids: (raw.bids ?? []) as RawOrderBookEntry[],
+        asks: (raw.asks ?? []) as RawOrderBookEntry[],
+      });
+    });
+  }
+
+  static async getMarketTicker(): Promise<MarketTicker> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        getTickerAsync: () => Promise<Record<string, unknown>>;
+      };
+      const raw = await api.getTickerAsync();
+      return parseTicker(raw);
+    });
+  }
+
+  static async getMarketRecentTrades(limit = RECENT_TRADES_LIMIT): Promise<MarketTradeRow[]> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        getRecentTradesAsync: (n: number) => Promise<unknown[]>;
+      };
+      const raw = await api.getRecentTradesAsync(limit);
+      return (raw ?? [])
+        .map((t) => parseTradeFill(t as Record<string, unknown>))
+        .filter((t): t is MarketTradeRow => t !== null);
+    });
+  }
+
+  static async getMarketTradeHistorySince(sinceIso: string): Promise<MarketTradeRow[]> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        getTradeHistoryAsync: (start: string, end: string, limit: number) => Promise<unknown[]>;
+      };
+      const start = sinceIso.replace(/\.\d{3}Z$/, '').replace(/Z$/, '');
+      const raw = await api.getTradeHistoryAsync(start, '1969-12-31T23:59:59', 1000);
+      return (raw ?? [])
+        .map((t) => parseTradeFill(t as Record<string, unknown>))
+        .filter((t): t is MarketTradeRow => t !== null)
+        .reverse();
+    });
+  }
+
+  static async getMarketOpenOrders(username: string): Promise<MarketOpenOrderRow[]> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        getOpenOrdersAsync: (owner: string) => Promise<
+          {
+            orderid: number;
+            created: string;
+            sell_price: { base: string; quote: string };
+            for_sale?: number;
+          }[]
+        >;
+      };
+      const raw = await api.getOpenOrdersAsync(username);
+      return (raw ?? []).map(parseOpenOrder);
+    });
   }
 }
 
