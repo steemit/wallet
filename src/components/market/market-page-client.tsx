@@ -164,7 +164,7 @@ export function MarketPageClient() {
         <>
           <MarketTickerBar ticker={ticker} />
 
-          <MarketDepthChart bids={orderbook.bids} asks={orderbook.asks} />
+          <MarketDepthChart bids={orderbook.bids} asks={orderbook.asks} ticker={ticker} />
 
           <div className="grid gap-6 lg:grid-cols-2">
             <MarketOrderForm

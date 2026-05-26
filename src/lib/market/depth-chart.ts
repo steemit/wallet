@@ -21,6 +21,41 @@ export type DepthChartPoint = {
   askDepth: number | null;
 };
 
+export type DepthMarketRefs = {
+  highestBid: number;
+  lowestAsk: number;
+};
+
+/** Legacy `getMinMax` viewport around best bid / best ask (not book extremes). */
+export function getDepthViewport({ highestBid, lowestAsk }: DepthMarketRefs): {
+  min: number;
+  max: number;
+} {
+  const middle = (highestBid + lowestAsk) / 2;
+  return {
+    min: Math.max(0, Math.min(middle * 0.65, highestBid)),
+    max: Math.max(middle * 1.35, lowestAsk),
+  };
+}
+
+function bestBidFromBook(bids: MarketOrderRow[]): number {
+  if (!bids.length) return 0;
+  return Math.max(...bids.map((o) => o.price));
+}
+
+function bestAskFromBook(asks: MarketOrderRow[]): number {
+  if (!asks.length) return 1;
+  return Math.min(...asks.map((o) => o.price));
+}
+
+/** Drop dust / joke orders far from the tradeable spread. */
+export function filterOrdersForDepthViewport(
+  orders: MarketOrderRow[],
+  viewport: { min: number; max: number }
+): MarketOrderRow[] {
+  return orders.filter((o) => o.price >= viewport.min && o.price <= viewport.max);
+}
+
 /** Legacy depth chart cumulates raw API integers; we store human SBD on rows. */
 function aggregateOrders(orders: MarketOrderRow[]): DepthSeriesPoint[] {
   let ttl = 0;
@@ -32,10 +67,11 @@ function aggregateOrders(orders: MarketOrderRow[]): DepthSeriesPoint[] {
     .sort((a, b) => a.price - b.price);
 }
 
-/** Port of legacy `generateBidAsk` + padding anchors. */
+/** Cumulative bid/ask series with chart anchors at viewport edges (not `last.price * 4`). */
 export function buildDepthSeries(
   bidsArray: MarketOrderRow[],
-  asksArray: MarketOrderRow[]
+  asksArray: MarketOrderRow[],
+  viewport: { min: number; max: number }
 ): { bids: DepthSeriesPoint[]; asks: DepthSeriesPoint[] } {
   let bids = aggregateOrders(bidsArray);
   if (bids.length > 0) {
@@ -45,31 +81,10 @@ export function buildDepthSeries(
   let asks = aggregateOrders(asksArray);
   if (asks.length > 0) {
     const last = asks[asks.length - 1]!;
-    asks = [...asks, { price: last.price * 4, cumulativeSbd: last.cumulativeSbd }];
+    asks = [...asks, { price: viewport.max, cumulativeSbd: last.cumulativeSbd }];
   }
 
   return { bids, asks };
-}
-
-/** Port of legacy `getMinMax` (prices, not scaled integers). */
-export function getDepthPriceDomain(
-  bids: DepthSeriesPoint[],
-  asks: DepthSeriesPoint[]
-): { min: number; max: number } {
-  const highestBid = bids.length ? bids[bids.length - 1]!.price : 0;
-  const lowestAsk = asks.length ? asks[0]!.price : 1;
-  const middle = (highestBid + lowestAsk) / 2;
-
-  // Legacy centers the chart, but when the spread is very wide the computed `min`
-  // can end up to the right of the highest bid, making the bid series invisible.
-  // Clamp so the viewport always contains both sides.
-  return {
-    min: Math.max(bids[0]?.price ?? 0, Math.min(middle * 0.65, highestBid)),
-    max: Math.min(
-      asks[asks.length - 1]?.price ?? middle * 1.35,
-      Math.max(middle * 1.35, lowestAsk)
-    ),
-  };
 }
 
 export function mergeDepthChartData(
@@ -94,13 +109,26 @@ export function mergeDepthChartData(
 
 export function buildDepthChartModel(
   bidsArray: MarketOrderRow[],
-  asksArray: MarketOrderRow[]
+  asksArray: MarketOrderRow[],
+  refs?: DepthMarketRefs
 ): DepthChartModel | null {
   if (!bidsArray.length && !asksArray.length) return null;
 
-  const { bids, asks } = buildDepthSeries(bidsArray, asksArray);
-  const domain = getDepthPriceDomain(bids, asks);
-  const chartData = mergeDepthChartData(bids, asks);
+  const market: DepthMarketRefs = {
+    highestBid: refs?.highestBid ?? bestBidFromBook(bidsArray),
+    lowestAsk: refs?.lowestAsk ?? bestAskFromBook(asksArray),
+  };
+  const domain = getDepthViewport(market);
+
+  const filteredBids = filterOrdersForDepthViewport(bidsArray, domain);
+  const filteredAsks = filterOrdersForDepthViewport(asksArray, domain);
+
+  if (!filteredBids.length && !filteredAsks.length) return null;
+
+  const { bids, asks } = buildDepthSeries(filteredBids, filteredAsks, domain);
+  const chartData = mergeDepthChartData(bids, asks).filter(
+    (p) => p.price >= domain.min && p.price <= domain.max
+  );
 
   return { bids, asks, chartData, domain };
 }

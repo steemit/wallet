@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { MarketOrderRow } from '@/lib/market/types';
+import type { MarketOrderRow, MarketTicker } from '@/lib/market/types';
 import {
   buildDepthChartModel,
   formatDepthTooltipSbd,
@@ -66,12 +66,21 @@ function DepthTooltip({
 export function MarketDepthChart({
   bids,
   asks,
+  ticker,
 }: {
   bids: MarketOrderRow[];
   asks: MarketOrderRow[];
+  ticker: MarketTicker;
 }) {
   const t = useTranslations('wallet.marketPage');
-  const model = useMemo(() => buildDepthChartModel(bids, asks), [bids, asks]);
+  const model = useMemo(
+    () =>
+      buildDepthChartModel(bids, asks, {
+        highestBid: ticker.highest_bid,
+        lowestAsk: ticker.lowest_ask,
+      }),
+    [bids, asks, ticker.highest_bid, ticker.lowest_ask]
+  );
 
   if (!model) return null;
 
@@ -89,6 +98,7 @@ export function MarketDepthChart({
             type="number"
             dataKey="price"
             domain={[domain.min, domain.max]}
+            allowDataOverflow
             tickFormatter={(v) => Number(v).toFixed(3)}
             tick={{ fontSize: 11 }}
             stroke="currentColor"
