@@ -6,6 +6,9 @@ import { useActivityHistory } from '@/lib/wallet/use-activity-history';
 import { useRewardsHistoryPager } from '@/lib/wallet/use-rewards-history-pager';
 import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
+import { formatSteemPowerFromVestsString } from '@/lib/wallet/vest-steem';
+import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
+import type { GlobalPropsData } from '@/lib/wallet/wallet-balance-types';
 import { RewardsHistoryPager } from '@/components/wallet/rewards-history-pager';
 import {
   Table,
@@ -16,7 +19,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 
-function formatTransferRow(item: SteemHistoryItem, context: string) {
+function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?: GlobalPropsData | null) {
   const [type, data] = item.op;
 
   switch (type) {
@@ -38,24 +41,39 @@ function formatTransferRow(item: SteemHistoryItem, context: string) {
         memo: '',
         time: formatTimeAgo(item.timestamp),
       };
-    case 'withdraw_vesting':
+    case 'withdraw_vesting': {
+      const sp = globalProps
+        ? `${formatSteemPowerFromVestsString(data.vesting_shares as string | undefined, globalProps)} SP`
+        : String(data.vesting_shares ?? '');
       return {
-        description: `Started power down of ${data.vesting_shares}`,
+        description: `Started power down of ${sp}`,
         memo: '',
         time: formatTimeAgo(item.timestamp),
       };
+    }
     case 'fill_vesting_withdraw':
       return {
         description: `Withdrew ${data.deposited}`,
         memo: '',
         time: formatTimeAgo(item.timestamp),
       };
-    case 'claim_reward_balance':
+    case 'claim_reward_balance': {
+      const vestsPart = globalProps
+        ? `${formatSteemPowerFromVestsString(data.reward_vests as string | undefined, globalProps)} SP`
+        : String(data.reward_vests ?? '');
+      const parts = [
+        data.reward_steem,
+        data.reward_sbd,
+        vestsPart,
+      ].filter((p) => p && parseAssetAmount(String(p)) > 0);
       return {
-        description: `Claimed rewards: ${data.reward_steem} ${data.reward_sbd} ${data.reward_vests}`,
+        description: parts.length
+          ? `Claimed rewards: ${parts.join(' ')}`
+          : 'Claimed rewards',
         memo: '',
         time: formatTimeAgo(item.timestamp),
       };
+    }
     case 'transfer_to_savings':
       return {
         description: `Transfer to savings: ${data.amount}`,
@@ -68,14 +86,18 @@ function formatTransferRow(item: SteemHistoryItem, context: string) {
         memo: typeof data.memo === 'string' ? data.memo : '',
         time: formatTimeAgo(item.timestamp),
       };
-    case 'delegate_vesting_shares':
+    case 'delegate_vesting_shares': {
+      const sp = globalProps
+        ? `${formatSteemPowerFromVestsString(data.vesting_shares as string | undefined, globalProps)} SP`
+        : String(data.vesting_shares ?? '');
       return {
         description: data.delegator === context
-          ? `Delegated ${data.vesting_shares} to ${data.delegatee}`
-          : `Received delegation of ${data.vesting_shares} from ${data.delegator}`,
+          ? `Delegated ${sp} to ${data.delegatee}`
+          : `Received delegation of ${sp} from ${data.delegator}`,
         memo: '',
         time: formatTimeAgo(item.timestamp),
       };
+    }
     default:
       return {
         description: type.replace(/_/g, ' '),
@@ -88,9 +110,11 @@ function formatTransferRow(item: SteemHistoryItem, context: string) {
 export function RecentActivity({
   username,
   refreshNonce,
+  globalProps,
 }: {
   username: string;
   refreshNonce?: number;
+  globalProps?: GlobalPropsData | null;
 }) {
   const t = useTranslations('wallet');
   const lazyEnabled = useLazyEnabled();
@@ -163,7 +187,7 @@ export function RecentActivity({
       <Table>
         <TableBody>
           {page.map((item, index) => {
-            const row = formatTransferRow(item, username);
+            const row = formatTransferRow(item, username, globalProps);
             return (
               <TableRow key={`${item.trx_id}-${index}`}>
                 <TableCell>
