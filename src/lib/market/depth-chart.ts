@@ -60,9 +60,15 @@ export function getDepthPriceDomain(
   const lowestAsk = asks.length ? asks[0]!.price : 1;
   const middle = (highestBid + lowestAsk) / 2;
 
+  // Legacy centers the chart, but when the spread is very wide the computed `min`
+  // can end up to the right of the highest bid, making the bid series invisible.
+  // Clamp so the viewport always contains both sides.
   return {
-    min: Math.max(middle * 0.65, bids[0]?.price ?? 0),
-    max: Math.min(middle * 1.35, asks[asks.length - 1]?.price ?? middle * 1.35),
+    min: Math.max(bids[0]?.price ?? 0, Math.min(middle * 0.65, highestBid)),
+    max: Math.min(
+      asks[asks.length - 1]?.price ?? middle * 1.35,
+      Math.max(middle * 1.35, lowestAsk)
+    ),
   };
 }
 
