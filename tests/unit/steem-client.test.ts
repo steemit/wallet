@@ -203,7 +203,7 @@ describe('SteemSigner.signXxx — produces the expected operations payload', () 
             amount_to_sell: '1.000 SBD',
             min_to_receive: '2.000 STEEM',
             fill_or_kill: false,
-            expiration: 1710000000,
+            expiration: '2024-03-09T16:00:00',
             orderid: 12345,
           },
         ],

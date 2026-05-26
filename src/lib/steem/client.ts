@@ -2,6 +2,8 @@
 
 import { steem } from '@steemit/steem-js';
 
+import { unixSecToSteemIsoTimestamp } from '@/lib/steem/chain-time';
+
 import type {
   Operation,
   SignedTransaction,
@@ -332,7 +334,8 @@ export class SteemSigner {
           amount_to_sell: amountToSell,
           min_to_receive: minToReceive,
           fill_or_kill: fillOrKill,
-          expiration,
+          // condenser_api expects ISO time_point_sec in JSON, not unix seconds
+          expiration: unixSecToSteemIsoTimestamp(expiration),
           orderid,
         },
       ],

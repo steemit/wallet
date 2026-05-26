@@ -3,6 +3,8 @@
 
 import { steem } from '@steemit/steem-js';
 
+import { formatSteemIsoTimestamp } from '@/lib/steem/chain-time';
+
 import {
   ORDERBOOK_LIMIT,
   RECENT_TRADES_LIMIT,
@@ -207,7 +209,7 @@ export class SteemService {
       const headBlockId =
         block?.previous ?? '0000000000000000000000000000000000000000';
       const refBlockPrefix = Buffer.from(headBlockId, 'hex').readUInt32LE(4);
-      const expiration = new Date(chainDate.getTime() + 600 * 1000).toISOString().replace('Z', '');
+      const expiration = formatSteemIsoTimestamp(new Date(chainDate.getTime() + 600 * 1000));
 
       return {
         ref_block_num: refBlockNum,
