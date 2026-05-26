@@ -73,4 +73,56 @@ describe('useMarketData', () => {
       expect(result.current.error).toBe('network');
     });
   });
+
+  it('dedupes overlapping poll trade history', async () => {
+    const trade = {
+      date: '2024-01-01T12:00:00.000Z',
+      type: 'bid',
+      steem: 1.039,
+      sbd: 0.113,
+      price: 0.10972,
+      stringPrice: '0.109720',
+    };
+    mockGetMarketData
+      .mockResolvedValueOnce({
+        success: true,
+        orderbook: { bids: [], asks: [] },
+        ticker: {
+          latest: 1,
+          lowest_ask: 1,
+          highest_bid: 1,
+          percent_change: 0,
+          steem_volume: 0,
+          sbd_volume: 0,
+        },
+        trades: [trade],
+        openOrders: [],
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        orderbook: { bids: [], asks: [] },
+        ticker: {
+          latest: 1,
+          lowest_ask: 1,
+          highest_bid: 1,
+          percent_change: 0,
+          steem_volume: 0,
+          sbd_volume: 0,
+        },
+        trades: [trade, trade],
+        openOrders: [],
+      });
+
+    const { result } = renderHook(() => useMarketData(null));
+
+    await waitFor(() => {
+      expect(result.current.history).toHaveLength(1);
+    });
+
+    await result.current.refresh();
+
+    await waitFor(() => {
+      expect(result.current.history).toHaveLength(1);
+    });
+  });
 });

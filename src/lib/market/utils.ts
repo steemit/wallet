@@ -1,4 +1,4 @@
-import type { MarketOrderRow } from './types';
+import type { MarketOrderRow, MarketTradeRow } from './types';
 
 export function roundUp(num: number, precision: number): number {
   let satoshis = num * 10 ** precision;
@@ -46,4 +46,22 @@ export function formatAssetAmount(value: number, symbol: string): string {
 export function percentDiff(marketPrice: number, userPrice: number): number {
   if (!marketPrice) return 0;
   return (100 * (userPrice - marketPrice)) / marketPrice;
+}
+
+/** Stable id for a market fill (used for merge dedupe and list keys). */
+export function marketTradeRowKey(row: MarketTradeRow): string {
+  return `${row.date.getTime()}-${row.type}-${row.stringPrice}-${row.steem.toFixed(3)}-${row.sbd.toFixed(3)}`;
+}
+
+/** Drop exact duplicate fills while preserving newest-first order. */
+export function dedupeTradeHistory(rows: MarketTradeRow[]): MarketTradeRow[] {
+  const seen = new Set<string>();
+  const out: MarketTradeRow[] = [];
+  for (const row of rows) {
+    const key = marketTradeRowKey(row);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
 }

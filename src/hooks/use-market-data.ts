@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/lib/steem/client';
-import { aggregateOrderBookRows } from '@/lib/market/utils';
+import { aggregateOrderBookRows, dedupeTradeHistory, marketTradeRowKey } from '@/lib/market/utils';
 import { MARKET_POLL_INTERVAL_MS } from '@/lib/market/constants';
 import type {
   MarketOpenOrderRow,
@@ -81,14 +81,12 @@ export function useMarketData(username: string | null) {
       setSnapshot((prev) => {
         let history = prev.history;
         if (!historyInitializedRef.current) {
-          history = incoming;
+          history = dedupeTradeHistory(incoming);
           historyInitializedRef.current = true;
         } else if (incoming.length > 0) {
-          const seen = new Set(
-            history.map((h) => `${h.date.getTime()}-${h.stringPrice}-${h.steem}`)
-          );
-          const merged = [...incoming.filter((t) => !seen.has(`${t.date.getTime()}-${t.stringPrice}-${t.steem}`)), ...history];
-          history = merged;
+          const seen = new Set(history.map(marketTradeRowKey));
+          const novel = incoming.filter((t) => !seen.has(marketTradeRowKey(t)));
+          history = dedupeTradeHistory([...novel, ...history]);
         }
 
         return {

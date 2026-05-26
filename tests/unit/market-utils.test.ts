@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   aggregateOrderBookRows,
+  dedupeTradeHistory,
   formatAssetAmount,
   marketSpreadPercent,
+  marketTradeRowKey,
   percentDiff,
   roundDown,
   roundUp,
 } from '@/lib/market/utils';
-import type { MarketOrderRow } from '@/lib/market/types';
+import type { MarketOrderRow, MarketTradeRow } from '@/lib/market/types';
 
 describe('market utils', () => {
   it('roundUp and roundDown match legacy precision behavior', () => {
@@ -42,5 +44,22 @@ describe('market utils', () => {
 
   it('formats asset amounts for chain operations', () => {
     expect(formatAssetAmount(1.2345, 'STEEM')).toBe('1.234 STEEM');
+  });
+
+  it('dedupes trade history by fill identity', () => {
+    const row: MarketTradeRow = {
+      date: new Date('2024-01-01T12:00:00.000Z'),
+      type: 'bid',
+      steem: 1.039,
+      sbd: 0.113,
+      price: 0.10972,
+      stringPrice: '0.109720',
+    };
+    const duplicate = { ...row };
+    const rows = dedupeTradeHistory([row, duplicate, row]);
+    expect(rows).toHaveLength(1);
+    expect(marketTradeRowKey(row)).toBe(
+      `${row.date.getTime()}-bid-0.109720-1.039-0.113`
+    );
   });
 });

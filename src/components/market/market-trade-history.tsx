@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { MarketTradeRow } from '@/lib/market/types';
+import { marketTradeRowKey } from '@/lib/market/utils';
 import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 10;
@@ -35,8 +36,10 @@ export function MarketTradeHistory({ history }: { history: MarketTradeRow[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {slice.map((row) => (
-            <TableRow key={`${row.date.getTime()}-${row.stringPrice}-${row.steem}`}>
+          {slice.map((row, rowIndex) => (
+            <TableRow
+              key={`${marketTradeRowKey(row)}-${pageIndex * PAGE_SIZE + rowIndex}`}
+            >
               <TableCell className="text-left text-xs text-muted-foreground">
                 {row.date.toLocaleString()}
               </TableCell>
