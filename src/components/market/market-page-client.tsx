@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LoginForm } from '@/components/auth/login-form';
+import { toast } from 'sonner';
 import { useAuth, useActiveSigningKey } from '@/hooks/use-auth';
 import { useMarketData } from '@/hooks/use-market-data';
 import { useSteemAccount } from '@/hooks/use-steem-account';
@@ -38,7 +39,6 @@ export function MarketPageClient() {
     useMarketData(username);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
-  const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
 
   const canTrade = isAuthenticated && !!username && !!activeKey;
@@ -55,11 +55,10 @@ export function MarketPageClient() {
       }
     ) => {
       if (!username || !activeKey) {
-        setNotice({ type: 'error', text: t('signInToTrade') });
+        toast.error(t('signInToTrade'));
         setLoginOpen(true);
         return;
       }
-      setNotice(null);
 
       const isSell = side === 'sell';
       const amountToSell = isSell
@@ -101,11 +100,11 @@ export function MarketPageClient() {
 
       const res = await apiClient.broadcastLimitOrderCreate(signedTx, username);
       if (!res.success) {
-        setNotice({ type: 'error', text: res.error ?? res.details ?? t('orderFailed') });
+        toast.error(res.error ?? res.details ?? t('orderFailed'));
         return;
       }
 
-      setNotice({ type: 'success', text: t('orderPlaced', { summary: confirmText }) });
+      toast.success(t('orderPlaced', { summary: confirmText }));
       await refresh();
     },
     [username, activeKey, t, refresh]
@@ -120,10 +119,10 @@ export function MarketPageClient() {
         const signedTx = await SteemSigner.signLimitOrderCancel(username, orderid, activeKey);
         const res = await apiClient.broadcastLimitOrderCancel(signedTx, username);
         if (!res.success) {
-          setNotice({ type: 'error', text: res.error ?? res.details ?? t('orderFailed') });
+          toast.error(res.error ?? res.details ?? t('orderFailed'));
           return;
         }
-        setNotice({ type: 'success', text: t('orderCancelled', { orderId: orderid }) });
+        toast.success(t('orderCancelled', { orderId: orderid }));
         await refresh();
       } finally {
         setCancellingId(null);
@@ -172,19 +171,6 @@ export function MarketPageClient() {
       {error && (
         <p className="text-destructive text-sm" role="alert">
           {error}
-        </p>
-      )}
-
-      {notice && (
-        <p
-          className={
-            notice.type === 'success'
-              ? 'rounded-md border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200'
-              : 'text-destructive rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm'
-          }
-          role="status"
-        >
-          {notice.text}
         </p>
       )}
 
