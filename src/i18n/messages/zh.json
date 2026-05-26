@@ -110,6 +110,12 @@
       "rule6": "第六条规则：不要告诉任何人您的密码。",
       "rule7": "第七条规则：务必备份您的密码。"
     },
+    "settingsPage": {
+      "pageTitle": "设置",
+      "tabPassword": "修改密码",
+      "tabPermissions": "密钥与权限",
+      "tabCommunities": "社区"
+    },
     "sectionPlaceholderHint": "本页为占位界面，完整功能将在后续版本提供。",
     "witnesses": "见证人",
     "witnessVoting": "见证人投票",

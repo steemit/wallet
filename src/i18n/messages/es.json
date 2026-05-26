@@ -110,6 +110,12 @@
       "rule6": "La sexta regla: no le diga su contraseña a nadie.",
       "rule7": "La séptima regla: haga siempre una copia de seguridad de su contraseña."
     },
+    "settingsPage": {
+      "pageTitle": "Configuración",
+      "tabPassword": "Cambiar contraseña",
+      "tabPermissions": "Claves y permisos",
+      "tabCommunities": "Comunidades"
+    },
     "sectionPlaceholderHint": "Esta página es provisional. La función completa se añadirá más adelante.",
     "witnesses": "Testigos",
     "witnessVoting": "Votación de Testigos",

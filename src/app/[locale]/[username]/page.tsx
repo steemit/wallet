@@ -14,11 +14,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { WalletTransfersModals } from '@/components/wallet/wallet-transfers-modals';
 import {
   AuthorRewardsSectionLazy,
-  CommunitiesSectionLazy,
+  AccountSettingsSectionLazy,
   CurationRewardsSectionLazy,
   DelegationsSectionLazy,
-  PermissionsSectionLazy,
-  ChangePasswordSectionLazy,
 } from '@/components/wallet/client-wrappers';
 import { normalizeProfile } from '@/lib/steem/normalize-profile';
 import { canManageBalanceForPageUrl } from '@/lib/auth/browser-storage';
@@ -128,6 +126,12 @@ export default function WalletPage() {
     }
   }, [urlUsername, isUserHome, router]);
 
+  const isTransfersPath = pathname?.includes('/transfers') ?? false;
+  const isDelegationsPath = pathname?.includes('/delegations') ?? false;
+  const isSettingsPath = pathname?.includes('/settings') ?? false;
+  const isCurationRewardsPath = pathname?.includes('/curation-rewards') ?? false;
+  const isAuthorRewardsPath = pathname?.includes('/author-rewards') ?? false;
+
   if (!urlUsername || isUserHome) {
     return (
       <div className="flex justify-center py-12">
@@ -139,14 +143,6 @@ export default function WalletPage() {
     );
   }
 
-  const isTransfersPath = pathname?.includes('/transfers') ?? false;
-  const isDelegationsPath = pathname?.includes('/delegations') ?? false;
-  const isPermissionsPath = pathname?.includes('/permissions') ?? false;
-  const isPasswordPath = pathname?.includes('/password') ?? false;
-  const isCommunitiesPath = pathname?.includes('/communities') ?? false;
-  const isCurationRewardsPath = pathname?.includes('/curation-rewards') ?? false;
-  const isAuthorRewardsPath = pathname?.includes('/author-rewards') ?? false;
-
   return (
     <div>
       {/* User Profile Banner - matches legacy UserProfile.jsx */}
@@ -156,11 +152,7 @@ export default function WalletPage() {
         {...(bannerProfile ?? {})}
       />
 
-      <AccountWalletNav
-        accountname={urlUsername}
-        isMyAccount={isMyAccount}
-        showOwnerWalletNav={showBalanceActions}
-      />
+      <AccountWalletNav accountname={urlUsername} />
 
       {/* Wallet content: keep top padding tight under AccountWalletNav */}
       <div className="mx-auto max-w-6xl space-y-3 px-4 pt-3 pb-6">
@@ -193,26 +185,22 @@ export default function WalletPage() {
             isMyAccount={isMyAccount}
           />
         )}
-        {isPermissionsPath && (
-          <PermissionsSectionLazy
-            key={`permissions-${urlUsername}`}
-            username={urlUsername}
-            isMyAccount={isMyAccount}
-          />
-        )}
-        {isPasswordPath && (
-          <ChangePasswordSectionLazy
-            key={`password-${urlUsername}`}
-            username={urlUsername}
-            isMyAccount={isMyAccount}
-          />
-        )}
-        {isCommunitiesPath && (
-          <CommunitiesSectionLazy
-            key={`communities-${urlUsername}`}
-            username={urlUsername}
-            isMyAccount={isMyAccount}
-          />
+        {isSettingsPath && (
+          <Suspense
+            fallback={
+              <div className="space-y-4">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-10 w-full max-w-xl" />
+                <Skeleton className="h-64 w-full" />
+              </div>
+            }
+          >
+            <AccountSettingsSectionLazy
+              key={`settings-${urlUsername}`}
+              username={urlUsername}
+              isMyAccount={isMyAccount}
+            />
+          </Suspense>
         )}
         {isCurationRewardsPath && (
           <CurationRewardsSectionLazy

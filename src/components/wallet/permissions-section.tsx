@@ -93,9 +93,11 @@ function PermissionsKeyPanel({
 export function PermissionsSection({
   username,
   isMyAccount,
+  embedded = false,
 }: {
   username: string;
   isMyAccount: boolean;
+  embedded?: boolean;
 }) {
   const t = useTranslations('wallet.permissions');
   const { data: account, loading, error } = useSteemAccount(username);
@@ -159,7 +161,7 @@ export function PermissionsSection({
 
       <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:justify-between">
         <div className="max-w-3xl space-y-4">
-          <h1 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h1>
+          {!embedded && <h1 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h1>}
           <p className="text-muted-foreground text-base leading-relaxed">{t('intro1')}</p>
           <p className="text-muted-foreground text-base leading-relaxed">{t('intro2')}</p>
           <div>

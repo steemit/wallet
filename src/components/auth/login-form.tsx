@@ -29,15 +29,22 @@ interface LoginFormData {
 }
 
 export interface LoginFormProps {
-  /** Wallet modal re-auth: skip navigation and call onLoginSuccess. */
+  /**
+   * Dialog / in-page modal: compact layout and `onLoginSuccess` instead of redirect.
+   * Feature set matches the login page unless `fixedUsername` locks the account field.
+   */
   embedded?: boolean;
   /** Lock username to this account (normalized). */
   fixedUsername?: string;
   onLoginSuccess?: () => void;
+  /** Show “remember user on this device” (default: true when username is editable). */
+  showRememberUser?: boolean;
 }
 
 export function LoginForm(props: LoginFormProps = {}) {
-  const { embedded = false, fixedUsername, onLoginSuccess } = props;
+  const { embedded = false, fixedUsername, onLoginSuccess, showRememberUser: showRememberUserProp } =
+    props;
+  const showRememberUser = showRememberUserProp ?? !fixedUsername;
   const t = useTranslations('auth');
   const tCommon = useTranslations('common');
   const dispatch = useDispatch<AppDispatch>();
@@ -60,16 +67,16 @@ export function LoginForm(props: LoginFormProps = {}) {
   const [rememberUser, setRememberUser] = useState(false);
 
   const passwordUpdatedNotice = useMemo(() => {
-    if (embedded || searchParams.get('msg') !== 'passwordupdated') return null;
+    if (searchParams.get('msg') !== 'passwordupdated') return null;
     const displayName = accountFromQuery
       ? normalizeSteemUsername(accountFromQuery)
       : formData.username;
     if (!displayName) return null;
     return t('passwordUpdateSuccess', { username: displayName });
-  }, [embedded, accountFromQuery, formData.username, t]);
+  }, [accountFromQuery, formData.username, t]);
 
   useEffect(() => {
-    if (embedded || fixedUsername || accountFromQuery) return;
+    if (!showRememberUser || fixedUsername || accountFromQuery) return;
     const id = requestAnimationFrame(() => {
       try {
         const saved = localStorage.getItem(REMEMBERED_USERNAME_KEY) ?? '';
@@ -82,7 +89,7 @@ export function LoginForm(props: LoginFormProps = {}) {
       }
     });
     return () => cancelAnimationFrame(id);
-  }, [embedded, fixedUsername, accountFromQuery]);
+  }, [showRememberUser, fixedUsername, accountFromQuery]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -355,17 +362,17 @@ export function LoginForm(props: LoginFormProps = {}) {
             </p>
           </div>
 
-          {!embedded && (
+          {showRememberUser && (
             <div className="flex items-start gap-3">
               <Checkbox
-                id="keepLoggedIn"
+                id={embedded ? 'dialog-keepLoggedIn' : 'keepLoggedIn'}
                 checked={rememberUser}
                 onCheckedChange={(value) => setRememberUser(value === true)}
                 disabled={isLoading || isPending}
                 className="peer mt-0.5 border-muted-foreground/50 data-[state=unchecked]:bg-background"
               />
               <Label
-                htmlFor="keepLoggedIn"
+                htmlFor={embedded ? 'dialog-keepLoggedIn' : 'keepLoggedIn'}
                 className="cursor-pointer text-sm font-normal leading-snug text-muted-foreground peer-disabled:cursor-not-allowed"
               >
                 <Tooltip>

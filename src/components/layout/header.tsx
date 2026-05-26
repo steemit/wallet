@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -25,7 +25,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Wallet, Key, Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Menu, Wallet, Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
 
 interface HeaderProps {
   onOpenSidePanel?: () => void;
@@ -122,12 +123,6 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
                   <span>{themeLabel}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href={`/@${username}/password`} className="cursor-pointer">
-                    <Key data-icon="inline-start" />
-                    <span>Change Password</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
                   <Link href={`/@${username}/settings`} className="cursor-pointer">
                     <Settings data-icon="inline-start" />
                     <span>Settings</span>
@@ -159,7 +154,17 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
             <DialogTitle>{t('login')}</DialogTitle>
             <DialogDescription className="sr-only">{t('login')}</DialogDescription>
           </DialogHeader>
-          <LoginForm embedded onLoginSuccess={() => setLoginOpen(false)} />
+          <Suspense
+            fallback={
+              <div className="space-y-4 py-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-11 w-full" />
+              </div>
+            }
+          >
+            <LoginForm embedded onLoginSuccess={() => setLoginOpen(false)} />
+          </Suspense>
         </DialogContent>
       </Dialog>
     </header>

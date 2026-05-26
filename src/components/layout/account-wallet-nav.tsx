@@ -1,6 +1,5 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -21,33 +20,17 @@ const externalNavLinkClassName =
 export interface AccountWalletNavProps {
   accountname: string;
   socialUrl?: string;
-  isMyAccount: boolean;
-  showOwnerWalletNav?: boolean;
 }
 
 /**
- * Single wallet area nav: balances, rewards, delegations, owner tabs, then Blog + Buy STEEM (plain external links, right).
+ * Single wallet area nav: balances, rewards, delegations, then Blog + Buy STEEM (plain external links, right).
  */
 export function AccountWalletNav({
   accountname,
   socialUrl = 'https://steemit.com',
-  isMyAccount,
-  showOwnerWalletNav = false,
 }: AccountWalletNavProps) {
   const t = useTranslations('wallet');
   const pathname = usePathname();
-
-  // showOwnerWalletNav uses localStorage (remembered device user); SSR always sees false.
-  // `useSyncExternalStore` lets us return false on the server and true on the client
-  // without an effect-driven state update (avoids cascading render lint rules).
-  const ownerNavReady = useSyncExternalStore(
-    // No subscription needed: we only need a stable SSR vs client snapshot.
-    () => () => {},
-    () => true,
-    () => false
-  );
-
-  const showExtraTabs = !!(isMyAccount || (ownerNavReady && showOwnerWalletNav));
 
   const isRewardsActive =
     pathname?.includes('/curation-rewards') || pathname?.includes('/author-rewards');
@@ -61,15 +44,9 @@ export function AccountWalletNav({
 
   const transfersHref = `/@${accountname}/transfers`;
   const delegationsHref = `/@${accountname}/delegations`;
-  const permissionsHref = `/@${accountname}/permissions`;
-  const communitiesHref = `/@${accountname}/communities`;
-  const passwordHref = `/@${accountname}/password`;
 
   const balancesActive = isPathActive('/transfers');
   const delegationsActive = isPathActive('/delegations');
-  const permissionsActive = isPathActive('/permissions');
-  const communitiesActive = isPathActive('/communities');
-  const passwordActive = isPathActive('/password');
 
   return (
     <div className="UserProfile__top-nav border-b border-border">
@@ -115,31 +92,6 @@ export function AccountWalletNav({
                 {t('delegations')}
               </Link>
             </li>
-            {showExtraTabs && (
-              <>
-                <li>
-                  <Link
-                    href={permissionsHref}
-                    className={cn(permissionsActive ? navActive : navInactive)}
-                  >
-                    {t('keysAndPermissions')}
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href={communitiesHref}
-                    className={cn(communitiesActive ? navActive : navInactive)}
-                  >
-                    {t('communities')}
-                  </Link>
-                </li>
-                <li>
-                  <Link href={passwordHref} className={cn(passwordActive ? navActive : navInactive)}>
-                    {t('changePassword')}
-                  </Link>
-                </li>
-              </>
-            )}
           </ul>
 
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 sm:pl-4">
