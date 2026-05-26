@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useAuth, useActiveSigningKey } from '@/hooks/use-auth';
 import { useMarketData } from '@/hooks/use-market-data';
 import { useSteemAccount } from '@/hooks/use-steem-account';
+import { MarketDepthChart } from '@/components/market/market-depth-chart';
 import { MarketTickerBar } from '@/components/market/market-ticker';
 import { MarketOrderForm } from '@/components/market/market-order-form';
 import { MarketOrderbook } from '@/components/market/market-orderbook';
@@ -162,6 +163,8 @@ export function MarketPageClient() {
       ) : ticker ? (
         <>
           <MarketTickerBar ticker={ticker} />
+
+          <MarketDepthChart bids={orderbook.bids} asks={orderbook.asks} />
 
           <div className="grid gap-6 lg:grid-cols-2">
             <MarketOrderForm

@@ -32,6 +32,7 @@
     "react-markdown": "^10.1.0",
     "react-qr-code": "^2.0.21",
     "react-redux": "^9.2.0",
+    "recharts": "^3.8.1",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "shadcn": "^4.3.1",
