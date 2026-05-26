@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import Link from 'next/link';
+import { Suspense, useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { LoginForm } from '@/components/auth/login-form';
 import { useAuth, useActiveSigningKey } from '@/hooks/use-auth';
 import { useMarketData } from '@/hooks/use-market-data';
 import { useSteemAccount } from '@/hooks/use-steem-account';
@@ -13,6 +13,13 @@ import { MarketOrderbook } from '@/components/market/market-orderbook';
 import { MarketTradeHistory } from '@/components/market/market-trade-history';
 import { MarketOpenOrders } from '@/components/market/market-open-orders';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   DEFAULT_LIMIT_ORDER_EXPIRATION_SEC,
   SBD_SYMBOL,
@@ -32,6 +39,7 @@ export function MarketPageClient() {
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [loginOpen, setLoginOpen] = useState(false);
 
   const canTrade = isAuthenticated && !!username && !!activeKey;
 
@@ -48,6 +56,7 @@ export function MarketPageClient() {
     ) => {
       if (!username || !activeKey) {
         setNotice({ type: 'error', text: t('signInToTrade') });
+        setLoginOpen(true);
         return;
       }
       setNotice(null);
@@ -130,11 +139,35 @@ export function MarketPageClient() {
       {!isAuthenticated && (
         <p className="text-muted-foreground rounded-md border border-border bg-muted/30 px-4 py-3 text-sm">
           {t('signInToTrade')}{' '}
-          <Link href="/login" className="font-medium text-primary hover:underline">
+          <button
+            type="button"
+            className="font-medium text-primary hover:underline"
+            onClick={() => setLoginOpen(true)}
+          >
             {tAuth('login')}
-          </Link>
+          </button>
         </p>
       )}
+
+      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{tAuth('login')}</DialogTitle>
+            <DialogDescription className="sr-only">{tAuth('login')}</DialogDescription>
+          </DialogHeader>
+          <Suspense
+            fallback={
+              <div className="space-y-4 py-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-11 w-full" />
+              </div>
+            }
+          >
+            <LoginForm embedded onLoginSuccess={() => setLoginOpen(false)} />
+          </Suspense>
+        </DialogContent>
+      </Dialog>
 
       {error && (
         <p className="text-destructive text-sm" role="alert">
