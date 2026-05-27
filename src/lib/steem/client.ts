@@ -270,6 +270,25 @@ export class SteemSigner {
     return await this.signTransaction(operations, [activeKey]);
   }
 
+  static async signUpdateProposalVotes(
+    voter: string,
+    proposalIds: number[],
+    approve: boolean,
+    activeKey: string
+  ): Promise<SignedTransaction> {
+    const operations: Operation[] = [
+      [
+        'update_proposal_votes',
+        {
+          voter,
+          proposal_ids: proposalIds,
+          approve,
+        },
+      ],
+    ];
+    return await this.signTransaction(operations, [activeKey]);
+  }
+
   /**
    * Set power-down withdraw routing (set_withdraw_vesting_route).
    * `percent` is chain units (legacy: Math.round(uiPercent * 100)).
@@ -592,6 +611,18 @@ export const apiClient = {
     username: string
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/witness-vote', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
+    return response.json();
+  },
+
+  async broadcastProposalVote(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+    const response = await fetch('/api/broadcast/proposal-vote', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ signedTx, username }),
