@@ -14,6 +14,7 @@ const RECEIVE_STATE = 'global/RECEIVE_STATE';
 const RECEIVE_ACCOUNT = 'global/RECEIVE_ACCOUNT';
 const RECEIVE_ACCOUNTS = 'global/RECEIVE_ACCOUNTS';
 const UPDATE_ACCOUNT_WITNESS_VOTE = 'global/UPDATE_ACCOUNT_WITNESS_VOTE';
+const UPDATE_ACCOUNT_WITNESS_VOTES = 'global/UPDATE_ACCOUNT_WITNESS_VOTES';
 const UPDATE_ACCOUNT_WITNESS_PROXY = 'global/UPDATE_ACCOUNT_WITNESS_PROXY';
 const FETCHING_DATA = 'global/FETCHING_DATA';
 const RECEIVE_DATA = 'global/RECEIVE_DATA';
@@ -127,6 +128,14 @@ export default function reducer(state = defaultState, action = {}) {
                     approve
                         ? Set(votes).add(witness)
                         : Set(votes).remove(witness)
+            );
+        }
+
+        case UPDATE_ACCOUNT_WITNESS_VOTES: {
+            const { account, witness_votes } = action.payload;
+            return state.setIn(
+                ['accounts', account, 'witness_votes'],
+                Set(witness_votes)
             );
         }
 
@@ -346,6 +355,11 @@ export const receiveAccounts = payload => ({
 
 export const updateAccountWitnessVote = payload => ({
     type: UPDATE_ACCOUNT_WITNESS_VOTE,
+    payload,
+});
+
+export const updateAccountWitnessVotes = payload => ({
+    type: UPDATE_ACCOUNT_WITNESS_VOTES,
     payload,
 });
 

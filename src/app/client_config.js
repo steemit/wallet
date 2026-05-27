@@ -51,3 +51,7 @@ export const SITE_DESCRIPTION =
 
 // various
 export const SUPPORT_EMAIL = 'support@' + APP_DOMAIN;
+
+// External links
+export const STEEMDB_BLOCK_URL = "https://steemdb.io/block";
+export const STEEMDB_TRANSACTION_URL = "https://steemdb.io/tx";

@@ -29,7 +29,7 @@
 }
 
 @media screen and (min-width: 990px) {
-  .VotersModal__content {
+  .VotersModal__content, .VotersModal__content--night {
     width: 90vw;
     max-width: 75rem;
     height: 85vh;
@@ -42,12 +42,25 @@
   width: 100%;
   input {
     border-color: transparent;
-    background-color: #fff;
+    background: transparent;
+    box-shadow: 0 0 5px rgba(109, 207, 246, 0.5);
+    color: #333;
   }
 
   input::placeholder {
     opacity: .5;
     color: #1FBF8F;
+  }
+
+  input:focus {
+    border: 1px solid #06D6A9;
+    background: transparent;
+  }
+}
+
+.VotersModal__content--night .voter-filter {
+  input {
+    color: #fcfcfc;
   }
 }
 
@@ -80,8 +93,16 @@
   background-color: rgb(255, 240, 240) !important;
 }
 
+.theme-dark .highlighted_row {
+  background-color: #5c2121bd !important;
+}
+
 .proxy_vote_row {
   background-color: rgb(226, 250, 194) !important;
+}
+
+.theme-dark .proxy_vote_row {
+    background-color: #558317ba !important;
 }
 
 .content {
@@ -174,7 +195,29 @@
   background-color: rgb(255, 240, 240) ;
 }
 
+.VotersModal__content--night .voters-highlight-no-influence {
+  background-color: #5c2121bd;
+}
+
 .voters-highlight-influence-only {
   border: 1px solid #9f9f9f;
   background-color: rgb(226, 250, 194);
+}
+
+.VotersModal__content--night .voters-highlight-influence-only {
+  background-color: #558317ba;
+}
+
+@media (min-width: 600px) and (max-width: 700px) {
+  .content__row--proposal_votes {
+    overflow-x: auto;
+  }
+}
+
+@media (max-height: 500px) {
+  .VotersModal__content,
+  .VotersModal__content--night {
+    height: 70vh;
+    min-height: -webkit-fill-available;
+  }
 }

@@ -434,6 +434,8 @@ function getUrlFromLocation(location) {
         url = url.replace(/\/password$/, '/transfers');
     if (url.indexOf('/delegations') !== -1)
         url = url.replace(/\/delegations$/, '/transfers');
+    if (url.indexOf('/steem_tools') !== -1)
+        url = url.replace(/\/steem_tools$/, '/transfers');
     return url;
 }
 

@@ -38,11 +38,14 @@ import { recordAdsView, userActionRecord } from 'app/utils/ServerApiClient';
 import QRCode from 'react-qr';
 import LoadingIndicator from 'app/components/elements/LoadingIndicator';
 import ConversionsModal from 'app/components/elements/ConversionsModal';
+import WithdrawRoutesModal from 'app/components/elements/WithdrawRoutesModal';
 import ChangeRecoveryAccount from 'app/components/modules/ChangeRecoveryAccount';
 import { fetchData } from 'app/utils/steemApi';
+import { api } from '@steemit/steem-js';
 
 const DAYS_TO_HIDE = 5;
 const assetPrecision = 1000;
+const PD_DISMISS_DAYS = 7;
 
 class UserWallet extends React.Component {
     constructor() {
@@ -52,20 +55,20 @@ class UserWallet extends React.Component {
             showQR: false,
             hasClicked: false,
             timestamp: null,
+            hasClickedDecline: false,
+            timestampDecline: null,
             showChangeRecoveryModal: false,
             showConversionsModal: false,
+            showWithdrawRoutesModal: false,
+            showPowerDownAlert: false,
+            showWithdrawRoutesAlert: false,
             conversions: [],
             conversionValue: 0,
             sbdPrice: 0,
+            hasPendingDeclineRequest: false,
+            declineRequest: null,
         };
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
-    }
-
-    componentDidMount() {
-        const { account, getWithdrawRoutes } = this.props;
-        if (account && getWithdrawRoutes) {
-            getWithdrawRoutes(account.get('name'));
-        }
     }
 
     // All event handlers are defined as class methods for performance and stable 'this' context.
@@ -132,6 +135,41 @@ class UserWallet extends React.Component {
         this.setState({ showQR: true });
     };
 
+    checkHiddenAlert = (account, storageSuffix, stateKey, timestampKey, additionalCheck = null) => {
+        const now = Date.now();
+        try {
+            const userName = account.get('name');
+            const storageKeyString = `button_click_${storageSuffix}${userName}`;
+            const storedData = localStorage.getItem(storageKeyString);
+            if (storedData) {
+                const parsed = JSON.parse(storedData);
+                if (additionalCheck && !additionalCheck(parsed)) {
+                    localStorage.removeItem(storageKeyString);
+                    return;
+                }
+                if (parsed.clicked && parsed.timestamp) {
+                    const timestampDate = new Date(parsed.timestamp);
+                    const diffTime = now - timestampDate;
+                    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                    if (diffDays <= DAYS_TO_HIDE) {
+                        if (stateKey === 'hasClicked') {
+                            this.setWarningState(parsed.timestamp);
+                        } else {
+                            this.setState({
+                                [stateKey]: true,
+                                [timestampKey]: parsed.timestamp,
+                            });
+                        }
+                    } else {
+                        localStorage.removeItem(storageKeyString);
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn(`[checkHiddenAlert] Error parsing localStorage data for ${storageSuffix}:`, e);
+        }
+    };
+
     async componentDidMount() {
         const { prices, updatePrices, account, currentUser } = this.props;
         const lastUpdate = prices.get('lastUpdate');
@@ -142,34 +180,30 @@ class UserWallet extends React.Component {
         }
         const isMyAccount = currentUser && currentUser.get('username') === account.get('name');
         await this.loadInitialConversions();
+
         if (account && currentUser && isMyAccount) {
-            try {
-                const userName = account.get('name');
-                const storageKey = `button_click_${userName}`;
-                const storedData = localStorage.getItem(storageKey);
-                if (storedData) {
-                    const recoveryInfo = account.get('account_recovery');
-                    const parsed = JSON.parse(storedData);
-                    const recoveryAccount = recoveryInfo ? recoveryInfo.get('recovery_account') : null;
-                    if (parsed.recovery_account !== recoveryAccount) {
-                        localStorage.removeItem(storageKey);
-                        return;
-                    }
-                    if (parsed.clicked && parsed.timestamp) {
-                        const timestampDate = new Date(parsed.timestamp);
-                        const diffTime = now - timestampDate;
-                        const diffDays = diffTime / (1000 * 60 * 60 * 24);
-                        if (diffDays <= DAYS_TO_HIDE) {
-                            this.setWarningState(parsed.timestamp);
-                        } else {
-                            localStorage.removeItem(storageKey);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn("[componentDidMount] Error parsing localStorage data:", e);
-            }
+            const recoveryInfo = account.get('account_recovery');
+            const recoveryAccount = recoveryInfo ? recoveryInfo.get('recovery_account') : null;
+
+            this.checkHiddenAlert(
+                account,
+                '',
+                'hasClicked',
+                'timestamp',
+                (parsed) => parsed.recovery_account === recoveryAccount
+            );
+
+            this.checkHiddenAlert(
+                account,
+                'decline_',
+                'hasClickedDecline',
+                'timestampDecline'
+            );
         }
+
+        this.checkPowerDownAlert();
+        this.checkWithdrawRoutesAlert();
+        this.loadDeclineRequestStatus();
     }
 
     async componentDidUpdate(prevProps) {
@@ -196,6 +230,7 @@ class UserWallet extends React.Component {
                 }
             }
         }
+        const routesChanged = ((this.props.withdraw_routes || []).length !== (prevProps.withdraw_routes || []).length);
         const isMyAccount = currentUser && currentUser.get('username') === account.get('name');
         const currentHistorySize = account.get('other_history', List()).size;
         const prevHistorySize = prevProps.account.get('other_history', List()).size;
@@ -204,35 +239,247 @@ class UserWallet extends React.Component {
         } else if (!accountChanged && currentHistorySize !== prevHistorySize) {
             await this.loadInitialConversions();
         }
-        if (account && currentUserChange && currentUser && isMyAccount) {
-            try {
-                const userName = account.get('name');
-                const storageKey = `button_click_${userName}`;
-                const storedData = localStorage.getItem(storageKey);
-                if (storedData) {
-                    const recoveryInfo = account.get('account_recovery');
-                    const parsed = JSON.parse(storedData);
-                    const recoveryAccount = recoveryInfo ? recoveryInfo.get('recovery_account') : null;
-                    if (parsed.recovery_account !== recoveryAccount) {
-                        localStorage.removeItem(storageKey);
-                        return;
-                    }
-                    if (parsed.clicked && parsed.timestamp) {
-                        const timestampDate = new Date(parsed.timestamp);
-                        const diffTime = now - timestampDate;
-                        const diffDays = diffTime / (1000 * 60 * 60 * 24);
-                        if (diffDays <= DAYS_TO_HIDE) {
-                            this.setWarningState(parsed.timestamp);
-                        } else {
-                            localStorage.removeItem(storageKey);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn("[componentDidUpdate] Error parsing localStorage data:", e);
-            }
+        if ((accountChanged || currentUserChange) && isMyAccount) {
+            const recoveryInfo = account.get('account_recovery');
+            const recoveryAccount = recoveryInfo ? recoveryInfo.get('recovery_account') : null;
+
+            this.checkHiddenAlert(
+                account,
+                '',
+                'hasClicked',
+                'timestamp',
+                (parsed) => parsed.recovery_account === recoveryAccount
+            );
+
+            this.checkHiddenAlert(
+                account,
+                'decline_',
+                'hasClickedDecline',
+                'timestampDecline'
+            );
         }
+        if (account && currentUserChange && currentUser && isMyAccount || prevProps.gprops !== this.props.gprops) {
+           this.checkPowerDownAlert();
+       }
+       if (accountChanged || currentUserChange || routesChanged) {
+          this.checkWithdrawRoutesAlert();
+       }
+       if (accountChanged || currentUserChange) {
+           this.loadDeclineRequestStatus();
+       }
     }
+
+    computeWithdrawRoutesSignature = (routes) => {
+        try {
+            let arr = (routes || []).slice().map(function (r) {
+                let acct = r && r.to_account ? String(r.to_account) : '';
+                let pct = r && typeof r.percent !== 'undefined' ? Number(r.percent) : 0;
+                let pctN = isFinite(pct) ? pct : 0;
+                return acct + ':' + pctN;
+            });
+            arr.sort();
+            return arr.join('|');
+        } catch (e) {
+            console.warn('[WithdrawRoutesAlert] compute signature failed', e);
+            return '';
+        }
+    };
+
+    getWithdrawRoutesStorageKey = () => {
+        const { account } = this.props;
+        if (!account) return null;
+        const userName = account.get('name');
+        return 'withdraw_routes_alert_' + userName;
+    };
+
+    showAdvanced = e => {
+        e.preventDefault();
+        const { account } = this.props;
+        this.props.showAdvanced({
+            account: account.get('name'),
+        });
+    };
+
+    isDismissedWithdrawRoutesAlert = (currentSignature) => {
+        try {
+            let key = this.getWithdrawRoutesStorageKey();
+            if (!key) return false;
+            let raw = localStorage.getItem(key);
+            if (!raw) return false;
+            let parsed = JSON.parse(raw);
+            if (!parsed || !parsed.dismissedAt) return false;
+            let lastSig = typeof parsed.sig === 'string' ? parsed.sig : '';
+            if (currentSignature && currentSignature !== lastSig) {
+                return false;
+            }
+            let ts = new Date(parsed.dismissedAt).getTime();
+            let diffDays = (Date.now() - ts) / (1000 * 60 * 60 * 24);
+            return diffDays <= PD_DISMISS_DAYS;
+        } catch (e) {
+            console.warn('[WithdrawRoutesAlert] read localStorage failed', e);
+            return false;
+        }
+    };
+
+    dismissWithdrawRoutesAlert = () => {
+        try {
+            let key = this.getWithdrawRoutesStorageKey();
+            if (key) {
+                let routes = this.props.withdraw_routes || [];
+                let sig = this.computeWithdrawRoutesSignature(routes);
+                localStorage.setItem(
+                    key,
+                    JSON.stringify({
+                        dismissedAt: new Date().toISOString(),
+                        sig: sig
+                    })
+                );
+            }
+        } catch (e) {
+            console.warn('[WithdrawRoutesAlert] write localStorage failed', e);
+        }
+        this.setState({ showWithdrawRoutesAlert: false });
+    };
+
+    checkWithdrawRoutesAlert = () => {
+        let account = this.props.account;
+        let currentUser = this.props.currentUser;
+        let gprops = this.props.gprops;
+        let routes = this.props.withdraw_routes || [];
+        if (!account || !currentUser || !gprops) {
+            this.setState({ showWithdrawRoutesAlert: false });
+            return;
+        }
+
+        let isMyAccount = currentUser.get('username') === account.get('name');
+        if (!isMyAccount) {
+            this.setState({ showWithdrawRoutesAlert: false });
+            return;
+        }
+        try {
+            let acc = account.toJS();
+            let gp = typeof gprops.toJS === 'function' ? gprops.toJS() : gprops;
+            let pdAmount = Number(powerdownSteem(acc, gp)) || 0;
+            if (!pdAmount || pdAmount <= 0) {
+                try {
+                    let k1 = this.getWithdrawRoutesStorageKey();
+                    if (k1) localStorage.removeItem(k1);
+                } catch (_) {}
+                this.setState({ showWithdrawRoutesAlert: false });
+                return;
+            }
+        } catch (e) {
+            console.warn('[WithdrawRoutesAlert] powerdown calc failed', e);
+            this.setState({ showWithdrawRoutesAlert: false });
+            return;
+        }
+        let count = routes && routes.length ? routes.length : 0;
+        if (!count || count <= 0) {
+        //     try {
+        //         let key = this.getWithdrawRoutesStorageKey();
+        //         if (key) localStorage.removeItem(key);
+        //     } catch (_) {}
+            this.setState({ showWithdrawRoutesAlert: false });
+            return;
+        }
+
+        let sig = this.computeWithdrawRoutesSignature(routes);
+        if (this.isDismissedWithdrawRoutesAlert(sig)) {
+            this.setState({ showWithdrawRoutesAlert: false });
+            return;
+        }
+
+        this.setState({ showWithdrawRoutesAlert: true });
+    };
+
+   getPowerDownStorageKey = () => {
+       const { account } = this.props;
+       if (!account) return null;
+       const userName = account.get('name');
+       return `powerdown_alert_${userName}`;
+   };
+   isDismissedPowerDownAlert = (currentPdAmount) => {
+        try {
+            const key = this.getPowerDownStorageKey();
+            if (!key) return false;
+            const raw = localStorage.getItem(key);
+            if (!raw) return false;
+            const parsed = JSON.parse(raw);
+            if (!parsed || !parsed.dismissedAt) return false;
+            const lastDismissedAmount = typeof parsed.pdAmount === 'number' ? parsed.pdAmount : 0;
+            const EPS = 1;
+            if (typeof currentPdAmount === 'number' && Math.abs(currentPdAmount - lastDismissedAmount) > EPS) {
+                return false;
+            }
+            const ts = new Date(parsed.dismissedAt).getTime();
+            const diffDays = (Date.now() - ts) / (1000 * 60 * 60 * 24);
+            return diffDays <= PD_DISMISS_DAYS;
+        } catch (e) {
+            console.warn('[PowerDownAlert] read localStorage failed', e);
+            return false;
+        }
+   };
+   dismissPowerDownAlert = () => {
+         try {
+             const key = this.getPowerDownStorageKey();
+             if (key) {
+                const { account, gprops } = this.props;
+                let pdAmount = 0;
+                if (account && gprops) {
+                    const acc = account.toJS();
+                    const gp = gprops.toJS ? gprops.toJS() : gprops;
+                    pdAmount = Number(powerdownSteem(acc, gp)) || 0;
+                }
+                localStorage.setItem(
+                    key,
+                    JSON.stringify({
+                        dismissedAt: new Date().toISOString(),
+                        pdAmount: pdAmount,
+                    })
+                );
+            }
+        } catch (e) {
+             console.warn('[PowerDownAlert] write localStorage failed', e);
+         }
+         this.setState({ showPowerDownAlert: false });
+     };
+    checkPowerDownAlert = () => {
+        const { account, gprops, currentUser } = this.props;
+
+        if (!account || !gprops) {
+            this.setState({ showPowerDownAlert: false });
+            return;
+        }
+
+        const isMyAccount =
+            currentUser && currentUser.get('username') === account.get('name');
+
+        if (!isMyAccount) {
+            this.setState({ showPowerDownAlert: false });
+            return;
+        }
+
+        const acc = account.toJS();
+        const gp = gprops.toJS ? gprops.toJS() : gprops;
+        const totalSP = vestingSteem(acc, gp);
+        const pdAmount = powerdownSteem(acc, gp);
+
+        if (!pdAmount || pdAmount <= 0) {
+            try {
+                const key = this.getPowerDownStorageKey();
+                if (key) localStorage.removeItem(key);
+            } catch (_) {}
+            this.setState({ showPowerDownAlert: false });
+            return;
+        }
+        if (this.isDismissedPowerDownAlert(pdAmount)) {
+            this.setState({ showPowerDownAlert: false });
+            return;
+        }
+
+        const pct = totalSP > 0 ? (pdAmount / totalSP) * 100 : 0;
+        this.setState({ showPowerDownAlert: true });
+    };
 
     async loadInitialConversions() {
         try {
@@ -267,6 +514,46 @@ class UserWallet extends React.Component {
         }
     }
 
+    async loadDeclineRequestStatus() {
+        const { account, currentUser } = this.props;
+        if (!account || !currentUser) {
+            this.setState({ hasPendingDeclineRequest: false, declineRequest: null });
+            return;
+        }
+
+        const isMyAccount = currentUser.get('username') === account.get('name');
+        if (!isMyAccount) {
+            this.setState({ hasPendingDeclineRequest: false, declineRequest: null });
+            return;
+        }
+
+        try {
+            const userName = account.get('name');
+            const result = await api.callAsync('database_api.find_decline_voting_rights_requests', { accounts: [userName] });
+
+            let requests = [];
+            if (Array.isArray(result)) {
+                requests = result;
+            } else if (result && Array.isArray(result.requests)) {
+                requests = result.requests;
+            }
+
+            const normalizedAccount = String(userName || '').toLowerCase();
+            const declineRequest = requests.find(item => String(item.account || '').toLowerCase() === normalizedAccount) || null;
+
+            this.setState({
+                hasPendingDeclineRequest: !!declineRequest,
+                declineRequest,
+            });
+        } catch (error) {
+            console.warn('Error loading decline request status:', error);
+            this.setState({
+                hasPendingDeclineRequest: false,
+                declineRequest: null,
+            });
+        }
+    }
+
     hideChangeRecoveryModal = (show = false) => {
         this.setState({ showChangeRecoveryModal: show });
     };
@@ -287,14 +574,6 @@ class UserWallet extends React.Component {
         if (isClaiming === true) {
             this.setState({ claimInProgress: true }); // disable the claim button
         }
-    };
-
-    showAdvanced = e => {
-        e.preventDefault();
-        const { account } = this.props;
-        this.props.showAdvanced({
-            account: account.get('name'),
-        });
     };
 
     getCurrentApr = gprops => {
@@ -352,10 +631,10 @@ class UserWallet extends React.Component {
             account,
             currentUser,
             open_orders,
-            notify,
             withdraw_routes,
+            notify,
         } = this.props;
-        const { showQR, hasClicked, showChangeRecoveryModal, conversionValue  } = this.state;
+        const { showQR, hasClicked, showChangeRecoveryModal, conversionValue, showPowerDownAlert } = this.state;
         const gprops = this.props.gprops.toJS();
 
         // do not render if account is not loaded or available
@@ -371,6 +650,73 @@ class UserWallet extends React.Component {
         const isMyAccount =
             currentUser && currentUser.get('username') === account.get('name');
 
+        let powerDownWarningBox = null;
+        if (showPowerDownAlert && powerdown_steem > 0 && isMyAccount) {
+            try {
+                const pct = vesting_steem > 0 ? (powerdown_steem * 4 / vesting_steem) * 100 : 0;
+                const isHighRisk = pct >= 50;
+                const warningBoxClass = 'UserWallet__warningbox' + (isHighRisk ? ' UserWallet__warningbox--danger' : '');
+                powerDownWarningBox = (
+                    <div className="row">
+                    <div className="columns small-12">
+                        <div className={warningBoxClass} role="alert" aria-live="polite">
+                        <span className="UserWallet__warningbox__text">
+                            {tt('powerdown_alert.message', {
+                                amount: numberWithCommas((powerdown_steem * 4).toFixed(3)),
+                                percent: pct.toFixed(2),
+                            })}
+                        </span>
+                        <div className="UserWallet__warningbox__buttons">
+                            <button
+                                className="button"
+                                onClick={this.dismissPowerDownAlert}
+                                title={tt('g.dismiss')}
+                            >
+                            {tt('g.dismiss')}
+                            </button>
+                        </div>
+                        </div>
+                    </div>
+                    </div>
+                );
+            } catch (error) {
+                console.log(error)
+            }
+        }
+        let withdrawRoutesWarningBox = null;
+        if (this.state.showWithdrawRoutesAlert) {
+            try {
+                withdrawRoutesWarningBox = (
+                    <div className="row">
+                        <div className="columns small-12">
+                            <div className="UserWallet__warningbox">
+                                <span className="UserWallet__warningbox__text">
+                                    {tt('advanced_routes.withdraw_routes_detected')}
+                                </span>
+                                <div className="UserWallet__warningbox__buttons">
+                                    <button
+                                        className="button"
+                                        onClick={this.showAdvanced}
+                                        title="Take Action"
+                                    >
+                                        {tt('advanced_routes.take_action')}
+                                    </button>
+                                    <button
+                                        className="button"
+                                        onClick={this.dismissWithdrawRoutesAlert}
+                                        title="Dismiss"
+                                    >
+                                        {tt('g.dismiss')}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            } catch (e) {
+                console.warn(e);
+            }
+        }
         const disabledWarning = false;
         // isMyAccount = false; // false to hide wallet transactions
 
@@ -439,9 +785,7 @@ class UserWallet extends React.Component {
         }
 
         const balance_steem = parseFloat(account.get('balance').split(' ')[0]);
-        const saving_balance_steem = parseFloat(
-            savings_balance.split(' ')[0]
-        );
+        const saving_balance_steem = parseFloat(savings_balance.split(' ')[0]);
         const divesting =
             parseFloat(account.get('vesting_withdraw_rate').split(' ')[0]) >
             0.0;
@@ -517,7 +861,8 @@ class UserWallet extends React.Component {
                     .map(item => {
                         const data = item.getIn([1, 'op', 1]);
                         const type = item.getIn([1, 'op', 0]);
-
+                        const trx_id = item.getIn([1, 'trx_id'])
+                        const block_id = item.getIn([1, 'block'])
                         // Filter out rewards
                         if (
                             type === 'curation_reward' ||
@@ -536,6 +881,8 @@ class UserWallet extends React.Component {
                             <TransferHistoryRow
                                 key={idx++}
                                 op={item.toJS()}
+                                trx={trx_id}
+                                block={block_id}
                                 context={account.get('name')}
                             />
                         );
@@ -726,6 +1073,33 @@ class UserWallet extends React.Component {
                 break;
             default:
         }
+        // withdraw routes
+        const routes = withdraw_routes && withdraw_routes.length > 0 ? [...withdraw_routes] : [];
+        const sortedRoutes = routes.sort((a, b) => b.percent - a.percent);
+        let message = null;
+
+        if (sortedRoutes.length === 1 && sortedRoutes[0].percent === 10000) {
+            message = (
+                <span>
+                    {tt('userwallet_jsx.routed_to_single')}
+                    <Link to={`/@${sortedRoutes[0].to_account}`}>
+                        {`@${sortedRoutes[0].to_account}`}.
+                    </Link>
+                </span>
+            );
+        } else if (sortedRoutes.length >= 1 && sortedRoutes[0].percent < 10000) {
+            message = (
+                <span>
+                    <a
+                        href="#"
+                        style={{ cursor: 'pointer', color: '#1FBF8F' }}
+                        onClick={() => this.setState({ showWithdrawRoutesModal: true })}
+                    >
+                        {tt('userwallet_jsx.view_all_withdraw_routes')}
+                    </a>.
+                </span>
+            );
+        }
 
         const combinedConversions = [
             ...(this.state.conversions || []).map(item => ({
@@ -811,6 +1185,89 @@ class UserWallet extends React.Component {
             console.warn('Error while processing account recovery info:', error);
         }
 
+        let declineWarningBox = null;
+        if (currentUser && isMyAccount && this.state.hasPendingDeclineRequest && !this.state.hasClickedDecline) {
+            const { declineRequest } = this.state;
+            const effectiveRaw = declineRequest.effective_date;
+
+            let daysLeft = null;
+            let dayLabel = null;
+            let effectiveText = effectiveRaw;
+
+            if (effectiveRaw) {
+                const match = String(effectiveRaw).trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+                if (match) {
+                    effectiveText = `${match[3]}-${match[2]}-${match[1]}`;
+                }
+                const effectiveDate = new Date(effectiveRaw + (effectiveRaw.endsWith('Z') ? '' : 'Z'));
+                const now = new Date();
+                daysLeft = Math.max(0, Math.ceil((effectiveDate - now) / (1000 * 60 * 60 * 24)));
+                dayLabel = daysLeft === 1 ? 'day' : 'days';
+            }
+
+            const warningMessage = daysLeft != null
+                ? tt('steem_tools.decline_voting.pending_warning_message', {
+                      days: daysLeft,
+                      day_label: dayLabel,
+                      account: account.get('name'),
+                      effective_date: effectiveText,
+                  })
+                : tt('steem_tools.decline_voting.pending_warning_message_no_date', {
+                          account: account.get('name'),
+                  });
+
+            declineWarningBox = (
+                <div className="row">
+                    <div className="columns small-12">
+                        <div className="UserWallet__warningbox">
+                            <span className="UserWallet__warningbox__text">
+                                {warningMessage}
+                            </span>
+                            <div className="UserWallet__warningbox__buttons">
+                                <button
+                                    className="button"
+                                    title="Take Action"
+                                    onClick={() => {
+                                        this.props.declineVotingRights(
+                                            account.get('name'),
+                                            false,
+                                            () => {
+                                                this.loadDeclineRequestStatus();
+                                                setTimeout(() => this.props.refreshAccount(account.get('name')), 3000);
+                                            },
+                                            (error) => {
+                                                console.error('Cancel decline voting error:', error);
+                                            }
+                                        );
+                                    }}
+                                >
+                                    {tt('advanced_routes.take_action')}
+                                </button>
+                                <button
+                                    className="button"
+                                    onClick={() => {
+                                        const userName = account.get('name');
+                                        const storageKey = `button_click_decline_${userName}`;
+                                        const dataToStore = {
+                                          clicked: true,
+                                          timestamp: new Date().toISOString()
+                                        };
+                                        localStorage.setItem(storageKey, JSON.stringify(dataToStore));
+                                        this.setState({
+                                          hasClickedDecline: true,
+                                          timestampDecline: dataToStore.timestamp,
+                                        });
+                                    }}
+                                >
+                                    {tt('g.dismiss')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         let claimbox;
         if (currentUser && rewards_str && isMyAccount) {
             claimbox = (
@@ -842,22 +1299,6 @@ class UserWallet extends React.Component {
             console.error(e);
         }
 
-        let advancedRoutesNotification = null;
-        if (isMyAccount && withdraw_routes && withdraw_routes.size > 0) {
-            const message =
-                'Custom withdrawal routes were configured to receive vesting payments. Please reconfirm in the Advanced Routes options.';
-
-            advancedRoutesNotification = (
-                <div className="UserWallet__balance row">
-                    <div className="column small-12">
-                        <div className="callout success">
-                            <p>{message}</p>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
         return (
             <div className="UserWallet">
                 {(showChangeRecoveryModal && accountToRecover && recoveryAccount) && (
@@ -869,8 +1310,14 @@ class UserWallet extends React.Component {
                     />
                 )}
                 {recoveryWarningBox}
+                {declineWarningBox}
+                {withdrawRoutesWarningBox}
+                {powerDownWarningBox}
                 {claimbox}
                 <div className="row">
+                    {/*<div>
+                        <LoadingIndicator type="circle" />
+                    </div>*/}
                     <div className="columns small-10 medium-12 medium-expand">
                         <WalletSubMenu
                             accountname={account.get('name')}
@@ -1102,7 +1549,6 @@ class UserWallet extends React.Component {
                         {estimate_output}
                     </div>
                 </div>
-                {advancedRoutesNotification}
                 <div className="UserWallet__balance row zebra">
                     <div className="column small-12">
                         {powerdown_steem != 0 && (
@@ -1116,7 +1562,18 @@ class UserWallet extends React.Component {
                                     )}
                                 />{' '}
                                 {'(~' + powerdown_balance_str + ' STEEM)'}.
+                                {' '}
+                                {message}
                             </span>
+                        )}
+                        {this.state.showWithdrawRoutesModal && (
+                            <WithdrawRoutesModal
+                                isOpen={this.state.showWithdrawRoutesModal}
+                                onClose={() => this.setState({ showWithdrawRoutesModal: false })}
+                                routes={sortedRoutes}
+                                accountName={account.get('name')}
+                                steemPower={powerdown_balance_str}
+                            />
                         )}
                     </div>
                 </div>
@@ -1172,12 +1629,12 @@ export default connect(
     (state, ownProps) => {
         const price_per_steem = pricePerSteem(state);
         const savings_withdraws = state.user.get('savings_withdraws');
+        const routes = state.user.get('withdraw_routes');
+        const withdraw_routes = routes && routes.toJS ? routes.toJS() : [];
         const gprops = state.global.get('props');
         const sbd_interest = gprops.get('sbd_interest_rate');
         // This is current logined user.
         const currentUser = ownProps.currentUser;
-        const withdraw_routes = state.user.get('withdraw_routes');
-
         return {
             ...ownProps,
             open_orders: state.market.get('open_orders'),
@@ -1186,8 +1643,8 @@ export default connect(
             sbd_interest,
             gprops,
             trackingId: state.app.getIn(['trackingId'], null),
-            currentUser,
             withdraw_routes,
+            currentUser,
             conversionsSuccess: state.transaction.get('conversions'),
             prices: state.transaction.get('prices'),
         };
@@ -1235,5 +1692,31 @@ export default connect(
                 })
             );
         },
+        declineVotingRights: (account, decline, successCallback, errorCallback) => {
+            const successCb = () => {
+                dispatch(globalActions.getState({ url: `@${account}/permissions` }));
+                if (successCallback) successCallback();
+            };
+            const operation = {
+                account,
+                decline,
+            };
+            const conf = decline
+                ? tt('steem_tools.decline_voting.confirm_broadcast_message', { account })
+                : tt('steem_tools.decline_voting.confirm_cancel_broadcast_message', { account });
+
+            dispatch(
+                transactionActions.broadcastOperation({
+                    type: 'decline_voting_rights',
+                    operation,
+                    confirmTitle: tt('steem_tools.decline_voting.cancel_decline_voting_rights_request'),
+                    confirm: conf + '?',
+                    successCallback: successCb,
+                    errorCallback,
+                })
+            );
+        },
+        refreshAccount: username =>
+            dispatch(userActions.refreshAccount({ username })),
     })
 )(UserWallet);

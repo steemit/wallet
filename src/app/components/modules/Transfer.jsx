@@ -44,6 +44,7 @@ class TransferForm extends Component {
         following: PropTypes.object.isRequired,
         totalVestingFund: PropTypes.number.isRequired,
         totalVestingShares: PropTypes.number.isRequired,
+        errorMessage: undefined,
     };
 
     static defaultProps = {
@@ -312,7 +313,10 @@ class TransferForm extends Component {
     };
 
     errorCallback = estr => {
-        this.setState({ trxError: estr, loading: false, tronLoading: false });
+        this.setState({
+            trxError: estr, loading: false, tronLoading: false,
+            errorMessage: String(estr),
+        });
     };
 
     balanceValue() {
@@ -367,11 +371,12 @@ class TransferForm extends Component {
     };
 
     onChangeTo = async value => {
-        this.state.to.props.onChange(value);
+        const cleanValue = value.replace(/\s+/g, '');
+        this.state.to.props.onChange(cleanValue);
         const { transferType } = this.props.initialValues;
         if (transferType === 'Transfer to Account') {
-            this.checkExchangeStatus(value);
-            this.setState({ toggle_check: false })
+            this.checkExchangeStatus(cleanValue);
+            this.setState({ toggle_check: false });
         }
     };
 
@@ -412,7 +417,7 @@ class TransferForm extends Component {
             { LIQUID_TOKEN, VESTING_TOKEN }
         );
         const { to, amount, asset, memo } = this.state;
-        const { loading, advanced, toggle_check } = this.state;
+        const { loading, advanced, toggle_check, errorMessage } = this.state;
         const {
             currentUser,
             toVesting,
@@ -434,7 +439,7 @@ class TransferForm extends Component {
             <form
                 onSubmit={handleSubmit(({ data }) => {
                     // steem transfer
-                    this.setState({ loading: true });
+                    this.setState({ loading: true, errorMessage: undefined });
                     dispatchSubmit({
                         ...data,
                         errorCallback: this.errorCallback,
@@ -563,6 +568,14 @@ class TransferForm extends Component {
                             </div>
                             {to.touched && <p>{toVesting && powerTip3}</p>}
                         </div>
+                        {(to && to.touched && to.error) ? (
+                            <div className="column small-12 callout alert">
+                                {to &&
+                                    to.touched &&
+                                    to.error &&
+                                    to.error}&nbsp;
+                            </div>
+                        ) : null}
                     </div>
                 )}
 
@@ -762,6 +775,15 @@ class TransferForm extends Component {
                         </div>
                     </div>
                 )}
+
+                {errorMessage && (
+                    <div className="row">
+                        <div className="column small-12 callout alert">
+                            {errorMessage}
+                        </div>
+                    </div>
+                )}
+
                 <div className="row">
                     <div className="column">
                         {loading && (

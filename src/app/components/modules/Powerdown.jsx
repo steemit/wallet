@@ -34,11 +34,30 @@ class Powerdown extends React.Component {
             broadcasting: false,
             manual_entry: false,
             new_withdraw,
+            remainingPercentage: 100,
+            toggleAckRoutes: false,
         };
     }
 
+    componentWillMount() {
+        this.updateRemainingPercentage(this.props.withdraw_routes);
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.withdraw_routes !== this.props.withdraw_routes) {
+            this.updateRemainingPercentage(this.props.withdraw_routes);
+        }
+    }
+
+    updateRemainingPercentage = (routes) => {
+        if (!routes) return;
+        const totalRoutedPercentage = routes.reduce((total, route) => total + route.percent, 0);
+        const remainingPercentage = 100 - (totalRoutedPercentage / 100);
+        this.setState({ remainingPercentage });
+    }
+
     render() {
-        const { broadcasting, new_withdraw, manual_entry } = this.state;
+        const { broadcasting, new_withdraw, manual_entry, remainingPercentage, toggleAckRoutes } = this.state;
         const {
             account,
             available_shares,
@@ -46,7 +65,61 @@ class Powerdown extends React.Component {
             to_withdraw,
             vesting_shares,
             delegated_vesting_shares,
+            withdraw_routes
         } = this.props;
+
+        const sortedRoutes = withdraw_routes && withdraw_routes.length > 0
+            ? [...withdraw_routes].sort((a, b) => b.percent - a.percent)
+            : [];
+        const hasRoutes = sortedRoutes.length > 0;
+        const currentRoutesList = sortedRoutes.map(route => {
+            const receive = (route.percent / 10000 * parseFloat(vestsToSp(this.props.state, new_withdraw))).toFixed(3)
+            return (
+                <tr key={route.to_account}>
+                    <td>
+                        <a href={`/@${route.to_account}`} style={{ color: '#1FBF8F' }} target="_blank">
+                            {route.to_account}
+                        </a>
+                    </td>
+                    <td>{route.percent / 100}%</td>
+                    <td>{`${receive} ${route.auto_vest ? 'SP' : tt('advanced_routes.steem')}`}</td>
+                </tr>
+            );
+        });
+
+        const currentRoutes = (
+            <div className="WithdrawRoutes small-12">
+                <h5>{tt('advanced_routes.current_withdraw_route')}</h5>
+                {hasRoutes ? (
+                    <div style={{ overflowX: "auto", marginBottom: "1rem" }}>
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>{tt('advanced_routes.account')}</th>
+                                    <th>{tt('advanced_routes.percentage')}</th>
+                                    <th>{tt('advanced_routes.receive_amount')}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {<tr>
+                                    <td>
+                                        <a href={`/@${account}`} style={{ color: '#1FBF8F' }} target="_blank">
+                                            {account}
+                                        </a>
+                                    </td>
+                                    <td>{remainingPercentage}%</td>
+                                    <td>{`${(remainingPercentage / 100 * parseFloat(vestsToSp(this.props.state, new_withdraw))).toFixed(3)} ${tt('advanced_routes.steem')}`}</td>
+                                </tr>}
+                                {currentRoutesList}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                        <p>{tt('advanced_routes.no_routes')}</p>
+                )}
+            </div>
+        );
+
         const formatSp = amount =>
             numberWithCommas(vestsToSp(this.props.state, amount));
         const sliderChange = value => {
@@ -173,11 +246,35 @@ class Powerdown extends React.Component {
                     {LIQUID_TICKER}
                 </p>
                 <ul className="powerdown-notes">{notes}</ul>
+                <div className="row">
+                    <div className="column small-12">
+                        {currentRoutes}
+                    </div>
+                </div>
+                {hasRoutes && (
+                    <div className="row" style={{ marginTop: '0.75rem' }}>
+                        <div className="column toggle_container">
+                            <span>
+                                {tt('advanced_routes.acknowledge_routes')}
+                            </span>
+                            <label className="switch">
+                                <input
+                                    name="toggle_check"
+                                    type="checkbox"
+                                    checked={toggleAckRoutes}
+                                    ref="toggle_check"
+                                    onChange={(e) => this.setState({ toggleAckRoutes: e.target.checked })}
+                                />
+                                <span className="slider round" />
+                            </label>
+                        </div>
+                    </div>
+                )}
                 <button
                     type="submit"
                     className="button"
                     onClick={powerDown}
-                    disabled={broadcasting}
+                    disabled={broadcasting || (hasRoutes && !toggleAckRoutes)}
                 >
                     {tt('powerdown_jsx.power_down')}
                 </button>
@@ -204,6 +301,10 @@ export default connect(
         const available_shares =
             vesting_shares - to_withdraw - withdrawn - delegated_vesting_shares;
 
+        const routes = state.user.get('withdraw_routes');
+
+        const withdraw_routes = routes && routes.toJS ? routes.toJS() : [];
+
         return {
             ...ownProps,
             account,
@@ -213,6 +314,7 @@ export default connect(
             to_withdraw,
             vesting_shares,
             withdrawn,
+            withdraw_routes,
         };
     },
     // mapDispatchToProps

@@ -2,19 +2,19 @@
 .Witnesses {
 	.extlink path {
 		transition: 0.2s all ease-in-out;
-	     @include themify($themes) { 
-	       fill: themed('textColorAccent');  
-	    }   		
+	     @include themify($themes) {
+	       fill: themed('textColorAccent');
+	    }
 	}
 	a:hover .extlink path {
 		transition: 0.2s all ease-in-out;
-	     @include themify($themes) { 
-	       fill: themed('textColorAccentHover');  
-	    }   		
+	     @include themify($themes) {
+	       fill: themed('textColorAccentHover');
+	    }
 	}
 	td > a {
 		@extend .link;
-		@extend .link--primary;		
+		@extend .link--primary;
 	}
 
 	.button {
@@ -24,7 +24,12 @@
 		&:hover {
 			background-color: $color-teal;
 		}
-	}		
+	}
+  .inline-text {
+    display: inline;
+    padding-left: 5px;
+    font-size: 100%;
+  }
 }
 
 

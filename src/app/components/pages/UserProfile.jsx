@@ -14,6 +14,8 @@ import UserKeys from 'app/components/elements/UserKeys';
 import PasswordReset from 'app/components/elements/PasswordReset';
 import CreateCommunity from 'app/components/elements/CreateCommunity';
 import Delegations from 'app/components/modules/Delegations';
+import Proposals from 'app/components/modules/Proposals';
+import Witnesses from 'app/components/modules/Witnesses';
 import UserWallet from 'app/components/modules/UserWallet';
 import Settings from 'app/components/modules/Settings';
 import CurationRewards from 'app/components/modules/CurationRewards';
@@ -34,6 +36,7 @@ import proxifyImageUrl from 'app/utils/ProxifyUrl';
 import SanitizedLink from 'app/components/elements/SanitizedLink';
 import DropdownMenu from 'app/components/elements/DropdownMenu';
 import RouteSettings from 'app/components/elements/RouteSettings';
+import SteemToolsContent from 'app/components/elements/SteemToolsContent/SteemToolsContent';
 
 export default class UserProfile extends React.Component {
     constructor() {
@@ -70,6 +73,10 @@ export default class UserProfile extends React.Component {
     }
 
     componentDidUpdate(prevProps) {
+        const { accountname, getWithdrawRoutes } = this.props;
+        if (accountname && accountname !== prevProps.accountname) {
+            getWithdrawRoutes(accountname);
+        }
         this.redirect();
     }
 
@@ -150,7 +157,39 @@ export default class UserProfile extends React.Component {
                     />
                 </div>
             );
-        } else if (section === 'delegations') {
+        } else if (section === 'proposals') {
+            walletClass = 'active';
+            tab_content = (
+                <div>
+                    <div className="row">
+                        <div className="column">
+                            <WalletSubMenu
+                                accountname={account.name}
+                                isMyAccount={isMyAccount}
+                            />
+                        </div>
+                    </div>
+                    <br />
+                    <Proposals walletSectionAccount={accountname} />
+                </div>
+            );
+        }  else if (section === 'witnesses') {
+            walletClass = 'active';
+            tab_content = (
+                <div>
+                    <div className="row">
+                        <div className="column">
+                            <WalletSubMenu
+                                accountname={account.name}
+                                isMyAccount={isMyAccount}
+                            />
+                        </div>
+                    </div>
+                    <br />
+                    <Witnesses walletSectionAccount={accountname} />
+                </div>
+            );
+        }  else if (section === 'delegations') {
             walletClass = 'active';
             tab_content = (
                 <div>
@@ -171,6 +210,23 @@ export default class UserProfile extends React.Component {
             tab_content = <AuthorRewards account={account} />;
         } else if (section === 'settings') {
             tab_content = <Settings routeParams={this.props.routeParams} />;
+        } else if (section === 'steem_tools') {
+            walletClass = 'active';
+            tab_content = (
+                <div>
+                    <div className="row">
+                        <div className="column">
+                            <WalletSubMenu
+                                accountname={account.name}
+                                isMyAccount={isMyAccount}
+                                showTab="steem_tools"
+                            />
+                        </div>
+                    </div>
+                    <br />
+                    <SteemToolsContent defaultKey="claim-discounted" accountname={account.name} />
+                </div>
+            );
         } else if (section === 'permissions') {
             walletClass = 'active';
             tab_content = (

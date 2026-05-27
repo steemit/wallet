@@ -1,0 +1,222 @@
+.advtools-wrapper {
+  display: flex;
+  min-height: 480px;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  --advtools-offset: 0px;
+  height: max-content;
+
+  @include themify($themes) {
+    border: themed('border');
+    background: themed('backgroundColor');
+  }
+}
+
+.advtools-sidebar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  flex: 0 0 auto;
+  flex-basis: 280px;
+  overflow: hidden;
+  transition: width .25s ease, flex-basis .25s ease, opacity .2s ease;
+
+  @include themify($themes) {
+    background: themed('moduleBackgroundColor');
+    color: themed('textColorPrimary');
+  }
+}
+
+.advtools-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 10px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.28) rgba(0, 0, 0, 0.04);
+}
+
+.advtools-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.advtools-scroll::-webkit-scrollbar-track {
+  margin-block: 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.advtools-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.advtools-menu-section {
+  margin: 8px 0 14px;
+}
+
+.advtools-section-title {
+  font-weight: 800;
+  padding: 0 10px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  opacity: .95;
+  font-size: 12px;
+  @include themify($themes) {
+    color: themed('colorAccent');
+  }
+}
+
+.advtools-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2.5px 10px;
+  margin: 6px 0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .15s ease, transform .05s ease, box-shadow .15s ease, color .15s ease;
+  font-size: 14px;
+
+  @include themify($themes) {
+    color: themed('textColorPrimary');
+  }
+}
+
+.advtools-item:hover {
+  background: rgba(31, 191, 143, 0.10);
+  box-shadow: inset 0 0 0 1px rgba(31, 191, 143, 0.15);
+}
+
+.advtools-item:active {
+  transform: scale(.98);
+}
+
+.advtools-item.active {
+  background: rgba(31, 191, 143, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(31, 191, 143, 0.22);
+}
+
+.advtools-item .ico {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: .95;
+
+  @include themify($themes) {
+    color: themed('textColorPrimary');
+  }
+}
+
+.advtools-item.active .ico {
+  @include themify($themes) {
+    color: themed('colorAccent');
+  }
+}
+
+.advtools-item .label {
+  font-size: 14px;
+}
+
+.advtools-toggle {
+  position: absolute;
+  top: 20px;
+  left: 280px;
+  width: 18px;
+  height: 55px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 30;
+  border: 1px solid #d7dbe0;
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.03);
+  transition: background .15s ease, border-color .15s ease, left .25s ease;
+  appearance: none;
+
+  @include themify($themes) {
+    background: themed('backgroundColorEmphasis');
+  }
+}
+
+.advtools-toggle:hover {
+  @include themify($themes) {
+    background: themed('moduleBackgroundColor');
+  }
+}
+
+.advtools-toggle-chevron {
+  width: 7.5px;
+  height: 7.5px;
+  border-right: 1.75px solid #aaa;
+  border-bottom: 1.75px solid #aaa;
+  transform: rotate(135deg);
+  margin-right: 2px;
+  transition: transform .2s ease, border-color .1s ease, margin-right .2s ease;
+}
+
+.advtools-toggle-chevron.flipped {
+  transform: rotate(-45deg);
+  margin-right: 5px;
+}
+
+.advtools-toggle:hover .advtools-toggle-chevron {
+  @include themify($themes) {
+    border-color: themed('colorAccent');
+  }
+}
+
+.advtools-wrapper.collapsed .advtools-sidebar {
+  width: 0;
+  flex-basis: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.advtools-wrapper.collapsed .advtools-toggle {
+  left: 0;
+}
+
+.advtools-overlay {
+  content: "";
+  position: absolute;
+  inset: 0;
+  display: none;
+  z-index: 10;
+  backdrop-filter: blur(1px);
+
+  @include themify($themes) {
+    background: themed('overlayBackground');
+  }
+}
+
+@media (max-width: 768px) {
+  .advtools-sidebar {
+    position: absolute;
+    z-index: 20;
+    height: 100%;
+    width: 260px;
+    flex: 0 0 260px;
+    transform: translateX(0);
+    transition: transform .2s ease;
+    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.2);
+  }
+
+  .advtools-toggle {
+    left: 260px;
+  }
+
+  .advtools-wrapper.collapsed .advtools-sidebar {
+    transform: translateX(-110%);
+    width: 260px;
+    flex: 0 0 260px;
+  }
+}

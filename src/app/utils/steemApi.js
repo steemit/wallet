@@ -1,14 +1,20 @@
 import { api } from '@steemit/steem-js';
-
+import { getRedirectPagePath } from './StateFunctions'
 import stateCleaner from 'app/redux/stateCleaner';
+import Witnesses from '../components/modules/Witnesses';
 
 export async function getStateAsync(url) {
     try {
         // strip off query string
         const path = url.split('?')[0];
-
-        const raw = await api.getStateAsync(path);
-
+        let raw;
+        if (path.match(/^\/(@[\w\.\d-]+)\/(witnesses)\/?$/)) {
+            raw = await api.getStateAsync(path.replace('/witnesses', '/transfers'));
+            let witnesses = await api.getStateAsync('/~witnesses');
+            raw.witnesses = witnesses ? witnesses.witnesses : raw.witnesses
+        } else {
+            raw = await api.getStateAsync(path);
+        }
         const cleansed = stateCleaner(raw);
 
         return cleansed;

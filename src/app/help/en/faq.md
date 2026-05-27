@@ -16,12 +16,12 @@
 
 ### <span id="Table_of_Contents_Accounts">Accounts</span>
 - <a href="#How_do_I_create_an_account">How do I create an account?</a>
-- <a href="#What_information_do_I_need_to_provide_in_order_to_create_an_account">What information do I need to provide in order to create an account?</a>
-- <a href="#Why_do_I_need_to_provide_my_email_and_phone_number">Why do I need to provide my email and phone number?</a>
-- <a href="#Can_I_create_a_Steem_account_without_an_email_and_phone_number">Can I create a Steem account without an email and phone number?</a>
-- <a href="#It_is_not_letting_me_create_an_account_with_my_phone_number__What_should_I_do">It is not letting me create an account with my phone number. What should I do?</a>
-- <a href="#What_happens_if_my_email_or_phone_number_changes">What happens if my email or phone number changes?</a>
+- <a href="#Why_do_I_need_to_provide_my_email">Why do I need to provide my email?</a>
+- <a href="#Can_I_create_a_Steem_account_without_an_email">Can I create a Steem account without an email?</a>
+- <a href="#What_happens_if_my_email_change">What happens if my email change?</a>
 - <a href="#Am_I_allowed_to_create_more_than_one_account">Am I allowed to create more than one account?</a>
+- <a href="#Can_an_existing_Steem_user_create_an_additional_account">Can an existing Steem user create an additional account?</a>
+- <a href="#How_can_a_user_claim_Account_Creation_Token">How can a user claim Account Creation Token (ACT)?</a>
 - <a href="#Can_I_change_my_username">Can I change my username?</a>
 - <a href="#Can_I_delete_or_deactivate_my_account">Can I delete or deactivate my account?</a>
 
@@ -87,6 +87,7 @@
 - <a href="#How_do_I_get_more_STEEM_Power">How do I get more STEEM Power?</a>
 - <a href="#How_long_does_it_take_STEEM_or_STEEM_Power_that_I_purchased_to_show_up_in_my_account">How long does it take STEEM or STEEM Power that I purchased to show up in my account?</a>
 - <a href="#What_is_powering_up_and_down">What is powering up and down?</a>
+- <a href="#What_is_a_withdraw_route">What is a withdraw route?</a>
 - <a href="#What_do_the_dollar_amounts_for_pending_payouts_represent">What do the dollar amounts for pending payouts represent?</a>
 - <a href="#Will_1_Steem_Dollar_always_be_worth__1_00_USD">Will 1 Steem Dollar always be worth $1.00 USD?</a>
 - <a href="#How_do_Steem_Dollar_to_STEEM_conversions_work">How do Steem Dollar to STEEM conversions work?</a>
@@ -158,6 +159,8 @@
 - <a href="#Why_should_I_be_careful_with_my_master_password">Why should I be careful with my master password?</a>
 - <a href="#Why_is_the_master_password_a_long_string_of_gibberish">Why is the master password a long string of gibberish?</a>
 - <a href="#What_are_my_different_keys_for">What are my different keys for?</a>
+- <a href="#What_are_key_pairs_and_why_do_I_need_them">What are key pairs and why do I need them?</a>
+- <a href="#What_are_account_authorities_and_how_do_multisignature_settings_work">What are account authorities, and how do multisignature settings work?</a>
 - <a href="#What_do_I_do_if_I_lost_my_password_keys">What do I do if I lost my password/keys?</a>
 - <a href="#Are_my_STEEM_and_Steem_Dollar_tokens_insured_in_the_event_of_a_hack_or_if_someone_takes_over_my_account">Are my STEEM and Steem Dollar tokens insured in the event of a hack or if someone takes over my account?</a>
 - <a href="#What_is_a_recovery_account">What is a recovery account?</a>
@@ -175,7 +178,12 @@
 ### <span id="Table_of_Contents_Witnesses">Witnesses</span>
 - <a href="#What_are_Steem_witnesses">What are Steem witnesses?</a>
 - <a href="#How_can_I_vote_for_witnesses">How can I vote for witnesses?</a>
-- <a href="#How_many_witnesses_can_I_vote_for">How many witnesses can I vote for?</a>
+- <a href="#How_do_I_register_or_update_a_witness">How do I register or update a witness?</a>
+- <a href="#What_is_a_brain_key_and_how_do_I_generate_one">What is a brain key and how do I generate one?</a>
+- <a href="#What_is_a_witness_price_feed_and_why_does_it_matter">What is a witness price feed and why does it matter?</a>
+- <a href="#How_do_I_enable_or_disable_a_witness_node">How do I enable or disable a witness node?</a>
+- <a href="#What_is_a_governance_proxy_and_how_does_it_work">What is a governance proxy and how does it work?</a>
+- <a href="#What_does_declining_voting_rights_mean_and_is_it_reversible">What does declining voting rights mean, and is it reversible?</a>
 
 ### <span id="Table_of_Contents_Proposals">Steem Proposal System (SPS)</span>
 - <a href="#What_is_the_Steem_Proposal_System">What is the Steem Proposal System (SPS)?</a>
@@ -206,7 +214,7 @@ Steemit has redefined social media by building a living, breathing, and growing 
 <a href="#Table_of_Contents_General">^</a>
 ## <span id="How_does_Steemit_work">How does Steemit work?</span>
 
-Steemit.com is one of the many websites (including [Busy.org](https://busy.org/), [DTube](https://d.tube/), and [Utopian.io](https://utopian.io/)) that are powered by the Steem blockchain and STEEM cryptocurrency. All of these websites read and write content to the Steem blockchain, which stores the content in an immutable blockchain ledger, and rewards users for their contributions with digital tokens called STEEM.
+Steemit.com is one of the many websites (including [SteemPro](https://www.steempro.com/), [SteemX](https://steemx.org/), and [UPVU](https://upvu.org/)) that are powered by the Steem blockchain and STEEM cryptocurrency. All of these websites read and write content to the Steem blockchain, which stores the content in an immutable blockchain ledger, and rewards users for their contributions with digital tokens called STEEM.
 
 Every day, the Steem blockchain mints new STEEM tokens and adds them to a community's "rewards pool". These tokens are then awarded to users for their contributions, based on the votes that their content receives. Users who hold more tokens in their account as "Steem Power" will get to decide where a larger portion of the rewards pool is distributed.
 
@@ -238,7 +246,33 @@ You can earn digital tokens on Steemit by:
 
 **Voting and curating** - If you discover a post and upvote it before it becomes popular, you can earn a curation reward. The reward amount will depend on the amount of Steem Power you have.
 
-**Purchasing** - Users can purchase STEEM or Steem Dollar tokens directly through their Steemit wallet using bitcoin, Ether, or BitShares tokens. They are also available from other markets and exchanges including [Binance](https://www.binance.com/), [Bithumb](https://www.bithumb.com/), [BitShares](https://wallet.bitshares.org/), [Bittrex](https://bittrex.com), [Changelly](https://changelly.com), [GOBADA](https://www.gobaba.com/), [HitBTC](https://hitbtc.com/), [Huobi](https://www.huobi.pro/), [LocalBitcoinCash](https://www.localbitcoincash.org/), [Poloniex](https://poloniex.com), [Shapeshift.io](https://shapeshift.io), [UpBit](https://upbit.com/), and [Yensesa](https://yensesa.com).
+**Purchasing** – Users can purchase **STEEM** or **Steem Dollar (SBD)** tokens directly through their **Steemit wallet** by buying them on exchanges and then trading in the internal market, or by directly buying them from exchanges.
+
+The **current exchanges that support STEEM and SBD** include:
+
+| #  | Exchange      | Supported Tokens | Link |
+|----|---------------|------------------|------|
+| 1  | HTX (Huobi)   | STEEM / **SBD**  | [htx.com](https://www.htx.com/) |
+| 2  | Poloniex      | STEEM            | [poloniex.com](https://poloniex.com/) |
+| 3  | CoinUp.io     | STEEM           | [coinup.io](https://coinup.io/) |
+| 4  | MEXC          | STEEM            | [mexc.com](https://www.mexc.com/) |
+| 5  | Binance       | STEEM            | [binance.com](https://www.binance.com/) |
+| 6  | WhiteBIT      | STEEM            | [whitebit.com](https://whitebit.com/) |
+| 7  | Upbit         | STEEM            | [upbit.com](https://upbit.com/) |
+| 8  | BitKan        | STEEM            | [bitkan.com](https://bitkan.com/) |
+| 9  | Bithumb       | STEEM            | [bithumb.com](https://www.bithumb.com/) |
+| 10 | WEEX          | STEEM            | [weex.com](https://www.weex.com/) |
+| 11 | Gate          | STEEM            | [gate.io](https://www.gate.io/) |
+| 12 | Koinbay       | STEEM            | [koinbay.com](https://koinbay.com/) |
+| 13 | Bitexen       | STEEM            | [bitexen.com](https://www.bitexen.com/) |
+| 14 | ZKE           | STEEM            | [zkex.com](https://www.zke.com/) |
+| 15 | DigiFinex     | STEEM            | [digifinex.com](https://www.digifinex.com/) |
+| 16 | ProBit Global | STEEM            | [probit.com](https://www.probit.com/) |
+| 17 | CoinEx        | STEEM            | [coinex.com](https://www.coinex.com/) |
+| 18 | ChangeNOW     | STEEM            | [changenow.io](https://changenow.io/) |
+| 19 | CoinDCX       | STEEM            | [coindcx.com](https://coindcx.com/) |
+| 20 | ONUS Pro      | STEEM            | [onus.pro](https://goonus.io/) |
+| 21 | Pionex        | STEEM            | [pionex.com](https://www.pionex.com/) |
 
 **Vesting** - STEEM tokens that are powered up to Steem Power will earn a small amount of new tokens for holding.
 
@@ -270,40 +304,43 @@ It is best to have realistic expectations, without focusing on rewards when you 
 
 Click on the "Sign Up" link at the top of steemit.com to get started.
 
-You will be asked to enter your email address and verify your phone number. After your information has been verified, you will be added to the waiting list to receive an account. You will be notified via email once your account is approved.
+You will be asked to enter your email address. After your information has been verified, you will be added to receive an account. You will be notified via email once your account is approved.
 
 After you receive notification that your account is approved, click on the link in the email to finish the account creation process. **Be sure to save and backup your username and password.** It is very important that you do not lose your password. There is no way to recover your password or access your account if it is lost. Once your password is saved and backed up, click on the "Create Account" button to create the account.
 
 <a href="#Table_of_Contents_Accounts">^</a>
-## <span id="What_information_do_I_need_to_provide_in_order_to_create_an_account">What information do I need to provide in order to create an account?</span>
+## <span id="Why_do_I_need_to_provide_my_email">Why do I need to provide my email?</span>
 
-You will need to provide your email address and phone number.
-
-<a href="#Table_of_Contents_Accounts">^</a>
-## <span id="Why_do_I_need_to_provide_my_email_and_phone_number">Why do I need to provide my email and phone number?</span>
-
-To create an account on the blockchain, it costs STEEM tokens. When you create an account through steemit.com, Steemit Inc. is supplying the tokens to pay the account creation fee. In order to prevent users from abusing the paid-for signup and creating multiple accounts, we need to be able to verify that each user is only signing up for one account.
+To create an account on the Steem blockchain, a fee is required in the form of STEEM tokens or Resource Credits (RC). When you create an account through the steemit.com sign-up process, Steemit Inc. covers this fee on your behalf. In order to prevent abuse and ensure that each user only registers a single account, identity verification is required during the sign-up process.
 
 <a href="#Table_of_Contents_Accounts">^</a>
-## <span id="Can_I_create_a_Steem_account_without_an_email_and_phone_number">Can I create a Steem account without an email and phone number?</span>
+## <span id="Can_I_create_a_Steem_account_without_an_email">Can I create a Steem account without an email?</span>
 
-The only way to have an account created via steemit.com is to supply your email and phone number. Because Steem is an open and permissionless network, there are other ways to create an account. Any Steem blockchain account can be used on steemit.com.
-
-<a href="#Table_of_Contents_Accounts">^</a>
-## <span id="It_is_not_letting_me_create_an_account_with_my_phone_number__What_should_I_do">It is not letting me create an account with my phone number. What should I do?</span>
-
-Ask for help : contact@steemit.com
-
+For a non-Steem user, the sign-up process on steemit.com requires you to provide a valid email address for identity verification. However, as Steem is an open and permissionless blockchain network, there are alternative ways to create an account outside of steemit.com. Any account created on the Steem blockchain, regardless of how it was created, can be used to access steemit.com.
 
 <a href="#Table_of_Contents_Accounts">^</a>
-## <span id="What_happens_if_my_email_or_phone_number_changes">What happens if my email or phone number changes?</span>
+## <span id="What_happens_if_my_email_change">What happens if my email change?</span>
 
-Currently there is no way to change the email or phone number that is linked to your account.  Though once your account is created, you can continue to use it even if the email or phone number that is linked to the account has changed.
+Currently, there is no way to change the email address linked to your account. However, once your account has been created, you can continue to use it without any interruption even if the email address originally associated with it is no longer active or has changed.
 
 <a href="#Table_of_Contents_Accounts">^</a>
 ## <span id="Am_I_allowed_to_create_more_than_one_account">Am I allowed to create more than one account?</span>
 
-Each user is allowed only one paid-for account created via steemit.com, however users are allowed to create as many accounts as they want on the blockchain. Creating additional accounts on the blockchain requires users to pay their own account creation fee using one of the third-party services listed above.
+Each user is allowed only one free account created through the steemit.com sign-up process. However, there is no restriction on the number of accounts you can create directly on the blockchain. To create additional accounts, you can use the Account Creation tool available in your Wallet Dashboard, where you will be required to cover the account creation fee yourself using either STEEM or an Account Creation Token (ACT).
+
+<a href="#Table_of_Contents_Accounts">^</a>
+## <span id="Can_an_existing_Steem_user_create_an_additional_account">Can an existing Steem user create an additional account?</span>
+
+Creating a new account on the Steem blockchain requires either spending STEEM directly or using an Account Creation Token (ACT). When an account is created with STEEM, the cost is determined by the current account creation fee, which is set through witness consensus. When an ACT is used instead, the fee is not paid at creation time, as the token is consumed in its place, making it a more efficient option for accounts that have previously claimed or accumulated ACTs. Because ACTs must be claimed in advance, they effectively shift the resource cost away from the moment of account creation and into a prior operation.
+
+ACTs are not issued automatically and must be claimed manually by an account with sufficient Resource Credits (RC) or STEEM. Once claimed, they can be stored indefinitely and used at any later time to create new accounts without needing to pay the creation fee again at that moment. This introduces flexibility in account provisioning, especially for workflows that require batching or delayed execution.
+
+At the time of account creation, the full authority structure must be defined, including owner, active, posting, and memo keys, each corresponding to a specific permission level within the account. Following creation, the network assigns a small delegation of STEEM Power to the new account, which provides the initial Resource Credits required to perform basic operations. This ensures that newly created accounts can begin interacting with the network immediately without first needing to acquire STEEM.
+
+<a href="#Table_of_Contents_Accounts">^</a>
+## <span id="How_can_a_user_claim_Account_Creation_Token">How can a user claim Account Creation Token (ACT)?</span>
+
+An Account Creation Token (ACT) is a claimable resource on the Steem blockchain that gives an account the right to create a new account at a later time instead of doing it immediately. ACTs can be obtained in two ways, either by consuming Resource Credits (RC) or by paying STEEM directly. When claiming through RC, a portion of your available RC is used, and this RC regenerates over time based on your STEEM Power, which makes this method effectively free in terms of liquid tokens but dependent on having enough RC available. The second option is to pay the account creation fee in STEEM, which is determined by witness consensus, allowing immediate account creation without relying on RC. The main advantage of ACTs is flexibility, since once claimed, they can be stored and used at any time, allowing accounts to accumulate multiple tokens and create new accounts when needed without worrying about RC availability at that moment. However, claiming ACTs through RC still requires a significant amount of RC upfront, so accounts with low STEEM Power may need to wait for their RC to regenerate or increase their stake before they are able to claim them.
 
 <a href="#Table_of_Contents_Accounts">^</a>
 ## <span id="Can_I_change_my_username">Can I change my username?</span>
@@ -635,21 +672,29 @@ Out of the new tokens that are generated:
 
 STEEM and SBD are listed on the following exchanges:
 
-| Exchange        | STEEM           | SBD  |
-| ------------- |:-------------:| -----:|
-| [Binance](https://www.binance.com/)      | Y | N |
-| [Bithumb](https://www.bithumb.com/)  | Y | N |
-| [BitShares](https://wallet.bitshares.org/)      | Y      |   Y |
-| [Bittrex](https://bittrex.com) | Y      |    Y |
-| [Changelly](https://changelly.com) | Y      |    N |
-| [GOBADA](https://www.gobaba.com/)  | Y | N |
-| [HitBTC](https://hitbtc.com/) | Y      |    Y |
-| [Huobi](https://www.huobi.pro/)  | Y | N |
-| [LocalBitcoinCash](https://www.localbitcoincash.org/)  | Y | N |
-| [Poloniex](https://poloniex.com) | Y      |    Y |
-| [Shapeshift.io](https://shapeshift.io) | Y      |    N |
-| [UpBit](https://upbit.com/) | Y      |    Y |
-| [Yensesa](https://yensesa.com) | Y      |    Y |
+| #  | Exchange      | Supported Tokens | Link |
+|----|---------------|------------------|------|
+| 1  | HTX (Huobi)   | STEEM / **SBD**  | [htx.com](https://www.htx.com/) |
+| 2  | Poloniex      | STEEM            | [poloniex.com](https://poloniex.com/) |
+| 3  | CoinUp.io     | STEEM            | [coinup.io](https://coinup.io/) |
+| 4  | MEXC          | STEEM            | [mexc.com](https://www.mexc.com/) |
+| 5  | Binance       | STEEM            | [binance.com](https://www.binance.com/) |
+| 6  | WhiteBIT      | STEEM            | [whitebit.com](https://whitebit.com/) |
+| 7  | Upbit         | STEEM            | [upbit.com](https://upbit.com/) |
+| 8  | BitKan        | STEEM            | [bitkan.com](https://bitkan.com/) |
+| 9  | Bithumb       | STEEM            | [bithumb.com](https://www.bithumb.com/) |
+| 10 | WEEX          | STEEM            | [weex.com](https://www.weex.com/) |
+| 11 | Gate          | STEEM            | [gate.io](https://www.gate.io/) |
+| 12 | Koinbay       | STEEM            | [koinbay.com](https://koinbay.com/) |
+| 13 | Bitexen       | STEEM            | [bitexen.com](https://www.bitexen.com/) |
+| 14 | ZKE           | STEEM            | [zkex.com](https://www.zke.com/) |
+| 15 | DigiFinex     | STEEM            | [digifinex.com](https://www.digifinex.com/) |
+| 16 | ProBit Global | STEEM            | [probit.com](https://www.probit.com/) |
+| 17 | CoinEx        | STEEM            | [coinex.com](https://www.coinex.com/) |
+| 18 | ChangeNOW     | STEEM            | [changenow.io](https://changenow.io/) |
+| 19 | CoinDCX       | STEEM            | [coindcx.com](https://coindcx.com/) |
+| 20 | ONUS Pro      | STEEM            | [onus.pro](https://goonus.io/) |
+| 21 | Pionex        | STEEM            | [pionex.com](https://www.pionex.com/) |
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="What_is_the_reward_pool">What is the reward pool?</span>
@@ -721,25 +766,18 @@ The price of STEEM is based on the supply and demand of the token, as determined
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="How_do_I_get_more_STEEM_Power">How do I get more Steem Power?</span>
 
-With STEEM tokens in your wallet, click "Power Up" to turn them into Steem Power. If you have Steem Dollars, you can convert them to STEEM from your wallet, and then power up the STEEM.
+With **STEEM tokens** in your wallet, you can click **“Power Up”** to convert them into **Steem Power**.  
+If you hold **Steem Dollars (SBD)**, you may first convert them into **STEEM** within your wallet and then power up the STEEM, or alternatively, you can directly purchase STEEM through the internal market. If you do not already have STEEM or Steem Dollars in your wallet, they can be obtained from the exchanges that support these tokens.
 
-If you don’t already have STEEM or Steem Dollars in your wallet, you can purchase them using bitcoin (BTC), Ether (ETH), Litecoin (LTC), or BitShares (BTS) tokens. You may purchase BTC on various exchanges, such as Coinbase.com or Localbitcoins.com.
+Bitcoin can also be exchanged for **STEEM** on external markets such as [Binance](https://www.binance.com/), [Upbit](https://upbit.com/), [CoinEx](https://www.coinex.com/), [Poloniex](https://poloniex.com/), and [ChangeNOW](https://changenow.io/).
 
-To buy:
-- Click "Buy Steem" from the main menu in the top right corner of steemit.com, or from your wallet.
-- Select the currency to deposit, and enter the amount of that currency you wish to use.
-- Enter your Steemit account name (without the @) for "Your receive address".
-- Click the "Get Deposit Address" button.
-- Send the currency to the provided address.
-
-bitcoin can also be exchanged for STEEM on external markets such as [Binance](https://www.binance.com/), [Bithumb](https://www.bithumb.com/), [BitShares](https://wallet.bitshares.org/), [Bittrex](https://bittrex.com), [Changelly](https://changelly.com), [GOBADA](https://www.gobaba.com/), [HitBTC](https://hitbtc.com/), [Huobi](https://www.huobi.pro/), [LocalBitcoinCash](https://www.localbitcoincash.org/), [Poloniex](https://poloniex.com), [Shapeshift.io](https://shapeshift.io), [UpBit](https://upbit.com/), and [Yensesa](https://yensesa.com).
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="How_long_does_it_take_STEEM_or_STEEM_Power_that_I_purchased_to_show_up_in_my_account">How long does it take STEEM or Steem Power that I purchased to show up in my account?</span>
 
 Transactions on the Steem blockchain typically only take about three seconds to process, but when you are purchasing the STEEM tokens using bitcoin or some other token, then the transaction must wait for the transaction to be confirmed on the other network. This can take several hours, and sometimes even days.    
 
-If you paid using bitcoin, the third party website <a href="https://bitcoinfees.21.co/">bitcoinfees.21.co</a> can estimate the approximate wait time of the transaction based on the fees that were paid. The third party website <a href="https://blockchain.info/">blockchain.info</a> will lookup the fees that were paid on a specific blockchain transaction.
+If you paid using bitcoin, the third party website <a href="https://btc.network/estimate">btc.network</a> can estimate the approximate wait time of the transaction based on the fees that were paid. The third party website <a href="https://blockchain.info/">blockchain.info</a> will lookup the fees that were paid on a specific blockchain transaction.
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="What_is_powering_up_and_down">What is powering up and down?</span>
@@ -747,6 +785,13 @@ If you paid using bitcoin, the third party website <a href="https://bitcoinfees.
 **Powering up** - If you have STEEM tokens, you can Power Up to Steem Power to get more voting influence on posts and comments. Having more Steem Power also increases the amount of curation rewards and new vested tokens that you can earn. More SP also grants more influence on approving Steem witnesses.
 
 **Powering down** - If you have Steem Power, you can power down to turn it into liquid STEEM over a period of time. The system will transfer 1/4 of your Steem Power to STEEM each week for about one month (4 weeks), starting 1 week from the time it is started. However, you will lose your influence in the network proportionally to how much is powered down, so think about it carefully. Power downs can be stopped at any time.
+
+<a href="#Table_of_Contents_Economics">^</a>
+## <span id="What_is_a_withdraw_route">What is a withdraw route?</span>
+
+A withdraw route on Steem is simply an instruction on your Steem account that tells the blockchain where your weekly power down payouts should go. When Steem Power (SP) is powered down, the withdrawn amount is divided according to the configured routes, if they exist, and each destination may receive either liquid STEEM or additional SP via automatic power up. Users can also remove routes at any time, regardless of whether the power down process is in progress.
+
+The number of permissible routes is defined by the blockchain. The account holder can allocate up to a total of 100% across all routes. If the configured routes sum to 100%, the entire payout is redirected to designated recipients; if the sum is below 100%, the remaining percentage normally returns to the owner’s account as STEEM, unless specified otherwise.
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="What_do_the_dollar_amounts_for_pending_payouts_represent">What do the dollar amounts for pending payouts represent?</span>
@@ -809,15 +854,6 @@ It is recommended that you withdraw a small amount first, to verify it works bef
 
 #### Sell Steem Dollars via Poloniex
 https://steemit.com/steemit/@ash/steemit-how-to-sell-steem-dollars-via-poloniex-newbie-friendly
-
-#### Withdraw Steem Dollars to a Bitcoin address
-https://steemit.com/steem-help/@piedpiper/how-to-withdraw-your-steem-dollars-in-less-that-a-minute
-
-#### Convert Steem Dollars to a country’s currency and withdraw to a bank account
-https://steemit.com/tutorial/@beanz/how-to-get-my-usdteemit-money-into-my-bank-account
-
-#### Convert STEEM to many other cryptocurrencies via ShapeShift
-https://steemit.com/steemit/@shapeshiftio/official-announcement-shapeshift-has-added-steem-to-the-exchange
 
 <a href="#Table_of_Contents_Economics">^</a>
 ## <span id="Will_I_get_a_1099_from_Steemit">Will I get a 1099 from Steemit?</span>
@@ -1049,7 +1085,6 @@ Normally everyone's bandwidth allowance is quite high, and users are able to use
 You can check how much bandwidth you currently have based on the current limit at:
 https://steemdb.io/@youraccount
 
-
 If users are below their bandwidth limit, they will be unable to transact with the blockchain until their bandwidth recharges or their limit is raised.
 
 If you get an error that you have exceeded your bandwidth allowance, it is normally best to just wait and try again later (when it is less busy). Usually if you wait and try again later, the transaction will likley go through.
@@ -1088,7 +1123,6 @@ The Steem blockchain schedules witnesses to produce a new block every 3 seconds.
 ## <span id="Is_there_a_way_to_see_the_raw_data_that_is_stored_in_the_blockchain">Is there a way to see the raw data that is stored in the blockchain?</span>
 
 Yes. The blockchain data can be viewed in different ways with third-party tools such as <a href="https://steemdb.io/">steemdb.io</a>
-
 
 <a href="#Table_of_Contents_Blockchain">^</a>
 ## <span id="Where_can_I_find_the_information_for_the_official_launch_of_the_blockchain">Where can I find the information for the official launch of the blockchain?</span>
@@ -1164,6 +1198,23 @@ The password has to be long and random for maximum account security.
 **Memo key** - Currently the memo key is not used.
 
 **Owner key** - The owner key is only meant for use when necessary. It is the most powerful key because it can change any key of an account, including the owner key. Ideally it is meant to be stored offline, and only used to recover a compromised account.
+
+<a href="#Table_of_Contents_Security">^</a>
+## <span id="What_are_key_pairs_and_why_do_I_need_them">What are key pairs and why do I need them?</span>
+
+Key pairs are the foundation of account security on the Steem blockchain. Each key pair consists of a public key, which is stored on the blockchain and visible to everyone, and a private key, which must remain secret and must never be shared. Key pairs are generated when creating a new account, rotating keys for security purposes, or during an account recovery process. Every authority level on a Steem account, namely owner, active, posting, and memo, has its own separate key pair, ensuring that permissions are isolated so that access to one level does not automatically grant access to others. It is strongly recommended to generate keys in a secure, preferably offline environment and to store private keys safely immediately after generation. Losing a private key without a backup, especially the owner key, can result in permanent and unrecoverable loss of access to the account.
+
+<a href="#Table_of_Contents_Security">^</a>
+## <span id="What_are_account_authorities_and_how_do_multisignature_settings_work">What are account authorities, and how do multisignature settings work?</span>
+
+Account authority management defines who can act on behalf of an account on the Steem blockchain and at what level of permission. The system is structured around three primary authority tiers, each with a clearly scoped set of capabilities.
+The owner authority is the highest level and has complete control over the account, including the ability to modify all other authorities and keys. Because of its critical role, it should be stored offline and only used in exceptional cases such as account recovery or key rotation.
+
+The active authority is intended for financial and governance operations, including transferring funds, interacting with the internal market, and voting for witnesses. It represents operational control of the account and must be secured carefully while still remaining accessible for legitimate use.
+
+The posting authority is the lowest level and is limited to social interactions such as publishing content, voting, and following other accounts. This level is designed for frequent use and can be safely delegated to applications without exposing sensitive financial or ownership permissions.
+
+Each authority level supports flexible configuration through weighted keys and accounts. Individual keys or accounts can be assigned a weight, and a threshold can be defined so that a specific combination of signatures is required to authorize an action. This enables multisignature setups, improving security and allowing shared control, which is especially useful for organizational accounts or scenarios where no single party should have full unilateral access.
 
 <a href="#Table_of_Contents_Security">^</a>
 ## <span id="What_do_I_do_if_I_lost_my_password_keys">What do I do if I lost my password/keys?</span>
@@ -1257,7 +1308,67 @@ The Steem blockchain requires a set of people to create blocks and uses a consen
 <a href="#Table_of_Contents_Witnesses">^</a>
 ## <span id="How_can_I_vote_for_witnesses">How can I vote for witnesses?</span>
 
-Visit https://steemit.com/~witnesses.
+Visit https://steemitwallet.com/~witnesses, or https://steemitwallet.com/@youraccount/witnesses.
+
+<a href="#Table_of_Contents_Witnesses">^</a>
+## <span id="How_do_I_register_or_update_a_witness">How do I register or update a witness?</span>
+
+Registering as a witness on the Steem blockchain requires supplying a signing key, which is the public key used by the node to sign produced blocks, along with a set of chain parameters that represent the witness’s vote on core network configuration.
+
+These parameters include the account creation fee, which sets the minimum STEEM required to create a new account; the maximum block size, which defines the upper bound of data allowed per block and directly affects network throughput; and the SBD interest rate, which determines the annual yield paid to holders of SBD, expressed in basis points.
+These values are not applied per witness individually. Instead, the protocol calculates the median value across all active witnesses for each parameter and applies that result as the live network configuration. This design ensures that no single witness can unilaterally control network rules, while still allowing collective influence through distributed voting. As a result, witness parameter choices directly shape consensus-level behavior, making them a core part of governance responsibility.
+
+Beyond parameter voting, witnesses are also responsible for maintaining reliable infrastructure capable of producing blocks consistently. This includes running a properly configured node with sufficient CPU, RAM, disk performance, and network bandwidth, as well as implementing redundancy, monitoring, and failover mechanisms to minimize downtime. Poor infrastructure or misconfiguration can lead to missed blocks, which directly impacts network performance and reliability.
+Witnesses are therefore expected to keep both their parameter votes and their infrastructure aligned with current network conditions, balancing performance, stability, and economic incentives. Existing witnesses can update their signing key at any time for security rotation and can also adjust their parameter votes whenever infrastructure changes or policy decisions require updates.
+
+<a href="#Table_of_Contents_Witnesses">^</a>
+## <span id="What_is_a_brain_key_and_how_do_I_generate_one">What is a brain key and how do I generate one?</span>
+
+A brain key is a long, human readable passphrase composed of random words that acts as a root secret from which cryptographic keys are deterministically derived on the Steem blockchain. Witnesses can use a brain key sequence to generate a secure signing key for their node, providing a recoverable and portable alternative to storing raw private keys directly, while still maintaining strong cryptographic security when generated properly.
+
+The witness signing key is a dedicated cryptographic key used exclusively for signing blocks produced by the node. Its scope is intentionally restricted and it cannot be used to transfer funds, modify account authorities, or perform any financial operations. This strict separation enforces a clear security boundary within the account model, ensuring that operational keys used in infrastructure do not overlap with keys that control ownership or funds. As a result, even if a signing key is compromised, it does not grant access to account balances or higher level authority keys, preserving the integrity and security of the account.
+
+It is critical that a signing key is used by only one active witness node at a time. Reusing the same signing key across multiple nodes or witnesses concurrently can lead to double signing, where two different blocks are produced for the same slot. This is considered a serious protocol violation and can damage network trust, potentially leading to penalties such as loss of reputation or removal from witness rankings. Proper key management and ensuring a single authoritative node per signing key are essential to avoid this scenario.
+
+<a href="#Table_of_Contents_Witnesses">^</a>
+## <span id="What_is_a_witness_price_feed_and_why_does_it_matter">What is a witness price feed and why does it matter?</span>
+
+Witnesses on the Steem blockchain are responsible for publishing a price feed that represents the current market value of STEEM and SBD. These feeds are submitted at regular intervals and form a core part of the network’s economic infrastructure.
+
+For each update cycle, the network collects price feeds from the 21 active witnesses and calculates the median value. This median is used to reduce the influence of outliers and ensure that no single witness can distort the reference price. The resulting values are then stored in a rolling feed history window of approximately 3.5 days, creating a continuously updated dataset of recent market conditions.
+
+Rather than relying on only the latest submitted value, the protocol derives its official reference price from the median of this entire history window. This design produces a more stable and manipulation-resistant price signal by smoothing short-term volatility and filtering irregular spikes or outdated feeds.
+
+<a href="#Table_of_Contents_Witnesses">^</a>
+## <span id="How_do_I_enable_or_disable_a_witness_node">How do I enable or disable a witness node?</span>
+
+On the Steem blockchain, enabling or disabling a witness node is done by updating the witness configuration, specifically the signing. When a witness is enabled, it signals that the node is online, correctly configured, and ready to participate in block production. Enabled witnesses are included in the active scheduling set and are expected to produce blocks reliably according to the network’s rotation.
+
+To disable a witness, the operator typically updates the witness configuration by removing or replacing the signing key with a null or “kill” key. This effectively prevents the node from signing blocks and removes the witness from the active production schedule. Disabling is commonly performed during maintenance, infrastructure changes, or when stepping away from consensus participation.
+
+To re-enable a witness, a valid signing key must be set again, and the node must be fully synchronized, stable, and ready to produce blocks. This ensures the witness can safely rejoin the schedule without causing missed blocks or inconsistencies.
+
+Maintaining correct enabled status is critical for network reliability. A witness should only remain enabled when the underlying infrastructure is stable and properly monitored, including sufficient hardware resources, network connectivity, and failover mechanisms. Leaving a witness enabled without adequate infrastructure can lead to missed blocks, which negatively impacts chain performance and overall network stability.
+
+<a href="#Table_of_Contents_Witnesses">^</a>
+## <span id="What_is_a_governance_proxy_and_how_does_it_work">What is a governance proxy and how does it work?</span>
+
+A proxy allows an account on the Steem blockchain to delegate its governance influence to another trusted account. When a proxy is configured, all witness votes and proposal votes are exercised by the proxy account, meaning the delegating account’s stake is applied according to the proxy’s decisions without transferring any funds or ownership. This effectively shifts governance control while leaving asset custody unchanged.
+
+This mechanism is particularly useful for accounts that are not actively involved in governance but still want their stake to contribute through a trusted representative. It is also widely used by exchanges, custodial services, and other operational accounts that prefer to remain neutral while ensuring their voting power is not left idle.
+
+Setting a proxy overrides any witness or proposal votes previously submitted by the account, as governance control is fully delegated to the proxy. If the proxy is later removed, direct control is restored; however, previous voting preferences are not retained, requiring the account to manually resubmit its witness and proposal votes.
+
+<a href="#Table_of_Contents_Witnesses">^</a>
+## <span id="What_does_declining_voting_rights_mean_and_is_it_reversible">What does declining voting rights mean, and is it reversible?</span>
+
+Declining voting rights is a permanent and irreversible operation on the Steem blockchain that removes an account’s ability to vote on content, participate in curation, and engage in governance activities such as witness or proposal voting. Once this operation is finalized, it cannot be reversed under any circumstances, permanently eliminating the account’s influence over rewards distribution and consensus.
+
+This feature was originally proposed by Dan Larimer in Steem Improvement Proposal #324 on GitHub and was implemented as part of Hardfork 14. Its primary objective was to allow large stakeholders to make a verifiable and enforceable commitment that their stake would not be used to influence governance or content allocation. More broadly, it provides a mechanism for any account that wishes to avoid the political, legal, or reputational implications associated with holding significant voting power.
+
+The operation includes a thirty-day delay before taking effect. This delay serves as a critical safeguard, providing a recovery window in case the action was triggered by a compromised account and ensuring that voting rights are not permanently removed without an opportunity for intervention.
+
+This option can typically be used by infrastructure operators, custodial services, exchanges, or neutral entities that aim to clearly separate themselves from governance participation. Given its permanent nature, it should be approached with careful consideration, as the decision cannot be reversed once executed.
 
 <a href="#Table_of_Contents_Witnesses">^</a>
 ## <span id="How_many_witnesses_can_I_vote_for">How many witnesses can I vote for?</span>
@@ -1279,7 +1390,7 @@ The SPS (DAO) is funded by 10% of the annual token inflation. These funds are he
 <a href="#Table_of_Contents_Proposals">^</a>
 ## <span id="How_to_create_or_cancel_a_proposal">How to create or cancel a proposal?</span>
 
-To submit a proposal to the Steem DAO, community members must complete the official form available through the <a href="https://steemitwallet.com/proposals">Steemit Wallet</a> interface. Required fields include the proposal title, daily requested amount in SBD, start and end dates, a valid proposal permlink (linking to a post that outlines the proposal), the creator’s username, and the intended receiver’s username.
+To submit a proposal to the Steem DAO, community members must complete the official form available through the <a href="https://steemitwallet.com/proposals">Steemit Wallet</a> interface or their <a href="https://steemitwallet.com/@youraccount/proposals">account dashboard</a>. The required fields include the proposal title, the daily requested amount in SBD, the start and end dates, a valid proposal permlink (linking to the post that outlines the proposal), the creator’s username, and the intended receiver’s username.
 
 Proposal creation is subject to a submission fee. The exact amount is defined by the blockchain protocol and is displayed during the proposal creation process. Once submitted, the proposal becomes active and open for voting by Steem Power holders.
 
@@ -1306,14 +1417,13 @@ No. Once submitted to the DAO, a proposal cannot be edited or updated. It can on
 <a href="#Table_of_Contents_Proposals">^</a>
 ## <span id="Where_can_community_members_view_active_proposals">Where can community members view active proposals?</span>
 
-Active and votable proposals can be viewed on the official <a href="https://steemitwallet.com/proposals">Steemit Wallet</a> interface.
+Active and votable proposals can be viewed on the official <a href="https://steemitwallet.com/proposals">Steemit Wallet</a> interface or on an account’s <a href="https://steemitwallet.com/@youraccount/proposals">dashboard</a>.
 
 
 <a href="#Table_of_Contents_Witnesses">^</a>
 # Miscellaneous
 
 ## <span id="What_third_party_tools_are_there_for_Steemit">What third-party tools are there for Steemit?</span>
-
 
 <a href="#Table_of_Contents_Miscellaneous">^</a>
 ## <span id="Is_there_an_official_Steemit_Facebook_page">Is there an official Steemit Facebook page?</span>
@@ -1344,7 +1454,7 @@ https://steem.io/SteemWhitePaper.pdf
 
 ## <span id="Third_Party_References_and_User_Links">Third Party References and User Links</span>
 
-Binance, bitcoinfees, Bitcointalk, Bithumb, BitShares, Bittrex, blockchain.info, Busy.org, Changelly, @cheetah, Coinbase, DTube, GOBADA, HitBTC, Huobi, LocalBitcoinCash, Localbitcoins, Markdown Cheatsheet, Pexels, Pixabay, Poloniex, Postimage, Shapeshift.io, Steemcleaners, SteemCreate, steemd, SteemStats, The Steemit Shop, UpBit, Utopian.io, Vessel, and Yensesa are third party applications/services, and are not owned or maintained by Steemit, Inc. Their listing here, as well as any other third party applications or websites that are listed, does not constitute and endorsement or recommendation on behalf of Steemit, Inc.
+Binance, bitcoinfees, Bitcointalk, Bithumb, blockchain.info, DTube, Huobi (HTX), Markdown Cheatsheet, Pexels, Pixabay, Poloniex, Postimage, SteemCreate, SteemStats, UpBit, Vessel, WhiteBIT, MEXC, Gate, WEEX, BitKan, DigiFinex, CoinEx, ProBit Global, ChangeNOW, CoinDCX, Bitexen, ZKE, CoinUp.io, ONUS Pro, Koinbay, Pionex, SteemPro, SteemX, Boy, UPVU, as well as other third-party applications and services, are not owned or maintained by Steemit, Inc. Their listing here, as well as any other third-party applications or websites that are referenced, does not constitute an endorsement or recommendation on behalf of Steemit, Inc.
 
 All links to user posts were created by our users and do not necessarily represent the views of Steemit, Inc. or its management. Their listing here does not constitute and endorsement or recommendation on behalf of Steemit, Inc.
 

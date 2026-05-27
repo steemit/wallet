@@ -11,8 +11,10 @@ import {
     preBroadcast_transfer,
     transactionWatches,
     broadcastOperation,
+    broadcastOperations,
     updateAuthorities,
-    updatePricesSaga
+    updatePricesSaga,
+    refreshAccountWitnessVotes
 } from './TransactionSaga';
 import { DEBT_TICKER } from 'app/client_config';
 
@@ -53,6 +55,10 @@ describe('TransactionSaga', () => {
                     broadcastOperation
                 ),
                 takeEvery(
+                    transactionActions.BROADCAST_OPERATIONS,
+                    broadcastOperations
+                ),
+                takeEvery(
                     transactionActions.UPDATE_AUTHORITIES,
                     updateAuthorities
                 ),
@@ -61,6 +67,7 @@ describe('TransactionSaga', () => {
                     transactionActions.UPDATE_PRICES,
                     updatePricesSaga
                 ),
+                takeEvery(transactionActions.FETCH_ACCOUNT_WITNESS_VOTES, refreshAccountWitnessVotes),
             ]);
         });
     });

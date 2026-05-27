@@ -45,6 +45,22 @@ export default class Proposal extends React.Component {
         this.setState({ show_remove_proposal_modal: show });
     };
 
+    isNonEmptyString = (v) => {
+        return typeof v === 'string' && v.trim().length > 0;
+    }
+
+    isSameAccount= (a, b) => {
+        try {
+            return (
+                this.isNonEmptyString(a) &&
+                this.isNonEmptyString(b) &&
+                a.trim().toLowerCase() === b.trim().toLowerCase()
+            );
+        } catch (error) {
+            return false;
+        }
+    }
+
     render() {
         const {
             id,
@@ -66,7 +82,10 @@ export default class Proposal extends React.Component {
             triggerModal,
             getNewId,
             paid_proposals,
+            walletSectionAccount,
         } = this.props;
+
+        const canChangeVote = !walletSectionAccount || this.isSameAccount(currentUser, walletSectionAccount);
 
         const { show_remove_proposal_modal } = this.state;
         let isMyAccount;
@@ -190,14 +209,34 @@ export default class Proposal extends React.Component {
                     >
                         {abbreviateNumber(votesToSP)}
                     </div>
-                    <span onClick={onVote} tabIndex={0} role="button">
+                    {canChangeVote ? (<span
+                        onClick={onVote}
+                        tabIndex={0}
+                        role="button"
+                        className="vote-btn"
+                        aria-disabled={!canChangeVote}
+                        style={!canChangeVote ? { cursor: 'not-allowed', opacity: 0.6 } : {}}
+                    >
                         <span className={classUp}>
                             <Icon
                                 name={isVoting ? 'empty' : 'chevron-up-circle'}
                                 className="upvote"
                             />
                         </span>
-                    </span>
+                    </span>) : (<span
+                        tabIndex={0}
+                        role="button"
+                        className="vote-btn"
+                        aria-disabled={!canChangeVote}
+                        style={!canChangeVote ? { cursor: 'not-allowed', opacity: 0.6 } : {}}
+                    >
+                        <span className={classUp}>
+                            <Icon
+                                name={isVoting ? 'empty' : 'chevron-up-circle'}
+                                className="upvote"
+                            />
+                        </span>
+                    </span>)}
                     {isMyAccount && (
                         <div
                             tabIndex={0}

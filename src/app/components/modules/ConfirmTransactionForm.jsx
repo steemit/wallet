@@ -14,6 +14,7 @@ class ConfirmTransactionForm extends Component {
         checkbox: PropTypes.string,
         // redux-form
         confirm: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
+        confirmTitle: PropTypes.string,
         confirmBroadcastOperation: PropTypes.object,
         confirmErrorCallback: PropTypes.func,
         okClick: PropTypes.func,
@@ -49,6 +50,7 @@ class ConfirmTransactionForm extends Component {
         const { onCancel, okClick, onCheckbox } = this;
         const {
             confirm,
+            confirmTitle,
             confirmBroadcastOperation,
             warning,
             checkbox,
@@ -57,7 +59,7 @@ class ConfirmTransactionForm extends Component {
         const conf = typeof confirm === 'function' ? confirm() : confirm;
         return (
             <div className="ConfirmTransactionForm">
-                <h4>{typeName(confirmBroadcastOperation)}</h4>
+                <h4>{confirmTitle || typeName(confirmBroadcastOperation)}</h4>
                 <hr />
                 <div>{conf}</div>
                 {warning ? (
@@ -154,12 +156,14 @@ export default connect(
             'confirmErrorCallback'
         );
         const confirm = state.transaction.get('confirm');
+        const confirmTitle = state.transaction.get('confirmTitle');
         const warning = state.transaction.get('warning');
         const checkbox = state.transaction.get('checkbox');
         return {
             confirmBroadcastOperation,
             confirmErrorCallback,
             confirm,
+            confirmTitle,
             warning,
             checkbox,
         };
@@ -168,11 +172,12 @@ export default connect(
     dispatch => ({
         okClick: confirmBroadcastOperation => {
             dispatch(transactionActions.hideConfirm());
-            dispatch(
-                transactionActions.broadcastOperation({
-                    ...confirmBroadcastOperation.toJS(),
-                })
-            );
+            const js = confirmBroadcastOperation.toJS();
+            if (js.operations) {
+                dispatch(transactionActions.broadcastOperations(js));
+            } else {
+                dispatch(transactionActions.broadcastOperation(js));
+            }
         },
     })
 )(ConfirmTransactionForm);

@@ -7,6 +7,7 @@ import tt from 'counterpart';
 const CONFIRM_OPERATION = 'transaction/CONFIRM_OPERATION';
 const HIDE_CONFIRM = 'transaction/HIDE_CONFIRM';
 export const BROADCAST_OPERATION = 'transaction/BROADCAST_OPERATION';
+export const BROADCAST_OPERATIONS = 'transaction/BROADCAST_OPERATIONS';
 export const UPDATE_AUTHORITIES = 'transaction/UPDATE_AUTHORITIES';
 const ERROR = 'transaction/ERROR'; // Has a watcher in SagaShared
 const DELETE_ERROR = 'transaction/DELETE_ERROR';
@@ -19,6 +20,7 @@ export const UPDATE_PRICES = 'transaction/UPDATE_PRICES';
 export const SET_PRICES = 'transaction/SET_PRICES';
 // Saga-related
 export const RECOVER_ACCOUNT = 'transaction/RECOVER_ACCOUNT';
+export const FETCH_ACCOUNT_WITNESS_VOTES = 'transaction/FETCH_ACCOUNT_WITNESS_VOTES';
 const defaultState = fromJS({
     operations: [],
     status: { key: '', error: false, busy: false },
@@ -43,11 +45,13 @@ export default function reducer(state = defaultState, action) {
             const operation = fromJS(payload.operation);
             const confirm = payload.confirm;
             const warning = payload.warning;
+            const confirmTitle = payload.confirmTitle;
             return state.merge({
                 show_confirm_modal: true,
                 confirmBroadcastOperation: operation,
                 confirmErrorCallback: payload.errorCallback,
                 confirm,
+                confirmTitle,
                 warning,
             });
         }
@@ -57,9 +61,14 @@ export default function reducer(state = defaultState, action) {
                 show_confirm_modal: false,
                 confirmBroadcastOperation: undefined,
                 confirm: undefined,
+                confirmTitle: undefined,
             });
 
         case BROADCAST_OPERATION:
+            // See TransactionSaga.js
+            return state;
+
+        case BROADCAST_OPERATIONS:
             // See TransactionSaga.js
             return state;
 
@@ -219,6 +228,11 @@ export const broadcastOperation = payload => ({
     payload,
 });
 
+export const broadcastOperations = payload => ({
+    type: BROADCAST_OPERATIONS,
+    payload,
+});
+
 export const updateAuthorities = payload => ({
     type: UPDATE_AUTHORITIES,
     payload,
@@ -269,5 +283,10 @@ export const updatePrices = () => ({
 
 export const setPrices = payload => ({
     type: SET_PRICES,
+    payload,
+});
+
+export const fetchAccountWitnessVotes = payload => ({
+    type: FETCH_ACCOUNT_WITNESS_VOTES,
     payload,
 });

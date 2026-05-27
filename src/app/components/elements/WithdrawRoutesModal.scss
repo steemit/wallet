@@ -1,0 +1,57 @@
+.ContainerModal__content,
+.ContainerModal__content--night {
+  position: absolute;
+  min-width: 300px;
+  box-shadow: 2px 2px 2px 0 rgba(0, 0, 0, 0.1), 7px 7px 0 0 #06D6A9;
+  border-radius: 0;
+  border: transparent;
+  transition: 0.2s all ease-in-out;
+  min-height: 500px;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -45%);
+  overflow-y: auto;
+  background-color: #ffffff;
+  color: #000000;
+  padding: 1rem;
+  margin-top: .5rem;
+}
+
+.ContainerModal__content .header,
+.ContainerModal__content--night {
+  max-width: 75rem;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.ContainerModal__content--night {
+  background-color: #2c3136;
+  color: #ffffff;
+}
+
+@media screen and (max-width: 39.9375em) {
+  .reveal {
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    min-height: 100vh;
+    margin-left: 0;
+  }
+}
+
+@media print,
+screen and (min-width: 40em) {
+  .ContainerModal__content {
+    width: 600px;
+    max-width: 75rem;
+  }
+}
+
+@media print,
+screen and (min-width: 1000px) {
+  .ContainerModal__content {
+    width: 680px;
+  }
+}

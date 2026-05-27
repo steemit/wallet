@@ -88,6 +88,7 @@ class ProposalContainer extends React.Component {
                 total_vesting_shares={total_vesting_shares}
                 total_vesting_fund_steem={total_vesting_fund_steem}
                 currentUser={this.props.currentUser}
+                walletSectionAccount={this.props.walletSectionAccount}
                 isUpVoted={this.state.isUpVoted}
                 removeProposalById={this.props.removeProposalById}
                 paid_proposals={this.props.paid_proposals}

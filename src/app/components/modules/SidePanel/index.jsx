@@ -139,21 +139,11 @@ const SidePanel = ({
             //     label: tt('navigation.chat'),
             //     link: 'https://steem.chat/home',
             // },
-            {
-                value: 'jobs',
-                label: tt('navigation.jobs'),
-                link: 'https://jobs.lever.co/steemit',
-            },
             // {
             //     value: 'tools',
             //     label: tt('navigation.app_center'),
             //     link: 'https://steemprojects.com/',
             // },
-            {
-                value: 'business',
-                label: tt('navigation.business_center'),
-                link: 'https://steemeconomy.com/',
-            },
             {
                 value: 'api_docs',
                 label: tt('navigation.api_docs'),

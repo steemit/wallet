@@ -319,14 +319,12 @@ class OutgoingDelegations extends React.Component {
                             type="text"
                             id="delegatee"
                             name="delegatee"
+                            placeholder={tt(
+                                'outgoingdelegations_jsx.filters.search_delegatee'
+                            )}
                             value={delegatee}
                             onChange={this.handleFindAccounts}
                         />
-                        <label htmlFor="delegatee">
-                            {tt(
-                                'outgoingdelegations_jsx.filters.search_delegatee'
-                            )}
-                        </label>
                     </div>
                 </div>
                 <div className="OutgoingDelegations__table-container">

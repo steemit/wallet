@@ -15,6 +15,11 @@ export const postingOps = Set(
         .trim()
         .split(/,\s*/)
 );
+export const ownerOps = Set(
+    `decline_voting_rights, change_recovery_account`
+        .trim()
+        .split(/,\s*/)
+);
 
 export const authWatches = [
     takeEvery('user/ACCOUNT_AUTH_LOOKUP', accountAuthLookup),
@@ -129,6 +134,7 @@ function pubkeyThreshold({ pubkeys, authority }) {
 export function* findSigningKey({ opType, username, password }) {
     let authTypes;
     if (postingOps.has(opType)) authTypes = 'posting, active';
+    else if (ownerOps.has(opType)) authTypes = 'owner, active';
     else authTypes = 'active, owner';
     authTypes = authTypes.split(', ');
 

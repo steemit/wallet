@@ -72,6 +72,8 @@ class CurationRewards extends React.Component {
             .map((item, index) => {
                 // Filter out rewards
                 if (item[1].op[0] === 'curation_reward') {
+                    const trx_id = item[1].trx_id
+                    const block_id = item[1].block
                     if (!finalDate) {
                         finalDate = new Date(item[1].timestamp).getTime();
                     }
@@ -88,6 +90,8 @@ class CurationRewards extends React.Component {
                     totalRewards += vest;
                     return (
                         <TransferHistoryRow
+                            trx={trx_id}
+                            block={block_id}
                             key={index}
                             op={item}
                             context={account_name}

@@ -65,6 +65,8 @@ export function* fetchState(location_change_action) {
         url = url.replace(/\/permissions$/, '/transfers');
     if (url.indexOf('/password') !== -1)
         url = url.replace(/\/password$/, '/transfers');
+    if (url.indexOf('/steem_tools') !== -1)
+        url = url.replace(/\/steem_tools$/, '/transfers');
 
     yield put(appActions.fetchDataBegin());
     try {
