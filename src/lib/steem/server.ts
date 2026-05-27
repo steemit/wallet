@@ -91,6 +91,22 @@ export class SteemService {
   }
 
   /**
+   * Get owner key change history (condenser_api.get_owner_history).
+   */
+  static async getOwnerHistory(account: string): Promise<unknown[]> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        getOwnerHistoryAsync: (name: string) => Promise<unknown[]>;
+      };
+      return (await api.getOwnerHistoryAsync(account)) ?? [];
+    }).catch((error) => {
+      console.error('Error fetching owner history:', error);
+      throw new Error(`Failed to fetch owner history: ${(error as Error).message}`);
+    });
+  }
+
+  /**
    * Get account history
    */
   static async getAccountHistory(

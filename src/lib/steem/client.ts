@@ -769,6 +769,26 @@ export const apiClient = {
     const response = await fetch(`/api/query/history?${params.toString()}`);
     return response.json();
   },
+  async getOwnerHistory(
+    username: string
+  ): Promise<{ success?: boolean; history?: unknown[]; error?: string }> {
+    const response = await fetch(`/api/query/owner-history?username=${encodeURIComponent(username)}`);
+    return response.json();
+  },
+
+  async initiateAccountRecoveryWithEmail(payload: {
+    contact_email: string;
+    account_name: string;
+    owner_key: string;
+  }): Promise<{ status: 'ok' | 'duplicate' | 'error'; error?: string }> {
+    const response = await fetch('/api/recovery/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+
 
   /**
    * Get witnesses list

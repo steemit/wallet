@@ -1,5 +1,5 @@
-import { StaticPlaceholderPage } from '@/components/layout/static-placeholder-page';
+import { RecoverAccountStep1Page } from '@/components/wallet/recover-account-step-1-page';
 
 export default function RecoverAccountPage() {
-  return <StaticPlaceholderPage titleKey="navStolenAccountRecovery" />;
+  return <RecoverAccountStep1Page />;
 }
