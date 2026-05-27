@@ -463,6 +463,7 @@ export function ProposalsPageClient() {
       </Dialog>
 
       <ProposalCreatorDialog
+        key={`${createOpen ? 'open' : 'closed'}:${username ?? 'anon'}`}
         open={createOpen}
         onOpenChange={setCreateOpen}
         username={username}

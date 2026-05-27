@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
@@ -52,15 +52,8 @@ export function ProposalCreatorDialog({
   const [startDate, setStartDate] = useState(defaultDateTimeLocal);
   const [endDate, setEndDate] = useState(defaultDateTimeLocal);
   const [rawPermlink, setRawPermlink] = useState('');
-  const [creator, setCreator] = useState('');
-  const [receiver, setReceiver] = useState('');
-
-  useEffect(() => {
-    if (open && username) {
-      setCreator((c) => c || username);
-      setReceiver((r) => r || username);
-    }
-  }, [open, username]);
+  const [creator, setCreator] = useState(username ?? '');
+  const [receiver, setReceiver] = useState(username ?? '');
 
   const { permlink, parsedCreator } = useMemo(() => {
     const raw = rawPermlink.trim();

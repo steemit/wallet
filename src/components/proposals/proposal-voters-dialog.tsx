@@ -28,7 +28,9 @@ export function ProposalVotersDialog({ open, onOpenChange, proposalId }: Proposa
   useEffect(() => {
     if (!open || proposalId === null) return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setError(null);
     void fetch(`/api/query/proposals/votes?proposalId=${proposalId}`)
       .then((r) => r.json() as Promise<{ success?: boolean; voters?: VoterRow[]; error?: string }>)
