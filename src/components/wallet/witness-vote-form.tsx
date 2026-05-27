@@ -1,117 +1,210 @@
 'use client';
 
-import { useMemo, useState, useTransition, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
-import { useActiveSigningKey } from '@/hooks/use-auth';
+import { useActiveSigningKey, useAuth } from '@/hooks/use-auth';
 import { useAccountData } from '@/hooks/use-account-data';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import type { Witness } from '@/lib/steem/types';
+import { LoginForm } from '@/components/auth/login-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { transfersPathForUsername } from '@/lib/wallet/wallet-modal-search-params';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+function compareWitnessByVotes(a: Witness, b: Witness): number {
+  try {
+    const av = BigInt(a.votes ?? '0');
+    const bv = BigInt(b.votes ?? '0');
+    if (av > bv) return -1;
+    if (av < bv) return 1;
+    return a.owner.localeCompare(b.owner);
+  } catch {
+    return 0;
+  }
+}
+
+function formatWitnessRank(rank: number): string {
+  return rank < 10 ? `0${rank}` : String(rank);
+}
 
 export function WitnessVoteForm() {
-  const t = useTranslations('wallet');
+  const t = useTranslations('witnesses');
+  const tAuth = useTranslations('auth');
   const tCommon = useTranslations('common');
-  const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const username = useSelector((state: RootState) => state.auth.username);
   const signingKey = useActiveSigningKey();
-  const [isPending, startTransition] = useTransition();
+  const [isPending] = useTransition();
 
-  const { data: account } = useAccountData();
+  const { data: account, refetch: refetchAccount, loading: isAccountLoading } = useAccountData();
 
   const [witnesses, setWitnesses] = useState<Witness[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [customWitness, setCustomWitness] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedWitness, setSelectedWitness] = useState<Witness | null>(null);
-  const [action, setAction] = useState<'approve' | 'unapprove'>('approve');
+
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    | { type: 'vote'; witnessName: string; approve: boolean }
+    | { type: 'proxy'; proxy: string }
+    | null
+  >(null);
+
+  const [headBlock, setHeadBlock] = useState<number | null>(null);
+  const [proxyInput, setProxyInput] = useState('');
 
   // User's current witness votes
   const userVotes = account?.witness_votes || [];
+  const currentProxy = (account as unknown as { proxy?: string })?.proxy || '';
 
   useEffect(() => {
     const fetchWitnesses = async () => {
       setIsLoading(true);
       try {
-        const response = await apiClient.getWitnesses(100);
-        if (response.error) {
-          setError(response.error);
+        const [witnessesResp, propsResp] = await Promise.all([
+          apiClient.getWitnesses(100),
+          apiClient.getGlobalProps(),
+        ]);
+        if (witnessesResp.error) {
+          setError(witnessesResp.error);
           return;
         }
-        setWitnesses(response.witnesses as Witness[]);
+        setWitnesses((witnessesResp.witnesses ?? []) as Witness[]);
+        if (propsResp?.props?.head_block_number) {
+          setHeadBlock(propsResp.props.head_block_number);
+        }
       } catch (err) {
         console.error('Fetch witnesses error:', err);
-        setError('Failed to fetch witnesses');
+        setError(tCommon('error'));
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchWitnesses();
-  }, []);
+  }, [tCommon]);
 
-  const filteredWitnesses = useMemo(() => {
-    if (!searchQuery.trim()) return witnesses;
+  const sortedWitnesses = useMemo(
+    () => [...witnesses].sort(compareWitnessByVotes),
+    [witnesses]
+  );
 
-    const query = searchQuery.toLowerCase();
-    return witnesses.filter(
-      (w) => w.owner.toLowerCase().includes(query) || w.url?.toLowerCase().includes(query)
-    );
-  }, [searchQuery, witnesses]);
+  const topWitnessOwners = useMemo(
+    () => new Set(sortedWitnesses.map((w) => w.owner)),
+    [sortedWitnesses]
+  );
 
-  // Check if user has voted for a witness
-  const hasVoted = (witnessName: string): boolean => {
-    return userVotes.includes(witnessName);
-  };
+  const additionalWitnessVotes = useMemo(() => {
+    if (currentProxy) return [];
+    return userVotes.filter((name) => !topWitnessOwners.has(name));
+  }, [currentProxy, topWitnessOwners, userVotes]);
 
-  const handleVote = async (witness: Witness, approve: boolean) => {
+  const hasVoted = (witnessName: string): boolean => userVotes.includes(witnessName);
+
+  const ensureAuthOrOpenDialog = useCallback((): boolean => {
+    if (isAuthenticated && username && signingKey) return true;
+    setLoginOpen(true);
+    return false;
+  }, [isAuthenticated, signingKey, username]);
+
+  const doVote = useCallback(
+    async (witnessName: string, approve: boolean) => {
+      if (!username || !signingKey) return;
+      const signedTx = await SteemSigner.signWitnessVote(username, witnessName, approve, signingKey);
+      const response = await apiClient.broadcastWitnessVote(signedTx, username);
+      if (!response.success) {
+        throw new Error(response.error || (approve ? t('voteError') : t('unvoteError')));
+      }
+    },
+    [signingKey, t, username]
+  );
+
+  const handleVote = async (witnessName: string, approve: boolean) => {
     setError('');
-    if (!username || !signingKey) {
-      setError('Not authenticated');
+    if (!ensureAuthOrOpenDialog()) {
+      setPendingAction({ type: 'vote', witnessName, approve });
       return;
     }
 
     setIsLoading(true);
     try {
-      // Sign transaction
-      const signedTx = await SteemSigner.signWitnessVote(username, witness.owner, approve, signingKey);
-
-      // Broadcast
-      const response = await apiClient.broadcastWitnessVote(signedTx, username);
-
-      if (!response.success) {
-        setError(response.error || `Failed to ${approve ? 'vote for' : 'unvote'} witness`);
-        setIsLoading(false);
-        return;
-      }
-
-      // Redirect back to user's wallet
-      startTransition(() => {
-        router.push(transfersPathForUsername(username));
-      });
+      await doVote(witnessName, approve);
+      await refetchAccount();
     } catch (err) {
       console.error('Witness vote error:', err);
-      setError(`Failed to ${approve ? 'vote for' : 'unvote'} witness`);
+      setError(err instanceof Error ? err.message : approve ? t('voteError') : t('unvoteError'));
+    } finally {
       setIsLoading(false);
     }
   };
 
   const handleQuickVote = async () => {
-    if (!selectedWitness) {
-      setError('Please select a witness');
+    const witnessName = customWitness.trim().replace(/^@/, '').toLowerCase();
+    if (!witnessName) {
+      setError(t('voteOutsideTopEmpty'));
       return;
     }
 
-    const approve = action === 'approve';
-    await handleVote(selectedWitness, approve);
+    const approve = !hasVoted(witnessName);
+    await handleVote(witnessName, approve);
   };
+
+  const handleSetProxy = async () => {
+    const nextProxy = proxyInput.trim().replace(/^@/, '');
+    setError('');
+    if (!ensureAuthOrOpenDialog()) {
+      setPendingAction({ type: 'proxy', proxy: nextProxy });
+      return;
+    }
+    if (!username || !signingKey) return;
+
+    setIsLoading(true);
+    try {
+      const signedTx = await SteemSigner.signWitnessProxy(username, nextProxy, signingKey);
+      const resp = await apiClient.broadcastWitnessProxy(signedTx, username);
+      if (!resp.success) throw new Error(resp.error || tCommon('error'));
+      setProxyInput('');
+      await refetchAccount();
+    } catch (err) {
+      console.error('Witness proxy error:', err);
+      setError(err instanceof Error ? err.message : tCommon('error'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!pendingAction || !isAuthenticated || !username || !signingKey) return;
+    // Close login dialog after auth is available, but do it async to avoid
+    // cascading renders flagged by react-hooks/set-state-in-effect.
+    queueMicrotask(() => setLoginOpen(false));
+
+    const run = async () => {
+      try {
+        setIsLoading(true);
+        if (pendingAction.type === 'vote') {
+          await doVote(pendingAction.witnessName, pendingAction.approve);
+        } else {
+          const signedTx = await SteemSigner.signWitnessProxy(username, pendingAction.proxy, signingKey);
+          const resp = await apiClient.broadcastWitnessProxy(signedTx, username);
+          if (!resp.success) throw new Error(resp.error || tCommon('error'));
+        }
+        await refetchAccount();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : tCommon('error'));
+      } finally {
+        setPendingAction(null);
+        setIsLoading(false);
+      }
+    };
+
+    void run();
+  }, [doVote, isAuthenticated, pendingAction, refetchAccount, signingKey, tCommon, username]);
 
   // Format vote count for display
   const formatVotes = (votes: string): string => {
@@ -126,137 +219,194 @@ export function WitnessVoteForm() {
     return sp.toFixed(2);
   };
 
+  const isWitnessDisabled = (w: Witness): { disabled: boolean; reason?: string } => {
+    const DISABLED_SIGNING_KEY = 'STM1111111111111111111111111111111114T1Anm';
+    if (w.signing_key === DISABLED_SIGNING_KEY) return { disabled: true, reason: 'disabled key' };
+    if (headBlock !== null && typeof w.last_confirmed_block_num === 'number') {
+      const secs = (headBlock - w.last_confirmed_block_num) * 3;
+      if (secs > 604800) return { disabled: true, reason: 'stale blocks' };
+    }
+    return { disabled: false };
+  };
+
+  const voteRemaining = Math.max(0, 30 - userVotes.length);
+
   return (
     <div className="mx-auto w-full max-w-4xl px-4 pt-6 md:px-6">
       <div className="mb-6 flex items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-foreground">
           {t('witnessVoting')}
         </h2>
-        <Button
-          variant="outline"
-          onClick={() => router.back()}
-          disabled={isLoading || isPending}
-        >
-          {tCommon('back')}
-        </Button>
+        <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{tAuth('login')}</DialogTitle>
+            </DialogHeader>
+            <Suspense fallback={<div className="h-10" />}>
+              <LoginForm
+                embedded
+                {...(username ? { fixedUsername: username } : {})}
+                onLoginSuccess={() => setLoginOpen(false)}
+              />
+            </Suspense>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Search and Quick Vote */}
+      {/* Vote stats + quick vote (outside top 100) */}
+      {!currentProxy && (
+        <Card className="mb-6 shadow-sm">
+          <CardContent className="pt-6 space-y-4">
+            {account && !isAccountLoading && (
+              <div className="text-base text-muted-foreground">
+                {t('youHaveVoted', { count: userVotes.length })}{' '}
+                <span className="text-foreground/80">
+                  ({t('votesRemaining', { count: voteRemaining })})
+                </span>
+              </div>
+            )}
+
+            <div>
+              <p className="mb-3 text-sm text-muted-foreground">{t('voteOutsideTopHint')}</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="flex flex-1 flex-col gap-2">
+                  <Label htmlFor="custom-witness" className="sr-only">
+                    {t('witness')}
+                  </Label>
+                  <div className="flex">
+                    <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                      @
+                    </span>
+                    <Input
+                      id="custom-witness"
+                      type="text"
+                      value={customWitness}
+                      onChange={(e) => setCustomWitness(e.target.value)}
+                      placeholder={t('voteOutsideTopPlaceholder')}
+                      disabled={isLoading || isPending}
+                      className="rounded-l-none"
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleQuickVote}
+                  disabled={isLoading || isPending || !customWitness.trim()}
+                  className="sm:w-auto"
+                >
+                  {isLoading || isPending
+                    ? tCommon('loading')
+                    : hasVoted(customWitness.trim().replace(/^@/, '').toLowerCase())
+                      ? t('unvote')
+                      : t('vote')}
+                </Button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4">
+                <p className="text-sm text-destructive font-medium">{error}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Witness proxy */}
       <Card className="mb-6 shadow-sm">
         <CardContent className="pt-6">
-          <div className="mb-4 flex flex-col gap-2">
-            <Label htmlFor="search" className="text-base">Search Witnesses</Label>
-            <Input
-              type="text"
-              id="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by witness name or URL..."
-              disabled={isLoading}
-            />
-          </div>
-
-          {/* Quick Vote Section */}
-          <div className="mb-4 rounded-md bg-muted p-4 border border-border">
-            <p className="mb-2 text-base font-medium text-foreground">
-              Quick Vote
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <select
-                value={selectedWitness?.owner || ''}
-                onChange={(e) => {
-                  const witness = witnesses.find((w) => w.owner === e.target.value);
-                  setSelectedWitness(witness || null);
-                }}
-                className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                disabled={isLoading}
-              >
-                <option value="">Select a witness...</option>
-                {witnesses.slice(0, 50).map((w) => (
-                  <option key={w.id} value={w.owner}>
-                    #{w.position} {w.owner} ({formatVotes(w.votes)} votes)
-                    {hasVoted(w.owner) ? ' ✓' : ''}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={action}
-                onChange={(e) => setAction(e.target.value as 'approve' | 'unapprove')}
-                className="w-32 rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                disabled={isLoading}
-              >
-                <option value="approve">Vote</option>
-                <option value="unapprove">Unvote</option>
-              </select>
+          {currentProxy ? (
+            <div className="flex flex-col gap-3">
+              <div className="text-sm text-muted-foreground">
+                {t('proxySetTo', { proxy: `@${currentProxy}` })}
+              </div>
               <Button
                 type="button"
-                onClick={handleQuickVote}
-                disabled={isLoading || isPending || !selectedWitness}
-                className="w-32"
+                variant="outline"
+                onClick={() => {
+                  setProxyInput('');
+                  void handleSetProxy();
+                }}
+                disabled={isLoading || isPending}
               >
-                {isLoading || isPending ? tCommon('loading') : 'Submit'}
+                {t('proxyClear')}
               </Button>
             </div>
-          </div>
-
-          {error && (
-            <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4 mb-4">
-              <p className="text-sm text-destructive font-medium">{error}</p>
-            </div>
-          )}
-
-          {/* Stats */}
-          {account && (
-            <div className="text-base text-muted-foreground">
-              You have voted for {userVotes.length} witness{userVotes.length !== 1 ? 'es' : ''}
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="proxy" className="text-base">{t('proxyTitle')}</Label>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Input
+                  id="proxy"
+                  value={proxyInput}
+                  onChange={(e) => setProxyInput(e.target.value)}
+                  placeholder={t('proxyPlaceholder')}
+                  disabled={isLoading || isPending}
+                />
+                <Button type="button" onClick={handleSetProxy} disabled={isLoading || isPending}>
+                  {t('proxySet')}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
+      {error && currentProxy && (
+        <div className="mb-4 rounded-md bg-destructive/10 border border-destructive/20 p-4">
+          <p className="text-sm text-destructive font-medium">{error}</p>
+        </div>
+      )}
+
       {/* Witnesses List */}
+      {!currentProxy && (
       <Card className="shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Rank</TableHead>
-                <TableHead>Witness</TableHead>
-                <TableHead>Votes</TableHead>
-                <TableHead>Missed</TableHead>
-                <TableHead>Version</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('rank')}</TableHead>
+                <TableHead>{t('witness')}</TableHead>
+                <TableHead>{t('votes')}</TableHead>
+                <TableHead>{t('missed')}</TableHead>
+                <TableHead>{t('version')}</TableHead>
+                <TableHead className="text-right">{t('actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                    Loading witnesses...
+                    {t('loadingWitnesses')}
                   </TableCell>
                 </TableRow>
-              ) : filteredWitnesses.length === 0 ? (
+              ) : sortedWitnesses.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                    No witnesses found
+                    {t('noWitnessesFound')}
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredWitnesses.map((witness) => (
+                sortedWitnesses.map((witness, index) => {
+                    const { disabled } = isWitnessDisabled(witness);
+                    const voted = hasVoted(witness.owner);
+                    return (
                   <TableRow
-                    key={witness.id}
-                    className={hasVoted(witness.owner) ? 'bg-primary/5 hover:bg-primary/10' : ''}
+                    key={witness.owner}
+                    className={voted ? 'bg-primary/5 hover:bg-primary/10' : ''}
                   >
-                    <TableCell className="font-medium">
-                      #{witness.position}
+                    <TableCell className="font-medium tabular-nums">
+                      {formatWitnessRank(index + 1)}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
                         <div className="font-medium text-foreground flex items-center gap-2">
-                          {witness.owner}
-                          {hasVoted(witness.owner) && (
+                          <span className={disabled ? 'line-through text-muted-foreground' : ''}>
+                            {witness.owner}
+                          </span>
+                          {voted && (
                             <span className="rounded-full bg-accent px-1.5 py-0.5 text-xs font-medium text-accent-foreground">
-                              ✓ Voted
+                              ✓ {t('voted')}
                             </span>
                           )}
                         </div>
@@ -283,33 +433,59 @@ export function WitnessVoteForm() {
                       {witness.running_version}
                     </TableCell>
                     <TableCell className="text-right">
-                      {hasVoted(witness.owner) ? (
+                      {voted ? (
                         <Button
                           variant="destructive"
                           size="sm"
-                          onClick={() => handleVote(witness, false)}
-                          disabled={isLoading || isPending}
+                          onClick={() => handleVote(witness.owner, false)}
+                          disabled={isLoading || isPending || disabled}
                         >
-                          Unvote
+                          {t('unvote')}
                         </Button>
                       ) : (
                         <Button
                           variant="default"
                           size="sm"
-                          onClick={() => handleVote(witness, true)}
-                          disabled={isLoading || isPending}
+                          onClick={() => handleVote(witness.owner, true)}
+                          disabled={isLoading || isPending || disabled || !!currentProxy}
                         >
-                          Vote
+                          {t('vote')}
                         </Button>
                       )}
                     </TableCell>
                   </TableRow>
-                ))
+                    );
+                })
               )}
             </TableBody>
           </Table>
         </div>
       </Card>
+      )}
+
+      {!currentProxy && additionalWitnessVotes.length > 0 && (
+        <Card className="shadow-sm">
+          <CardContent className="pt-6 space-y-3">
+            <p className="text-sm text-muted-foreground">{t('additionalVotesHint')}</p>
+            <ul className="space-y-2">
+              {additionalWitnessVotes.map((name) => (
+                <li key={name} className="flex items-center justify-between gap-3">
+                  <span className="font-medium">@{name}</span>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleVote(name, false)}
+                    disabled={isLoading || isPending}
+                  >
+                    {t('unvote')}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
