@@ -7,6 +7,7 @@ import tt from 'counterpart';
 const CONFIRM_OPERATION = 'transaction/CONFIRM_OPERATION';
 const HIDE_CONFIRM = 'transaction/HIDE_CONFIRM';
 export const BROADCAST_OPERATION = 'transaction/BROADCAST_OPERATION';
+export const BROADCAST_OPERATIONS = 'transaction/BROADCAST_OPERATIONS';
 export const UPDATE_AUTHORITIES = 'transaction/UPDATE_AUTHORITIES';
 const ERROR = 'transaction/ERROR'; // Has a watcher in SagaShared
 const DELETE_ERROR = 'transaction/DELETE_ERROR';
@@ -44,11 +45,13 @@ export default function reducer(state = defaultState, action) {
             const operation = fromJS(payload.operation);
             const confirm = payload.confirm;
             const warning = payload.warning;
+            const confirmTitle = payload.confirmTitle;
             return state.merge({
                 show_confirm_modal: true,
                 confirmBroadcastOperation: operation,
                 confirmErrorCallback: payload.errorCallback,
                 confirm,
+                confirmTitle,
                 warning,
             });
         }
@@ -58,9 +61,14 @@ export default function reducer(state = defaultState, action) {
                 show_confirm_modal: false,
                 confirmBroadcastOperation: undefined,
                 confirm: undefined,
+                confirmTitle: undefined,
             });
 
         case BROADCAST_OPERATION:
+            // See TransactionSaga.js
+            return state;
+
+        case BROADCAST_OPERATIONS:
             // See TransactionSaga.js
             return state;
 
@@ -217,6 +225,11 @@ export const hideConfirm = payload => ({
 
 export const broadcastOperation = payload => ({
     type: BROADCAST_OPERATION,
+    payload,
+});
+
+export const broadcastOperations = payload => ({
+    type: BROADCAST_OPERATIONS,
     payload,
 });
 

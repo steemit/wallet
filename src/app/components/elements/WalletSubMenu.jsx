@@ -67,6 +67,16 @@ export default ({ accountname, isMyAccount, showTab }) => {
                     {tt('g.proposals')}
                 </Link>
             </li>
+            {isMyAccount || showTab == 'steem_tools' ? (
+                <li>
+                    <Link
+                        to={`/@${accountname}/steem_tools`}
+                        activeClassName="active"
+                    >
+                        {tt('steem_tools.title')}
+                    </Link>
+                </li>
+            ) : null}
         </ul>
     );
 };

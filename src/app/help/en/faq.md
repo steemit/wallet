@@ -16,12 +16,12 @@
 
 ### <span id="Table_of_Contents_Accounts">Accounts</span>
 - <a href="#How_do_I_create_an_account">How do I create an account?</a>
-- <a href="#What_information_do_I_need_to_provide_in_order_to_create_an_account">What information do I need to provide in order to create an account?</a>
-- <a href="#Why_do_I_need_to_provide_my_email_and_phone_number">Why do I need to provide my email and phone number?</a>
-- <a href="#Can_I_create_a_Steem_account_without_an_email_and_phone_number">Can I create a Steem account without an email and phone number?</a>
-- <a href="#It_is_not_letting_me_create_an_account_with_my_phone_number__What_should_I_do">It is not letting me create an account with my phone number. What should I do?</a>
-- <a href="#What_happens_if_my_email_or_phone_number_changes">What happens if my email or phone number changes?</a>
+- <a href="#Why_do_I_need_to_provide_my_email">Why do I need to provide my email?</a>
+- <a href="#Can_I_create_a_Steem_account_without_an_email">Can I create a Steem account without an email?</a>
+- <a href="#What_happens_if_my_email_change">What happens if my email change?</a>
 - <a href="#Am_I_allowed_to_create_more_than_one_account">Am I allowed to create more than one account?</a>
+- <a href="#Can_an_existing_Steem_user_create_an_additional_account">Can an existing Steem user create an additional account?</a>
+- <a href="#How_can_a_user_claim_Account_Creation_Token">How can a user claim Account Creation Token (ACT)?</a>
 - <a href="#Can_I_change_my_username">Can I change my username?</a>
 - <a href="#Can_I_delete_or_deactivate_my_account">Can I delete or deactivate my account?</a>
 
@@ -159,6 +159,8 @@
 - <a href="#Why_should_I_be_careful_with_my_master_password">Why should I be careful with my master password?</a>
 - <a href="#Why_is_the_master_password_a_long_string_of_gibberish">Why is the master password a long string of gibberish?</a>
 - <a href="#What_are_my_different_keys_for">What are my different keys for?</a>
+- <a href="#What_are_key_pairs_and_why_do_I_need_them">What are key pairs and why do I need them?</a>
+- <a href="#What_are_account_authorities_and_how_do_multisignature_settings_work">What are account authorities, and how do multisignature settings work?</a>
 - <a href="#What_do_I_do_if_I_lost_my_password_keys">What do I do if I lost my password/keys?</a>
 - <a href="#Are_my_STEEM_and_Steem_Dollar_tokens_insured_in_the_event_of_a_hack_or_if_someone_takes_over_my_account">Are my STEEM and Steem Dollar tokens insured in the event of a hack or if someone takes over my account?</a>
 - <a href="#What_is_a_recovery_account">What is a recovery account?</a>
@@ -176,7 +178,12 @@
 ### <span id="Table_of_Contents_Witnesses">Witnesses</span>
 - <a href="#What_are_Steem_witnesses">What are Steem witnesses?</a>
 - <a href="#How_can_I_vote_for_witnesses">How can I vote for witnesses?</a>
-- <a href="#How_many_witnesses_can_I_vote_for">How many witnesses can I vote for?</a>
+- <a href="#How_do_I_register_or_update_a_witness">How do I register or update a witness?</a>
+- <a href="#What_is_a_brain_key_and_how_do_I_generate_one">What is a brain key and how do I generate one?</a>
+- <a href="#What_is_a_witness_price_feed_and_why_does_it_matter">What is a witness price feed and why does it matter?</a>
+- <a href="#How_do_I_enable_or_disable_a_witness_node">How do I enable or disable a witness node?</a>
+- <a href="#What_is_a_governance_proxy_and_how_does_it_work">What is a governance proxy and how does it work?</a>
+- <a href="#What_does_declining_voting_rights_mean_and_is_it_reversible">What does declining voting rights mean, and is it reversible?</a>
 
 ### <span id="Table_of_Contents_Proposals">Steem Proposal System (SPS)</span>
 - <a href="#What_is_the_Steem_Proposal_System">What is the Steem Proposal System (SPS)?</a>
@@ -297,40 +304,43 @@ It is best to have realistic expectations, without focusing on rewards when you 
 
 Click on the "Sign Up" link at the top of steemit.com to get started.
 
-You will be asked to enter your email address and verify your phone number. After your information has been verified, you will be added to receive an account. You will be notified via email once your account is approved.
+You will be asked to enter your email address. After your information has been verified, you will be added to receive an account. You will be notified via email once your account is approved.
 
 After you receive notification that your account is approved, click on the link in the email to finish the account creation process. **Be sure to save and backup your username and password.** It is very important that you do not lose your password. There is no way to recover your password or access your account if it is lost. Once your password is saved and backed up, click on the "Create Account" button to create the account.
 
 <a href="#Table_of_Contents_Accounts">^</a>
-## <span id="What_information_do_I_need_to_provide_in_order_to_create_an_account">What information do I need to provide in order to create an account?</span>
+## <span id="Why_do_I_need_to_provide_my_email">Why do I need to provide my email?</span>
 
-You will need to provide your email address and phone number.
-
-<a href="#Table_of_Contents_Accounts">^</a>
-## <span id="Why_do_I_need_to_provide_my_email_and_phone_number">Why do I need to provide my email and phone number?</span>
-
-To create an account on the blockchain, it costs STEEM tokens. When you create an account through steemit.com, Steemit Inc. is supplying the tokens to pay the account creation fee. In order to prevent users from abusing the paid-for signup and creating multiple accounts, we need to be able to verify that each user is only signing up for one account.
+To create an account on the Steem blockchain, a fee is required in the form of STEEM tokens or Resource Credits (RC). When you create an account through the steemit.com sign-up process, Steemit Inc. covers this fee on your behalf. In order to prevent abuse and ensure that each user only registers a single account, identity verification is required during the sign-up process.
 
 <a href="#Table_of_Contents_Accounts">^</a>
-## <span id="Can_I_create_a_Steem_account_without_an_email_and_phone_number">Can I create a Steem account without an email and phone number?</span>
+## <span id="Can_I_create_a_Steem_account_without_an_email">Can I create a Steem account without an email?</span>
 
-The only way to have an account created via steemit.com is to supply your email and phone number. Because Steem is an open and permissionless network, there are other ways to create an account. Any Steem blockchain account can be used on steemit.com.
-
-<a href="#Table_of_Contents_Accounts">^</a>
-## <span id="It_is_not_letting_me_create_an_account_with_my_phone_number__What_should_I_do">It is not letting me create an account with my phone number. What should I do?</span>
-
-Ask for help : contact@steemit.com
-
+For a non-Steem user, the sign-up process on steemit.com requires you to provide a valid email address for identity verification. However, as Steem is an open and permissionless blockchain network, there are alternative ways to create an account outside of steemit.com. Any account created on the Steem blockchain, regardless of how it was created, can be used to access steemit.com.
 
 <a href="#Table_of_Contents_Accounts">^</a>
-## <span id="What_happens_if_my_email_or_phone_number_changes">What happens if my email or phone number changes?</span>
+## <span id="What_happens_if_my_email_change">What happens if my email change?</span>
 
-Currently there is no way to change the email or phone number that is linked to your account.  Though once your account is created, you can continue to use it even if the email or phone number that is linked to the account has changed.
+Currently, there is no way to change the email address linked to your account. However, once your account has been created, you can continue to use it without any interruption even if the email address originally associated with it is no longer active or has changed.
 
 <a href="#Table_of_Contents_Accounts">^</a>
 ## <span id="Am_I_allowed_to_create_more_than_one_account">Am I allowed to create more than one account?</span>
 
-Each user is allowed only one paid-for account created via steemit.com, however users are allowed to create as many accounts as they want on the blockchain. Creating additional accounts on the blockchain requires users to pay their own account creation fee using one of the third-party services listed above.
+Each user is allowed only one free account created through the steemit.com sign-up process. However, there is no restriction on the number of accounts you can create directly on the blockchain. To create additional accounts, you can use the Account Creation tool available in your Wallet Dashboard, where you will be required to cover the account creation fee yourself using either STEEM or an Account Creation Token (ACT).
+
+<a href="#Table_of_Contents_Accounts">^</a>
+## <span id="Can_an_existing_Steem_user_create_an_additional_account">Can an existing Steem user create an additional account?</span>
+
+Creating a new account on the Steem blockchain requires either spending STEEM directly or using an Account Creation Token (ACT). When an account is created with STEEM, the cost is determined by the current account creation fee, which is set through witness consensus. When an ACT is used instead, the fee is not paid at creation time, as the token is consumed in its place, making it a more efficient option for accounts that have previously claimed or accumulated ACTs. Because ACTs must be claimed in advance, they effectively shift the resource cost away from the moment of account creation and into a prior operation.
+
+ACTs are not issued automatically and must be claimed manually by an account with sufficient Resource Credits (RC) or STEEM. Once claimed, they can be stored indefinitely and used at any later time to create new accounts without needing to pay the creation fee again at that moment. This introduces flexibility in account provisioning, especially for workflows that require batching or delayed execution.
+
+At the time of account creation, the full authority structure must be defined, including owner, active, posting, and memo keys, each corresponding to a specific permission level within the account. Following creation, the network assigns a small delegation of STEEM Power to the new account, which provides the initial Resource Credits required to perform basic operations. This ensures that newly created accounts can begin interacting with the network immediately without first needing to acquire STEEM.
+
+<a href="#Table_of_Contents_Accounts">^</a>
+## <span id="How_can_a_user_claim_Account_Creation_Token">How can a user claim Account Creation Token (ACT)?</span>
+
+An Account Creation Token (ACT) is a claimable resource on the Steem blockchain that gives an account the right to create a new account at a later time instead of doing it immediately. ACTs can be obtained in two ways, either by consuming Resource Credits (RC) or by paying STEEM directly. When claiming through RC, a portion of your available RC is used, and this RC regenerates over time based on your STEEM Power, which makes this method effectively free in terms of liquid tokens but dependent on having enough RC available. The second option is to pay the account creation fee in STEEM, which is determined by witness consensus, allowing immediate account creation without relying on RC. The main advantage of ACTs is flexibility, since once claimed, they can be stored and used at any time, allowing accounts to accumulate multiple tokens and create new accounts when needed without worrying about RC availability at that moment. However, claiming ACTs through RC still requires a significant amount of RC upfront, so accounts with low STEEM Power may need to wait for their RC to regenerate or increase their stake before they are able to claim them.
 
 <a href="#Table_of_Contents_Accounts">^</a>
 ## <span id="Can_I_change_my_username">Can I change my username?</span>
@@ -1190,6 +1200,23 @@ The password has to be long and random for maximum account security.
 **Owner key** - The owner key is only meant for use when necessary. It is the most powerful key because it can change any key of an account, including the owner key. Ideally it is meant to be stored offline, and only used to recover a compromised account.
 
 <a href="#Table_of_Contents_Security">^</a>
+## <span id="What_are_key_pairs_and_why_do_I_need_them">What are key pairs and why do I need them?</span>
+
+Key pairs are the foundation of account security on the Steem blockchain. Each key pair consists of a public key, which is stored on the blockchain and visible to everyone, and a private key, which must remain secret and must never be shared. Key pairs are generated when creating a new account, rotating keys for security purposes, or during an account recovery process. Every authority level on a Steem account, namely owner, active, posting, and memo, has its own separate key pair, ensuring that permissions are isolated so that access to one level does not automatically grant access to others. It is strongly recommended to generate keys in a secure, preferably offline environment and to store private keys safely immediately after generation. Losing a private key without a backup, especially the owner key, can result in permanent and unrecoverable loss of access to the account.
+
+<a href="#Table_of_Contents_Security">^</a>
+## <span id="What_are_account_authorities_and_how_do_multisignature_settings_work">What are account authorities, and how do multisignature settings work?</span>
+
+Account authority management defines who can act on behalf of an account on the Steem blockchain and at what level of permission. The system is structured around three primary authority tiers, each with a clearly scoped set of capabilities.
+The owner authority is the highest level and has complete control over the account, including the ability to modify all other authorities and keys. Because of its critical role, it should be stored offline and only used in exceptional cases such as account recovery or key rotation.
+
+The active authority is intended for financial and governance operations, including transferring funds, interacting with the internal market, and voting for witnesses. It represents operational control of the account and must be secured carefully while still remaining accessible for legitimate use.
+
+The posting authority is the lowest level and is limited to social interactions such as publishing content, voting, and following other accounts. This level is designed for frequent use and can be safely delegated to applications without exposing sensitive financial or ownership permissions.
+
+Each authority level supports flexible configuration through weighted keys and accounts. Individual keys or accounts can be assigned a weight, and a threshold can be defined so that a specific combination of signatures is required to authorize an action. This enables multisignature setups, improving security and allowing shared control, which is especially useful for organizational accounts or scenarios where no single party should have full unilateral access.
+
+<a href="#Table_of_Contents_Security">^</a>
 ## <span id="What_do_I_do_if_I_lost_my_password_keys">What do I do if I lost my password/keys?</span>
 
 There is no way to recover your account if you lose your password or owner key! Because your account has real value, it is **very important** that you save your master password somewhere safe where you will not lose it.
@@ -1282,6 +1309,66 @@ The Steem blockchain requires a set of people to create blocks and uses a consen
 ## <span id="How_can_I_vote_for_witnesses">How can I vote for witnesses?</span>
 
 Visit https://steemitwallet.com/~witnesses, or https://steemitwallet.com/@youraccount/witnesses.
+
+<a href="#Table_of_Contents_Witnesses">^</a>
+## <span id="How_do_I_register_or_update_a_witness">How do I register or update a witness?</span>
+
+Registering as a witness on the Steem blockchain requires supplying a signing key, which is the public key used by the node to sign produced blocks, along with a set of chain parameters that represent the witness’s vote on core network configuration.
+
+These parameters include the account creation fee, which sets the minimum STEEM required to create a new account; the maximum block size, which defines the upper bound of data allowed per block and directly affects network throughput; and the SBD interest rate, which determines the annual yield paid to holders of SBD, expressed in basis points.
+These values are not applied per witness individually. Instead, the protocol calculates the median value across all active witnesses for each parameter and applies that result as the live network configuration. This design ensures that no single witness can unilaterally control network rules, while still allowing collective influence through distributed voting. As a result, witness parameter choices directly shape consensus-level behavior, making them a core part of governance responsibility.
+
+Beyond parameter voting, witnesses are also responsible for maintaining reliable infrastructure capable of producing blocks consistently. This includes running a properly configured node with sufficient CPU, RAM, disk performance, and network bandwidth, as well as implementing redundancy, monitoring, and failover mechanisms to minimize downtime. Poor infrastructure or misconfiguration can lead to missed blocks, which directly impacts network performance and reliability.
+Witnesses are therefore expected to keep both their parameter votes and their infrastructure aligned with current network conditions, balancing performance, stability, and economic incentives. Existing witnesses can update their signing key at any time for security rotation and can also adjust their parameter votes whenever infrastructure changes or policy decisions require updates.
+
+<a href="#Table_of_Contents_Witnesses">^</a>
+## <span id="What_is_a_brain_key_and_how_do_I_generate_one">What is a brain key and how do I generate one?</span>
+
+A brain key is a long, human readable passphrase composed of random words that acts as a root secret from which cryptographic keys are deterministically derived on the Steem blockchain. Witnesses can use a brain key sequence to generate a secure signing key for their node, providing a recoverable and portable alternative to storing raw private keys directly, while still maintaining strong cryptographic security when generated properly.
+
+The witness signing key is a dedicated cryptographic key used exclusively for signing blocks produced by the node. Its scope is intentionally restricted and it cannot be used to transfer funds, modify account authorities, or perform any financial operations. This strict separation enforces a clear security boundary within the account model, ensuring that operational keys used in infrastructure do not overlap with keys that control ownership or funds. As a result, even if a signing key is compromised, it does not grant access to account balances or higher level authority keys, preserving the integrity and security of the account.
+
+It is critical that a signing key is used by only one active witness node at a time. Reusing the same signing key across multiple nodes or witnesses concurrently can lead to double signing, where two different blocks are produced for the same slot. This is considered a serious protocol violation and can damage network trust, potentially leading to penalties such as loss of reputation or removal from witness rankings. Proper key management and ensuring a single authoritative node per signing key are essential to avoid this scenario.
+
+<a href="#Table_of_Contents_Witnesses">^</a>
+## <span id="What_is_a_witness_price_feed_and_why_does_it_matter">What is a witness price feed and why does it matter?</span>
+
+Witnesses on the Steem blockchain are responsible for publishing a price feed that represents the current market value of STEEM and SBD. These feeds are submitted at regular intervals and form a core part of the network’s economic infrastructure.
+
+For each update cycle, the network collects price feeds from the 21 active witnesses and calculates the median value. This median is used to reduce the influence of outliers and ensure that no single witness can distort the reference price. The resulting values are then stored in a rolling feed history window of approximately 3.5 days, creating a continuously updated dataset of recent market conditions.
+
+Rather than relying on only the latest submitted value, the protocol derives its official reference price from the median of this entire history window. This design produces a more stable and manipulation-resistant price signal by smoothing short-term volatility and filtering irregular spikes or outdated feeds.
+
+<a href="#Table_of_Contents_Witnesses">^</a>
+## <span id="How_do_I_enable_or_disable_a_witness_node">How do I enable or disable a witness node?</span>
+
+On the Steem blockchain, enabling or disabling a witness node is done by updating the witness configuration, specifically the signing. When a witness is enabled, it signals that the node is online, correctly configured, and ready to participate in block production. Enabled witnesses are included in the active scheduling set and are expected to produce blocks reliably according to the network’s rotation.
+
+To disable a witness, the operator typically updates the witness configuration by removing or replacing the signing key with a null or “kill” key. This effectively prevents the node from signing blocks and removes the witness from the active production schedule. Disabling is commonly performed during maintenance, infrastructure changes, or when stepping away from consensus participation.
+
+To re-enable a witness, a valid signing key must be set again, and the node must be fully synchronized, stable, and ready to produce blocks. This ensures the witness can safely rejoin the schedule without causing missed blocks or inconsistencies.
+
+Maintaining correct enabled status is critical for network reliability. A witness should only remain enabled when the underlying infrastructure is stable and properly monitored, including sufficient hardware resources, network connectivity, and failover mechanisms. Leaving a witness enabled without adequate infrastructure can lead to missed blocks, which negatively impacts chain performance and overall network stability.
+
+<a href="#Table_of_Contents_Witnesses">^</a>
+## <span id="What_is_a_governance_proxy_and_how_does_it_work">What is a governance proxy and how does it work?</span>
+
+A proxy allows an account on the Steem blockchain to delegate its governance influence to another trusted account. When a proxy is configured, all witness votes and proposal votes are exercised by the proxy account, meaning the delegating account’s stake is applied according to the proxy’s decisions without transferring any funds or ownership. This effectively shifts governance control while leaving asset custody unchanged.
+
+This mechanism is particularly useful for accounts that are not actively involved in governance but still want their stake to contribute through a trusted representative. It is also widely used by exchanges, custodial services, and other operational accounts that prefer to remain neutral while ensuring their voting power is not left idle.
+
+Setting a proxy overrides any witness or proposal votes previously submitted by the account, as governance control is fully delegated to the proxy. If the proxy is later removed, direct control is restored; however, previous voting preferences are not retained, requiring the account to manually resubmit its witness and proposal votes.
+
+<a href="#Table_of_Contents_Witnesses">^</a>
+## <span id="What_does_declining_voting_rights_mean_and_is_it_reversible">What does declining voting rights mean, and is it reversible?</span>
+
+Declining voting rights is a permanent and irreversible operation on the Steem blockchain that removes an account’s ability to vote on content, participate in curation, and engage in governance activities such as witness or proposal voting. Once this operation is finalized, it cannot be reversed under any circumstances, permanently eliminating the account’s influence over rewards distribution and consensus.
+
+This feature was originally proposed by Dan Larimer in Steem Improvement Proposal #324 on GitHub and was implemented as part of Hardfork 14. Its primary objective was to allow large stakeholders to make a verifiable and enforceable commitment that their stake would not be used to influence governance or content allocation. More broadly, it provides a mechanism for any account that wishes to avoid the political, legal, or reputational implications associated with holding significant voting power.
+
+The operation includes a thirty-day delay before taking effect. This delay serves as a critical safeguard, providing a recovery window in case the action was triggered by a compromised account and ensuring that voting rights are not permanently removed without an opportunity for intervention.
+
+This option can typically be used by infrastructure operators, custodial services, exchanges, or neutral entities that aim to clearly separate themselves from governance participation. Given its permanent nature, it should be approached with careful consideration, as the decision cannot be reversed once executed.
 
 <a href="#Table_of_Contents_Witnesses">^</a>
 ## <span id="How_many_witnesses_can_I_vote_for">How many witnesses can I vote for?</span>

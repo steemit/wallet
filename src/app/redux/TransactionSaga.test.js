@@ -11,6 +11,7 @@ import {
     preBroadcast_transfer,
     transactionWatches,
     broadcastOperation,
+    broadcastOperations,
     updateAuthorities,
     updatePricesSaga,
     refreshAccountWitnessVotes
@@ -52,6 +53,10 @@ describe('TransactionSaga', () => {
                 takeEvery(
                     transactionActions.BROADCAST_OPERATION,
                     broadcastOperation
+                ),
+                takeEvery(
+                    transactionActions.BROADCAST_OPERATIONS,
+                    broadcastOperations
                 ),
                 takeEvery(
                     transactionActions.UPDATE_AUTHORITIES,

@@ -12,6 +12,7 @@ $themes: (
     backgroundColorDanger: $alert-color,
     backgroundColorSecondary: $color-white,
     moduleBackgroundColor: $color-white,
+    sectionBackgroundColor: $color-white,
     menuBackgroundColor: $color-background-dark,
     moduleMediumBackgroundColor: $color-white,
     navBackgroundColor: $color-white,
@@ -41,6 +42,9 @@ $themes: (
     buttonTextShadow: 0 1px 0 rgba(0,0,0,0.20),
     buttonTextHover: $color-text-white,
     buttonBoxShadow: $color-transparent,
+    overlayBackground: rgba(0, 0, 0, 0.35),
+    codeBlockBackground: #1e1e1e,
+    codeBlockText: #d4d4d4,
   ),
   light: (
     colorAccent: $color-teal,
@@ -55,6 +59,7 @@ $themes: (
     backgroundColorDanger: $alert-color,
     backgroundColorSecondary: $color-white,
     moduleBackgroundColor: $color-white,
+    sectionBackgroundColor: $color-white,
     menuBackgroundColor: $color-background-dark,
     moduleMediumBackgroundColor: $color-transparent,
     navBackgroundColor: $color-white,
@@ -85,6 +90,9 @@ $themes: (
     buttonTextHover: $color-white,
     buttonBoxShadow: $color-teal,
     buttonBoxShadowHover: $color-blue-black,
+    overlayBackground: rgba(0, 0, 0, 0.35),
+    codeBlockBackground: #1e1e1e,
+    codeBlockText: #d4d4d4,
   ),
   dark: (
     colorAccent: $color-teal,
@@ -98,6 +106,7 @@ $themes: (
     backgroundColorDanger: $alert-color,
     backgroundColorSecondary: $color-blue-dark,
     moduleBackgroundColor: $color-background-dark,
+    sectionBackgroundColor: $color-blue-dark,
     backgroundTransparent: transparent,
     menuBackgroundColor: $color-blue-dark,
     moduleMediumBackgroundColor: $color-background-dark,
@@ -130,6 +139,9 @@ $themes: (
     buttonBoxShadow: $color-teal,
     buttonBoxShadowHover: $color-white,
     inputPriceWarning: rgba(255, 153, 0, 0.83),
+    overlayBackground: rgba(0, 0, 0, 0.35),
+    codeBlockBackground: #10151b,
+    codeBlockText: #d4d4d4,
   ),
 );
 

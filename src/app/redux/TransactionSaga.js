@@ -30,6 +30,7 @@ import diff_match_patch from 'diff-match-patch';
 
 export const transactionWatches = [
     takeEvery(transactionActions.BROADCAST_OPERATION, broadcastOperation),
+    takeEvery(transactionActions.BROADCAST_OPERATIONS, broadcastOperations),
     takeEvery(transactionActions.UPDATE_AUTHORITIES, updateAuthorities),
     takeEvery(transactionActions.RECOVER_ACCOUNT, recoverAccount),
     takeEvery(transactionActions.UPDATE_PRICES, updatePricesSaga),
@@ -187,6 +188,7 @@ export function* broadcastOperation({
         type,
         operation,
         confirm,
+        confirmTitle,
         warning,
         keys,
         username,
@@ -214,6 +216,7 @@ export function* broadcastOperation({
         yield put(
             transactionActions.confirmOperation({
                 confirm,
+                confirmTitle,
                 warning,
                 operation: operationParam,
                 errorCallback,
@@ -288,6 +291,113 @@ export function* broadcastOperation({
         // serverApiRecordEvent(eventType, page);
     } catch (error) {
         console.error('TransactionSage', error);
+        if (errorCallback) errorCallback(error.toString());
+    }
+}
+
+export function* broadcastOperations({
+    payload: {
+        operations,
+        confirm,
+        confirmTitle,
+        warning,
+        keys,
+        username,
+        password,
+        useKeychain,
+        successCallback,
+        errorCallback,
+        allowPostUnsafe,
+    },
+}) {
+    const safeOps = Array.isArray(operations) ? operations : [];
+    const firstType = safeOps && safeOps.length && Array.isArray(safeOps[0]) ? safeOps[0][0] : null;
+
+    const operationParam = {
+        type: firstType,
+        operations: safeOps,
+        keys,
+        username,
+        password,
+        useKeychain,
+        successCallback,
+        errorCallback,
+        allowPostUnsafe,
+    };
+    const conf = typeof confirm === 'function' ? confirm() : confirm;
+    if (conf) {
+        yield put(
+            transactionActions.confirmOperation({
+                confirm,
+                confirmTitle,
+                warning,
+                operation: operationParam,
+                errorCallback,
+            })
+        );
+        return;
+    }
+
+    const payload = {
+        operations: safeOps,
+        keys,
+        username,
+        successCallback,
+        errorCallback,
+    };
+
+    if (!allowPostUnsafe && hasPrivateKeys(payload)) {
+        const confirm = tt('g.post_key_warning.confirm');
+        const warning = tt('g.post_key_warning.warning');
+        const checkbox = tt('g.post_key_warning.checkbox');
+        operationParam.allowPostUnsafe = true;
+        yield put(
+            transactionActions.confirmOperation({
+                confirm,
+                warning,
+                checkbox,
+                operation: operationParam,
+                errorCallback,
+            })
+        );
+        return;
+    }
+
+    try {
+        if (!isLoggedInWithKeychain()) {
+            if (!keys || keys.length === 0) {
+                payload.keys = [];
+                const firstType = safeOps && safeOps.length ? safeOps[0][0] : null;
+
+                const signingKey = yield call(findSigningKey, {
+                    opType: firstType,
+                    username,
+                    password,
+                });
+
+                if (signingKey) payload.keys.push(signingKey);
+                else {
+                    if (!password) {
+                        yield put(
+                            userActions.showLogin({
+                                operation: {
+                                    operations: safeOps,
+                                    username,
+                                    successCallback,
+                                    errorCallback,
+                                    saveLogin: true,
+                                },
+                            })
+                        );
+                        return;
+                    }
+                }
+            }
+        }
+
+        yield call(broadcastPayload, { payload });
+    } catch (error) {
+        console.error('TransactionSaga broadcastOperations', error);
         if (errorCallback) errorCallback(error.toString());
     }
 }

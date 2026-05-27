@@ -41,6 +41,7 @@ import ConversionsModal from 'app/components/elements/ConversionsModal';
 import WithdrawRoutesModal from 'app/components/elements/WithdrawRoutesModal';
 import ChangeRecoveryAccount from 'app/components/modules/ChangeRecoveryAccount';
 import { fetchData } from 'app/utils/steemApi';
+import { api } from '@steemit/steem-js';
 
 const DAYS_TO_HIDE = 5;
 const assetPrecision = 1000;
@@ -54,6 +55,8 @@ class UserWallet extends React.Component {
             showQR: false,
             hasClicked: false,
             timestamp: null,
+            hasClickedDecline: false,
+            timestampDecline: null,
             showChangeRecoveryModal: false,
             showConversionsModal: false,
             showWithdrawRoutesModal: false,
@@ -62,6 +65,8 @@ class UserWallet extends React.Component {
             conversions: [],
             conversionValue: 0,
             sbdPrice: 0,
+            hasPendingDeclineRequest: false,
+            declineRequest: null,
         };
         this.shouldComponentUpdate = shouldComponentUpdate(this, 'UserWallet');
     }
@@ -130,6 +135,41 @@ class UserWallet extends React.Component {
         this.setState({ showQR: true });
     };
 
+    checkHiddenAlert = (account, storageSuffix, stateKey, timestampKey, additionalCheck = null) => {
+        const now = Date.now();
+        try {
+            const userName = account.get('name');
+            const storageKeyString = `button_click_${storageSuffix}${userName}`;
+            const storedData = localStorage.getItem(storageKeyString);
+            if (storedData) {
+                const parsed = JSON.parse(storedData);
+                if (additionalCheck && !additionalCheck(parsed)) {
+                    localStorage.removeItem(storageKeyString);
+                    return;
+                }
+                if (parsed.clicked && parsed.timestamp) {
+                    const timestampDate = new Date(parsed.timestamp);
+                    const diffTime = now - timestampDate;
+                    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                    if (diffDays <= DAYS_TO_HIDE) {
+                        if (stateKey === 'hasClicked') {
+                            this.setWarningState(parsed.timestamp);
+                        } else {
+                            this.setState({
+                                [stateKey]: true,
+                                [timestampKey]: parsed.timestamp,
+                            });
+                        }
+                    } else {
+                        localStorage.removeItem(storageKeyString);
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn(`[checkHiddenAlert] Error parsing localStorage data for ${storageSuffix}:`, e);
+        }
+    };
+
     async componentDidMount() {
         const { prices, updatePrices, account, currentUser } = this.props;
         const lastUpdate = prices.get('lastUpdate');
@@ -140,36 +180,30 @@ class UserWallet extends React.Component {
         }
         const isMyAccount = currentUser && currentUser.get('username') === account.get('name');
         await this.loadInitialConversions();
+
         if (account && currentUser && isMyAccount) {
-            try {
-                const userName = account.get('name');
-                const storageKey = `button_click_${userName}`;
-                const storedData = localStorage.getItem(storageKey);
-                if (storedData) {
-                    const recoveryInfo = account.get('account_recovery');
-                    const parsed = JSON.parse(storedData);
-                    const recoveryAccount = recoveryInfo ? recoveryInfo.get('recovery_account') : null;
-                    if (parsed.recovery_account !== recoveryAccount) {
-                        localStorage.removeItem(storageKey);
-                        return;
-                    }
-                    if (parsed.clicked && parsed.timestamp) {
-                        const timestampDate = new Date(parsed.timestamp);
-                        const diffTime = now - timestampDate;
-                        const diffDays = diffTime / (1000 * 60 * 60 * 24);
-                        if (diffDays <= DAYS_TO_HIDE) {
-                            this.setWarningState(parsed.timestamp);
-                        } else {
-                            localStorage.removeItem(storageKey);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn("[componentDidMount] Error parsing localStorage data:", e);
-            }
+            const recoveryInfo = account.get('account_recovery');
+            const recoveryAccount = recoveryInfo ? recoveryInfo.get('recovery_account') : null;
+
+            this.checkHiddenAlert(
+                account,
+                '',
+                'hasClicked',
+                'timestamp',
+                (parsed) => parsed.recovery_account === recoveryAccount
+            );
+
+            this.checkHiddenAlert(
+                account,
+                'decline_',
+                'hasClickedDecline',
+                'timestampDecline'
+            );
         }
+
         this.checkPowerDownAlert();
         this.checkWithdrawRoutesAlert();
+        this.loadDeclineRequestStatus();
     }
 
     async componentDidUpdate(prevProps) {
@@ -206,38 +240,32 @@ class UserWallet extends React.Component {
             await this.loadInitialConversions();
         }
         if ((accountChanged || currentUserChange) && isMyAccount) {
-            try {
-                const userName = account.get('name');
-                const storageKey = `button_click_${userName}`;
-                const storedData = localStorage.getItem(storageKey);
-                if (storedData) {
-                    const recoveryInfo = account.get('account_recovery');
-                    const parsed = JSON.parse(storedData);
-                    const recoveryAccount = recoveryInfo ? recoveryInfo.get('recovery_account') : null;
-                    if (parsed.recovery_account !== recoveryAccount) {
-                        localStorage.removeItem(storageKey);
-                        return;
-                    }
-                    if (parsed.clicked && parsed.timestamp) {
-                        const timestampDate = new Date(parsed.timestamp);
-                        const diffTime = now - timestampDate;
-                        const diffDays = diffTime / (1000 * 60 * 60 * 24);
-                        if (diffDays <= DAYS_TO_HIDE) {
-                            this.setWarningState(parsed.timestamp);
-                        } else {
-                            localStorage.removeItem(storageKey);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn("[componentDidUpdate] Error parsing localStorage data:", e);
-            }
+            const recoveryInfo = account.get('account_recovery');
+            const recoveryAccount = recoveryInfo ? recoveryInfo.get('recovery_account') : null;
+
+            this.checkHiddenAlert(
+                account,
+                '',
+                'hasClicked',
+                'timestamp',
+                (parsed) => parsed.recovery_account === recoveryAccount
+            );
+
+            this.checkHiddenAlert(
+                account,
+                'decline_',
+                'hasClickedDecline',
+                'timestampDecline'
+            );
         }
         if (account && currentUserChange && currentUser && isMyAccount || prevProps.gprops !== this.props.gprops) {
            this.checkPowerDownAlert();
        }
        if (accountChanged || currentUserChange || routesChanged) {
           this.checkWithdrawRoutesAlert();
+       }
+       if (accountChanged || currentUserChange) {
+           this.loadDeclineRequestStatus();
        }
     }
 
@@ -483,6 +511,46 @@ class UserWallet extends React.Component {
             });
         } catch (e) {
             console.warn("Error loading initial conversions:", e);
+        }
+    }
+
+    async loadDeclineRequestStatus() {
+        const { account, currentUser } = this.props;
+        if (!account || !currentUser) {
+            this.setState({ hasPendingDeclineRequest: false, declineRequest: null });
+            return;
+        }
+
+        const isMyAccount = currentUser.get('username') === account.get('name');
+        if (!isMyAccount) {
+            this.setState({ hasPendingDeclineRequest: false, declineRequest: null });
+            return;
+        }
+
+        try {
+            const userName = account.get('name');
+            const result = await api.callAsync('database_api.find_decline_voting_rights_requests', { accounts: [userName] });
+
+            let requests = [];
+            if (Array.isArray(result)) {
+                requests = result;
+            } else if (result && Array.isArray(result.requests)) {
+                requests = result.requests;
+            }
+
+            const normalizedAccount = String(userName || '').toLowerCase();
+            const declineRequest = requests.find(item => String(item.account || '').toLowerCase() === normalizedAccount) || null;
+
+            this.setState({
+                hasPendingDeclineRequest: !!declineRequest,
+                declineRequest,
+            });
+        } catch (error) {
+            console.warn('Error loading decline request status:', error);
+            this.setState({
+                hasPendingDeclineRequest: false,
+                declineRequest: null,
+            });
         }
     }
 
@@ -1117,6 +1185,89 @@ class UserWallet extends React.Component {
             console.warn('Error while processing account recovery info:', error);
         }
 
+        let declineWarningBox = null;
+        if (currentUser && isMyAccount && this.state.hasPendingDeclineRequest && !this.state.hasClickedDecline) {
+            const { declineRequest } = this.state;
+            const effectiveRaw = declineRequest.effective_date;
+
+            let daysLeft = null;
+            let dayLabel = null;
+            let effectiveText = effectiveRaw;
+
+            if (effectiveRaw) {
+                const match = String(effectiveRaw).trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+                if (match) {
+                    effectiveText = `${match[3]}-${match[2]}-${match[1]}`;
+                }
+                const effectiveDate = new Date(effectiveRaw + (effectiveRaw.endsWith('Z') ? '' : 'Z'));
+                const now = new Date();
+                daysLeft = Math.max(0, Math.ceil((effectiveDate - now) / (1000 * 60 * 60 * 24)));
+                dayLabel = daysLeft === 1 ? 'day' : 'days';
+            }
+
+            const warningMessage = daysLeft != null
+                ? tt('steem_tools.decline_voting.pending_warning_message', {
+                      days: daysLeft,
+                      day_label: dayLabel,
+                      account: account.get('name'),
+                      effective_date: effectiveText,
+                  })
+                : tt('steem_tools.decline_voting.pending_warning_message_no_date', {
+                          account: account.get('name'),
+                  });
+
+            declineWarningBox = (
+                <div className="row">
+                    <div className="columns small-12">
+                        <div className="UserWallet__warningbox">
+                            <span className="UserWallet__warningbox__text">
+                                {warningMessage}
+                            </span>
+                            <div className="UserWallet__warningbox__buttons">
+                                <button
+                                    className="button"
+                                    title="Take Action"
+                                    onClick={() => {
+                                        this.props.declineVotingRights(
+                                            account.get('name'),
+                                            false,
+                                            () => {
+                                                this.loadDeclineRequestStatus();
+                                                setTimeout(() => this.props.refreshAccount(account.get('name')), 3000);
+                                            },
+                                            (error) => {
+                                                console.error('Cancel decline voting error:', error);
+                                            }
+                                        );
+                                    }}
+                                >
+                                    {tt('advanced_routes.take_action')}
+                                </button>
+                                <button
+                                    className="button"
+                                    onClick={() => {
+                                        const userName = account.get('name');
+                                        const storageKey = `button_click_decline_${userName}`;
+                                        const dataToStore = {
+                                          clicked: true,
+                                          timestamp: new Date().toISOString()
+                                        };
+                                        localStorage.setItem(storageKey, JSON.stringify(dataToStore));
+                                        this.setState({
+                                          hasClickedDecline: true,
+                                          timestampDecline: dataToStore.timestamp,
+                                        });
+                                    }}
+                                >
+                                    {tt('g.dismiss')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         let claimbox;
         if (currentUser && rewards_str && isMyAccount) {
             claimbox = (
@@ -1159,6 +1310,7 @@ class UserWallet extends React.Component {
                     />
                 )}
                 {recoveryWarningBox}
+                {declineWarningBox}
                 {withdrawRoutesWarningBox}
                 {powerDownWarningBox}
                 {claimbox}
@@ -1540,5 +1692,31 @@ export default connect(
                 })
             );
         },
+        declineVotingRights: (account, decline, successCallback, errorCallback) => {
+            const successCb = () => {
+                dispatch(globalActions.getState({ url: `@${account}/permissions` }));
+                if (successCallback) successCallback();
+            };
+            const operation = {
+                account,
+                decline,
+            };
+            const conf = decline
+                ? tt('steem_tools.decline_voting.confirm_broadcast_message', { account })
+                : tt('steem_tools.decline_voting.confirm_cancel_broadcast_message', { account });
+
+            dispatch(
+                transactionActions.broadcastOperation({
+                    type: 'decline_voting_rights',
+                    operation,
+                    confirmTitle: tt('steem_tools.decline_voting.cancel_decline_voting_rights_request'),
+                    confirm: conf + '?',
+                    successCallback: successCb,
+                    errorCallback,
+                })
+            );
+        },
+        refreshAccount: username =>
+            dispatch(userActions.refreshAccount({ username })),
     })
 )(UserWallet);
