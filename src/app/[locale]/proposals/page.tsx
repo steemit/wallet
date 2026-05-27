@@ -1,27 +1,24 @@
-export default function ProposalsPlaceholderPage() {
+import { Suspense } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ProposalsPageClient } from '@/components/proposals-page-client';
+
+function ProposalsPageFallback() {
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 pt-6 md:px-6">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-foreground">Proposals</h1>
-      </div>
-      <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm">
-        <p className="text-sm text-muted-foreground">
-          The proposals page from the legacy wallet is not fully implemented here yet.
-        </p>
-        <p className="mt-3 text-sm text-muted-foreground">
-          You can continue to use the legacy proposals interface at{' '}
-          <a
-            href="https://wallet.esteem.app/proposals"
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium text-accent-foreground hover:underline"
-          >
-            wallet-legacy /proposals
-          </a>
-          .
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-6xl space-y-4 px-4 pt-6 md:px-6">
+      <Skeleton className="h-8 w-44" />
+      <Skeleton className="h-12 w-full" />
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Skeleton key={i} className="h-28 w-full" />
+      ))}
     </div>
+  );
+}
+
+export default function ProposalsPage() {
+  return (
+    <Suspense fallback={<ProposalsPageFallback />}>
+      <ProposalsPageClient />
+    </Suspense>
   );
 }
 
