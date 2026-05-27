@@ -19,6 +19,10 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 
+function asStr(val: unknown): string | undefined {
+  return typeof val === 'string' ? val : undefined;
+}
+
 function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?: GlobalPropsData | null) {
   const [type, data] = item.op;
 
@@ -43,8 +47,8 @@ function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?
       };
     case 'withdraw_vesting': {
       const sp = globalProps
-        ? `${formatSteemPowerFromVestsString(data.vesting_shares as string | undefined, globalProps)} SP`
-        : String(data.vesting_shares ?? '');
+        ? `${formatSteemPowerFromVestsString(asStr(data.vesting_shares), globalProps)} SP`
+        : '-- SP';
       return {
         description: `Started power down of ${sp}`,
         memo: '',
@@ -59,8 +63,9 @@ function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?
       };
     case 'claim_reward_balance': {
       const vestsPart = globalProps
-        ? `${formatSteemPowerFromVestsString(data.reward_vests as string | undefined, globalProps)} SP`
-        : String(data.reward_vests ?? '');
+        ? `${formatSteemPowerFromVestsString(asStr(data.reward_vests), globalProps)} SP`
+        : '-- SP';
+      // parseAssetAmount extracts the leading number and tolerates " SP" / " STEEM" suffixes.
       const parts = [
         data.reward_steem,
         data.reward_sbd,
@@ -88,8 +93,8 @@ function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?
       };
     case 'delegate_vesting_shares': {
       const sp = globalProps
-        ? `${formatSteemPowerFromVestsString(data.vesting_shares as string | undefined, globalProps)} SP`
-        : String(data.vesting_shares ?? '');
+        ? `${formatSteemPowerFromVestsString(asStr(data.vesting_shares), globalProps)} SP`
+        : '-- SP';
       return {
         description: data.delegator === context
           ? `Delegated ${sp} to ${data.delegatee}`
