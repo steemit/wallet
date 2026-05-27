@@ -769,6 +769,46 @@ export class SteemService {
     });
   }
 
+  static async getChainConfig(): Promise<Record<string, unknown>> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        callAsync: (method: string, params: unknown) => Promise<unknown>;
+      };
+      const result = await api.callAsync('database_api.get_config', {});
+      return (result ?? {}) as Record<string, unknown>;
+    }).catch((error) => {
+      console.error('Error fetching chain config:', error);
+      throw new Error(`Failed to fetch chain config: ${(error as Error).message}`);
+    });
+  }
+
+  static async listProposalVotesByProposal(
+    proposalId: number,
+    options?: { lastVoter?: string; limit?: number }
+  ): Promise<{ voter: string; proposal: { proposal_id: number } }[]> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        callAsync: (method: string, params: unknown) => Promise<unknown>;
+      };
+      const lastVoter = options?.lastVoter ?? '';
+      const limit = options?.limit ?? 1000;
+      const result = (await api.callAsync('database_api.list_proposal_votes', {
+        start: [proposalId, lastVoter],
+        limit,
+        order: 'by_proposal_voter',
+        order_direction: 'ascending',
+        status: 'active',
+      })) as { proposal_votes?: unknown[] } | null;
+      if (!result || !Array.isArray(result.proposal_votes)) return [];
+      return result.proposal_votes as { voter: string; proposal: { proposal_id: number } }[];
+    }).catch((error) => {
+      console.error('Error fetching proposal votes by proposal:', error);
+      throw new Error(`Failed to fetch proposal votes: ${(error as Error).message}`);
+    });
+  }
+
   static async listProposalVotesByVoter(voter: string): Promise<
     {
       voter: string;
