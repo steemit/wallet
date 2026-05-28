@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { eq, and } from 'drizzle-orm';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
+import { getDb } from '@/lib/db';
+import { arecs } from '@/lib/db/schema';
 
 export async function POST(request: NextRequest) {
   const csrfError = await verifyCSRF(request);
   if (csrfError) return csrfError;
 
-  const rateLimitError = await rateLimit(request, 'query', { maxRequests: 10, windowSeconds: 60 });
+  const rateLimitError = await rateLimit(request, 'recovery', { maxRequests: 5, windowSeconds: 300 });
   if (rateLimitError) return rateLimitError;
 
   const body = (await request.json()) as {
@@ -18,7 +21,57 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: 'error', error: 'Missing fields' }, { status: 400 });
   }
 
-  // Compatibility shim until backend email service is wired (legacy: initiate_account_recovery_with_email).
-  console.info('Recovery request submitted:', { account_name: body.account_name, contact_email: body.contact_email });
-  return NextResponse.json({ status: 'ok' });
+  const db = getDb();
+  if (!db) {
+    console.error('Database unavailable for recovery request');
+    return NextResponse.json(
+      { status: 'error', error: 'Service unavailable' },
+      { status: 503 }
+    );
+  }
+
+  try {
+    // Check for duplicate (same account_name + contact_email, status='open')
+    const existing = await db.query.arecs.findFirst({
+      where: and(
+        eq(arecs.accountName, body.account_name),
+        eq(arecs.contactEmail, body.contact_email),
+        eq(arecs.status, 'open')
+      ),
+    });
+
+    if (existing) {
+      return NextResponse.json({ status: 'duplicate' });
+    }
+
+    // Extract client IP
+    const remoteIp =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      null;
+
+    // Insert new recovery request
+    await db.insert(arecs).values({
+      uid: '', // not available without login session
+      contactEmail: body.contact_email,
+      accountName: body.account_name,
+      ownerKey: body.owner_key,
+      provider: 'email',
+      remoteIp,
+      status: 'open',
+    });
+
+    console.info('Recovery request created:', {
+      account_name: body.account_name,
+      contact_email: body.contact_email,
+    });
+
+    return NextResponse.json({ status: 'ok' });
+  } catch (err) {
+    console.error('Recovery request failed:', err);
+    return NextResponse.json(
+      { status: 'error', error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }

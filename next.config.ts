@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
   // Compress responses
   compress: true,
 
+  // Exclude mysql2 from client-side bundling (server-only native module)
+  serverExternalPackages: ['mysql2'],
+
   async redirects() {
     return [
       { source: '/faq.html', destination: '/faq', permanent: true },
