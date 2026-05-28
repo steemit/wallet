@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { getDb } from '@/lib/db';
 import { arecs } from '@/lib/db/schema';
@@ -47,8 +47,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Validate owner key formats
-  const stmKeyRegex = /^STM[A-Za-z0-9]{50,}$/;
+  // Validate owner key formats (base58 chars only)
+  const stmKeyRegex = /^STM[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{50}$/;
   if (!stmKeyRegex.test(body.old_owner_key) || !stmKeyRegex.test(body.new_owner_key)) {
     return NextResponse.json(
       { status: 'error', error: 'Invalid owner key format' },
@@ -65,44 +65,37 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Look up recovery request by validation code
-    const arec = await db.query.arecs.findFirst({
-      where: eq(arecs.validationCode, body.code),
-    });
-
-    if (!arec) {
-      return NextResponse.json(
-        { status: 'error', error: 'Confirmation code not found' },
-        { status: 404 }
+    // Step 1: Atomically claim the record by setting status to 'processing'.
+    // This prevents TOCTOU races — only one request will win the CAS.
+    const result = await db
+      .update(arecs)
+      .set({ status: 'processing' })
+      .where(
+        and(
+          eq(arecs.validationCode, body.code),
+          eq(arecs.accountName, body.account_name),
+          eq(arecs.status, 'confirmed')
+        )
       );
-    }
 
-    if (arec.status !== 'confirmed') {
+    // Drizzle mysql2 returns { affectedRows: number } for raw updates
+    const affected = (result as unknown as { affectedRows?: number }).affectedRows;
+    if (!affected || affected === 0) {
       return NextResponse.json(
-        { status: 'error', error: 'Recovery request has not been approved' },
+        { status: 'error', error: 'Recovery request not found or already processed' },
         { status: 400 }
       );
     }
 
-    // Verify account name matches
-    if (arec.accountName !== body.account_name) {
-      return NextResponse.json(
-        { status: 'error', error: 'Account name mismatch' },
-        { status: 400 }
-      );
-    }
-
-    // Step 1: Server-side request_account_recovery via Conveyor (kingdom)
-    // Broadcasts request_account_recovery signed by the recovery account,
-    // setting the new_owner_authority on-chain so the client can then
-    // submit recover_account with the old owner key.
+    // Step 2: Call kingdom.recovery_account (broadcasts request_account_recovery on-chain).
+    // If this fails, the record stays in 'processing' and won't be re-processed.
     const { SteemService } = await import('@/lib/steem/server');
     await SteemService.requestAccountRecovery({
       account_to_recover: body.account_name,
       new_owner_authority: body.new_owner_authority,
     });
 
-    // Step 2: Update the arecs record
+    // Step 3: Mark as closed — success
     await db
       .update(arecs)
       .set({
@@ -111,10 +104,10 @@ export async function POST(request: NextRequest) {
         requestSubmittedAt: new Date(),
         status: 'closed',
       })
-      .where(eq(arecs.id, arec.id));
+      .where(eq(arecs.validationCode, body.code));
 
     console.info('Account recovery confirmed:', {
-      id: arec.id,
+      code: body.code,
       account_name: body.account_name,
     });
 

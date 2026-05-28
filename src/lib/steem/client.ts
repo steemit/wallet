@@ -484,11 +484,11 @@ export class SteemSigner {
    * Prerequisite: The admin must have already broadcast `request_account_recovery`
    * on-chain (via Conveyor / turtle) so that the new_owner_authority is set.
    */
-  static signRecoverAccount(
+  static async signRecoverAccount(
     accountToRecover: string,
     oldPassword: string,
     newPassword: string
-  ): { signedTx: Promise<SignedTransaction>; oldOwnerPub: string; newOwnerPub: string } {
+  ): Promise<{ signedTx: SignedTransaction; oldOwnerPub: string; newOwnerPub: string }> {
     // Derive WIF private keys from passwords
     const oldOwnerPriv = steem.auth.toWif(accountToRecover, oldPassword, 'owner');
     const newOwnerPriv = steem.auth.toWif(accountToRecover, newPassword, 'owner');
@@ -517,11 +517,8 @@ export class SteemSigner {
       },
     ];
 
-    return {
-      signedTx: this.signTransaction([operation], [oldOwnerPriv]),
-      oldOwnerPub,
-      newOwnerPub,
-    };
+    const signedTx = await this.signTransaction([operation], [oldOwnerPriv]);
+    return { signedTx, oldOwnerPub, newOwnerPub };
   }
 
   /**

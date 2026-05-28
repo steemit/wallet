@@ -46,8 +46,8 @@ describe('POST /api/recovery/request', () => {
     vi.restoreAllMocks();
   });
 
-  // Realistic Steem public key (STM + 53 base58 chars)
-  const VALID_OWNER_KEY = 'STM6xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+  // Valid Steem public key (STM + 50 base58 chars = 53 chars total)
+  const VALID_OWNER_KEY = 'STM123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqr';
 
   it('returns ok for valid new request', async () => {
     const req = makeRequest({
@@ -98,6 +98,32 @@ describe('POST /api/recovery/request', () => {
     expect(data.error).toBe('Invalid owner key format');
     expect(res.status).toBe(400);
     expect(mockFindFirst).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 for invalid email format', async () => {
+    const req = makeRequest({
+      contact_email: 'not-an-email',
+      account_name: 'alice',
+      owner_key: VALID_OWNER_KEY,
+    });
+    const res = await POST(req);
+    const data = await res.json();
+    expect(data.status).toBe('error');
+    expect(data.error).toBe('Invalid email format');
+    expect(res.status).toBe(400);
+  });
+
+  it('normalizes email to lowercase for duplicate check', async () => {
+    const req = makeRequest({
+      contact_email: 'TEST@EXAMPLE.COM',
+      account_name: 'alice',
+      owner_key: VALID_OWNER_KEY,
+    });
+    const res = await POST(req);
+    const data = await res.json();
+    expect(data.status).toBe('ok');
+    // Verify findFirst was called with lowercase email
+    expect(mockFindFirst).toHaveBeenCalledOnce();
   });
 
   it('returns 503 when database is unavailable', async () => {

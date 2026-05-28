@@ -15,29 +15,23 @@ vi.mock('@/lib/steem/server', () => ({
   },
 }));
 
-// Mock the Drizzle db module
+// Valid Steem public key (STM + exactly 50 base58 chars = 53 chars total)
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const VALID_KEY_A = 'STM' + B58.slice(0, 50);  // 53 chars
+const VALID_KEY_B = 'STM' + B58.slice(1, 51);  // 53 chars, different
+
 const mockFindFirst = vi.fn();
-const mockUpdateSet = vi.fn();
-const mockUpdateWhere = vi.fn();
-const mockUpdate = vi.fn().mockReturnValue({
-  set: (...args: unknown[]) => ({
-    where: mockUpdateWhere,
-  }),
-});
-mockUpdate.mockImplementation(() => {
-  return {
-    set: mockUpdateSet.mockReturnValue({
-      where: mockUpdateWhere,
-    }),
-  };
-});
+let mockUpdateFn: ReturnType<typeof vi.fn>;
+
 const mockDb = {
   query: {
     arecs: {
       findFirst: mockFindFirst,
     },
   },
-  update: mockUpdate,
+  get update() {
+    return mockUpdateFn;
+  },
 };
 const mockGetDb = vi.fn().mockReturnValue(mockDb);
 
@@ -45,7 +39,6 @@ vi.mock('@/lib/db', () => ({
   getDb: () => vi.mocked(mockGetDb)(),
 }));
 
-const VALID_OWNER_KEY = 'STM6xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
 const VALID_CODE = '5bc350832943043e8a82';
 
 function makeRequest(body: Record<string, unknown>): NextRequest {
@@ -56,13 +49,24 @@ function makeRequest(body: Record<string, unknown>): NextRequest {
   });
 }
 
+function setupUpdateMocks(firstResult: unknown, secondResult?: unknown) {
+  const chain1: Record<string, ReturnType<typeof vi.fn>> = {};
+  chain1.where = vi.fn().mockResolvedValue(firstResult);
+  chain1.set = vi.fn().mockReturnValue({ where: chain1.where });
+
+  const chain2: Record<string, ReturnType<typeof vi.fn>> = {};
+  chain2.where = vi.fn().mockResolvedValue(secondResult ?? undefined);
+  chain2.set = vi.fn().mockReturnValue({ where: chain2.where });
+
+  mockUpdateFn = vi.fn()
+    .mockReturnValueOnce({ set: chain1.set })
+    .mockReturnValueOnce({ set: chain2.set });
+}
+
 describe('POST /api/recovery/confirm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDb.mockReturnValue(mockDb);
-    mockFindFirst.mockResolvedValue(undefined);
-    mockUpdateSet.mockResolvedValue(undefined);
-    mockUpdateWhere.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -72,21 +76,17 @@ describe('POST /api/recovery/confirm', () => {
   const validPayload = {
     code: VALID_CODE,
     account_name: 'alice',
-    old_owner_key: VALID_OWNER_KEY,
-    new_owner_key: 'STM7yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy',
+    old_owner_key: VALID_KEY_A,
+    new_owner_key: VALID_KEY_B,
     new_owner_authority: {
       weight_threshold: 1,
       account_auths: [] as [string, number][],
-      key_auths: [['STM7yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy', 1]] as [string, number][],
+      key_auths: [[VALID_KEY_B, 1]] as [string, number][],
     },
   };
 
-  it('returns ok for valid confirmed recovery', async () => {
-    mockFindFirst.mockResolvedValueOnce({
-      id: 1,
-      accountName: 'alice',
-      status: 'confirmed',
-    });
+  it('returns ok for valid confirmed recovery (atomic CAS)', async () => {
+    setupUpdateMocks({ affectedRows: 1 });
 
     const req = makeRequest(validPayload);
     const res = await POST(req);
@@ -94,11 +94,7 @@ describe('POST /api/recovery/confirm', () => {
 
     expect(data.status).toBe('ok');
     expect(res.status).toBe(200);
-    expect(mockFindFirst).toHaveBeenCalledOnce();
-    expect(mockUpdate).toHaveBeenCalledOnce();
-    expect(mockUpdateSet).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'closed' })
-    );
+    expect(mockUpdateFn).toHaveBeenCalledTimes(2);
   });
 
   it('returns 400 for missing fields', async () => {
@@ -134,43 +130,20 @@ describe('POST /api/recovery/confirm', () => {
     expect(data.error).toBe('Invalid owner key format');
   });
 
-  it('returns 404 for non-existent code', async () => {
-    mockFindFirst.mockResolvedValueOnce(undefined);
-    const req = makeRequest(validPayload);
-    const res = await POST(req);
-    expect(res.status).toBe(404);
-    const data = await res.json();
-    expect(data.error).toBe('Confirmation code not found');
-  });
+  it('returns 400 when atomic update claims 0 rows (already processed / not found)', async () => {
+    setupUpdateMocks({ affectedRows: 0 });
 
-  it('returns 400 when recovery not yet approved (status=open)', async () => {
-    mockFindFirst.mockResolvedValueOnce({
-      id: 1,
-      accountName: 'alice',
-      status: 'open',
-    });
     const req = makeRequest(validPayload);
     const res = await POST(req);
     expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.error).toBe('Recovery request has not been approved');
-  });
-
-  it('returns 400 when account name mismatch', async () => {
-    mockFindFirst.mockResolvedValueOnce({
-      id: 1,
-      accountName: 'bob',
-      status: 'confirmed',
-    });
-    const req = makeRequest(validPayload);
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-    const data = await res.json();
-    expect(data.error).toBe('Account name mismatch');
+    expect(data.error).toBe('Recovery request not found or already processed');
+    expect(mockUpdateFn).toHaveBeenCalledTimes(1);
   });
 
   it('returns 503 when database is unavailable', async () => {
     mockGetDb.mockReturnValue(null);
+
     const req = makeRequest(validPayload);
     const res = await POST(req);
     expect(res.status).toBe(503);
@@ -178,8 +151,26 @@ describe('POST /api/recovery/confirm', () => {
     expect(data.error).toBe('Service unavailable');
   });
 
-  it('returns 500 when database throws', async () => {
-    mockFindFirst.mockRejectedValueOnce(new Error('Connection lost'));
+  it('returns 500 when requestAccountRecovery throws', async () => {
+    setupUpdateMocks({ affectedRows: 1 });
+
+    const { SteemService } = await import('@/lib/steem/server');
+    vi.mocked(SteemService.requestAccountRecovery).mockRejectedValueOnce(
+      new Error('Kingdom unreachable')
+    );
+
+    const req = makeRequest(validPayload);
+    const res = await POST(req);
+    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.status).toBe('error');
+  });
+
+  it('returns 500 when database update throws', async () => {
+    mockUpdateFn = vi.fn().mockImplementation(() => {
+      throw new Error('Connection lost');
+    });
+
     const req = makeRequest(validPayload);
     const res = await POST(req);
     expect(res.status).toBe(500);

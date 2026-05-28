@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import { StaticPageShell } from '@/components/layout/static-page-shell';
@@ -35,7 +35,7 @@ export function RecoverAccountConfirmationPage({ code }: { code: string }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Verify code on mount
-  useState(() => {
+  useEffect(() => {
     let cancelled = false;
     apiClient
       .verifyRecoveryCode(code)
@@ -55,7 +55,7 @@ export function RecoverAccountConfirmationPage({ code }: { code: string }) {
         if (!cancelled) setVerifying(false);
       });
     return () => { cancelled = true; };
-  });
+  }, [code, t]);
 
   const canSubmit =
     accountName &&
@@ -116,9 +116,8 @@ export function RecoverAccountConfirmationPage({ code }: { code: string }) {
 
       // Sign recover_account operation client-side, then broadcast via server relay
       try {
-        const { signedTx } = SteemSigner.signRecoverAccount(name, oldPwd, newPwd);
-        const tx = await signedTx;
-        const broadcastRes = await apiClient.broadcastRecoverAccountTx(tx);
+        const { signedTx } = await SteemSigner.signRecoverAccount(name, oldPwd, newPwd);
+        const broadcastRes = await apiClient.broadcastRecoverAccountTx(signedTx);
         if (!broadcastRes.success) {
           console.warn('recover_account broadcast returned error:', broadcastRes.error);
         }

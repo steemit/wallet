@@ -35,5 +35,6 @@ export const arecs = mysqlTable(
     idxAccountName: index('idx_arecs_account_name').on(table.accountName),
     idxContactEmail: index('idx_arecs_contact_email').on(table.contactEmail),
     idxUid: index('idx_arecs_uid').on(table.uid),
+    idxValidationCode: index('idx_arecs_validation_code').on(table.validationCode),
   })
 );

@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
+import { rateLimit } from '@/lib/middleware';
 import { getDb } from '@/lib/db';
 import { arecs } from '@/lib/db/schema';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
+  const rateLimitError = await rateLimit(request, 'recovery_verify', {
+    maxRequests: 20,
+    windowSeconds: 300,
+  });
+  if (rateLimitError) return rateLimitError;
+
   const { code } = await params;
 
   if (!code || !/^[0-9a-f]{20}$/i.test(code)) {

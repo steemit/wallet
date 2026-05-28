@@ -30,4 +30,3 @@ describe('steem client recover helpers', () => {
     });
   });
 });
-

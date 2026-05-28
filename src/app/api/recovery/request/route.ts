@@ -21,8 +21,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: 'error', error: 'Missing fields' }, { status: 400 });
   }
 
-  // Validate owner_key format: must be a Steem public key (STM + base58, ~53 chars)
-  if (!/^STM[A-Za-z0-9]{50,}$/.test(body.owner_key)) {
+  // Normalize email (lowercase + trim) to prevent duplicate bypass
+  const contactEmail = body.contact_email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+    return NextResponse.json(
+      { status: 'error', error: 'Invalid email format' },
+      { status: 400 }
+    );
+  }
+
+  // Validate owner_key format: must be a Steem public key (STM + base58, 53 chars)
+  if (!/^STM[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{50}$/.test(body.owner_key)) {
     return NextResponse.json(
       { status: 'error', error: 'Invalid owner key format' },
       { status: 400 }
@@ -43,7 +52,7 @@ export async function POST(request: NextRequest) {
     const existing = await db.query.arecs.findFirst({
       where: and(
         eq(arecs.accountName, body.account_name),
-        eq(arecs.contactEmail, body.contact_email),
+        eq(arecs.contactEmail, contactEmail),
         eq(arecs.status, 'open')
       ),
     });
@@ -61,7 +70,7 @@ export async function POST(request: NextRequest) {
     // Insert new recovery request
     await db.insert(arecs).values({
       uid: null, // not available without login session
-      contactEmail: body.contact_email,
+      contactEmail,
       accountName: body.account_name,
       ownerKey: body.owner_key,
       provider: 'email',
@@ -71,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     console.info('Recovery request created:', {
       account_name: body.account_name,
-      contact_email: body.contact_email,
+      contact_email: contactEmail,
     });
 
     return NextResponse.json({ status: 'ok' });

@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GET } from '@/app/api/recovery/verify/[code]/route';
 
+// Mock rate limit middleware
+vi.mock('@/lib/middleware', () => ({
+  rateLimit: vi.fn().mockResolvedValue(null),
+}));
+
 // Mock the Drizzle db module
 const mockFindFirst = vi.fn();
 const mockDb = {

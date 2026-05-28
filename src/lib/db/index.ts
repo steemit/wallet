@@ -15,12 +15,13 @@ let dbUnavailable = false;
 
 export function getDb() {
   if (db) return db;
-  if (dbUnavailable) return null;
 
   const url = process.env.DATABASE_URL;
   if (!url) {
-    dbUnavailable = true;
-    console.warn('DATABASE_URL not set; database features disabled');
+    if (!dbUnavailable) {
+      dbUnavailable = true;
+      console.warn('DATABASE_URL not set; database features disabled');
+    }
     return null;
   }
 
@@ -34,9 +35,11 @@ export function getDb() {
     });
 
     db = drizzle(pool, { schema, mode: 'default' });
+    // Reset flag on successful creation (allows recovery after transient failures)
+    dbUnavailable = false;
     return db;
   } catch (err) {
-    dbUnavailable = true;
+    // Do NOT permanently mark as unavailable — next call may succeed
     console.error('Failed to create database connection:', err);
     return null;
   }

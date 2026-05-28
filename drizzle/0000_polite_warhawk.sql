@@ -21,4 +21,5 @@ CREATE TABLE `arecs` (
 --> statement-breakpoint
 CREATE INDEX `idx_arecs_account_name` ON `arecs` (`account_name`);--> statement-breakpoint
 CREATE INDEX `idx_arecs_contact_email` ON `arecs` (`contact_email`);--> statement-breakpoint
-CREATE INDEX `idx_arecs_uid` ON `arecs` (`uid`);
+CREATE INDEX `idx_arecs_uid` ON `arecs` (`uid`);--> statement-breakpoint
+CREATE INDEX `idx_arecs_validation_code` ON `arecs` (`validation_code`);
