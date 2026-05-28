@@ -33,6 +33,7 @@ import type {
   ProposalOrderBy,
   ProposalOrderDirection,
   ProposalStatus,
+  OwnerHistoryEntry,
 } from './types';
 
 // Steem configuration from environment; support multiple URLs for failover
@@ -93,11 +94,11 @@ export class SteemService {
   /**
    * Get owner key change history (condenser_api.get_owner_history).
    */
-  static async getOwnerHistory(account: string): Promise<unknown[]> {
+  static async getOwnerHistory(account: string): Promise<OwnerHistoryEntry[]> {
     return withFailover(async () => {
       ensureConfigured();
       const api = steem.api as unknown as {
-        getOwnerHistoryAsync: (name: string) => Promise<unknown[]>;
+        getOwnerHistoryAsync: (name: string) => Promise<OwnerHistoryEntry[]>;
       };
       return (await api.getOwnerHistoryAsync(account)) ?? [];
     }).catch((error) => {

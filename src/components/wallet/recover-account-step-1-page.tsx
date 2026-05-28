@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import { StaticPageShell } from '@/components/layout/static-page-shell';
@@ -8,10 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
+import type { OwnerHistoryEntry } from '@/lib/steem/types';
 
 const emailRegex =
   /^([^\x00-\x20\x22\x28\x29\x2c\x2e\x3a-\x3c\x3e\x40\x5b-\x5d\x7f-\xff]+|\x22([^\x0d\x22\x5c\x80-\xff]|\x5c[\x00-\x7f])*\x22)(\x2e([^\x00-\x20\x22\x28\x29\x2c\x2e\x3a-\x3c\x3e\x40\x5b-\x5d\x7f-\xff]+|\x22([^\x0d\x22\x5c\x80-\xff]|\x5c[\x00-\x7f])*\x22))*\x40([^\x00-\x20\x22\x28\x29\x2c\x2e\x3a-\x3c\x3e\x40\x5b-\x5d\x7f-\xff]+|\x5b([^\x0d\x5b-\x5d\x80-\xff]|\x5c[\x00-\x7f])*\x5d)(\x2e([^\x00-\x20\x22\x28\x29\x2c\x2e\x3a-\x3c\x3e\x40\x5b-\x5d\x7f-\xff]+|\x5b([^\x0d\x5b-\x5d\x80-\xff]|\x5c[\x00-\x7f])*\x5d))*$/;
 
+// 2016-07-14 — the Steem hack event date. Accounts whose last owner key update
+// predates this cannot use the stolen-account recovery flow.
 const JULY_14_HACK_MS = Date.UTC(2016, 6, 14, 0, 0, 0, 0);
 
 function parseSteemDateMs(raw: string | undefined): number | null {
@@ -44,6 +47,8 @@ export function RecoverAccountStep1Page() {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState<string | null>(null);
 
+  const validateAccountVersion = useRef(0);
+
   const normalizedName = accountName.trim().toLowerCase();
 
   const derivedOwnerPub = useMemo(() => {
@@ -71,16 +76,17 @@ export function RecoverAccountStep1Page() {
   const validateAccount = async (name: string) => {
     setAccountError(null);
     if (!name) return;
+    const version = Date.now();
+    validateAccountVersion.current = version;
     const res = await apiClient.getAccounts([name], { fresh: true });
+    if (validateAccountVersion.current !== version) return;
     const account = res.accounts?.[0];
     if (!account) {
       setAccountError(t('accountNotFound'));
       return;
     }
 
-    const lastOwnerUpdateMs = parseSteemDateMs(
-      (account as { last_owner_update?: string }).last_owner_update
-    );
+    const lastOwnerUpdateMs = parseSteemDateMs(account.last_owner_update);
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     if (
       lastOwnerUpdateMs !== null &&
@@ -93,9 +99,7 @@ export function RecoverAccountStep1Page() {
   const validateOwnerWasUsedRecently = async (name: string, passwordOrKey: string) => {
     const pub = passwordToOwnerPubKey(name, passwordOrKey);
     const ownerHistoryRes = await apiClient.getOwnerHistory(name);
-    const history = (ownerHistoryRes.history ?? []) as {
-      previous_owner_authority?: { key_auths?: [string, number][] };
-    }[];
+    const history: OwnerHistoryEntry[] = ownerHistoryRes.history ?? [];
     return history.some((row) => row.previous_owner_authority?.key_auths?.[0]?.[0] === pub);
   };
 

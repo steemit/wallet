@@ -10,6 +10,7 @@ import type {
   SteemAccount,
   GlobalProperties,
   BroadcastResult,
+  OwnerHistoryEntry,
 } from './types';
 import { buildAccountCreateOperation } from '@/lib/wallet/community';
 
@@ -771,7 +772,7 @@ export const apiClient = {
   },
   async getOwnerHistory(
     username: string
-  ): Promise<{ success?: boolean; history?: unknown[]; error?: string }> {
+  ): Promise<{ success?: boolean; history?: OwnerHistoryEntry[]; error?: string }> {
     const response = await fetch(`/api/query/owner-history?username=${encodeURIComponent(username)}`);
     return response.json();
   },
@@ -783,12 +784,11 @@ export const apiClient = {
   }): Promise<{ status: 'ok' | 'duplicate' | 'error'; error?: string }> {
     const response = await fetch('/api/recovery/request', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
     return response.json();
   },
-
 
   /**
    * Get witnesses list

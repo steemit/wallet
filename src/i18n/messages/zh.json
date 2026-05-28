@@ -462,6 +462,24 @@
       "votersProxy": "代理：{proxy}",
       "votersEmpty": "暂无投票者。",
       "votersLoadFailed": "加载投票者失败。"
+    },
+    "recoverAccountStep1Page": {
+      "intro": "如果您的账户被盗，您可以通过提供最近的 owner 密码或 owner 私钥来证明所有权，从而开始恢复流程。如果与您账户最近的 owner 历史记录匹配，您可以使用电子邮件提交恢复请求。",
+      "accountName": "账户名",
+      "recentPassword": "最近的密码 / owner 密钥",
+      "beginRecovery": "开始恢复",
+      "checkingOwner": "正在验证账户 owner…",
+      "submittingRequest": "正在提交恢复请求…",
+      "passwordNotUsedInLastDays": "此密码/密钥未出现在该账户最近的 owner 历史记录中。",
+      "enterEmailToVerify": "请输入您的电子邮件地址，以便我们验证您的身份并跟进恢复请求。",
+      "email": "电子邮件",
+      "emailNotValid": "请输入有效的电子邮件地址。",
+      "continueWithEmail": "使用电子邮件继续",
+      "thanksForSubmitting": "感谢您提交恢复请求。请查收电子邮件获取后续步骤。",
+      "requestAlreadySubmitted": "该账户和电子邮件的恢复请求已存在。",
+      "accountNotFound": "未找到该账户名。",
+      "unableToRecoverNotChangedRecently": "无法恢复此账户，因为该账户最近未更改 owner 密钥。",
+      "unknownError": "未知错误"
     }
   },
   "navigation": {

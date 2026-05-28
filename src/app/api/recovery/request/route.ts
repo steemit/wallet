@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { rateLimit } from '@/lib/middleware';
+import { verifyCSRF, rateLimit } from '@/lib/middleware';
 
 export async function POST(request: NextRequest) {
+  const csrfError = await verifyCSRF(request);
+  if (csrfError) return csrfError;
+
   const rateLimitError = await rateLimit(request, 'query', { maxRequests: 10, windowSeconds: 60 });
   if (rateLimitError) return rateLimitError;
 
@@ -16,5 +19,6 @@ export async function POST(request: NextRequest) {
   }
 
   // Compatibility shim until backend email service is wired (legacy: initiate_account_recovery_with_email).
+  console.info('Recovery request submitted:', { account_name: body.account_name, contact_email: body.contact_email });
   return NextResponse.json({ status: 'ok' });
 }
