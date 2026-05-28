@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     // Insert new recovery request
     await db.insert(arecs).values({
-      uid: '', // not available without login session
+      uid: null, // not available without login session
       contactEmail: body.contact_email,
       accountName: body.account_name,
       ownerKey: body.owner_key,
