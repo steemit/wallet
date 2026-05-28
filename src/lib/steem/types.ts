@@ -49,6 +49,7 @@ export interface SteemAccount {
   vesting_balance: string;
   reputation: number;
   witness_votes: string[];
+  proxy?: string;
 }
 
 export interface SignedTransaction {

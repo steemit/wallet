@@ -334,6 +334,27 @@ export class SteemSigner {
   }
 
   /**
+   * Sign a witness proxy operation
+   */
+  static async signWitnessProxy(
+    account: string,
+    proxy: string,
+    activeKey: string
+  ): Promise<SignedTransaction> {
+    const operations: Operation[] = [
+      [
+        'account_witness_proxy',
+        {
+          account,
+          proxy,
+        },
+      ],
+    ];
+
+    return await this.signTransaction(operations, [activeKey]);
+  }
+
+  /**
    * Set power-down withdraw routing (set_withdraw_vesting_route).
    * `percent` is chain units (legacy: Math.round(uiPercent * 100)).
    */
@@ -653,7 +674,7 @@ export const apiClient = {
   async broadcastWitnessVote(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
     const response = await fetch('/api/broadcast/witness-vote', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
@@ -691,6 +712,21 @@ export const apiClient = {
     username: string
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
     const response = await fetch('/api/broadcast/proposal-remove', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
+    return response.json();
+  },
+
+  /**
+   * Broadcast a signed witness proxy
+   */
+  async broadcastWitnessProxy(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+    const response = await fetch('/api/broadcast/witness-proxy', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ signedTx, username }),
