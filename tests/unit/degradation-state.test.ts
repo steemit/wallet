@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isDegraded, setDegraded, subscribeToDegradation } from '@/lib/cache/degradation-state';
 
 describe('degradation-state', () => {
+  afterEach(() => {
+    setDegraded(false);
+  });
+
   it('tracks global degraded state', () => {
     setDegraded(false);
     expect(isDegraded()).toBe(false);

@@ -9,6 +9,7 @@ import { useAccountData } from '@/hooks/use-account-data';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import type { Witness } from '@/lib/steem/types';
 import { LoginForm } from '@/components/auth/login-form';
+import { DISABLED_SIGNING_KEY } from '@/lib/steem/constants';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,7 +68,7 @@ export function WitnessVoteForm() {
   // User's current witness votes
   const [localVotes, setLocalVotes] = useState<string[]>([]);
   const userVotes = localVotes;
-  const currentProxy = (account as unknown as { proxy?: string })?.proxy || '';
+  const currentProxy = account?.proxy || '';
   const lastOptimisticUpdateRef = useRef<{ at: number; expected: Set<string> } | null>(null);
 
   useEffect(() => {
@@ -232,6 +233,10 @@ export function WitnessVoteForm() {
     queueMicrotask(() => setLoginOpen(false));
 
     const run = async () => {
+      if (!signingKeyRef.current) {
+        setPendingAction(null);
+        return;
+      }
       try {
         setActionLoading(true);
         if (pendingAction.type === 'vote') {
@@ -278,7 +283,6 @@ export function WitnessVoteForm() {
   };
 
   const isWitnessDisabled = (w: Witness): { disabled: boolean; reason?: string } => {
-    const DISABLED_SIGNING_KEY = 'STM1111111111111111111111111111111114T1Anm';
     if (w.signing_key === DISABLED_SIGNING_KEY) return { disabled: true, reason: 'disabled key' };
     if (headBlock !== null && typeof w.last_confirmed_block_num === 'number') {
       const secs = (headBlock - w.last_confirmed_block_num) * 3;
