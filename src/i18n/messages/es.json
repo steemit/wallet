@@ -471,6 +471,21 @@
       "accountNotFound": "Nombre de cuenta no encontrado.",
       "unableToRecoverNotChangedRecently": "No se puede recuperar esta cuenta porque no ha cambiado las claves de owner recientemente.",
       "unknownError": "Error desconocido"
+    },
+    "recoverAccountConfirmationPage": {
+      "intro": "Ingrese su contraseña anterior y la nueva para completar la recuperación de la cuenta. Su contraseña anterior debe coincidir con una clave de owner reciente.",
+      "verifying": "Verificando código de recuperación…",
+      "invalidCode": "Este enlace de recuperación no es válido o ha expirado.",
+      "accountName": "Nombre de cuenta",
+      "oldPassword": "Contraseña anterior",
+      "newPassword": "Nueva contraseña",
+      "checkingOwner": "Verificando clave de owner anterior…",
+      "submittingRecovery": "Enviando recuperación…",
+      "oldPasswordNotInHistory": "Esta contraseña no coincide con ninguna clave de owner reciente de esta cuenta.",
+      "submit": "Recuperar cuenta",
+      "successMessage": "Su cuenta ha sido recuperada exitosamente. Ahora puede iniciar sesión con su nueva contraseña.",
+      "goToLogin": "Ir a iniciar sesión",
+      "unknownError": "Ocurrió un error desconocido."
     }
   },
   "navigation": {

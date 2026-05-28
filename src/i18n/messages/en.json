@@ -480,6 +480,21 @@
       "accountNotFound": "Account name was not found.",
       "unableToRecoverNotChangedRecently": "Unable to recover this account because it has not changed owner keys recently.",
       "unknownError": "Unknown error"
+    },
+    "recoverAccountConfirmationPage": {
+      "intro": "Enter your old and new passwords to complete the account recovery. Your old password must match a recent owner key on file.",
+      "verifying": "Verifying recovery code…",
+      "invalidCode": "This recovery link is invalid or has expired.",
+      "accountName": "Account name",
+      "oldPassword": "Old password",
+      "newPassword": "New password",
+      "checkingOwner": "Verifying old owner key…",
+      "submittingRecovery": "Submitting recovery…",
+      "oldPasswordNotInHistory": "This password does not match any recent owner key for this account.",
+      "submit": "Recover account",
+      "successMessage": "Your account has been successfully recovered. You can now log in with your new password.",
+      "goToLogin": "Go to login",
+      "unknownError": "An unknown error occurred."
     }
   },
   "navigation": {

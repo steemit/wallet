@@ -480,6 +480,21 @@
       "accountNotFound": "未找到该账户名。",
       "unableToRecoverNotChangedRecently": "无法恢复此账户，因为该账户最近未更改 owner 密钥。",
       "unknownError": "未知错误"
+    },
+    "recoverAccountConfirmationPage": {
+      "intro": "输入旧密码和新密码以完成账户恢复。旧密码必须与该账户最近的 owner 密钥匹配。",
+      "verifying": "正在验证恢复码…",
+      "invalidCode": "此恢复链接无效或已过期。",
+      "accountName": "账户名",
+      "oldPassword": "旧密码",
+      "newPassword": "新密码",
+      "checkingOwner": "正在验证旧 owner 密钥…",
+      "submittingRecovery": "正在提交恢复…",
+      "oldPasswordNotInHistory": "此密码与该账户最近的 owner 密钥不匹配。",
+      "submit": "恢复账户",
+      "successMessage": "您的账户已成功恢复，现在可以使用新密码登录。",
+      "goToLogin": "前往登录",
+      "unknownError": "发生未知错误。"
     }
   },
   "navigation": {
