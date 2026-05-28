@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
@@ -9,6 +9,7 @@ import { useAccountData } from '@/hooks/use-account-data';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import type { Witness } from '@/lib/steem/types';
 import { LoginForm } from '@/components/auth/login-form';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,13 +41,18 @@ export function WitnessVoteForm() {
   const username = useSelector((state: RootState) => state.auth.username);
   const signingKey = useActiveSigningKey();
   const [isPending] = useTransition();
+  const signingKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    signingKeyRef.current = signingKey ?? null;
+  }, [signingKey]);
 
   const { data: account, refetch: refetchAccount, loading: isAccountLoading } = useAccountData();
 
   const [witnesses, setWitnesses] = useState<Witness[]>([]);
   const [customWitness, setCustomWitness] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [witnessesLoading, setWitnessesLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const [loginOpen, setLoginOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<
@@ -59,12 +65,38 @@ export function WitnessVoteForm() {
   const [proxyInput, setProxyInput] = useState('');
 
   // User's current witness votes
-  const userVotes = account?.witness_votes || [];
+  const [localVotes, setLocalVotes] = useState<string[]>([]);
+  const userVotes = localVotes;
   const currentProxy = (account as unknown as { proxy?: string })?.proxy || '';
+  const lastOptimisticUpdateRef = useRef<{ at: number; expected: Set<string> } | null>(null);
+
+  useEffect(() => {
+    const serverVotes = account?.witness_votes ?? [];
+
+    // Protect against brief server-side / caching lag that can momentarily return
+    // stale witness votes right after a successful broadcast (causes button flicker).
+    const optimistic = lastOptimisticUpdateRef.current;
+    if (optimistic && Date.now() - optimistic.at < 10_000) {
+      const serverSet = new Set(serverVotes);
+      let includesAllExpected = true;
+      for (const v of optimistic.expected) {
+        if (!serverSet.has(v)) {
+          includesAllExpected = false;
+          break;
+        }
+      }
+      if (!includesAllExpected) return;
+      lastOptimisticUpdateRef.current = null;
+    }
+
+    // Keep local optimistic votes in sync with server state, but do it async
+    // to avoid react-hooks/set-state-in-effect lint errors.
+    queueMicrotask(() => setLocalVotes(serverVotes));
+  }, [account?.witness_votes]);
 
   useEffect(() => {
     const fetchWitnesses = async () => {
-      setIsLoading(true);
+      setWitnessesLoading(true);
       try {
         const [witnessesResp, propsResp] = await Promise.all([
           apiClient.getWitnesses(100),
@@ -82,7 +114,7 @@ export function WitnessVoteForm() {
         console.error('Fetch witnesses error:', err);
         setError(tCommon('error'));
       } finally {
-        setIsLoading(false);
+        setWitnessesLoading(false);
       }
     };
 
@@ -107,21 +139,26 @@ export function WitnessVoteForm() {
   const hasVoted = (witnessName: string): boolean => userVotes.includes(witnessName);
 
   const ensureAuthOrOpenDialog = useCallback((): boolean => {
-    if (isAuthenticated && username && signingKey) return true;
+    if (isAuthenticated && username && !!signingKeyRef.current) return true;
     setLoginOpen(true);
     return false;
-  }, [isAuthenticated, signingKey, username]);
+  }, [isAuthenticated, username]);
 
   const doVote = useCallback(
     async (witnessName: string, approve: boolean) => {
-      if (!username || !signingKey) return;
-      const signedTx = await SteemSigner.signWitnessVote(username, witnessName, approve, signingKey);
+      const key = signingKeyRef.current;
+      if (!username || !key) return;
+      const signedTx = await SteemSigner.signWitnessVote(username, witnessName, approve, key);
       const response = await apiClient.broadcastWitnessVote(signedTx, username);
       if (!response.success) {
-        throw new Error(response.error || (approve ? t('voteError') : t('unvoteError')));
+        throw new Error(
+          response.details ||
+            response.error ||
+            (approve ? t('voteError') : t('unvoteError'))
+        );
       }
     },
-    [signingKey, t, username]
+    [t, username]
   );
 
   const handleVote = async (witnessName: string, approve: boolean) => {
@@ -131,15 +168,23 @@ export function WitnessVoteForm() {
       return;
     }
 
-    setIsLoading(true);
+    setActionLoading(true);
     try {
       await doVote(witnessName, approve);
+      setLocalVotes((prev) => {
+        const set = new Set(prev);
+        if (approve) set.add(witnessName);
+        else set.delete(witnessName);
+        lastOptimisticUpdateRef.current = { at: Date.now(), expected: set };
+        return [...set];
+      });
+      toast.success(approve ? t('voteSuccess') : t('unvoteSuccess'));
       await refetchAccount();
     } catch (err) {
       console.error('Witness vote error:', err);
       setError(err instanceof Error ? err.message : approve ? t('voteError') : t('unvoteError'));
     } finally {
-      setIsLoading(false);
+      setActionLoading(false);
     }
   };
 
@@ -161,50 +206,63 @@ export function WitnessVoteForm() {
       setPendingAction({ type: 'proxy', proxy: nextProxy });
       return;
     }
-    if (!username || !signingKey) return;
+    const key = signingKeyRef.current;
+    if (!username || !key) return;
 
-    setIsLoading(true);
+    setActionLoading(true);
     try {
-      const signedTx = await SteemSigner.signWitnessProxy(username, nextProxy, signingKey);
+      const signedTx = await SteemSigner.signWitnessProxy(username, nextProxy, key);
       const resp = await apiClient.broadcastWitnessProxy(signedTx, username);
       if (!resp.success) throw new Error(resp.error || tCommon('error'));
       setProxyInput('');
+      toast.success(nextProxy ? t('proxySetSuccess') : t('proxyClearedSuccess'));
       await refetchAccount();
     } catch (err) {
       console.error('Witness proxy error:', err);
       setError(err instanceof Error ? err.message : tCommon('error'));
     } finally {
-      setIsLoading(false);
+      setActionLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!pendingAction || !isAuthenticated || !username || !signingKey) return;
+    if (!pendingAction || !isAuthenticated || !username || !signingKeyRef.current) return;
     // Close login dialog after auth is available, but do it async to avoid
     // cascading renders flagged by react-hooks/set-state-in-effect.
     queueMicrotask(() => setLoginOpen(false));
 
     const run = async () => {
       try {
-        setIsLoading(true);
+        setActionLoading(true);
         if (pendingAction.type === 'vote') {
           await doVote(pendingAction.witnessName, pendingAction.approve);
+          setLocalVotes((prev) => {
+            const set = new Set(prev);
+            if (pendingAction.approve) set.add(pendingAction.witnessName);
+            else set.delete(pendingAction.witnessName);
+            lastOptimisticUpdateRef.current = { at: Date.now(), expected: set };
+            return [...set];
+          });
+          toast.success(pendingAction.approve ? t('voteSuccess') : t('unvoteSuccess'));
         } else {
-          const signedTx = await SteemSigner.signWitnessProxy(username, pendingAction.proxy, signingKey);
+          const key = signingKeyRef.current;
+          if (!key) throw new Error(tCommon('error'));
+          const signedTx = await SteemSigner.signWitnessProxy(username, pendingAction.proxy, key);
           const resp = await apiClient.broadcastWitnessProxy(signedTx, username);
           if (!resp.success) throw new Error(resp.error || tCommon('error'));
+          toast.success(pendingAction.proxy ? t('proxySetSuccess') : t('proxyClearedSuccess'));
         }
         await refetchAccount();
       } catch (err) {
         setError(err instanceof Error ? err.message : tCommon('error'));
       } finally {
         setPendingAction(null);
-        setIsLoading(false);
+        setActionLoading(false);
       }
     };
 
     void run();
-  }, [doVote, isAuthenticated, pendingAction, refetchAccount, signingKey, tCommon, username]);
+  }, [doVote, isAuthenticated, pendingAction, refetchAccount, t, tCommon, username]);
 
   // Format vote count for display
   const formatVotes = (votes: string): string => {
@@ -283,7 +341,7 @@ export function WitnessVoteForm() {
                       value={customWitness}
                       onChange={(e) => setCustomWitness(e.target.value)}
                       placeholder={t('voteOutsideTopPlaceholder')}
-                      disabled={isLoading || isPending}
+                      disabled={actionLoading || isPending}
                       className="rounded-l-none"
                     />
                   </div>
@@ -291,10 +349,10 @@ export function WitnessVoteForm() {
                 <Button
                   type="button"
                   onClick={handleQuickVote}
-                  disabled={isLoading || isPending || !customWitness.trim()}
+                  disabled={actionLoading || isPending || !customWitness.trim()}
                   className="sm:w-auto"
                 >
-                  {isLoading || isPending
+                  {actionLoading || isPending
                     ? tCommon('loading')
                     : hasVoted(customWitness.trim().replace(/^@/, '').toLowerCase())
                       ? t('unvote')
@@ -327,7 +385,7 @@ export function WitnessVoteForm() {
                   setProxyInput('');
                   void handleSetProxy();
                 }}
-                disabled={isLoading || isPending}
+                disabled={actionLoading || isPending}
               >
                 {t('proxyClear')}
               </Button>
@@ -341,9 +399,9 @@ export function WitnessVoteForm() {
                   value={proxyInput}
                   onChange={(e) => setProxyInput(e.target.value)}
                   placeholder={t('proxyPlaceholder')}
-                  disabled={isLoading || isPending}
+                  disabled={actionLoading || isPending}
                 />
-                <Button type="button" onClick={handleSetProxy} disabled={isLoading || isPending}>
+                <Button type="button" onClick={handleSetProxy} disabled={actionLoading || isPending}>
                   {t('proxySet')}
                 </Button>
               </div>
@@ -374,7 +432,7 @@ export function WitnessVoteForm() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {witnessesLoading ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                     {t('loadingWitnesses')}
@@ -438,7 +496,7 @@ export function WitnessVoteForm() {
                           variant="destructive"
                           size="sm"
                           onClick={() => handleVote(witness.owner, false)}
-                          disabled={isLoading || isPending || disabled}
+                          disabled={actionLoading || isPending || disabled}
                         >
                           {t('unvote')}
                         </Button>
@@ -447,7 +505,7 @@ export function WitnessVoteForm() {
                           variant="default"
                           size="sm"
                           onClick={() => handleVote(witness.owner, true)}
-                          disabled={isLoading || isPending || disabled || !!currentProxy}
+                          disabled={actionLoading || isPending || disabled || !!currentProxy}
                         >
                           {t('vote')}
                         </Button>
@@ -476,7 +534,7 @@ export function WitnessVoteForm() {
                     variant="destructive"
                     size="sm"
                     onClick={() => handleVote(name, false)}
-                    disabled={isLoading || isPending}
+                    disabled={actionLoading || isPending}
                   >
                     {t('unvote')}
                   </Button>

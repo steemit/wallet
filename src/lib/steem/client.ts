@@ -674,7 +674,7 @@ export const apiClient = {
   async broadcastWitnessVote(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
     const response = await fetch('/api/broadcast/witness-vote', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),

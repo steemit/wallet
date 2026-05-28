@@ -549,6 +549,8 @@
     "proxySet": "Set proxy",
     "proxyClear": "Clear proxy",
     "proxySetTo": "Witness proxy set to {proxy}",
+    "proxySetSuccess": "Proxy updated",
+    "proxyClearedSuccess": "Proxy cleared",
     "voteSuccess": "Vote successful",
     "voteError": "Vote failed",
     "unvoteSuccess": "Unvote successful",

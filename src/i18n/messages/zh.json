@@ -549,6 +549,8 @@
     "proxySet": "设置代理",
     "proxyClear": "清除代理",
     "proxySetTo": "见证人代理已设置为 {proxy}",
+    "proxySetSuccess": "代理已更新",
+    "proxyClearedSuccess": "代理已清除",
     "voteSuccess": "投票成功",
     "voteError": "投票失败",
     "unvoteSuccess": "取消投票成功",

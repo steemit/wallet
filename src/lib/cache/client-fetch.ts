@@ -30,7 +30,7 @@ export async function cachedFetch<T>(
   opts: CachedFetchOptions
 ): Promise<CachedFetchResult<T>> {
   if (opts.noStore) {
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: 'no-store' });
     return { data: await res.json(), stale: false };
   }
 
