@@ -8,6 +8,13 @@ vi.mock('@/lib/middleware', () => ({
   rateLimit: vi.fn().mockResolvedValue(null),
 }));
 
+// Mock the SteemService requestAccountRecovery
+vi.mock('@/lib/steem/server', () => ({
+  SteemService: {
+    requestAccountRecovery: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 // Mock the Drizzle db module
 const mockFindFirst = vi.fn();
 const mockUpdateSet = vi.fn();

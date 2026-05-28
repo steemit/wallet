@@ -549,6 +549,53 @@ export class SteemService {
   }
 
   /**
+   * Request account recovery via Conveyor (kingdom.recovery_account).
+   * Broadcasts a `request_account_recovery` operation signed by the
+   * recovery account's posting key.  This must happen **before** the
+   * client submits the `recover_account` operation.
+   *
+   * Requires CONVEYOR_USERNAME and CONVEYOR_POSTING_WIF env vars.
+   */
+  static async requestAccountRecovery(payload: {
+    account_to_recover: string;
+    new_owner_authority: {
+      weight_threshold: number;
+      account_auths: [string, number][];
+      key_auths: [string, number][];
+    };
+  }): Promise<void> {
+    const conveyorUsername = process.env.CONVEYOR_USERNAME;
+    const conveyorWif = process.env.CONVEYOR_POSTING_WIF;
+
+    if (!conveyorUsername || !conveyorWif) {
+      throw new Error(
+        'CONVEYOR_USERNAME / CONVEYOR_POSTING_WIF not configured'
+      );
+    }
+
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        signedCallAsync?: (
+          method: string,
+          params: unknown[],
+          account: string,
+          key: string
+        ) => Promise<unknown>;
+      };
+      if (typeof api.signedCallAsync !== 'function') {
+        throw new Error('steem.api.signedCallAsync is not available');
+      }
+      await api.signedCallAsync(
+        'kingdom.recovery_account',
+        payload as unknown as unknown[],
+        conveyorUsername,
+        conveyorWif
+      );
+    }) as Promise<void>;
+  }
+
+  /**
    * Broadcast a signed transaction
    */
   static async broadcastTransaction(signedTx: SignedTransaction): Promise<BroadcastResult> {

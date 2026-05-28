@@ -92,12 +92,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 1: Server-side request_account_recovery
-    // This broadcasts the request_account_recovery operation signed by the
-    // recovery account (e.g. steem). This must be done via Conveyor or a
-    // similar service that holds the recovery account's key.
-    // TODO: Integrate with Conveyor kingdom.recovery_account when available.
-    // For now, this step is expected to be handled externally (turtle admin).
+    // Step 1: Server-side request_account_recovery via Conveyor (kingdom)
+    // Broadcasts request_account_recovery signed by the recovery account,
+    // setting the new_owner_authority on-chain so the client can then
+    // submit recover_account with the old owner key.
+    const { SteemService } = await import('@/lib/steem/server');
+    await SteemService.requestAccountRecovery({
+      account_to_recover: body.account_name,
+      new_owner_authority: body.new_owner_authority,
+    });
 
     // Step 2: Update the arecs record
     await db
