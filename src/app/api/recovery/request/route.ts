@@ -21,6 +21,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: 'error', error: 'Missing fields' }, { status: 400 });
   }
 
+  // Validate owner_key format: must be a Steem public key (STM + base58, ~53 chars)
+  if (!/^STM[A-Za-z0-9]{50,}$/.test(body.owner_key)) {
+    return NextResponse.json(
+      { status: 'error', error: 'Invalid owner key format' },
+      { status: 400 }
+    );
+  }
+
   const db = getDb();
   if (!db) {
     console.error('Database unavailable for recovery request');

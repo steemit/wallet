@@ -46,11 +46,14 @@ describe('POST /api/recovery/request', () => {
     vi.restoreAllMocks();
   });
 
+  // Realistic Steem public key (STM + 53 base58 chars)
+  const VALID_OWNER_KEY = 'STM6xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+
   it('returns ok for valid new request', async () => {
     const req = makeRequest({
       contact_email: 'test@example.com',
       account_name: 'alice',
-      owner_key: 'STM6xxx',
+      owner_key: VALID_OWNER_KEY,
     });
     const res = await POST(req);
     const data = await res.json();
@@ -66,7 +69,7 @@ describe('POST /api/recovery/request', () => {
     const req = makeRequest({
       contact_email: 'test@example.com',
       account_name: 'alice',
-      owner_key: 'STM6xxx',
+      owner_key: VALID_OWNER_KEY,
     });
     const res = await POST(req);
     const data = await res.json();
@@ -83,12 +86,26 @@ describe('POST /api/recovery/request', () => {
     expect(data.status).toBe('error');
   });
 
+  it('returns 400 for invalid owner_key format', async () => {
+    const req = makeRequest({
+      contact_email: 'test@example.com',
+      account_name: 'alice',
+      owner_key: 'not-a-valid-key',
+    });
+    const res = await POST(req);
+    const data = await res.json();
+    expect(data.status).toBe('error');
+    expect(data.error).toBe('Invalid owner key format');
+    expect(res.status).toBe(400);
+    expect(mockFindFirst).not.toHaveBeenCalled();
+  });
+
   it('returns 503 when database is unavailable', async () => {
     mockGetDb.mockReturnValue(null);
     const req = makeRequest({
       contact_email: 'test@example.com',
       account_name: 'alice',
-      owner_key: 'STM6xxx',
+      owner_key: VALID_OWNER_KEY,
     });
     const res = await POST(req);
     const data = await res.json();
@@ -101,7 +118,7 @@ describe('POST /api/recovery/request', () => {
     const req = makeRequest({
       contact_email: 'test@example.com',
       account_name: 'alice',
-      owner_key: 'STM6xxx',
+      owner_key: VALID_OWNER_KEY,
     });
     const res = await POST(req);
     const data = await res.json();

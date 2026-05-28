@@ -14,8 +14,8 @@ CREATE TABLE `arecs` (
 	`request_submitted_at` datetime,
 	`remote_ip` varchar(45),
 	`status` varchar(32) DEFAULT 'open',
-	`created_at` datetime NOT NULL DEFAULT '2026-05-28 10:00:05.815',
-	`updated_at` datetime NOT NULL DEFAULT '2026-05-28 10:00:05.815',
+	`created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT `arecs_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
