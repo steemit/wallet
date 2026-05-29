@@ -173,7 +173,7 @@ export default function WalletPage() {
               loading={balanceLoading}
               showBalanceActions={showBalanceActions}
             />
-            <RecentActivityLazy username={urlUsername} refreshNonce={walletRefreshNonce} />
+            <RecentActivityLazy username={urlUsername} refreshNonce={walletRefreshNonce} globalProps={globalProps} />
           </>
         )}
         {isDelegationsPath && (
