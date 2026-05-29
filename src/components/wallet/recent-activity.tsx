@@ -46,9 +46,10 @@ function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?
         time: formatTimeAgo(item.timestamp),
       };
     case 'withdraw_vesting': {
-      const sp = globalProps
-        ? `${formatSteemPowerFromVestsString(asStr(data.vesting_shares), globalProps)} SP`
-        : '-- SP';
+      const vestStr = asStr(data.vesting_shares);
+      const sp = globalProps && vestStr
+        ? `${formatSteemPowerFromVestsString(vestStr, globalProps)} SP`
+        : vestStr ?? '';
       return {
         description: `Started power down of ${sp}`,
         memo: '',
@@ -62,10 +63,11 @@ function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?
         time: formatTimeAgo(item.timestamp),
       };
     case 'claim_reward_balance': {
-      const vestsPart = globalProps
-        ? `${formatSteemPowerFromVestsString(asStr(data.reward_vests), globalProps)} SP`
-        : '-- SP';
-      // parseAssetAmount extracts the leading number and tolerates " SP" / " STEEM" suffixes.
+      const vestStr = asStr(data.reward_vests);
+      const vestsPart = globalProps && vestStr
+        ? `${formatSteemPowerFromVestsString(vestStr, globalProps)} SP`
+        : vestStr ?? '';
+      // parseAssetAmount extracts the leading number and tolerates " SP" / " STEEM" / " VESTS" suffixes.
       const parts = [
         data.reward_steem,
         data.reward_sbd,
@@ -92,9 +94,10 @@ function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?
         time: formatTimeAgo(item.timestamp),
       };
     case 'delegate_vesting_shares': {
-      const sp = globalProps
-        ? `${formatSteemPowerFromVestsString(asStr(data.vesting_shares), globalProps)} SP`
-        : '-- SP';
+      const vestStr = asStr(data.vesting_shares);
+      const sp = globalProps && vestStr
+        ? `${formatSteemPowerFromVestsString(vestStr, globalProps)} SP`
+        : vestStr ?? '';
       return {
         description: data.delegator === context
           ? `Delegated ${sp} to ${data.delegatee}`
