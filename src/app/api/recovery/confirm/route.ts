@@ -87,6 +87,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Step 1b: Cross-validate old_owner_key against the DB record.
+    // This ensures the client-submitted key matches the original request.
+    const record = await db.query.arecs.findFirst({
+      where: eq(arecs.validationCode, body.code),
+      columns: { id: true, ownerKey: true },
+    });
+    if (!record || (record.ownerKey && record.ownerKey !== body.old_owner_key)) {
+      return NextResponse.json(
+        { status: 'error', error: 'Owner key mismatch' },
+        { status: 400 }
+      );
+    }
+
     // Step 2: Call kingdom.recovery_account (broadcasts request_account_recovery on-chain).
     // If this fails, the record stays in 'processing' and won't be re-processed.
     const { SteemService } = await import('@/lib/steem/server');
@@ -104,7 +117,7 @@ export async function POST(request: NextRequest) {
         requestSubmittedAt: new Date(),
         status: 'closed',
       })
-      .where(eq(arecs.validationCode, body.code));
+      .where(and(eq(arecs.validationCode, body.code), eq(arecs.accountName, body.account_name)));
 
     console.info('Account recovery confirmed:', {
       code: body.code,

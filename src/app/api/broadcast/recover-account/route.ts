@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (record.newOwnerKey && record.newOwnerKey !== newKey) {
+      if (!record.newOwnerKey || record.newOwnerKey !== newKey) {
         return NextResponse.json(
           { error: 'new_owner_key does not match recovery record' },
           { status: 400 }

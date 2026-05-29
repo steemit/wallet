@@ -17,8 +17,8 @@ vi.mock('@/lib/steem/server', () => ({
 
 // Valid Steem public key (STM + exactly 50 base58 chars = 53 chars total)
 const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-const VALID_KEY_A = 'STM' + B58.slice(0, 50);  // 53 chars
-const VALID_KEY_B = 'STM' + B58.slice(1, 51);  // 53 chars, different
+const VALID_KEY_A = 'STM' + B58.slice(0, 50);
+const VALID_KEY_B = 'STM' + B58.slice(1, 51);
 
 const mockFindFirst = vi.fn();
 let mockUpdateFn: ReturnType<typeof vi.fn>;
@@ -67,6 +67,8 @@ describe('POST /api/recovery/confirm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDb.mockReturnValue(mockDb);
+    // Default: findFirst returns a record matching old_owner_key
+    mockFindFirst.mockResolvedValue({ id: 1, ownerKey: VALID_KEY_A });
   });
 
   afterEach(() => {
@@ -139,6 +141,30 @@ describe('POST /api/recovery/confirm', () => {
     const data = await res.json();
     expect(data.error).toBe('Recovery request not found or already processed');
     expect(mockUpdateFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns 400 when old_owner_key does not match DB record (owner key mismatch)', async () => {
+    setupUpdateMocks({ affectedRows: 1 });
+    // DB has a different ownerKey
+    mockFindFirst.mockResolvedValue({ id: 1, ownerKey: VALID_KEY_B });
+
+    const req = makeRequest(validPayload);
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe('Owner key mismatch');
+  });
+
+  it('allows confirm when DB ownerKey is null (legacy records)', async () => {
+    setupUpdateMocks({ affectedRows: 1 });
+    mockFindFirst.mockResolvedValue({ id: 1, ownerKey: null });
+
+    const req = makeRequest(validPayload);
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(data.status).toBe('ok');
+    expect(res.status).toBe(200);
   });
 
   it('returns 503 when database is unavailable', async () => {

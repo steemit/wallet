@@ -21,6 +21,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: 'error', error: 'Missing fields' }, { status: 400 });
   }
 
+  // Normalize and validate account_name (Steem account rules: lowercase, 3-16 chars, starts with letter)
+  const accountName = body.account_name.trim().toLowerCase();
+  if (!/^[a-z][a-z0-9.-]{2,15}$/.test(accountName)) {
+    return NextResponse.json(
+      { status: 'error', error: 'Invalid account name format' },
+      { status: 400 }
+    );
+  }
+
   // Normalize email (lowercase + trim) to prevent duplicate bypass
   const contactEmail = body.contact_email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
@@ -51,7 +60,7 @@ export async function POST(request: NextRequest) {
     // Check for duplicate (same account_name + contact_email, status='open')
     const existing = await db.query.arecs.findFirst({
       where: and(
-        eq(arecs.accountName, body.account_name),
+        eq(arecs.accountName, accountName),
         eq(arecs.contactEmail, contactEmail),
         eq(arecs.status, 'open')
       ),
@@ -71,7 +80,7 @@ export async function POST(request: NextRequest) {
     await db.insert(arecs).values({
       uid: null, // not available without login session
       contactEmail,
-      accountName: body.account_name,
+      accountName,
       ownerKey: body.owner_key,
       provider: 'email',
       remoteIp,
@@ -79,7 +88,7 @@ export async function POST(request: NextRequest) {
     });
 
     console.info('Recovery request created:', {
-      account_name: body.account_name,
+      account_name: accountName,
       contact_email: contactEmail,
     });
 

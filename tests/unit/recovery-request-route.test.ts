@@ -113,6 +113,33 @@ describe('POST /api/recovery/request', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 400 for invalid account_name format', async () => {
+    const req = makeRequest({
+      contact_email: 'test@example.com',
+      account_name: 'a',  // too short
+      owner_key: VALID_OWNER_KEY,
+    });
+    const res = await POST(req);
+    const data = await res.json();
+    expect(data.status).toBe('error');
+    expect(data.error).toBe('Invalid account name format');
+    expect(res.status).toBe(400);
+  });
+
+  it('trims account_name whitespace', async () => {
+    const req = makeRequest({
+      contact_email: 'test@example.com',
+      account_name: '  alice  ',
+      owner_key: VALID_OWNER_KEY,
+    });
+    const res = await POST(req);
+    const data = await res.json();
+    expect(data.status).toBe('ok');
+    // Verify insert was called with trimmed name
+    const inserted = mockInsertValues.mock.calls[0][0] as { accountName: string };
+    expect(inserted.accountName).toBe('alice');
+  });
+
   it('normalizes email to lowercase for duplicate check', async () => {
     const req = makeRequest({
       contact_email: 'TEST@EXAMPLE.COM',
@@ -122,7 +149,6 @@ describe('POST /api/recovery/request', () => {
     const res = await POST(req);
     const data = await res.json();
     expect(data.status).toBe('ok');
-    // Verify findFirst was called with lowercase email
     expect(mockFindFirst).toHaveBeenCalledOnce();
   });
 

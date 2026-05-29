@@ -489,9 +489,13 @@ export class SteemSigner {
     oldPassword: string,
     newPassword: string
   ): Promise<{ signedTx: SignedTransaction; oldOwnerPub: string; newOwnerPub: string }> {
-    // Derive WIF private keys from passwords
-    const oldOwnerPriv = steem.auth.toWif(accountToRecover, oldPassword, 'owner');
-    const newOwnerPriv = steem.auth.toWif(accountToRecover, newPassword, 'owner');
+    // Derive WIF private keys — handle both passwords and raw WIF keys
+    const oldOwnerPriv = SteemSigner.isValidPrivateKey(oldPassword)
+      ? oldPassword
+      : steem.auth.toWif(accountToRecover, oldPassword, 'owner');
+    const newOwnerPriv = SteemSigner.isValidPrivateKey(newPassword)
+      ? newPassword
+      : steem.auth.toWif(accountToRecover, newPassword, 'owner');
 
     // Derive public keys for the authority objects
     const oldOwnerPub = steem.auth.getPublicKey(oldOwnerPriv);

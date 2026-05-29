@@ -162,12 +162,13 @@ a link like `https://steemitwallet.com/account_recovery_confirmation/{code}`.
 ### Status lifecycle
 
 ```
-open → confirmed → closed
+open → confirmed → processing → closed
               ↘ expired
 ```
 
 - `open`: User submitted step 1, awaiting admin review.
 - `confirmed`: Admin approved, `validation_code` generated, email sent.
+- `processing`: User submitted step 2 confirm; server has claimed the record atomically (CAS). If `kingdom.recovery_account` fails, the record stays in `processing`. **Records stuck in `processing` for >1 hour should be manually reset to `confirmed` by ops** to allow retry.
 - `expired`: Code expired (timeout, not currently enforced automatically).
 - `closed`: User completed step 2, recovery done. The `validation_code` is now
   single-use (cannot be used again).
@@ -224,7 +225,7 @@ open → confirmed → closed
 2. **CSRF protection** on all POST endpoints (`verifyCSRF` middleware).
 3. **Rate limiting** on all recovery endpoints to prevent abuse.
 4. **Code validation** — 20-hex-char format enforced server-side.
-5. **Owner key format validation** — `^STM[A-Za-z0-9]{50,}$` regex check.
+5. **Owner key format validation** — strict base58 regex `^STM[1-9A-HJ-NP-Za-km-z]{50}$` (excludes 0/O/I/l).
 6. **Single-use codes** — `status` changes to `closed` after successful step 2,
    preventing replay.
 7. **Account name verification** — Server checks that the account name from the

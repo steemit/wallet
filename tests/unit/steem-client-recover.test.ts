@@ -15,7 +15,7 @@ describe('steem client recover helpers', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/query/owner-history?username=Alice');
   });
 
-  it('initiateAccountRecoveryWithEmail posts to recovery/request', async () => {
+  it('initiateAccountRecoveryWithEmail posts with correct structure', async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ status: 'ok' })));
     (globalThis as unknown as { fetch: unknown }).fetch = fetchMock;
 
@@ -23,10 +23,12 @@ describe('steem client recover helpers', () => {
     const res = await apiClient.initiateAccountRecoveryWithEmail(payload);
     expect(res.status).toBe('ok');
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/recovery/request', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    // Verify the call includes POST method, JSON content type, and body
+    const [url, opts] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/recovery/request');
+    expect(opts.method).toBe('POST');
+    expect(opts.headers).toHaveProperty('Content-Type', 'application/json');
+    // withCSRFHeader may or may not add X-CSRF-Token depending on cookie availability
+    expect(opts.body).toBe(JSON.stringify(payload));
   });
 });
