@@ -136,7 +136,9 @@ describe('POST /api/recovery/request', () => {
     const data = await res.json();
     expect(data.status).toBe('ok');
     // Verify insert was called with trimmed name
-    const inserted = mockInsertValues.mock.calls[0][0] as { accountName: string };
+    const insertCall = mockInsertValues.mock.calls[0];
+    expect(insertCall).toBeDefined();
+    const inserted = insertCall![0] as { accountName: string };
     expect(inserted.accountName).toBe('alice');
   });
 

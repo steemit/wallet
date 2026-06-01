@@ -44,8 +44,6 @@ vi.mock('@/lib/db', () => ({
   getDb: () => vi.mocked(mockGetDb)(),
 }));
 
-const VALID_CODE = '5bc350832943043e8a82';
-
 function makeRequest(body: Record<string, unknown>): NextRequest {
   return new NextRequest('http://localhost/api/broadcast/recover-account', {
     method: 'POST',
@@ -150,6 +148,35 @@ describe('POST /api/broadcast/recover-account', () => {
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toBe('Invalid recover_account operation body');
+  });
+
+  it('returns 400 when new_owner_authority has no key_auth', async () => {
+    const badTx = {
+      operations: [
+        [
+          'recover_account',
+          {
+            account_to_recover: 'alice',
+            new_owner_authority: {
+              weight_threshold: 1,
+              account_auths: [],
+              key_auths: [],
+            },
+            recent_owner_authority: {
+              weight_threshold: 1,
+              account_auths: [],
+              key_auths: [[VALID_KEY_A, 1]],
+            },
+          },
+        ],
+      ],
+      signatures: ['sig'],
+    };
+    const req = makeRequest({ signedTx: badTx });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe('Invalid new_owner_authority: missing key_auth');
   });
 
   it('returns 400 when DB has no closed recovery record', async () => {

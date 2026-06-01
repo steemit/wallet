@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { POST } from '@/app/api/recovery/confirm/route';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Mock the CSRF and rate limit middleware
 vi.mock('@/lib/middleware', () => ({
@@ -97,6 +97,28 @@ describe('POST /api/recovery/confirm', () => {
     expect(data.status).toBe('ok');
     expect(res.status).toBe(200);
     expect(mockUpdateFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('short-circuits when CSRF verification fails', async () => {
+    const { verifyCSRF } = await import('@/lib/middleware');
+    vi.mocked(verifyCSRF).mockResolvedValueOnce(
+      NextResponse.json({ error: 'Invalid CSRF' }, { status: 403 })
+    );
+
+    const req = makeRequest(validPayload);
+    const res = await POST(req);
+    expect(res.status).toBe(403);
+  });
+
+  it('short-circuits when rate limited', async () => {
+    const { rateLimit } = await import('@/lib/middleware');
+    vi.mocked(rateLimit).mockResolvedValueOnce(
+      NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    );
+
+    const req = makeRequest(validPayload);
+    const res = await POST(req);
+    expect(res.status).toBe(429);
   });
 
   it('returns 400 for missing fields', async () => {

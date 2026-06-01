@@ -24,7 +24,9 @@ describe('steem client recover helpers', () => {
     expect(res.status).toBe('ok');
 
     // Verify the call includes POST method, JSON content type, and body
-    const [url, opts] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const call = fetchMock.mock.calls.at(0);
+    expect(call).toBeDefined();
+    const [url, opts] = call as unknown as [string, RequestInit];
     expect(url).toBe('/api/recovery/request');
     expect(opts.method).toBe('POST');
     expect(opts.headers).toHaveProperty('Content-Type', 'application/json');

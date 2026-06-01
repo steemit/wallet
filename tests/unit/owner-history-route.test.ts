@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GET } from '@/app/api/query/owner-history/route';
 import { NextRequest } from 'next/server';
+import type { OwnerHistoryEntry } from '@/lib/steem/types';
 
 // Mock rate limit middleware
 vi.mock('@/lib/middleware', () => ({
@@ -29,8 +30,8 @@ describe('GET /api/query/owner-history', () => {
 
   it('returns owner history for valid username', async () => {
     const { SteemService } = await import('@/lib/steem/server');
-    const mockHistory = [
-      { previous_owner_authority: { key_auths: [['STMxxx', 1]] } },
+    const mockHistory: OwnerHistoryEntry[] = [
+      { previous_owner_authority: { key_auths: [['STMxxx', 1] as [string, number]] } },
     ];
     vi.mocked(SteemService.getOwnerHistory).mockResolvedValueOnce(mockHistory);
 

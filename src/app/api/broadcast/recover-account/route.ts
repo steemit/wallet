@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Deep validate the operation body structure
-    const opBody = op0[1] as RecoverAccountOperation;
+    const opBody = op0[1] as unknown as RecoverAccountOperation;
     if (
       !opBody ||
       typeof opBody.account_to_recover !== 'string' ||
