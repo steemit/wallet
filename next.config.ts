@@ -19,15 +19,6 @@ const nextConfig: NextConfig = {
   // Exclude mysql2 from client-side bundling (server-only native module)
   serverExternalPackages: ['mysql2'],
 
-  async rewrites() {
-    return [
-      {
-        source: '/.well-known/healthcheck.json',
-        destination: '/api/health',
-      },
-    ];
-  },
-
   async redirects() {
     return [
       { source: '/faq.html', destination: '/faq', permanent: true },

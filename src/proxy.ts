@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
 
@@ -21,6 +21,16 @@ function accountPathWithoutAtPrefix(pathname: string): string | null {
 }
 
 export default function proxy(request: NextRequest) {
+  // Intercept health check endpoint used by ELB and OpenResty.
+  // Must return before i18n middleware to avoid locale redirect issues.
+  if (request.nextUrl.pathname === '/.well-known/healthcheck.json') {
+    return NextResponse.json({
+      status: 'ok',
+      docker_tag: process.env.DOCKER_TAG || false,
+      source_commit: process.env.SOURCE_COMMIT || false,
+    });
+  }
+
   const normalized = accountPathWithoutAtPrefix(request.nextUrl.pathname);
   let forIntl: NextRequest = request;
   if (normalized !== null) {
