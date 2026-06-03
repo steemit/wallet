@@ -10,6 +10,7 @@ import type {
   SteemAccount,
   GlobalProperties,
   BroadcastResult,
+  OwnerHistoryEntry,
 } from './types';
 import { buildAccountCreateOperation } from '@/lib/wallet/community';
 
@@ -476,6 +477,55 @@ export class SteemSigner {
   }
 
   /**
+   * Sign a recover_account operation (client-side).
+   * Derives owner keys from passwords and signs with the OLD owner private key.
+   * The signed transaction must then be broadcast via apiClient.broadcastRecoverAccountTx().
+   *
+   * Prerequisite: The admin must have already broadcast `request_account_recovery`
+   * on-chain (via Conveyor / turtle) so that the new_owner_authority is set.
+   */
+  static async signRecoverAccount(
+    accountToRecover: string,
+    oldPassword: string,
+    newPassword: string
+  ): Promise<{ signedTx: SignedTransaction; oldOwnerPub: string; newOwnerPub: string }> {
+    // Derive WIF private keys — handle both passwords and raw WIF keys
+    const oldOwnerPriv = SteemSigner.isValidPrivateKey(oldPassword)
+      ? oldPassword
+      : steem.auth.toWif(accountToRecover, oldPassword, 'owner');
+    const newOwnerPriv = SteemSigner.isValidPrivateKey(newPassword)
+      ? newPassword
+      : steem.auth.toWif(accountToRecover, newPassword, 'owner');
+
+    // Derive public keys for the authority objects
+    const oldOwnerPub = steem.auth.getPublicKey(oldOwnerPriv);
+    const newOwnerPub = steem.auth.getPublicKey(newOwnerPriv);
+
+    const recentOwnerAuthority = {
+      weight_threshold: 1,
+      account_auths: [] as [string, number][],
+      key_auths: [[oldOwnerPub, 1]] as [string, number][],
+    };
+    const newOwnerAuthority = {
+      weight_threshold: 1,
+      account_auths: [] as [string, number][],
+      key_auths: [[newOwnerPub, 1]] as [string, number][],
+    };
+
+    const operation: Operation = [
+      'recover_account',
+      {
+        account_to_recover: accountToRecover,
+        new_owner_authority: newOwnerAuthority,
+        recent_owner_authority: recentOwnerAuthority,
+      },
+    ];
+
+    const signedTx = await this.signTransaction([operation], [oldOwnerPriv]);
+    return { signedTx, oldOwnerPub, newOwnerPub };
+  }
+
+  /**
    * Get public key from private key
    */
   static privateKeyToPublicKey(privateKey: string): string {
@@ -767,6 +817,71 @@ export const apiClient = {
     if (typeof from === 'number') params.set('from', String(from));
     if (ops && ops.length > 0) params.set('ops', ops.join(','));
     const response = await fetch(`/api/query/history?${params.toString()}`);
+    return response.json();
+  },
+  async getOwnerHistory(
+    username: string
+  ): Promise<{ success?: boolean; history?: OwnerHistoryEntry[]; error?: string }> {
+    const response = await fetch(`/api/query/owner-history?username=${encodeURIComponent(username)}`);
+    return response.json();
+  },
+
+  async initiateAccountRecoveryWithEmail(payload: {
+    contact_email: string;
+    account_name: string;
+    owner_key: string;
+  }): Promise<{ status: 'ok' | 'duplicate' | 'error'; error?: string }> {
+    const response = await fetch('/api/recovery/request', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+
+  /**
+   * Verify a recovery confirmation code
+   */
+  async verifyRecoveryCode(
+    code: string
+  ): Promise<{ status: 'ok' | 'error'; account_name?: string; error?: string }> {
+    const response = await fetch(`/api/recovery/verify/${encodeURIComponent(code)}`);
+    return response.json();
+  },
+
+  /**
+   * Confirm account recovery (step 2 — submit new owner keys)
+   */
+  async confirmAccountRecovery(payload: {
+    code: string;
+    account_name: string;
+    old_owner_key: string;
+    new_owner_key: string;
+    new_owner_authority: {
+      weight_threshold: number;
+      account_auths: [string, number][];
+      key_auths: [string, number][];
+    };
+  }): Promise<{ status: 'ok' | 'error'; error?: string }> {
+    const response = await fetch('/api/recovery/confirm', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+
+  /**
+   * Broadcast a signed recover_account transaction via server relay
+   */
+  async broadcastRecoverAccountTx(
+    signedTx: unknown
+  ): Promise<{ success: boolean; error?: string; details?: string }> {
+    const response = await fetch('/api/broadcast/recover-account', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx }),
+    });
     return response.json();
   },
 

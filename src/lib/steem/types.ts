@@ -63,6 +63,12 @@ export interface SignedTransaction {
 
 export type Operation = [string, Record<string, unknown>];
 
+export interface OwnerHistoryEntry {
+  previous_owner_authority?: {
+    key_auths?: [string, number][];
+  };
+}
+
 export interface BroadcastResult {
   id: string;
   block_num: number;

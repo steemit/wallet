@@ -453,6 +453,39 @@
       "votersProxy": "proxy: {proxy}",
       "votersEmpty": "No se encontraron votantes.",
       "votersLoadFailed": "No se pudieron cargar los votantes."
+    },
+    "recoverAccountStep1Page": {
+      "intro": "Si su cuenta fue robada, puede iniciar el proceso de recuperación demostrando la propiedad con una contraseña de owner reciente o una clave privada de owner. Si coincide con el historial reciente de owner de su cuenta, puede enviar una solicitud de recuperación usando su correo electrónico.",
+      "accountName": "Nombre de cuenta",
+      "recentPassword": "Contraseña reciente / clave de owner",
+      "beginRecovery": "Iniciar recuperación",
+      "checkingOwner": "Verificando owner de la cuenta…",
+      "submittingRequest": "Enviando solicitud de recuperación…",
+      "passwordNotUsedInLastDays": "Esta contraseña/clave no aparece en el historial reciente de owner de esta cuenta.",
+      "enterEmailToVerify": "Ingrese su dirección de correo electrónico para que podamos verificar su identidad y hacer seguimiento a la solicitud de recuperación.",
+      "email": "Correo electrónico",
+      "emailNotValid": "Por favor ingrese una dirección de correo electrónico válida.",
+      "continueWithEmail": "Continuar con correo electrónico",
+      "thanksForSubmitting": "Gracias por enviar su solicitud de recuperación. Por favor revise su correo electrónico para los siguientes pasos.",
+      "requestAlreadySubmitted": "Ya existe una solicitud de recuperación para esta cuenta y correo electrónico.",
+      "accountNotFound": "Nombre de cuenta no encontrado.",
+      "unableToRecoverNotChangedRecently": "No se puede recuperar esta cuenta porque no ha cambiado las claves de owner recientemente.",
+      "unknownError": "Error desconocido"
+    },
+    "recoverAccountConfirmationPage": {
+      "intro": "Ingrese su contraseña anterior y la nueva para completar la recuperación de la cuenta. Su contraseña anterior debe coincidir con una clave de owner reciente.",
+      "verifying": "Verificando código de recuperación…",
+      "invalidCode": "Este enlace de recuperación no es válido o ha expirado.",
+      "accountName": "Nombre de cuenta",
+      "oldPassword": "Contraseña anterior",
+      "newPassword": "Nueva contraseña",
+      "checkingOwner": "Verificando clave de owner anterior…",
+      "submittingRecovery": "Enviando recuperación…",
+      "oldPasswordNotInHistory": "Esta contraseña no coincide con ninguna clave de owner reciente de esta cuenta.",
+      "submit": "Recuperar cuenta",
+      "successMessage": "Su cuenta ha sido recuperada exitosamente. Ahora puede iniciar sesión con su nueva contraseña.",
+      "goToLogin": "Ir a iniciar sesión",
+      "unknownError": "Ocurrió un error desconocido."
     }
   },
   "navigation": {

@@ -462,6 +462,39 @@
       "votersProxy": "proxy: {proxy}",
       "votersEmpty": "No voters found.",
       "votersLoadFailed": "Failed to load voters."
+    },
+    "recoverAccountStep1Page": {
+      "intro": "If your account was stolen, you can begin the recovery process by proving ownership with a recent owner password or owner private key. If it matches your account's recent owner history, you can submit a recovery request using your email.",
+      "accountName": "Account name",
+      "recentPassword": "Recent password / owner key",
+      "beginRecovery": "Begin recovery",
+      "checkingOwner": "Checking account owner…",
+      "submittingRequest": "Submitting recovery request…",
+      "passwordNotUsedInLastDays": "This password/key does not appear in the recent owner history for this account.",
+      "enterEmailToVerify": "Enter your email address so we can verify your identity and follow up about the recovery request.",
+      "email": "Email",
+      "emailNotValid": "Please enter a valid email address.",
+      "continueWithEmail": "Continue with email",
+      "thanksForSubmitting": "Thanks for submitting your recovery request. Please check your email for next steps.",
+      "requestAlreadySubmitted": "A recovery request for this account and email already exists.",
+      "accountNotFound": "Account name was not found.",
+      "unableToRecoverNotChangedRecently": "Unable to recover this account because it has not changed owner keys recently.",
+      "unknownError": "Unknown error"
+    },
+    "recoverAccountConfirmationPage": {
+      "intro": "Enter your old and new passwords to complete the account recovery. Your old password must match a recent owner key on file.",
+      "verifying": "Verifying recovery code…",
+      "invalidCode": "This recovery link is invalid or has expired.",
+      "accountName": "Account name",
+      "oldPassword": "Old password",
+      "newPassword": "New password",
+      "checkingOwner": "Verifying old owner key…",
+      "submittingRecovery": "Submitting recovery…",
+      "oldPasswordNotInHistory": "This password does not match any recent owner key for this account.",
+      "submit": "Recover account",
+      "successMessage": "Your account has been successfully recovered. You can now log in with your new password.",
+      "goToLogin": "Go to login",
+      "unknownError": "An unknown error occurred."
     }
   },
   "navigation": {
