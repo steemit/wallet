@@ -14,8 +14,8 @@ RUN apk add --no-cache libc6-compat python3 make g++
 # Enable pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
+# Copy package files (pnpm-workspace.yaml required for pnpm 11 allowBuilds)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Install dependencies with frozen lockfile for reproducible builds
 RUN pnpm install --frozen-lockfile --prod=false
