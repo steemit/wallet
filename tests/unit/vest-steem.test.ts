@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatSteemPowerDisplay,
+  formatVestsAsset,
   steemPowerFromVests,
   steemPowerFromVestsString,
+  steemPowerToVestsAsset,
+  vestsFromSteemPower,
 } from '@/lib/wallet/vest-steem';
 import type { GlobalPropsData } from '@/lib/wallet/wallet-balance-types';
 
@@ -22,5 +25,22 @@ describe('vest-steem', () => {
 
   it('formats steem power with thousands separators', () => {
     expect(formatSteemPowerDisplay(1234.5)).toBe('1,234.500');
+  });
+
+  it('converts steem power to vests using chain ratio', () => {
+    expect(vestsFromSteemPower(5, globalProps)).toBe(10);
+  });
+
+  it('formats vests asset strings for chain ops', () => {
+    expect(formatVestsAsset(10)).toBe('10.000000 VESTS');
+  });
+
+  it('converts steem power input to vests asset strings', () => {
+    expect(steemPowerToVestsAsset(5, globalProps)).toBe('10.000000 VESTS');
+  });
+
+  it('round-trips steem power and vests', () => {
+    const vests = vestsFromSteemPower(12.345, globalProps);
+    expect(steemPowerFromVests(vests, globalProps)).toBeCloseTo(12.345, 6);
   });
 });

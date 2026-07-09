@@ -7,6 +7,7 @@ import { SteemSigner, apiClient } from '@/lib/steem/client';
 import { useVestingDelegations, useExpiringVestingDelegations } from '@/hooks/use-delegations';
 import {
   formatSteemPowerFromVestsString,
+  STEEM_POWER_TICKER,
 } from '@/lib/wallet/vest-steem';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
@@ -40,7 +41,13 @@ type SortField = 'delegatee' | 'date' | 'amount';
 type SortDir = 'asc' | 'desc';
 const PAGE_SIZE = 20;
 
-function formatVestsDisplay(vestsAsset: string): string {
+function formatSpDisplay(
+  vestsAsset: string,
+  globalProps: GlobalPropsData | null
+): string {
+  if (globalProps) {
+    return `${formatSteemPowerFromVestsString(vestsAsset, globalProps)} ${STEEM_POWER_TICKER}`;
+  }
   const n = parseAssetAmount(vestsAsset);
   return `${n.toLocaleString('en-US', { maximumFractionDigits: 6 })} VESTS`;
 }
@@ -323,7 +330,7 @@ function OutgoingDelegationsTable({
                         : item.vesting_shares
                     )
                   }
-                  title={formatVestsDisplay(item.vesting_shares)}
+                  title={formatSpDisplay(item.vesting_shares, globalProps)}
                 >
                   {globalPropsLoading ? (
                     <Skeleton className="ml-auto h-4 w-20" />
@@ -394,9 +401,6 @@ function OutgoingDelegationsTable({
                 : globalProps
                   ? `${formatSteemPowerFromVestsString(item.vesting_shares, globalProps)} SP`
                   : item.vesting_shares}
-              <span className="ml-1 text-xs text-muted-foreground">
-                ({formatVestsDisplay(item.vesting_shares)})
-              </span>
             </div>
           </div>
         ))}
@@ -556,7 +560,7 @@ function ExpiringDelegationsTable({
                         : item.vesting_shares
                     )
                   }
-                  title={formatVestsDisplay(item.vesting_shares)}
+                  title={formatSpDisplay(item.vesting_shares, globalProps)}
                 >
                   {globalPropsLoading ? (
                     <Skeleton className="ml-auto h-4 w-20" />
@@ -603,9 +607,6 @@ function ExpiringDelegationsTable({
                     ? `${formatSteemPowerFromVestsString(item.vesting_shares, globalProps)} SP`
                     : item.vesting_shares}
               </div>
-              <span className="text-xs text-muted-foreground">
-                {formatVestsDisplay(item.vesting_shares)}
-              </span>
             </div>
           </div>
         ))}
