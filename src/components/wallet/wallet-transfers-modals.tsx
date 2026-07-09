@@ -28,6 +28,8 @@ import {
 } from '@/components/ui/dialog';
 import { TransferForm } from '@/components/wallet/transfer-form';
 import { PowerDownForm } from '@/components/wallet/power-down-form';
+import { CancelPowerDownHandler } from '@/components/wallet/cancel-power-down-handler';
+import { PowerUpForm } from '@/components/wallet/power-up-form';
 import { DelegateForm } from '@/components/wallet/delegate-form';
 import { WithdrawRoutesForm } from '@/components/wallet/withdraw-routes-form';
 import { ConvertSbdForm } from '@/components/wallet/convert-sbd-form';
@@ -76,18 +78,21 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
     clearWalletQuery();
   }, [onWalletDataChanged, clearWalletQuery]);
 
-  const open = walletAction !== null;
+  const isPowerUpLegacyUrl =
+    walletAction === 'transfer' && transferType === 'power_up';
+  const showPowerUp = walletAction === 'powerUp' || isPowerUpLegacyUrl;
+  const open = walletAction !== null || isPowerUpLegacyUrl;
 
   const handleOpenChange = (next: boolean) => {
     if (!next) clearWalletQuery();
   };
 
   useEffect(() => {
-    if (walletAction === null || !accountUsername) return;
+    if ((walletAction === null && !isPowerUpLegacyUrl) || !accountUsername) return;
     if (!canManageBalance) {
       clearWalletQuery();
     }
-  }, [walletAction, accountUsername, canManageBalance, clearWalletQuery]);
+  }, [walletAction, isPowerUpLegacyUrl, accountUsername, canManageBalance, clearWalletQuery]);
 
   const needsWalletReauth =
     open &&
@@ -116,7 +121,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
             />
           </>
         )}
-        {!needsWalletReauth && walletAction === 'transfer' && (
+        {!needsWalletReauth && walletAction === 'transfer' && !isPowerUpLegacyUrl && (
           <>
             <DialogHeader className="sr-only">
               <DialogTitle>Transfer</DialogTitle>
@@ -132,6 +137,19 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
             />
           </>
         )}
+        {!needsWalletReauth && showPowerUp && (
+          <>
+            <DialogHeader className="sr-only">
+              <DialogTitle>Power up</DialogTitle>
+              <DialogDescription>{t('powerUp')}</DialogDescription>
+            </DialogHeader>
+            <PowerUpForm
+              variant="dialog"
+              onSuccess={handleSuccess}
+              onCancel={clearWalletQuery}
+            />
+          </>
+        )}
         {!needsWalletReauth && walletAction === 'powerDown' && (
           <>
             <DialogHeader className="sr-only">
@@ -139,6 +157,15 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
               <DialogDescription>{t('powerDown')}</DialogDescription>
             </DialogHeader>
             <PowerDownForm variant="dialog" onSuccess={handleSuccess} />
+          </>
+        )}
+        {!needsWalletReauth && walletAction === 'cancelPowerDown' && (
+          <>
+            <DialogHeader className="sr-only">
+              <DialogTitle>Cancel power down</DialogTitle>
+              <DialogDescription>{t('cancelPowerDown')}</DialogDescription>
+            </DialogHeader>
+            <CancelPowerDownHandler onSuccess={handleSuccess} onCancel={clearWalletQuery} />
           </>
         )}
         {!needsWalletReauth && walletAction === 'delegate' && (

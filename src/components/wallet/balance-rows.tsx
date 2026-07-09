@@ -166,9 +166,7 @@ export function BalanceRows({
                   },
                   {
                     label: 'Power Up',
-                    walletAction: 'transfer',
-                    asset: 'STEEM',
-                    type: 'power_up',
+                    walletAction: 'powerUp',
                   },
                   { label: 'Trade', external: true, href: 'https://www.poloniex.com/zh-CN/trade/STEEM_USDT?type=spot' },
                   { label: 'Market', link: '/market' },
@@ -205,6 +203,9 @@ export function BalanceRows({
                 items={[
                   { label: 'Delegate', walletAction: 'delegate' },
                   { label: 'Power Down', walletAction: 'powerDown' },
+                  ...(isPoweringDown
+                    ? [{ label: 'Cancel Power Down', walletAction: 'cancelPowerDown' as const }]
+                    : []),
                   { label: 'Advanced Routes', walletAction: 'advanced' },
                 ]}
               />
@@ -334,7 +335,7 @@ export function BalanceRows({
                 ? new Date(balance.next_vesting_withdrawal).toLocaleDateString()
                 : '---'}
             </span>{' '}
-            (~{powerDownRate} STEEM).
+            (~{powerDownRate} SP).
           </div>
         </WalletBalanceRowShell>
       )}

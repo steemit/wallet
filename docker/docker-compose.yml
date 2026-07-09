@@ -16,12 +16,12 @@ services:
     restart: unless-stopped
 
     ports:
-      - "${PORT:-3000}:3000"
+      - "${HOST_PORT:-3000}:8080"
 
     environment:
       # Application
       - NODE_ENV=production
-      - PORT=3000
+      - PORT=8080
 
       # Steem Blockchain
       - STEEM_RPC_URL=${STEEM_RPC_URL:-https://api.steemit.com}
@@ -57,7 +57,7 @@ services:
 
     # Health check
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3

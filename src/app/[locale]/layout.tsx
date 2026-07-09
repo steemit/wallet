@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Steem Wallet',
-  description: 'Modern Steem blockchain wallet',
+  title: 'Steemit Wallet',
+  description: 'Steemit Wallet is an online wallet for managing Steem accounts.',
   icons: {
     icon: [
       { url: '/favicon.ico' },

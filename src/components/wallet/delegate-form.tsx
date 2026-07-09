@@ -6,7 +6,9 @@ import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
 import { useActiveSigningKey } from '@/hooks/use-auth';
+import { useGlobalProps } from '@/hooks/use-global-props';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
+import { steemPowerToVestsAsset } from '@/lib/wallet/vest-steem';
 import { Button } from '@/components/ui/button';
 import {
   ModalFormActions,
@@ -31,11 +33,13 @@ export function DelegateForm({
   onCancel,
 }: DelegateFormProps) {
   const t = useTranslations('wallet');
+  const tDelegations = useTranslations('delegations');
   const tCommon = useTranslations('common');
   const router = useRouter();
   const username = useSelector((state: RootState) => state.auth.username);
   const signingKey = useActiveSigningKey();
   const [isPending, startTransition] = useTransition();
+  const { globalProps, loading: globalPropsLoading } = useGlobalProps();
 
   const [delegatee, setDelegatee] = useState('');
   const [shares, setShares] = useState('');
@@ -53,26 +57,32 @@ export function DelegateForm({
       return;
     }
 
+    if (!globalProps) {
+      setError('Unable to load chain properties. Please try again.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       if (!delegatee.trim()) {
-        setError('Please enter a delegatee username');
+        setError(tDelegations('invalidDelegatee'));
         setIsLoading(false);
         return;
       }
 
       const shareValue = parseFloat(shares);
       if (!shares || isNaN(shareValue) || shareValue <= 0) {
-        setError('Please enter a valid amount');
+        setError(tDelegations('invalidAmount'));
         setIsLoading(false);
         return;
       }
 
-      const vests = `${shareValue.toFixed(6)} VESTS`;
+      const vests = steemPowerToVestsAsset(shareValue, globalProps);
       const signedTx = await SteemSigner.signDelegate(username, delegatee.trim(), vests, signingKey);
       const response = await apiClient.broadcastDelegate(signedTx, username);
 
       if (!response.success) {
-        setError(response.error || 'Failed to delegate');
+        setError(response.error || tDelegations('delegateError'));
         setIsLoading(false);
         return;
       }
@@ -86,7 +96,7 @@ export function DelegateForm({
       });
     } catch (err) {
       console.error('Delegate error:', err);
-      setError('Failed to process delegation');
+      setError(tDelegations('delegateError'));
       setIsLoading(false);
     }
   };
@@ -100,7 +110,7 @@ export function DelegateForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <Label htmlFor="delegatee" className="text-base">
-          Delegatee Username
+          {tDelegations('delegateeUsername')}
         </Label>
         <Input
           type="text"
@@ -108,27 +118,27 @@ export function DelegateForm({
           value={delegatee}
           onChange={(e) => setDelegatee(e.target.value)}
           required
-          placeholder="Enter username to delegate to"
+          placeholder={tDelegations('delegateePlaceholder')}
           disabled={isLoading || isPending}
         />
       </div>
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="shares" className="text-base">
-          VESTS to Delegate
+          {tDelegations('spToDelegate')}
         </Label>
         <Input
           type="number"
           id="shares"
           value={shares}
           onChange={(e) => setShares(e.target.value)}
-          step="0.000001"
+          step="0.001"
           min="0"
           required
-          placeholder="Enter VESTS amount"
-          disabled={isLoading || isPending}
+          placeholder={tDelegations('spPlaceholder')}
+          disabled={isLoading || isPending || globalPropsLoading}
         />
-        <p className="text-muted-foreground text-sm">Use format: 6 decimal places (e.g., 1000000.000000)</p>
+        <p className="text-muted-foreground text-sm">{tDelegations('formatHint')}</p>
       </div>
 
       {error && (
@@ -140,10 +150,10 @@ export function DelegateForm({
       <ModalFormActions className="pt-4">
         <Button
           type="submit"
-          disabled={isLoading || isPending}
+          disabled={isLoading || isPending || globalPropsLoading || !globalProps}
           className={modalFormActionButtonClassName}
         >
-          {isLoading || isPending ? tCommon('loading') : 'Delegate'}
+          {isLoading || isPending ? tCommon('loading') : tDelegations('delegateButton')}
         </Button>
         <Button
           type="button"

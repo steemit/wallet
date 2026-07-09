@@ -53,7 +53,7 @@ WORKDIR /app
 
 # Set to production
 ENV NODE_ENV=production \
-    PORT=3000 \
+    PORT=8080 \
     HOSTNAME="0.0.0.0"
 
 # Copy built files from builder
@@ -68,11 +68,11 @@ RUN chown -R nextjs:nodejs /app
 USER nextjs
 
 # Expose port
-EXPOSE 3000
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD wget -q --spider http://localhost:3000/api/health || exit 1
+  CMD wget -q --spider http://localhost:8080/api/health || exit 1
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]

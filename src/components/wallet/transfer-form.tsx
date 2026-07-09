@@ -27,7 +27,7 @@ export interface TransferFormProps {
   variant?: TransferFormVariant;
   /** Initial asset from URL / balance row (STEEM, SBD, or VESTS for power-up entry). */
   initialAsset?: 'STEEM' | 'SBD' | 'VESTS';
-  /** transfer = to another account; savings / savings_withdraw / power_up = self operations. */
+  /** transfer = to another account; savings / savings_withdraw = self operations. */
   initialTransferType?: WalletTransferType;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -67,8 +67,7 @@ export function TransferForm({
     setError('');
   };
 
-  const amountSuffix =
-    transferType === 'power_up' ? 'STEEM' : asset === 'SBD' ? 'SBD' : 'STEEM';
+  const amountSuffix = asset === 'SBD' ? 'SBD' : 'STEEM';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,13 +128,6 @@ export function TransferForm({
           requestId,
           signingKey
         );
-      } else if (transferType === 'power_up') {
-        signedTx = await SteemSigner.signTransferToVesting(
-          username,
-          username,
-          amountStr,
-          signingKey
-        );
       } else {
         setError('Unsupported operation');
         setIsLoading(false);
@@ -180,9 +172,7 @@ export function TransferForm({
       ? 'Transfer to savings'
       : transferType === 'savings_withdraw'
         ? 'Withdraw from savings'
-        : transferType === 'power_up'
-          ? 'Power up'
-          : t('title');
+        : t('title');
 
   const formBody = (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
