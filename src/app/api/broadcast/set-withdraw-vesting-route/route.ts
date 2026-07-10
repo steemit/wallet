@@ -1,9 +1,10 @@
 // POST /api/broadcast/set-withdraw-vesting-route
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
-import { verifyCSRF, rateLimit } from '@/lib/middleware';
+import { verifyCSRF, rateLimit, setCacheInvalidateHeader } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { assertSignedTxOpType } from '@/lib/steem/validate-signed-tx-op';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,6 +32,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid transaction format' }, { status: 400 });
     }
 
+    // Enforce operation type: the route must only relay its own op type.
+    const opTypeError = assertSignedTxOpType(signedTx, 'set_withdraw_vesting_route');
+    if (opTypeError) {
+      return NextResponse.json({ error: opTypeError }, { status: 400 });
+    }
+
     const result = await SteemService.broadcastTransaction(signedTx);
 
     // Invalidate Redis caches for this user
@@ -39,12 +46,12 @@ export async function POST(request: NextRequest) {
     await cacheDeleteByPrefix(`cache:query:withdraw-routes:${username}`);
 
     const response = NextResponse.json({ success: true, result });
-    response.headers.set('X-Cache-Invalidate', username);
+    setCacheInvalidateHeader(response, username);
     return response;
   } catch (error) {
     console.error('Broadcast set-withdraw-vesting-route error:', error);
     return NextResponse.json(
-      { error: 'Failed to broadcast transaction', details: (error as Error).message },
+      { error: 'Failed to broadcast transaction' },
       { status: 500 }
     );
   }

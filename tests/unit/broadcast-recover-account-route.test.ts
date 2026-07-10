@@ -217,6 +217,22 @@ describe('POST /api/broadcast/recover-account', () => {
     expect(data.error).toContain('does not match');
   });
 
+  it('returns 503 when DB is unavailable (fail-closed, never broadcasts)', async () => {
+    // Security gate: when MySQL is down the route must refuse to broadcast
+    // rather than skipping the recovery-record cross-check.
+    mockGetDb.mockReturnValue(null);
+
+    const req = makeRequest({ signedTx: makeSignedTx() });
+    const res = await POST(req);
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.error).toBe('Service unavailable');
+
+    // Must not have reached broadcast.
+    const { SteemService } = await import('@/lib/steem/server');
+    expect(SteemService.broadcastTransaction).not.toHaveBeenCalled();
+  });
+
   it('returns 500 when broadcastTransaction throws', async () => {
     const { SteemService } = await import('@/lib/steem/server');
     vi.mocked(SteemService.broadcastTransaction).mockRejectedValueOnce(

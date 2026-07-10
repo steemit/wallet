@@ -2,9 +2,10 @@
 // Broadcast a signed delegate vesting shares transaction
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
-import { verifyCSRF, rateLimit } from '@/lib/middleware';
+import { verifyCSRF, rateLimit, setCacheInvalidateHeader } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { assertSignedTxOpType } from '@/lib/steem/validate-signed-tx-op';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +40,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Broadcast the transaction
+    // Enforce operation type: the route must only relay its own op type.
+    const opTypeError = assertSignedTxOpType(signedTx, 'delegate_vesting_shares');
+    if (opTypeError) {
+      return NextResponse.json({ error: opTypeError }, { status: 400 });
+    }
+
     const result = await SteemService.broadcastTransaction(signedTx);
 
     // Invalidate Redis caches for this user
@@ -49,7 +56,7 @@ export async function POST(request: NextRequest) {
     await cacheDeleteByPrefix(`cache:query:expiring-vesting-delegations:${username}`);
 
     const response = NextResponse.json({ success: true, result });
-    response.headers.set('X-Cache-Invalidate', username);
+    setCacheInvalidateHeader(response, username);
     return response;
   } catch (error) {
     console.error('Broadcast delegate error:', error);

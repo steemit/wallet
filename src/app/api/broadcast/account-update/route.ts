@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { steem } from '@steemit/steem-js';
 import { SteemService } from '@/lib/steem/server';
 import { validateAccountUpdateSignedTx } from '@/lib/steem/validate-account-update-signed-tx';
-import { verifyCSRF, rateLimit } from '@/lib/middleware';
+import { verifyCSRF, rateLimit, setCacheInvalidateHeader } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
 
@@ -54,16 +54,12 @@ export async function POST(request: NextRequest) {
     await cacheDeleteByPrefix(`cache:query:wallet-estimate-extras:${username}`);
 
     const response = NextResponse.json({ success: true, result });
-    response.headers.set('X-Cache-Invalidate', username);
+    setCacheInvalidateHeader(response, username);
     return response;
   } catch (error) {
     console.error('Broadcast account-update error:', error);
-    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      {
-        error: 'Failed to broadcast transaction',
-        details: message,
-      },
+      { error: 'Failed to broadcast transaction' },
       { status: 500 }
     );
   }
