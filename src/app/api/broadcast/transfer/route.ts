@@ -39,13 +39,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Broadcast the transaction
     // Enforce operation type: the route must only relay its own op type.
     const opTypeError = assertSignedTxOpType(signedTx, 'transfer');
     if (opTypeError) {
       return NextResponse.json({ error: opTypeError }, { status: 400 });
     }
 
+    // Broadcast the transaction
     const result = await SteemService.broadcastTransaction(signedTx);
 
     // Invalidate Redis caches for this user

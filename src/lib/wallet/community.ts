@@ -42,14 +42,15 @@ export type AccountCreateOperationPayload = {
 
 /** Generate a hive-XXXXXX style community account name (legacy wallet-legacy parity). */
 export function generateCommunityOwnerName(): string {
-  // Use a strong random in the same 100000–199999 range.
+  // Use a strong random in the same 100000–199999 range. Fail loudly if no
+  // secure entropy source is available (never fall back to a fixed name).
   const c =
     typeof globalThis !== 'undefined' &&
     (globalThis as { crypto?: Crypto }).crypto;
-  const rand =
-    c && typeof c.getRandomValues === 'function'
-      ? c.getRandomValues(new Uint32Array(1))[0]!
-      : 0;
+  if (!c || typeof c.getRandomValues !== 'function') {
+    throw new Error('secure entropy source unavailable');
+  }
+  const rand = c.getRandomValues(new Uint32Array(1))[0]!;
   return `hive-${(rand % 100000) + 100000}`;
 }
 
