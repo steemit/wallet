@@ -28,36 +28,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Retrieve challenge from Redis
+    // Retrieve challenge from Redis. Challenge verification REQUIRES Redis —
+    // without it we cannot prove the client holds the private key, so reject
+    // rather than authenticating on a public-key match alone (fail-closed).
     const redis = getRedis();
-    if (redis) {
-      const stored = await redis.get(redisKey(`auth:challenge:${username}`));
-      if (!stored) {
-        return NextResponse.json(
-          { error: 'Invalid or expired challenge' },
-          { status: 401 }
-        );
-      }
-
-      const { challenge } = JSON.parse(stored) as { challenge: string; createdAt: number };
-
-      // Verify the signature against the stored challenge
-      const isValid = SteemService.verifyChallengeSignature(
-        challenge,
-        signedChallenge,
-        publicKey
+    if (!redis) {
+      console.error('Redis unavailable during login — rejecting (fail-closed)');
+      return NextResponse.json(
+        { error: 'Login temporarily unavailable' },
+        { status: 503 }
       );
-
-      if (!isValid) {
-        return NextResponse.json(
-          { error: 'Invalid signature' },
-          { status: 401 }
-        );
-      }
-
-      // Delete challenge (one-time use)
-      await redis.del(redisKey(`auth:challenge:${username}`));
     }
+
+    const stored = await redis.get(redisKey(`auth:challenge:${username}`));
+    if (!stored) {
+      return NextResponse.json(
+        { error: 'Invalid or expired challenge' },
+        { status: 401 }
+      );
+    }
+
+    const { challenge } = JSON.parse(stored) as { challenge: string; createdAt: number };
+
+    // Verify the signature against the stored challenge
+    const isValid = SteemService.verifyChallengeSignature(
+      challenge,
+      signedChallenge,
+      publicKey
+    );
+
+    if (!isValid) {
+      return NextResponse.json(
+        { error: 'Invalid signature' },
+        { status: 401 }
+      );
+    }
+
+    // Delete challenge (one-time use)
+    await redis.del(redisKey(`auth:challenge:${username}`));
 
     // Get the account to verify the public key belongs to it
     const accounts = await SteemService.getAccounts([username]);

@@ -28,6 +28,34 @@ const nextConfig: NextConfig = {
       { source: '/~witnesses', destination: '/witnesses', permanent: true },
     ];
   },
+
+  // Security response headers applied to all routes. A full script-src CSP is
+  // intentionally not added here because Next.js relies on inline runtime for
+  // hydration; instead we set frame-ancestors (clickjacking) plus the standard
+  // hardening headers. Strengthen to a strict script-src once nonce support is
+  // wired up.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          // Mitigate clickjacking; allow no framing.
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+        ],
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);
