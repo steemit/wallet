@@ -95,9 +95,16 @@ export async function trackEvent(
 
   // Send to server-side analytics endpoint (for backup)
   try {
+    // Mirror the CSRF cookie into the header (double-submit), matching the rest
+    // of the API client, so the analytics route can verify CSRF.
+    const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+    const csrfToken = csrfMatch?.[1] ? decodeURIComponent(csrfMatch[1]) : null;
     await fetch('/api/analytics/event', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      },
       body: JSON.stringify({
         event: eventName,
         properties,

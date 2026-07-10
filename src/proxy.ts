@@ -23,12 +23,10 @@ function accountPathWithoutAtPrefix(pathname: string): string | null {
 export default function proxy(request: NextRequest) {
   // Intercept health check endpoint used by ELB and OpenResty.
   // Must return before i18n middleware to avoid locale redirect issues.
+  // Only expose the status; version info (docker_tag/source_commit) is omitted
+  // to avoid leaking build-identifying info to anonymous callers.
   if (request.nextUrl.pathname === '/.well-known/healthcheck.json') {
-    return NextResponse.json({
-      status: 'ok',
-      docker_tag: process.env.DOCKER_TAG || false,
-      source_commit: process.env.SOURCE_COMMIT || false,
-    });
+    return NextResponse.json({ status: 'ok' });
   }
 
   const normalized = accountPathWithoutAtPrefix(request.nextUrl.pathname);

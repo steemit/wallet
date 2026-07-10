@@ -8,10 +8,11 @@ vi.mock('@/lib/middleware', () => ({
   rateLimit: vi.fn().mockResolvedValue(null),
 }));
 
-// Mock the SteemService requestAccountRecovery
+// Mock the SteemService requestAccountRecovery + conveyor config preflight
 vi.mock('@/lib/steem/server', () => ({
   SteemService: {
     requestAccountRecovery: vi.fn().mockResolvedValue(undefined),
+    validateConveyorConfig: vi.fn().mockReturnValue(null),
   },
 }));
 

@@ -1,6 +1,7 @@
 // GET /api/query/accounts?names=user1,user2
 // Get account information
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'crypto';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
@@ -40,7 +41,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const cacheKey = `cache:query:accounts:${namesParam.length > 200 ? namesParam.substring(0, 200) : namesParam}`;
+    // Hash the full names param for the cache key so distinct long username
+    // lists that share a 200-char prefix do not collide in cache.
+    const cacheKey = `cache:query:accounts:${createHash('sha256').update(namesParam).digest('hex').slice(0, 32)}`;
     const result = await withCache(cacheKey, 10, 300, () =>
       SteemService.getAccounts(usernames)
     );

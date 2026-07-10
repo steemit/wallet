@@ -1,6 +1,21 @@
 import { steem } from '@steemit/steem-js';
 import type { Operation } from '@/lib/steem/types';
 
+// Cryptographically strong entropy for generated community names/passwords.
+function cryptoRandomHex(bytes: number): string {
+  // Prefer Node/undici webcrypto; fall back to window.crypto when available.
+  const c =
+    typeof globalThis !== 'undefined' &&
+    (globalThis as { crypto?: Crypto }).crypto;
+  if (c && typeof c.getRandomValues === 'function') {
+    const buf = new Uint8Array(bytes);
+    c.getRandomValues(buf);
+    return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  // Should not happen in a browser or Node runtime; avoid Math.random fallback.
+  throw new Error('secure entropy source unavailable');
+}
+
 export const COMMUNITY_CREATE_FEE = '3.000 STEEM';
 export const COMMUNITY_TITLE_MAX_LENGTH = 32;
 export const COMMUNITY_DESCRIPTION_MAX_LENGTH = 120;
@@ -27,12 +42,20 @@ export type AccountCreateOperationPayload = {
 
 /** Generate a hive-XXXXXX style community account name (legacy wallet-legacy parity). */
 export function generateCommunityOwnerName(): string {
-  return `hive-${Math.floor(Math.random() * 100000) + 100000}`;
+  // Use a strong random in the same 100000–199999 range.
+  const c =
+    typeof globalThis !== 'undefined' &&
+    (globalThis as { crypto?: Crypto }).crypto;
+  const rand =
+    c && typeof c.getRandomValues === 'function'
+      ? c.getRandomValues(new Uint32Array(1))[0]!
+      : 0;
+  return `hive-${(rand % 100000) + 100000}`;
 }
 
 /** Generate a random owner password prefixed with P (legacy wallet-legacy parity). */
 export function generateCommunityOwnerPassword(): string {
-  const entropy = `${Date.now()}-${Math.random()}`;
+  const entropy = `${Date.now()}-${cryptoRandomHex(16)}`;
   return `P${steem.auth.getPrivateKey(entropy)}`;
 }
 
