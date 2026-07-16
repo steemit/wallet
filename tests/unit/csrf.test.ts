@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   generateCSRFToken,
   isValidCSRFToken,
@@ -8,16 +8,13 @@ import {
 import { NextRequest, NextResponse } from 'next/server';
 
 describe('CSRF token generation and verification', () => {
-  const originalEnv = process.env.NODE_ENV;
   const originalSecret = process.env.CSRF_SECRET;
 
   beforeEach(() => {
     process.env.CSRF_SECRET = 'test-secret-for-unit-tests';
-    process.env.NODE_ENV = 'test';
   });
 
   afterEach(() => {
-    process.env.NODE_ENV = originalEnv;
     if (originalSecret !== undefined) process.env.CSRF_SECRET = originalSecret;
     else delete process.env.CSRF_SECRET;
   });
@@ -67,7 +64,6 @@ describe('CSRF token generation and verification', () => {
 describe('verifyCSRF', () => {
   beforeEach(() => {
     process.env.CSRF_SECRET = 'test-secret-for-unit-tests';
-    process.env.NODE_ENV = 'test';
   });
 
   function makeRequest(method: string, cookieToken?: string, headerToken?: string): NextRequest {
