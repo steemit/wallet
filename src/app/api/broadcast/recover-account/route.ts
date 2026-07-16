@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValid = await SteemService.verifySignature(signedTx);
+    const isValid = SteemService.validateTransactionShape(signedTx);
     if (!isValid) {
       return NextResponse.json({ error: 'Invalid transaction format' }, { status: 400 });
     }
@@ -72,6 +72,22 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json(
         { error: 'Invalid recover_account operation body' },
+        { status: 400 }
+      );
+    }
+
+    // Cryptographically verify the signature against the recent_owner_authority
+    // public key declared in the operation (the old owner key that signed it).
+    // recover_account is signed by the OLD owner key, which may no longer be in
+    // the account's current authority set, so we verify against the key in the
+    // op body rather than fetching the account. (requires @steemit/steem-js >=1.0.20)
+    const recentOwnerPub = opBody.recent_owner_authority.key_auths?.[0]?.[0];
+    if (!recentOwnerPub || !steem.auth.verifyTransaction(
+      signedTx as unknown as Record<string, unknown>,
+      recentOwnerPub
+    )) {
+      return NextResponse.json(
+        { error: 'Transaction signature does not match recent_owner_authority' },
         { status: 400 }
       );
     }

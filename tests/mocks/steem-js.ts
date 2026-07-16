@@ -31,6 +31,11 @@ const auth = {
   // verifySignature is used by SteemService.verifyChallengeSignature; default no-op (undefined)
   // so individual tests can override via mockReturnValue/mockImplementation.
   verifySignature: vi.fn(),
+  // verifyTransaction (v1.0.20+): real crypto signature verification. Proxy to
+  // the real implementation so tests exercise actual sign/verify round-trips.
+  verifyTransaction: realAuth.verifyTransaction,
+  // serializeTransaction (v1.0.20+): real binary serializer, proxied for tests.
+  serializeTransaction: realAuth.serializeTransaction,
 };
 
 export const steem = {

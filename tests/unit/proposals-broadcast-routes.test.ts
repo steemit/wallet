@@ -8,10 +8,14 @@ vi.mock('@/lib/middleware', () => ({
 }));
 
 const mockVerifySignature = vi.fn();
+const mockValidateTransactionShape = vi.fn();
+const mockVerifyTransactionForUsername = vi.fn();
 const mockBroadcastTransaction = vi.fn();
 vi.mock('@/lib/steem/server', () => ({
   SteemService: {
     verifySignature: (...args: unknown[]) => mockVerifySignature(...args),
+    validateTransactionShape: (...args: unknown[]) => mockValidateTransactionShape(...args),
+    verifyTransactionForUsername: (...args: unknown[]) => mockVerifyTransactionForUsername(...args),
     broadcastTransaction: (...args: unknown[]) => mockBroadcastTransaction(...args),
   },
 }));
@@ -30,6 +34,9 @@ describe('proposal broadcast routes', () => {
     mockVerifyCSRF.mockResolvedValue(null);
     mockRateLimit.mockResolvedValue(null);
     mockVerifySignature.mockResolvedValue(true);
+    // Shape check passes by default; real signature verification passes by default.
+    mockValidateTransactionShape.mockReturnValue(true);
+    mockVerifyTransactionForUsername.mockResolvedValue({ ok: true });
     mockBroadcastTransaction.mockResolvedValue({ id: 'trx', block_num: 1, trx_num: 1, expired: false });
     mockCacheDeleteByPrefix.mockResolvedValue(undefined);
   });
@@ -44,7 +51,7 @@ describe('proposal broadcast routes', () => {
   });
 
   it('returns 400 when create tx invalid', async () => {
-    mockVerifySignature.mockResolvedValue(false);
+    mockValidateTransactionShape.mockReturnValue(false);
     const req = new Request('http://test/api/broadcast/proposal-create', {
       method: 'POST',
       body: JSON.stringify({ signedTx: { signatures: [], operations: [], extensions: [] }, username: 'alice' }),
@@ -54,7 +61,7 @@ describe('proposal broadcast routes', () => {
   });
 
   it('returns 400 when remove tx invalid', async () => {
-    mockVerifySignature.mockResolvedValue(false);
+    mockValidateTransactionShape.mockReturnValue(false);
     const req = new Request('http://test/api/broadcast/proposal-remove', {
       method: 'POST',
       body: JSON.stringify({ signedTx: { signatures: [], operations: [], extensions: [] }, username: 'alice' }),

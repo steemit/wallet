@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValid = await SteemService.verifySignature(signedTx);
+    const isValid = SteemService.validateTransactionShape(signedTx);
     if (!isValid) {
       return NextResponse.json({ error: 'Invalid transaction format' }, { status: 400 });
     }
@@ -44,6 +44,16 @@ export async function POST(request: NextRequest) {
     if (shapeError) {
       return NextResponse.json(
         { error: 'Invalid account_update transaction', details: shapeError },
+        { status: 400 }
+      );
+    }
+
+    // Cryptographically verify the signature belongs to the claimed account
+    // (requires @steemit/steem-js >=1.0.20).
+    const verifyResult = await SteemService.verifyTransactionForUsername(signedTx, username);
+    if (!verifyResult.ok) {
+      return NextResponse.json(
+        { error: verifyResult.error ?? 'Transaction verification failed' },
         { status: 400 }
       );
     }

@@ -3,7 +3,7 @@ import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
-import { assertSignedTxOpType } from '@/lib/steem/validate-signed-tx-op';
+import { validateRelayTransaction } from '@/lib/steem/validate-signed-tx-op';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,16 +20,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing signed transaction or username' }, { status: 400 });
     }
 
-    const isValid = await SteemService.verifySignature(signedTx);
-    if (!isValid) {
-      return NextResponse.json({ error: 'Invalid transaction format' }, { status: 400 });
-    }
+    // Validate transaction: enforce op type AND cryptographically verify the
+    // signature belongs to the claimed account (requires @steemit/steem-js >=1.0.20).
+    const relayError = await validateRelayTransaction(signedTx, 'remove_proposal', username);
+    if (relayError) return relayError;
 
-    // Enforce operation type: the route must only relay its own op type.
-    const opTypeError = assertSignedTxOpType(signedTx, 'remove_proposal');
-    if (opTypeError) {
-      return NextResponse.json({ error: opTypeError }, { status: 400 });
-    }
 
     const result = await SteemService.broadcastTransaction(signedTx);
 

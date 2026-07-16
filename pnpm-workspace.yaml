@@ -8,3 +8,6 @@ allowBuilds:
   msw: true
   sharp: false
   unrs-resolver: false
+
+minimumReleaseAgeExclude:
+  - '@steemit/steem-js@1.0.20'
