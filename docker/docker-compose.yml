@@ -27,9 +27,11 @@ services:
       - STEEM_RPC_URL=${STEEM_RPC_URL:-https://api.steemit.com}
       - STEEM_RPC_FALLBACKS=${STEEM_RPC_FALLBACKS:-}
 
-      # Security (IMPORTANT: Override in production!)
-      - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
-      - CSRF_SECRET=${CSRF_SECRET:-change-me-in-production}
+      # Security — CSRF_SECRET is REQUIRED in production. With no secret all
+      # mutations are rejected. Generate one: openssl rand -hex 32
+      # SESSION_SECRET is unused (no server-side session) and kept for reference.
+      - SESSION_SECRET=${SESSION_SECRET:-}
+      - CSRF_SECRET=${CSRF_SECRET:?CSRF_SECRET is required in production}
       - SESSION_MAX_AGE=${SESSION_MAX_AGE:-604800}
 
       # Analytics

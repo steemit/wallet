@@ -558,11 +558,15 @@ export class SteemSigner {
   }
 
   /**
-   * Generate a random challenge string for login verification
+   * Generate a random challenge string for login verification.
+   * Uses the Web Crypto API for cryptographically strong entropy rather than
+   * Math.random() (which is not unpredictable and must not gate auth).
    */
   static generateChallenge(): string {
     const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 15);
+    const buf = new Uint8Array(16);
+    crypto.getRandomValues(buf);
+    const random = Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
     return `${timestamp}-${random}`;
   }
 

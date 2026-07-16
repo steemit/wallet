@@ -11,7 +11,7 @@ vi.mock('@/lib/middleware', () => ({
 // Mock SteemService
 vi.mock('@/lib/steem/server', () => ({
   SteemService: {
-    verifySignature: vi.fn().mockResolvedValue(true),
+    validateTransactionShape: vi.fn().mockReturnValue(true),
     broadcastTransaction: vi.fn().mockResolvedValue({ id: 'tx123' }),
   },
 }));
@@ -21,6 +21,9 @@ vi.mock('@steemit/steem-js', () => ({
   steem: {
     auth: {
       normalizeTransactionForBroadcast: vi.fn((tx: unknown) => tx),
+      // verifyTransaction now does real crypto verification (v1.0.20+).
+      // Default to true (valid signature); individual tests can override.
+      verifyTransaction: vi.fn().mockReturnValue(true),
     },
   },
 }));
@@ -115,15 +118,26 @@ describe('POST /api/broadcast/recover-account', () => {
     expect(data.error).toBe('Missing signed transaction');
   });
 
-  it('returns 400 when signature verification fails', async () => {
+  it('returns 400 when transaction shape validation fails', async () => {
     const { SteemService } = await import('@/lib/steem/server');
-    vi.mocked(SteemService.verifySignature).mockResolvedValueOnce(false);
+    vi.mocked(SteemService.validateTransactionShape).mockReturnValueOnce(false);
 
     const req = makeRequest({ signedTx: makeSignedTx() });
     const res = await POST(req);
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toBe('Invalid transaction format');
+  });
+
+  it('returns 400 when signature does not match recent_owner_authority', async () => {
+    const { steem } = await import('@steemit/steem-js');
+    vi.mocked(steem.auth.verifyTransaction).mockReturnValueOnce(false);
+
+    const req = makeRequest({ signedTx: makeSignedTx() });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain('does not match recent_owner_authority');
   });
 
   it('returns 400 when first operation is not recover_account', async () => {
@@ -215,6 +229,22 @@ describe('POST /api/broadcast/recover-account', () => {
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toContain('does not match');
+  });
+
+  it('returns 503 when DB is unavailable (fail-closed, never broadcasts)', async () => {
+    // Security gate: when MySQL is down the route must refuse to broadcast
+    // rather than skipping the recovery-record cross-check.
+    mockGetDb.mockReturnValue(null);
+
+    const req = makeRequest({ signedTx: makeSignedTx() });
+    const res = await POST(req);
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.error).toBe('Service unavailable');
+
+    // Must not have reached broadcast.
+    const { SteemService } = await import('@/lib/steem/server');
+    expect(SteemService.broadcastTransaction).not.toHaveBeenCalled();
   });
 
   it('returns 500 when broadcastTransaction throws', async () => {

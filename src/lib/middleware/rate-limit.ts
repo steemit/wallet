@@ -1,5 +1,13 @@
 // Rate limiting middleware
-// Uses Redis when available, falls back to in-memory Map
+//
+// - Redis is the source of truth when available (shared across instances).
+// - When REDIS_URL is unset we fall back to a per-process in-memory store.
+//   This fallback is NOT shared across instances, so in multi-instance
+//   deployments it weakens limits — see TRUST_PROXY_COUNT / REDIS_URL docs.
+// - Client IP resolution is proxy-aware: when the app sits behind a trusted
+//   proxy (ELB/OpenResty) set TRUST_PROXY_COUNT to the number of trusted hops,
+//   so a spoofable client-supplied X-Forwarded-For cannot reset the limiter.
+//   When TRUST_PROXY_COUNT is unset we use the socket peer (no header trust).
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getRedis, redisKey } from '@/lib/cache/redis';
@@ -28,17 +36,37 @@ if (typeof setInterval !== 'undefined') {
   setInterval(cleanupExpiredEntries, 5 * 60 * 1000);
 }
 
-function getClientIP(request: NextRequest): string {
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  const realIP = request.headers.get('x-real-ip');
-  const cfConnectingIP = request.headers.get('cf-connecting-ip');
+// Parse the trusted-hops count from env (undefined => do not trust headers).
+function getTrustedProxyCount(): number | null {
+  const raw = process.env.TRUST_PROXY_COUNT;
+  if (raw === undefined || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
 
-  if (forwardedFor) {
-    const parts = forwardedFor.split(',');
-    return parts[0]?.trim() || 'unknown';
+/**
+ * Resolve the client IP. Proxy-aware: when TRUST_PROXY_COUNT is set, read the
+ * Nth-from-right entry of X-Forwarded-For (the hop our trusted proxy appended).
+ * Without it we rely on the socket peer and ignore client headers entirely, so
+ * a spoofed X-Forwarded-For cannot bypass rate limiting.
+ */
+function getClientIP(request: NextRequest): string {
+  const trustedHops = getTrustedProxyCount();
+  if (trustedHops !== null && trustedHops > 0) {
+    const xff = request.headers.get('x-forwarded-for');
+    if (xff) {
+      const parts = xff.split(',').map((s) => s.trim()).filter(Boolean);
+      // The client-set hops are at the front; our proxy appends the real client
+      // `trustedHops` entries from the end. Take the entry at
+      // (length - trustedHops) — the one added by the first trusted proxy.
+      const idx = parts.length - trustedHops;
+      if (idx >= 0 && idx < parts.length) return parts[idx]!;
+      if (parts.length > 0) return parts[parts.length - 1]!;
+    }
   }
-  if (realIP) return realIP;
-  if (cfConnectingIP) return cfConnectingIP;
+  // No trusted-proxy config: prefer the Next.js peer IP if present, else the
+  // raw x-real-ip only when behind a proxy we trust. Fall back to 'unknown'.
+  // (x-real-ip / cf-connecting-ip are intentionally not trusted unilaterally.)
   return 'unknown';
 }
 
@@ -76,6 +104,7 @@ async function redisRateLimit(
 
     return null;
   } catch {
+    // Redis error: signal the caller to consult the memory fallback (or reject).
     return null;
   }
 }
@@ -116,19 +145,44 @@ function memoryRateLimit(
   return null;
 }
 
+// Whether to allow a memory fallback when Redis is not configured. In a
+// single-instance deploy this is fine; multi-instance deploys should set
+// REDIS_URL (and leave this enabled purely for the Redis-error transient case).
+function memoryFallbackEnabled(): boolean {
+  return process.env.RATE_LIMIT_ALLOW_MEMORY_FALLBACK !== 'false';
+}
+
 export async function rateLimit(
   request: NextRequest,
   action: string,
   config: RateLimitConfig
 ): Promise<NextResponse | null> {
   const ip = getClientIP(request);
-  const key = `${ip}:${action}`;
+  // Namespace the key by route so that, e.g., the /vote budget is not shared
+  // with /transfer. Each broadcast route already passes a distinct action, but
+  // scoping here guarantees isolation even if callers reuse an action string.
+  const routeScope =
+    request.nextUrl?.pathname?.replace(/^\/api\/broadcast\//, 'broadcast:') ?? '';
+  const key = `${ip}:${action}${routeScope ? `:${routeScope}` : ''}`;
 
-  // Try Redis first
+  // Try Redis first (shared source of truth)
   const redisResult = await redisRateLimit(key, config);
   if (redisResult) return redisResult;
 
-  // Fallback to in-memory (also used when Redis is available but didn't block)
+  const redis = getRedis();
+  if (redis) {
+    // Redis healthy and did not block → allow.
+    return null;
+  }
+
+  // Redis unavailable. Use the per-process memory fallback unless disabled.
+  if (!memoryFallbackEnabled()) {
+    return NextResponse.json(
+      { error: 'Rate limiter unavailable' },
+      { status: 503 }
+    );
+  }
+
   const memoryResult = memoryRateLimit(key, config);
   if (memoryResult) return memoryResult;
 
@@ -147,29 +201,41 @@ export async function rateLimitByUser(
   const redisResult = await redisRateLimit(key, config);
   if (redisResult) return redisResult;
 
+  if (getRedis()) return null;
+
+  if (!memoryFallbackEnabled()) {
+    return NextResponse.json(
+      { error: 'Rate limiter unavailable' },
+      { status: 503 }
+    );
+  }
+
   return memoryRateLimit(key, config);
 }
 
 export function getRateLimitInfo(
   request: NextRequest,
-  action: string
+  action: string,
+  config: RateLimitConfig
 ): { limit: number; remaining: number; resetAt: Date } | null {
   const ip = getClientIP(request);
-  const key = `${ip}:${action}`;
+  const routeScope =
+    request.nextUrl?.pathname?.replace(/^\/api\/broadcast\//, 'broadcast:') ?? '';
+  const key = `${ip}:${action}${routeScope ? `:${routeScope}` : ''}`;
   const entry = memoryStore.get(key);
   if (!entry) return null;
 
   return {
-    limit: entry.count,
-    remaining: Math.max(0, config_maxRequests - entry.count),
+    limit: config.maxRequests,
+    remaining: Math.max(0, config.maxRequests - entry.count),
     resetAt: new Date(entry.resetAt),
   };
 }
 
-const config_maxRequests = 100;
-
 export function resetRateLimit(request: NextRequest, action: string): void {
   const ip = getClientIP(request);
-  const key = `${ip}:${action}`;
+  const routeScope =
+    request.nextUrl?.pathname?.replace(/^\/api\/broadcast\//, 'broadcast:') ?? '';
+  const key = `${ip}:${action}${routeScope ? `:${routeScope}` : ''}`;
   memoryStore.delete(key);
 }

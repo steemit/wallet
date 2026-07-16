@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValid = await SteemService.verifySignature(signedTx);
+    const isValid = SteemService.validateTransactionShape(signedTx);
     if (!isValid) {
       return NextResponse.json({ error: 'Invalid transaction format' }, { status: 400 });
     }
@@ -76,36 +76,61 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Cryptographically verify the signature against the recent_owner_authority
+    // public key declared in the operation (the old owner key that signed it).
+    // recover_account is signed by the OLD owner key, which may no longer be in
+    // the account's current authority set, so we verify against the key in the
+    // op body rather than fetching the account. (requires @steemit/steem-js >=1.0.20)
+    const recentOwnerPub = opBody.recent_owner_authority.key_auths?.[0]?.[0];
+    if (!recentOwnerPub || !steem.auth.verifyTransaction(
+      signedTx as unknown as Record<string, unknown>,
+      recentOwnerPub
+    )) {
+      return NextResponse.json(
+        { error: 'Transaction signature does not match recent_owner_authority' },
+        { status: 400 }
+      );
+    }
+
     // Cross-check against DB: the account must have a closed recovery record
-    // with a matching new_owner_key
+    // with a matching new_owner_key. The DB check is MANDATORY — this is the
+    // only application-layer gate on the account-takeover path. When the DB is
+    // unavailable we must refuse to broadcast (503), matching recovery/request
+    // and recovery/confirm. Never fail open here.
     const db = getDb();
-    if (db) {
-      const newKey = opBody.new_owner_authority.key_auths?.[0]?.[0];
-      if (!newKey) {
-        return NextResponse.json(
-          { error: 'Invalid new_owner_authority: missing key_auth' },
-          { status: 400 }
-        );
-      }
+    if (!db) {
+      console.error('Database unavailable for recover-account broadcast');
+      return NextResponse.json(
+        { error: 'Service unavailable' },
+        { status: 503 }
+      );
+    }
 
-      const record = await db.query.arecs.findFirst({
-        where: eq(arecs.accountName, opBody.account_to_recover),
-        columns: { id: true, status: true, newOwnerKey: true },
-      });
+    const newKey = opBody.new_owner_authority.key_auths?.[0]?.[0];
+    if (!newKey) {
+      return NextResponse.json(
+        { error: 'Invalid new_owner_authority: missing key_auth' },
+        { status: 400 }
+      );
+    }
 
-      if (!record || record.status !== 'closed') {
-        return NextResponse.json(
-          { error: 'No confirmed recovery request found for this account' },
-          { status: 400 }
-        );
-      }
+    const record = await db.query.arecs.findFirst({
+      where: eq(arecs.accountName, opBody.account_to_recover),
+      columns: { id: true, status: true, newOwnerKey: true },
+    });
 
-      if (!record.newOwnerKey || record.newOwnerKey !== newKey) {
-        return NextResponse.json(
-          { error: 'new_owner_key does not match recovery record' },
-          { status: 400 }
-        );
-      }
+    if (!record || record.status !== 'closed') {
+      return NextResponse.json(
+        { error: 'No confirmed recovery request found for this account' },
+        { status: 400 }
+      );
+    }
+
+    if (!record.newOwnerKey || record.newOwnerKey !== newKey) {
+      return NextResponse.json(
+        { error: 'new_owner_key does not match recovery record' },
+        { status: 400 }
+      );
     }
 
     const txForBroadcast = steem.auth.normalizeTransactionForBroadcast(
@@ -117,12 +142,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Broadcast recover-account error:', error);
-    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      {
-        error: 'Failed to broadcast transaction',
-        details: message,
-      },
+      { error: 'Failed to broadcast transaction' },
       { status: 500 }
     );
   }

@@ -8,8 +8,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
+  // Rate limit: a valid code confirms an account name, so this endpoint is a
+  // (low-severity) enumeration surface — mitigated by the 80-bit admin-generated
+  // code, but kept modest to further limit guessing.
   const rateLimitError = await rateLimit(request, 'recovery_verify', {
-    maxRequests: 20,
+    maxRequests: 10,
     windowSeconds: 300,
   });
   if (rateLimitError) return rateLimitError;

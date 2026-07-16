@@ -1,6 +1,7 @@
 // Server-side Steem service
 // All communication with Steem nodes happens here
 
+import { randomBytes } from 'crypto';
 import { steem } from '@steemit/steem-js';
 
 import { formatSteemIsoTimestamp } from '@/lib/steem/chain-time';
@@ -596,6 +597,33 @@ export class SteemService {
   }
 
   /**
+   * Validate the CONVEYOR recovery-signing configuration (high-value secret).
+   *
+   * CONVEYOR_POSTING_WIF signs on-chain `request_account_recovery`, so a
+   * compromise grants the recovery account's posting authority and enables
+   * abuse of the account-recovery workflow. This must be treated as a
+   * high-value secret: restrict deploy access, rotate on suspected compromise,
+   * and (ideally) move signing behind an external signer / HSM.
+   *
+   * Returns an error string when misconfigured (missing vars, or the WIF does
+   * not look like a valid Steem private key), or null when OK. Safe to call at
+   * any time; used as a preflight by recovery/confirm before broadcasting.
+   */
+  static validateConveyorConfig(): string | null {
+    const username = process.env.CONVEYOR_USERNAME;
+    const wif = process.env.CONVEYOR_POSTING_WIF;
+    if (!username || !wif) {
+      return 'Recovery service not configured (CONVEYOR_USERNAME / CONVEYOR_POSTING_WIF missing)';
+    }
+    // Steem WIFs are base58 strings starting with '5' (51 chars for mainnet).
+    // Validate format only — never log the value itself.
+    if (!/^5[HJ][1-9A-HJ-NP-Za-km-z]{49}$/.test(wif)) {
+      return 'CONVEYOR_POSTING_WIF is not a valid Steem private key format';
+    }
+    return null;
+  }
+
+  /**
    * Broadcast a signed transaction
    */
   static async broadcastTransaction(signedTx: SignedTransaction): Promise<BroadcastResult> {
@@ -626,10 +654,15 @@ export class SteemService {
   }
 
   /**
-   * Verify a signature (server-side validation)
-   * Note: This doesn't re-sign, just validates the signature format
+   * Validate the structural shape of a signed transaction.
+   *
+   * This checks only that the transaction has the fields a validly-signed
+   * transaction requires (signatures present, finite ref_block_num /
+   * ref_block_prefix, non-empty expiration, non-empty operations). It does
+   * NOT perform cryptographic signature verification — use
+   * {@link verifyTransactionForAccount} for that.
    */
-  static async verifySignature(signedTx: SignedTransaction): Promise<boolean> {
+  static validateTransactionShape(signedTx: SignedTransaction): boolean {
     try {
       // Basic validation
       if (!signedTx.signatures || signedTx.signatures.length === 0) {
@@ -655,12 +688,94 @@ export class SteemService {
         return false;
       }
 
-      // The actual signature verification would happen during broadcast
-      // If the signature is invalid, the network will reject it
       return true;
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Cryptographically verify that a signed transaction was signed by a key
+   * belonging to the given account, using @steemit/steem-js's (now-fixed, v1.0.20+)
+   * `steem.auth.verifyTransaction` which reconstructs the real signing digest
+   * `sha256(chain_id || serializeTransaction(trx))`.
+   *
+   * This closes the audit's Critical #1 gap: the server can now prove the
+   * signer holds a key on the claimed account *before* relaying the broadcast.
+   * We accept any of the account's owner/active/posting/memo public keys, since
+   * different operations require different authorities and the wallet signs with
+   * whichever role key the user provided.
+   *
+   * Returns true only if: shape is valid AND at least one signature verifies
+   * against one of the account's keys. Returns false (never throws) on any error.
+   */
+  static verifyTransactionForAccount(
+    signedTx: SignedTransaction,
+    account: SteemAccount
+  ): boolean {
+    if (!SteemService.validateTransactionShape(signedTx)) return false;
+
+    try {
+      ensureConfigured();
+      // Collect all public keys on the account across authorities.
+      const ownerKeys = account.owner?.key_auths?.map((k) => k[0]) ?? [];
+      const activeKeys = account.active?.key_auths?.map((k) => k[0]) ?? [];
+      const postingKeys = account.posting?.key_auths?.map((k) => k[0]) ?? [];
+      const memoKey = account.memo_key ? [account.memo_key] : [];
+      const accountKeys = [...ownerKeys, ...activeKeys, ...postingKeys, ...memoKey]
+        .filter((k): k is string => typeof k === 'string' && k.length > 0);
+
+      // verifyTransaction returns true if ANY signature matches the given public
+      // key. We accept the transaction if any of the account's keys verifies it.
+      return accountKeys.some((pubKey) =>
+        steem.auth.verifyTransaction(
+          signedTx as unknown as Record<string, unknown>,
+          pubKey
+        )
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Verify a signed transaction's shape and cryptographic signature against the
+   * account named in the transaction (fetched from chain). Convenience wrapper
+   * for broadcast routes that have a `username` but not a pre-fetched account.
+   *
+   * Returns { ok, error? }. On failure `error` explains whether it was a shape
+   * problem, a fetch failure, or a signature mismatch.
+   */
+  static async verifyTransactionForUsername(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (!SteemService.validateTransactionShape(signedTx)) {
+      return { ok: false, error: 'Invalid transaction format' };
+    }
+    let accounts: SteemAccount[];
+    try {
+      accounts = await SteemService.getAccounts([username]);
+    } catch {
+      return { ok: false, error: 'Could not verify signer (account lookup failed)' };
+    }
+    const account = accounts[0];
+    if (!account) {
+      return { ok: false, error: 'Could not verify signer (account not found)' };
+    }
+    if (!SteemService.verifyTransactionForAccount(signedTx, account)) {
+      return { ok: false, error: 'Transaction signature does not match account' };
+    }
+    return { ok: true };
+  }
+
+  /**
+   * @deprecated use {@link validateTransactionShape} (shape only) or
+   * {@link verifyTransactionForUsername} (real crypto verification).
+   * Kept as a shape-only alias for callers that have not migrated.
+   */
+  static verifySignature(signedTx: SignedTransaction): Promise<boolean> {
+    return Promise.resolve(SteemService.validateTransactionShape(signedTx));
   }
 
   /**
@@ -714,7 +829,9 @@ export class SteemService {
    */
   static generateChallenge(username: string): string {
     const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 15);
+    // Use a cryptographically strong random rather than Math.random so the
+    // challenge cannot be predicted (it gates login signature verification).
+    const random = randomBytes(16).toString('hex');
     return `login-${username}-${timestamp}-${random}`;
   }
 

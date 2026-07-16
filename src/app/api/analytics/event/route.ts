@@ -1,7 +1,7 @@
 // POST /api/analytics/event
 // Server-side analytics event logging
 import { NextRequest, NextResponse } from 'next/server';
-import { rateLimit } from '@/lib/middleware';
+import { verifyCSRF, rateLimit } from '@/lib/middleware';
 
 interface AnalyticsEventBody {
   event: string;
@@ -11,6 +11,11 @@ interface AnalyticsEventBody {
 
 export async function POST(request: NextRequest) {
   try {
+    // CSRF: analytics is a write endpoint (logs), so require a token to prevent
+    // cross-site log injection / pollution.
+    const csrfError = await verifyCSRF(request);
+    if (csrfError) return csrfError;
+
     // Rate limiting for analytics
     const rateLimitError = await rateLimit(request, 'analytics', {
       maxRequests: 100,

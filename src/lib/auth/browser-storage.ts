@@ -1,6 +1,21 @@
 /**
  * Local persistence for login convenience (username / posting key on device only).
  * Never sent to the server.
+ *
+ * SECURITY RISK: when the user opts into "remember me", the posting private key
+ * is written to `localStorage` so claim-reward signing works across reloads
+ * (even when signed in with the active/owner key). `localStorage` is readable
+ * by any JavaScript running in this origin, so XSS or device access exposes a
+ * limited signing capability (posting authority only — not active/owner).
+ *
+ * Mitigations in place:
+ *   - Opt-in only (default off); cleared on logout.
+ *   - `Content-Security-Policy: frame-ancestors 'none'` + nosniff headers reduce
+ *     injection/framing surface (see next.config.ts).
+ *   - Posting authority is limited (cannot transfer funds; can vote/post/claim).
+ *
+ * Do NOT store active/owner keys in localStorage. If a stronger posture is
+ * required, gate claim-reward behind a per-session re-prompt instead.
  */
 export const REMEMBERED_USERNAME_KEY = 'wallet:rememberedUsername';
 export const REMEMBERED_POSTING_KEY_KEY = 'wallet:rememberedPostingKey';

@@ -103,6 +103,19 @@ export async function POST(request: NextRequest) {
     // Step 2: Call kingdom.recovery_account (broadcasts request_account_recovery on-chain).
     // If this fails, the record stays in 'processing' and won't be re-processed.
     const { SteemService } = await import('@/lib/steem/server');
+
+    // Preflight: the recovery-signing key (CONVEYOR_POSTING_WIF) is a
+    // high-value secret. If it is missing/misconfigured, surface a clean 503
+    // rather than a 500, so the caller can retry once the service is restored.
+    const conveyorError = SteemService.validateConveyorConfig();
+    if (conveyorError) {
+      console.error('Recovery confirm blocked:', conveyorError);
+      return NextResponse.json(
+        { status: 'error', error: 'Recovery service unavailable' },
+        { status: 503 }
+      );
+    }
+
     await SteemService.requestAccountRecovery({
       account_to_recover: body.account_name,
       new_owner_authority: body.new_owner_authority,
