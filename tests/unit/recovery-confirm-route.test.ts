@@ -50,18 +50,22 @@ function makeRequest(body: Record<string, unknown>): NextRequest {
   });
 }
 
-function setupUpdateMocks(firstResult: unknown, secondResult?: unknown) {
-  const chain1: Record<string, ReturnType<typeof vi.fn>> = {};
-  chain1.where = vi.fn().mockResolvedValue(firstResult);
-  chain1.set = vi.fn().mockReturnValue({ where: chain1.where });
+function setupUpdateMocks(firstResult: unknown, secondResult?: unknown, thirdResult?: unknown) {
+  const makeChain = (result: unknown) => {
+    const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+    chain.where = vi.fn().mockResolvedValue(result ?? undefined);
+    chain.set = vi.fn().mockReturnValue({ where: chain.where });
+    return chain;
+  };
 
-  const chain2: Record<string, ReturnType<typeof vi.fn>> = {};
-  chain2.where = vi.fn().mockResolvedValue(secondResult ?? undefined);
-  chain2.set = vi.fn().mockReturnValue({ where: chain2.where });
+  const chain1 = makeChain(firstResult);
+  const chain2 = makeChain(secondResult);
+  const chain3 = makeChain(thirdResult);
 
   mockUpdateFn = vi.fn()
     .mockReturnValueOnce({ set: chain1.set })
-    .mockReturnValueOnce({ set: chain2.set });
+    .mockReturnValueOnce({ set: chain2.set })
+    .mockReturnValueOnce({ set: chain3.set });
 }
 
 describe('POST /api/recovery/confirm', () => {
@@ -176,6 +180,9 @@ describe('POST /api/recovery/confirm', () => {
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toBe('Owner key mismatch');
+    // Rollback: the record is reverted from 'processing' to 'confirmed' so the
+    // user can retry. 3 update calls: CAS claim → findFirst → rollback.
+    expect(mockUpdateFn).toHaveBeenCalledTimes(2);
   });
 
   it('allows confirm when DB ownerKey is null (legacy records)', async () => {
@@ -213,6 +220,39 @@ describe('POST /api/recovery/confirm', () => {
     expect(res.status).toBe(500);
     const data = await res.json();
     expect(data.status).toBe('error');
+  });
+
+  it('rolls back to confirmed when requestAccountRecovery throws (retryable)', async () => {
+    // Regression test: without rollback, a transient RPC error leaves the
+    // record stuck in 'processing' forever — the user can never retry.
+    setupUpdateMocks({ affectedRows: 1 });
+
+    const { SteemService } = await import('@/lib/steem/server');
+    vi.mocked(SteemService.requestAccountRecovery).mockRejectedValueOnce(
+      new Error('Kingdom unreachable')
+    );
+
+    const req = makeRequest(validPayload);
+    const res = await POST(req);
+    expect(res.status).toBe(500);
+
+    // CAS claim (1st) → rollback in catch (2nd). Success close never runs.
+    expect(mockUpdateFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('rolls back to confirmed when conveyor config is missing (503 retryable)', async () => {
+    setupUpdateMocks({ affectedRows: 1 });
+
+    const { SteemService } = await import('@/lib/steem/server');
+    vi.mocked(SteemService.validateConveyorConfig).mockReturnValueOnce(
+      'CONVEYOR_POSTING_WIF missing'
+    );
+
+    const req = makeRequest(validPayload);
+    const res = await POST(req);
+    expect(res.status).toBe(503);
+    // CAS claim (1st) → rollback (2nd). User can retry.
+    expect(mockUpdateFn).toHaveBeenCalledTimes(2);
   });
 
   it('returns 500 when database update throws', async () => {

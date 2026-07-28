@@ -64,6 +64,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Track whether the CAS claim succeeded so we can roll it back on failure.
+  let claimed = false;
+
   try {
     // Step 1: Atomically claim the record by setting status to 'processing'.
     // This prevents TOCTOU races — only one request will win the CAS.
@@ -86,6 +89,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    claimed = true;
 
     // Step 1b: Cross-validate old_owner_key against the DB record.
     // This ensures the client-submitted key matches the original request.
@@ -94,6 +98,7 @@ export async function POST(request: NextRequest) {
       columns: { id: true, ownerKey: true },
     });
     if (!record || (record.ownerKey && record.ownerKey !== body.old_owner_key)) {
+      await rollbackToConfirmed(db, body.code, body.account_name);
       return NextResponse.json(
         { status: 'error', error: 'Owner key mismatch' },
         { status: 400 }
@@ -101,7 +106,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2: Call kingdom.recovery_account (broadcasts request_account_recovery on-chain).
-    // If this fails, the record stays in 'processing' and won't be re-processed.
     const { SteemService } = await import('@/lib/steem/server');
 
     // Preflight: the recovery-signing key (CONVEYOR_POSTING_WIF) is a
@@ -110,6 +114,7 @@ export async function POST(request: NextRequest) {
     const conveyorError = SteemService.validateConveyorConfig();
     if (conveyorError) {
       console.error('Recovery confirm blocked:', conveyorError);
+      await rollbackToConfirmed(db, body.code, body.account_name);
       return NextResponse.json(
         { status: 'error', error: 'Recovery service unavailable' },
         { status: 503 }
@@ -140,9 +145,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: 'ok' });
   } catch (err) {
     console.error('Recovery confirm failed:', err);
+    // Roll back the CAS claim so the user can retry. Without this the record
+    // would be stuck in 'processing' forever (no other path resets it), and a
+    // single transient RPC error would permanently brick the recovery.
+    if (claimed) {
+      await rollbackToConfirmed(db, body.code, body.account_name).catch(() => {});
+    }
     return NextResponse.json(
       { status: 'error', error: 'Internal server error' },
       { status: 500 }
     );
   }
+}
+
+/**
+ * Revert a recovery record from 'processing' back to 'confirmed' so the user
+ * can retry. Best-effort: swallows errors (the response error is already
+ * decided by the caller). Only resets records still in 'processing' to avoid
+ * clobbering a concurrent success.
+ */
+async function rollbackToConfirmed(
+  db: NonNullable<ReturnType<typeof getDb>>,
+  code: string,
+  accountName: string
+): Promise<void> {
+  await db
+    .update(arecs)
+    .set({ status: 'confirmed' })
+    .where(
+      and(
+        eq(arecs.validationCode, code),
+        eq(arecs.accountName, accountName),
+        eq(arecs.status, 'processing')
+      )
+    );
 }
