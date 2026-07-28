@@ -76,15 +76,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Cryptographically verify the signature against the recent_owner_authority
-    // public key declared in the operation (the old owner key that signed it).
-    // recover_account is signed by the OLD owner key, which may no longer be in
-    // the account's current authority set, so we verify against the key in the
-    // op body rather than fetching the account. (requires @steemit/steem-js >=1.0.20)
-    const recentOwnerPub = opBody.recent_owner_authority.key_auths?.[0]?.[0];
-    if (!recentOwnerPub || !steem.auth.verifyTransaction(
+    // Cryptographically verify the signature against the REAL historical owner
+    // keys fetched from chain — NOT the recent_owner_authority declared in the
+    // op body (which is attacker-controlled and trivially self-satisfiable).
+    //
+    // recover_account is signed by the account's OLD owner key, which may no
+    // longer be in the account's current authority set. We fetch the on-chain
+    // owner-key change history (get_owner_history) and verify the signature
+    // against every previous owner public key recorded there. This proves the
+    // signer actually held the old owner authority for this account.
+    // (requires @steemit/steem-js >=1.0.20)
+    const claimedRecentKey = opBody.recent_owner_authority.key_auths?.[0]?.[0];
+    if (!claimedRecentKey) {
+      return NextResponse.json(
+        { error: 'Invalid recent_owner_authority: missing key_auth' },
+        { status: 400 }
+      );
+    }
+
+    let ownerHistory: { previous_owner_authority?: { key_auths?: [string, number][] } }[];
+    try {
+      ownerHistory = await SteemService.getOwnerHistory(opBody.account_to_recover);
+    } catch {
+      return NextResponse.json(
+        { error: 'Could not verify signer (owner history lookup failed)' },
+        { status: 503 }
+      );
+    }
+
+    // Collect all real historical owner public keys from the chain.
+    const historicalOwnerKeys = new Set<string>();
+    for (const entry of ownerHistory) {
+      for (const [pubKey] of entry.previous_owner_authority?.key_auths ?? []) {
+        if (pubKey) historicalOwnerKeys.add(pubKey);
+      }
+    }
+
+    // The key declared in the op body must match a real historical owner key.
+    if (!historicalOwnerKeys.has(claimedRecentKey)) {
+      return NextResponse.json(
+        { error: 'recent_owner_authority does not match any historical owner key' },
+        { status: 400 }
+      );
+    }
+
+    // Verify the transaction signature against the claimed (now validated) key.
+    if (!steem.auth.verifyTransaction(
       signedTx as unknown as Record<string, unknown>,
-      recentOwnerPub
+      claimedRecentKey
     )) {
       return NextResponse.json(
         { error: 'Transaction signature does not match recent_owner_authority' },
@@ -93,8 +132,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Cross-check against DB: the account must have a closed recovery record
-    // with a matching new_owner_key. The DB check is MANDATORY — this is the
-    // only application-layer gate on the account-takeover path. When the DB is
+    // with a matching new_owner_key. Together with the on-chain signature
+    // verification above and the on-chain request_account_recovery, this forms
+    // the layered defense on the account-takeover path. When the DB is
     // unavailable we must refuse to broadcast (503), matching recovery/request
     // and recovery/confirm. Never fail open here.
     const db = getDb();

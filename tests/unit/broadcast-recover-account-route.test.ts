@@ -9,10 +9,12 @@ vi.mock('@/lib/middleware', () => ({
 }));
 
 // Mock SteemService
+const mockGetOwnerHistory = vi.fn();
 vi.mock('@/lib/steem/server', () => ({
   SteemService: {
     validateTransactionShape: vi.fn().mockReturnValue(true),
     broadcastTransaction: vi.fn().mockResolvedValue({ id: 'tx123' }),
+    getOwnerHistory: (...args: unknown[]) => mockGetOwnerHistory(...args),
   },
 }));
 
@@ -95,6 +97,10 @@ describe('POST /api/broadcast/recover-account', () => {
       status: 'closed',
       newOwnerKey: VALID_KEY_B,
     });
+    // Default: owner history contains VALID_KEY_A (the recentKey in makeSignedTx)
+    mockGetOwnerHistory.mockResolvedValue([
+      { previous_owner_authority: { key_auths: [[VALID_KEY_A, 1]] } },
+    ]);
   });
 
   afterEach(() => {
@@ -138,6 +144,44 @@ describe('POST /api/broadcast/recover-account', () => {
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toContain('does not match recent_owner_authority');
+  });
+
+  it('returns 400 when recent_owner_authority is not in chain owner history', async () => {
+    // The claimed recent key (VALID_KEY_A) is NOT in the chain's owner history
+    // (which only has VALID_KEY_B). This is the self-satisfiable-check fix:
+    // the attacker cannot just put their own key in the op body.
+    mockGetOwnerHistory.mockResolvedValue([
+      { previous_owner_authority: { key_auths: [[VALID_KEY_B, 1]] } },
+    ]);
+
+    const req = makeRequest({ signedTx: makeSignedTx() });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain('does not match any historical owner key');
+    // Must not reach broadcast.
+    const { SteemService } = await import('@/lib/steem/server');
+    expect(SteemService.broadcastTransaction).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when chain owner history is empty', async () => {
+    mockGetOwnerHistory.mockResolvedValue([]);
+
+    const req = makeRequest({ signedTx: makeSignedTx() });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain('does not match any historical owner key');
+  });
+
+  it('returns 503 when owner history lookup fails', async () => {
+    mockGetOwnerHistory.mockRejectedValue(new Error('RPC down'));
+
+    const req = makeRequest({ signedTx: makeSignedTx() });
+    const res = await POST(req);
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.error).toContain('owner history lookup failed');
   });
 
   it('returns 400 when first operation is not recover_account', async () => {
