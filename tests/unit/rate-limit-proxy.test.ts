@@ -50,9 +50,27 @@ describe('rate-limit proxy-aware client IP (TRUST_PROXY_COUNT)', () => {
     expect(r2!.status).toBe(429);
   });
 
-  it('falls back to "unknown" when TRUST_PROXY_COUNT is unset (ignores XFF)', async () => {
+  it('falls back to x-real-ip when TRUST_PROXY_COUNT is unset', async () => {
     delete process.env.TRUST_PROXY_COUNT;
-    // Two requests with different XFF but both resolve to "unknown" → shared bucket.
+    // Without TRUST_PROXY_COUNT, x-real-ip (set by the reverse proxy) is used.
+    // Two requests from different x-real-ip get separate buckets.
+    const r1 = await rateLimit(
+      makeReq({ 'x-real-ip': '1.1.1.1' }),
+      'broadcast',
+      { maxRequests: 1, windowSeconds: 60 }
+    );
+    expect(r1).toBeNull(); // allowed
+    const r2 = await rateLimit(
+      makeReq({ 'x-real-ip': '2.2.2.2' }),
+      'broadcast',
+      { maxRequests: 1, windowSeconds: 60 }
+    );
+    expect(r2).toBeNull(); // also allowed — different IP, different bucket
+  });
+
+  it('falls back to "unknown" when neither TRUST_PROXY_COUNT nor x-real-ip is present', async () => {
+    delete process.env.TRUST_PROXY_COUNT;
+    // No x-real-ip, no TRUST_PROXY_COUNT → all collapse to 'unknown'.
     await rateLimit(makeReq({ 'x-forwarded-for': '1.1.1.1' }), 'broadcast', {
       maxRequests: 1,
       windowSeconds: 60,

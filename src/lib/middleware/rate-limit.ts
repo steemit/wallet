@@ -7,7 +7,8 @@
 // - Client IP resolution is proxy-aware: when the app sits behind a trusted
 //   proxy (ELB/OpenResty) set TRUST_PROXY_COUNT to the number of trusted hops,
 //   so a spoofable client-supplied X-Forwarded-For cannot reset the limiter.
-//   When TRUST_PROXY_COUNT is unset we use the socket peer (no header trust).
+//   When TRUST_PROXY_COUNT is unset we fall back to x-real-ip (set by the
+//   reverse proxy, which overwrites any client value), then 'unknown'.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getRedis, redisKey } from '@/lib/cache/redis';
@@ -36,7 +37,7 @@ if (typeof setInterval !== 'undefined') {
   setInterval(cleanupExpiredEntries, 5 * 60 * 1000);
 }
 
-// Parse the trusted-hops count from env (undefined => do not trust headers).
+// Parse the trusted-hops count from env (undefined => do not trust XFF).
 function getTrustedProxyCount(): number | null {
   const raw = process.env.TRUST_PROXY_COUNT;
   if (raw === undefined || raw === '') return null;
@@ -44,11 +45,20 @@ function getTrustedProxyCount(): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+let warnedMissingProxyConfig = false;
+
 /**
- * Resolve the client IP. Proxy-aware: when TRUST_PROXY_COUNT is set, read the
- * Nth-from-right entry of X-Forwarded-For (the hop our trusted proxy appended).
- * Without it we rely on the socket peer and ignore client headers entirely, so
- * a spoofed X-Forwarded-For cannot bypass rate limiting.
+ * Resolve the client IP.
+ *
+ * Priority:
+ * 1. TRUST_PROXY_COUNT set: read the Nth-from-right entry of X-Forwarded-For
+ *    (the hop our trusted proxy appended). This is the most spoof-resistant.
+ * 2. TRUST_PROXY_COUNT unset: fall back to x-real-ip. The reverse proxy
+ *    (OpenResty/ELB) sets this header by OVERWRITING any client value, so it
+ *    is far harder to spoof than X-Forwarded-For (which is append-only). This
+ *    prevents the rate-limit bucket from collapsing to a single 'unknown' key
+ *    when an operator forgets to set TRUST_PROXY_COUNT.
+ * 3. Neither available: 'unknown' (all clients share one bucket — degraded).
  */
 function getClientIP(request: NextRequest): string {
   const trustedHops = getTrustedProxyCount();
@@ -64,9 +74,22 @@ function getClientIP(request: NextRequest): string {
       if (parts.length > 0) return parts[parts.length - 1]!;
     }
   }
-  // No trusted-proxy config: prefer the Next.js peer IP if present, else the
-  // raw x-real-ip only when behind a proxy we trust. Fall back to 'unknown'.
-  // (x-real-ip / cf-connecting-ip are intentionally not trusted unilaterally.)
+
+  // No TRUST_PROXY_COUNT: fall back to x-real-ip (set by the reverse proxy,
+  // which overwrites client-supplied values). This prevents the limiter from
+  // collapsing all clients into a single 'unknown' bucket.
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp) return realIp.trim();
+
+  // Truly nothing to go on. Warn once in production so operators notice.
+  if (!warnedMissingProxyConfig && process.env.NODE_ENV === 'production') {
+    console.warn(
+      'rate-limit: TRUST_PROXY_COUNT is not set and x-real-ip is absent — ' +
+        'all clients share a single rate-limit bucket. Set TRUST_PROXY_COUNT ' +
+        'or ensure the reverse proxy sets x-real-ip.'
+    );
+    warnedMissingProxyConfig = true;
+  }
   return 'unknown';
 }
 
