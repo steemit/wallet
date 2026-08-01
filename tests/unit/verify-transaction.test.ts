@@ -94,6 +94,42 @@ describe('SteemService.verifyTransactionForAccount', () => {
     });
     expect(SteemService.verifyTransactionForAccount(makeSignedTx(), makeAccount())).toBe(false);
   });
+
+  it('with requiredAuthority=active: accepts active key, rejects memo/posting key', () => {
+    // Only the active key verifies; posting/memo keys return false.
+    mockVerifyTransaction.mockImplementation((_tx, pubKey) => pubKey === 'STM5Active');
+    expect(
+      SteemService.verifyTransactionForAccount(makeSignedTx(), makeAccount(), 'active')
+    ).toBe(true);
+  });
+
+  it('with requiredAuthority=active: rejects when only memo key verifies', () => {
+    // Simulate: the signature matches the memo key, but NOT the active key.
+    // With authority filtering, memo is excluded → must return false.
+    mockVerifyTransaction.mockImplementation((_tx, pubKey) => pubKey === 'STM5Memo');
+    expect(
+      SteemService.verifyTransactionForAccount(makeSignedTx(), makeAccount(), 'active')
+    ).toBe(false);
+  });
+
+  it('with requiredAuthority=posting: accepts posting key only', () => {
+    mockVerifyTransaction.mockImplementation((_tx, pubKey) => pubKey === 'STM5Posting');
+    expect(
+      SteemService.verifyTransactionForAccount(makeSignedTx(), makeAccount(), 'posting')
+    ).toBe(true);
+  });
+
+  it('with requiredAuthority=owner: accepts owner key only', () => {
+    mockVerifyTransaction.mockImplementation((_tx, pubKey) => pubKey === 'STM5Owner');
+    expect(
+      SteemService.verifyTransactionForAccount(makeSignedTx(), makeAccount(), 'owner')
+    ).toBe(true);
+  });
+
+  it('without requiredAuthority: checks all keys including memo (backwards compat)', () => {
+    mockVerifyTransaction.mockImplementation((_tx, pubKey) => pubKey === 'STM5Memo');
+    expect(SteemService.verifyTransactionForAccount(makeSignedTx(), makeAccount())).toBe(true);
+  });
 });
 
 describe('SteemService.verifyTransactionForUsername', () => {
