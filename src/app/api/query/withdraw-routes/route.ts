@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { hashedCacheKey } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     try {
       const result = await withCache(
-        `cache:query:withdraw-routes:${username}`,
+        hashedCacheKey('cache:query:withdraw-routes', username),
         60,
         600,
         () => SteemService.getWithdrawRoutesOutgoing(username)
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('withdraw-routes query error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch withdraw routes', details: (error as Error).message },
+      { error: 'Failed to fetch withdraw routes'},
       { status: 500 }
     );
   }

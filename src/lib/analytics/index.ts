@@ -180,21 +180,21 @@ export async function trackLogout(username: string): Promise<void> {
  * Track transfer events
  */
 export async function trackTransfer(
-  username: string,
-  amount: string,
-  recipient: string,
+  _username: string,
+  _amount: string,
+  _recipient: string,
   success: boolean,
-  error?: string
+  _error?: string
 ): Promise<void> {
   const eventName = success
     ? 'transfer_success'
     : 'transfer_failure';
 
+  // Do NOT send financial PII (amounts, counterparties) to third-party
+  // analytics. Only track that a transfer was attempted and whether it
+  // succeeded — never the amount or recipient.
   await trackEvent(eventName, {
-    username,
-    amount,
-    recipient,
-    error,
+    success,
   });
 }
 
@@ -202,10 +202,10 @@ export async function trackTransfer(
  * Track power down events
  */
 export async function trackPowerDown(
-  username: string,
-  amount: string,
+  _username: string,
+  _amount: string,
   action: 'initiated' | 'cancelled' | 'success' | 'failure',
-  error?: string
+  _error?: string
 ): Promise<void> {
   const eventMap: Record<string, AnalyticsEvent> = {
     initiated: 'power_down_initiated',
@@ -217,32 +217,27 @@ export async function trackPowerDown(
   const eventName = eventMap[action];
   if (!eventName) return;
 
-  await trackEvent(eventName, {
-    username,
-    amount,
-    error,
-  });
+  await trackEvent(eventName, {});
 }
 
 /**
  * Track delegation events
  */
 export async function trackDelegate(
-  username: string,
-  delegatee: string,
-  amount: string,
+  _username: string,
+  _delegatee: string,
+  _amount: string,
   success: boolean,
-  error?: string
+  _error?: string
 ): Promise<void> {
   const eventName = success
     ? 'delegate_success'
     : 'delegate_failure';
 
   await trackEvent(eventName, {
-    username,
-    delegatee,
-    amount,
-    error,
+    // Omit `amount` and `delegatee` — financial PII must not be sent to
+    // third-party analytics. Only track success/failure.
+    success,
   });
 }
 

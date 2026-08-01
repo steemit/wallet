@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { hashedCacheKey } from '@/lib/cache/cache-key';
 import { SteemService } from '@/lib/steem/server';
 import type { ProposalOrderBy, ProposalOrderDirection, ProposalStatus } from '@/lib/steem/types';
 
@@ -45,14 +46,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Limit must be between 1 and 200' }, { status: 400 });
     }
 
-    const cacheKey = [
+    const cacheKey = hashedCacheKey(
       'cache:query:proposals',
       status,
       order,
       direction,
       String(limit),
-      username ? `u:${username}` : 'u:-',
-    ].join(':');
+      username ?? '-'
+    );
 
     const result = await withCache(cacheKey, 15, 120, async () => {
       const proposals = await SteemService.listProposals({
@@ -81,7 +82,14 @@ export async function GET(request: NextRequest) {
       proposals: result.data.proposals,
       ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
     });
-    response.headers.set('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=120');
+    // When username is present the response includes user-specific upVoted flags,
+    // so use private caching to prevent cross-user CDN poisoning.
+    response.headers.set(
+      'Cache-Control',
+      username
+        ? 'private, max-age=15'
+        : 'public, s-maxage=15, stale-while-revalidate=120'
+    );
     if (result.degraded) response.headers.set('X-Degraded', 'true');
     return response;
   } catch (error) {

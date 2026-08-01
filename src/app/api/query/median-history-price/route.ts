@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('median-history-price query error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch median history price', details: (error as Error).message },
+      { error: 'Failed to fetch median history price'},
       { status: 500 }
     );
   }

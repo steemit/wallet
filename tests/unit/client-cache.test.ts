@@ -65,16 +65,28 @@ describe('ClientCache', () => {
     expect(clientCache.get('key-1')).not.toBeNull();
   });
 
-  it('invalidates entries by prefix substring match', () => {
+  it('invalidates entries by prefix match (not substring)', () => {
     clientCache.set('user:alice:balance', 100, 60_000, 120_000);
     clientCache.set('user:alice:history', [], 60_000, 120_000);
     clientCache.set('user:bob:balance', 200, 60_000, 120_000);
 
-    clientCache.invalidate('alice');
+    // Prefix match: 'user:alice:' evicts alice's entries but not bob's.
+    clientCache.invalidate('user:alice:');
 
     expect(clientCache.get('user:alice:balance')).toBeNull();
     expect(clientCache.get('user:alice:history')).toBeNull();
     expect(clientCache.get('user:bob:balance')).not.toBeNull();
+  });
+
+  it('does NOT invalidate by substring (e.g. invalidate(price) should not evict wallet-prices)', () => {
+    clientCache.set('/api/price', 1, 60_000, 120_000);
+    clientCache.set('/api/wallet-prices', 2, 60_000, 120_000);
+
+    clientCache.invalidate('/api/price');
+
+    expect(clientCache.get('/api/price')).toBeNull();
+    // wallet-prices does not START with /api/price → must survive.
+    expect(clientCache.get('/api/wallet-prices')).not.toBeNull();
   });
 
   it('clear() removes all entries', () => {

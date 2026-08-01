@@ -7,8 +7,9 @@ import { cachedFetch } from '@/lib/cache/client-fetch';
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-function jsonResponse(data: unknown, headers: Record<string, string> = {}): Response {
+function jsonResponse(data: unknown, headers: Record<string, string> = {}, ok = true): Response {
   return {
+    ok,
     json: () => Promise.resolve(data),
     headers: new Headers(headers),
   } as unknown as Response;
@@ -125,7 +126,7 @@ describe('cachedFetch', () => {
 
   it('invalidates cache on X-Cache-Invalidate header', async () => {
     mockFetch.mockResolvedValueOnce(
-      jsonResponse({ value: 1 }, { 'X-Cache-Invalidate': 'alice' })
+      jsonResponse({ value: 1 }, { 'X-Cache-Invalidate': 'user:alice:' })
     );
 
     clientCache.set('user:alice:balance', 100, 60_000, 120_000);
@@ -133,7 +134,7 @@ describe('cachedFetch', () => {
 
     await cachedFetch('/api/test', { staleMs: 10_000, maxAgeMs: 30_000 });
 
-    // alice entries should be invalidated
+    // alice entries should be invalidated (prefix match)
     expect(clientCache.get('user:alice:balance')).toBeNull();
     expect(clientCache.get('user:bob:balance')).not.toBeNull();
   });
