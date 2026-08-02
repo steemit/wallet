@@ -51,7 +51,11 @@ export async function cachedFetch<T>(
   const isDegraded = res.headers.get('X-Degraded') === 'true';
   handleCacheInvalidation(res);
   setDegraded(isDegraded);
-  clientCache.set(url, data, opts.staleMs, opts.maxAgeMs);
+  // Only cache successful responses — never cache errors (4xx/5xx) or the user
+  // gets stuck on a stale error page even after the backend recovers.
+  if (res.ok) {
+    clientCache.set(url, data, opts.staleMs, opts.maxAgeMs);
+  }
   return { data, stale: false, degraded: isDegraded || undefined };
 }
 
@@ -62,7 +66,11 @@ function backgroundRefresh(url: string, opts: CachedFetchOptions): void {
       const isDegraded = res.headers.get('X-Degraded') === 'true';
       handleCacheInvalidation(res);
       setDegraded(isDegraded);
-      clientCache.set(url, data, opts.staleMs, opts.maxAgeMs);
+      // Only refresh-cache on success — a transient error must not replace
+      // good cached data with an error body.
+      if (res.ok) {
+        clientCache.set(url, data, opts.staleMs, opts.maxAgeMs);
+      }
     })
     .catch(() => {});
 }

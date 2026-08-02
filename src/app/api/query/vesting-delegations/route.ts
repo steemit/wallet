@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { hashedCacheKey } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing account parameter' }, { status: 400 });
     }
 
-    const cacheKey = `cache:query:vesting-delegations:${account}`;
+    const cacheKey = hashedCacheKey('cache:query:vesting-delegations', account);
     const result = await withCache(cacheKey, 15, 120, () =>
       SteemService.getVestingDelegations(account)
     );

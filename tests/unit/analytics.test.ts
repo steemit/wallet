@@ -125,59 +125,52 @@ describe('typed wrappers route to the correct event + payload', () => {
       name: 'trackTransfer success',
       call: () => trackTransfer('alice', '1.000 STEEM', 'bob', true),
       event: 'transfer_success',
-      properties: { username: 'alice', amount: '1.000 STEEM', recipient: 'bob' },
+      // PII (username, amount, recipient) is scrubbed — only success is tracked.
+      properties: { success: true },
     },
     {
       name: 'trackTransfer failure',
       call: () => trackTransfer('alice', '1.000 STEEM', 'bob', false, 'Insufficient'),
       event: 'transfer_failure',
-      properties: {
-        username: 'alice',
-        amount: '1.000 STEEM',
-        recipient: 'bob',
-        error: 'Insufficient',
-      },
+      properties: { success: false },
     },
     {
       name: 'trackPowerDown initiated',
       call: () => trackPowerDown('alice', '1.000000 VESTS', 'initiated'),
       event: 'power_down_initiated',
-      properties: { username: 'alice', amount: '1.000000 VESTS' },
+      // PII (username, amount) is scrubbed.
+      properties: {},
     },
     {
       name: 'trackPowerDown cancelled',
       call: () => trackPowerDown('alice', '0.000000 VESTS', 'cancelled'),
       event: 'power_down_cancelled',
-      properties: { username: 'alice', amount: '0.000000 VESTS' },
+      properties: {},
     },
     {
       name: 'trackPowerDown success',
       call: () => trackPowerDown('alice', '1.000000 VESTS', 'success'),
       event: 'power_down_success',
-      properties: { username: 'alice', amount: '1.000000 VESTS' },
+      properties: {},
     },
     {
       name: 'trackPowerDown failure',
       call: () => trackPowerDown('alice', '1.000000 VESTS', 'failure', 'Invalid vests'),
       event: 'power_down_failure',
-      properties: { username: 'alice', amount: '1.000000 VESTS', error: 'Invalid vests' },
+      properties: {},
     },
     {
       name: 'trackDelegate success',
       call: () => trackDelegate('alice', 'bob', '1.000000 VESTS', true),
       event: 'delegate_success',
-      properties: { username: 'alice', delegatee: 'bob', amount: '1.000000 VESTS' },
+      // PII (username, delegatee, amount) is scrubbed — only success is tracked.
+      properties: { success: true },
     },
     {
       name: 'trackDelegate failure',
       call: () => trackDelegate('alice', 'bob', '1.000000 VESTS', false, 'Insufficient'),
       event: 'delegate_failure',
-      properties: {
-        username: 'alice',
-        delegatee: 'bob',
-        amount: '1.000000 VESTS',
-        error: 'Insufficient',
-      },
+      properties: { success: false },
     },
     {
       name: 'trackWitnessVote vote',

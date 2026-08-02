@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { getRedis, redisKey } from '@/lib/cache/redis';
+import { hashedCacheKey } from '@/lib/cache/cache-key';
 import { isSteemKnownDown } from '@/lib/cache/health-monitor';
 import { normalizeSteemHistoryList, type SteemHistoryItem } from '@/lib/wallet/normalize-history';
 import { WALLET_OP_TYPES } from '@/lib/steem/history-ops';
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
     if (!username) {
       return NextResponse.json({ error: 'Missing username parameter' }, { status: 400 });
     }
-    if (limit < 1 || limit > 100) {
+    if (!Number.isFinite(limit) || limit < 1 || limit > 100) {
       return NextResponse.json({ error: 'Limit must be between 1 and 100' }, { status: 400 });
     }
     if (fromParam !== null && (!Number.isFinite(from) || from < -1)) {
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching history:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch history', details: (error as Error).message },
+      { error: 'Failed to fetch history'},
       { status: 500 }
     );
   }
@@ -88,7 +89,7 @@ async function handleFilteredRequest(
   requestedOps: string[]
 ): Promise<NextResponse> {
   const opsKey = [...requestedOps].sort().join('+');
-  const cacheKey = redisKey(`cache:query:history-filtered:${username}:${opsKey}`);
+  const cacheKey = redisKey(hashedCacheKey('cache:query:history-filtered', username, opsKey));
 
   if (await isSteemKnownDown()) {
     const fallback = await getFilteredFallback(cacheKey);
@@ -163,7 +164,7 @@ async function getLegacyFallback(username: string): Promise<unknown[] | null> {
   const redis = getRedis();
   if (!redis) return null;
   try {
-    const raw = await redis.get(redisKey(`cache:query:history-fallback:${username}`));
+    const raw = await redis.get(redisKey(hashedCacheKey('cache:query:history-fallback', username)));
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -175,7 +176,7 @@ async function saveLegacyFallback(username: string, history: unknown): Promise<v
   if (!redis) return;
   try {
     await redis.set(
-      redisKey(`cache:query:history-fallback:${username}`),
+      redisKey(hashedCacheKey('cache:query:history-fallback', username)),
       JSON.stringify(history),
       'EX',
       FALLBACK_TTL

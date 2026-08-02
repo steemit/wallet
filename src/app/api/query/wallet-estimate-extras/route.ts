@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { hashedCacheKey } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     try {
       const result = await withCache(
-        `cache:query:wallet-estimate-extras:${username}:${includeOpenOrders}`,
+        hashedCacheKey('cache:query:wallet-estimate-extras', username, includeOpenOrders),
         60,
         600,
         () => SteemService.getWalletEstimateExtras(username, { includeOpenOrders })
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('wallet-estimate-extras query error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch wallet estimate extras', details: (error as Error).message },
+      { error: 'Failed to fetch wallet estimate extras'},
       { status: 500 }
     );
   }
