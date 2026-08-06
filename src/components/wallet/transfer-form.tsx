@@ -151,7 +151,7 @@ export function TransferForm({
         }
       });
     } catch (err) {
-      console.error('Transfer error:', err);
+      if (process.env.NODE_ENV !== 'production') console.error('Transfer error:', err);
       setError('Failed to process transfer');
       setIsLoading(false);
     }

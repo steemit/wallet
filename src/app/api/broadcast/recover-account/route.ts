@@ -120,9 +120,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the transaction signature against the claimed (now validated) key.
+    // Normalize the transaction for broadcast BEFORE verifying the signature,
+    // so the verified digest is exactly what gets broadcast. This makes the
+    // verify→broadcast digest consistency explicit rather than relying on
+    // verifyTransaction's internal normalization (an undocumented library
+    // behavior that could change in a future release).
+    const txForBroadcast = steem.auth.normalizeTransactionForBroadcast(
+      signedTx as unknown as Record<string, unknown>
+    ) as unknown as SignedTransaction;
+
+    // Verify the transaction signature against the claimed (now validated) key,
+    // on the normalized transaction (same digest that will be broadcast).
     if (!steem.auth.verifyTransaction(
-      signedTx as unknown as Record<string, unknown>,
+      txForBroadcast as unknown as Record<string, unknown>,
       claimedRecentKey
     )) {
       return NextResponse.json(
@@ -172,10 +182,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const txForBroadcast = steem.auth.normalizeTransactionForBroadcast(
-      signedTx as unknown as Record<string, unknown>
-    ) as unknown as SignedTransaction;
 
     const result = await SteemService.broadcastTransaction(txForBroadcast);
 
