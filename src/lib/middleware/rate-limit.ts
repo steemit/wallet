@@ -235,30 +235,3 @@ export async function rateLimitByUser(
 
   return memoryRateLimit(key, config);
 }
-
-export function getRateLimitInfo(
-  request: NextRequest,
-  action: string,
-  config: RateLimitConfig
-): { limit: number; remaining: number; resetAt: Date } | null {
-  const ip = getClientIP(request);
-  const routeScope =
-    request.nextUrl?.pathname?.replace(/^\/api\/broadcast\//, 'broadcast:') ?? '';
-  const key = `${ip}:${action}${routeScope ? `:${routeScope}` : ''}`;
-  const entry = memoryStore.get(key);
-  if (!entry) return null;
-
-  return {
-    limit: config.maxRequests,
-    remaining: Math.max(0, config.maxRequests - entry.count),
-    resetAt: new Date(entry.resetAt),
-  };
-}
-
-export function resetRateLimit(request: NextRequest, action: string): void {
-  const ip = getClientIP(request);
-  const routeScope =
-    request.nextUrl?.pathname?.replace(/^\/api\/broadcast\//, 'broadcast:') ?? '';
-  const key = `${ip}:${action}${routeScope ? `:${routeScope}` : ''}`;
-  memoryStore.delete(key);
-}

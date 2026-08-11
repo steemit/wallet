@@ -289,7 +289,7 @@ export function LoginForm(props: LoginFormProps = {}) {
         });
       }
     } catch (err) {
-      console.error('Login error:', err);
+      if (process.env.NODE_ENV !== 'production') console.error('Login error:', err);
       setError(tCommon('error'));
       setIsLoading(false);
     }

@@ -10,7 +10,7 @@ vi.mock('@/lib/cache/redis', () => ({
   cacheDeleteByPrefix: vi.fn(),
 }));
 
-import { rateLimit, rateLimitByUser, getRateLimitInfo } from '@/lib/middleware/rate-limit';
+import { rateLimit, rateLimitByUser } from '@/lib/middleware/rate-limit';
 
 function makeReq(headers: Record<string, string> = {}, path = '/api/broadcast/transfer'): NextRequest {
   const url = new URL(`http://localhost${path}`);
@@ -132,27 +132,5 @@ describe('rateLimitByUser', () => {
     expect(res).not.toBeNull();
     expect(res!.status).toBe(503);
     delete process.env.RATE_LIMIT_ALLOW_MEMORY_FALLBACK;
-  });
-});
-
-describe('getRateLimitInfo', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockGetRedis.mockReturnValue(null);
-  });
-
-  it('returns null when no entry exists', () => {
-    // Use a unique action so no prior test pollutes the memory bucket.
-    const info = getRateLimitInfo(makeReq(), 'never-used-action', { maxRequests: 10, windowSeconds: 60 });
-    expect(info).toBeNull();
-  });
-
-  it('returns limit/remaining after a request', async () => {
-    const req = makeReq({}, '/api/broadcast/vote');
-    await rateLimit(req, 'broadcast', { maxRequests: 5, windowSeconds: 60 });
-    const info = getRateLimitInfo(req, 'broadcast', { maxRequests: 5, windowSeconds: 60 });
-    expect(info).not.toBeNull();
-    expect(info!.limit).toBe(5);
-    expect(info!.remaining).toBe(4);
   });
 });

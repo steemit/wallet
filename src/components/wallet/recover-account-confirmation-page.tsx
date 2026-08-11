@@ -119,12 +119,12 @@ export function RecoverAccountConfirmationPage({ code }: { code: string }) {
         const { signedTx } = await SteemSigner.signRecoverAccount(name, oldPwd, newPwd);
         const broadcastRes = await apiClient.broadcastRecoverAccountTx(signedTx);
         if (!broadcastRes.success) {
-          console.warn('recover_account broadcast returned error:', broadcastRes.error);
+          if (process.env.NODE_ENV !== 'production') console.warn('recover_account broadcast returned error:', broadcastRes.error);
         }
       } catch (broadcastErr) {
         // Server already recorded the recovery, but broadcast failed.
         // The user can retry broadcast later. Don't block the success UI.
-        console.warn('Client-side recover_account broadcast failed:', broadcastErr);
+        if (process.env.NODE_ENV !== 'production') console.warn('Client-side recover_account broadcast failed:', broadcastErr);
       }
 
       setSuccess(true);
