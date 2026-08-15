@@ -5,7 +5,6 @@ import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit, setCacheInvalidateHeader } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
-import { validateRelayTransaction } from '@/lib/steem/validate-signed-tx-op';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,10 +24,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing signed transaction or username' }, { status: 400 });
     }
 
-    // Validate transaction: enforce op type AND cryptographically verify the
-    // signature belongs to the claimed account (requires @steemit/steem-js >=1.0.20).
-    const relayError = await validateRelayTransaction(signedTx, 'account_witness_proxy', username);
-    if (relayError) return relayError;
+    // Pure relay: no content verification — the chain validates signatures/authorities.
+    // Shape check only rejects obvious garbage before spending an upstream RPC call.
+    if (!SteemService.validateTransactionShape(signedTx)) {
+      return NextResponse.json({ error: 'Invalid transaction format' }, { status: 400 });
+    }
 
 
     const result = await SteemService.broadcastTransaction(signedTx);

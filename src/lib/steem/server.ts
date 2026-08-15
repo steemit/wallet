@@ -74,26 +74,6 @@ async function withFailover<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /**
- * Collect the public keys for the specified authority roles of an account.
- */
-function collectAuthorityKeys(
-  account: SteemAccount,
-  roles: ('owner' | 'active' | 'posting')[]
-): string[] {
-  const keys: string[] = [];
-  for (const role of roles) {
-    const auth = account[role];
-    if (auth?.key_auths) {
-      for (const entry of auth.key_auths) {
-        const pub = Array.isArray(entry) ? entry[0] : undefined;
-        if (typeof pub === 'string') keys.push(pub);
-      }
-    }
-  }
-  return keys;
-}
-
-/**
  * Server-side Steem service
  * Handles all communication with Steem blockchain nodes
  */
@@ -679,8 +659,8 @@ export class SteemService {
    * This checks only that the transaction has the fields a validly-signed
    * transaction requires (signatures present, finite ref_block_num /
    * ref_block_prefix, non-empty expiration, non-empty operations). It does
-   * NOT perform cryptographic signature verification — use
-   * {@link verifyTransactionForAccount} for that.
+   * NOT perform cryptographic signature verification — the relay deliberately
+   * does not verify transaction contents; the Steem chain is the authority.
    */
   static validateTransactionShape(signedTx: SignedTransaction): boolean {
     try {
@@ -712,98 +692,6 @@ export class SteemService {
     } catch {
       return false;
     }
-  }
-
-  /**
-   * Cryptographically verify that a signed transaction was signed by a key
-   * belonging to the given account, using @steemit/steem-js's (now-fixed, v1.0.20+)
-   * `steem.auth.verifyTransaction` which reconstructs the real signing digest
-   * `sha256(chain_id || serializeTransaction(trx))`.
-   *
-   * When `requiredAuthority` is provided, only the key set for that authority is
-   * checked (e.g. a `transfer` must be signed by an active key). This prevents a
-   * memo-key-signed transaction from passing relay validation — the chain would
-   * reject it anyway, but checking here avoids relaying doomed transactions and
-   * closes the gap where any account key (including memo) was accepted.
-   *
-   * Returns true only if: shape is valid AND at least one signature verifies
-   * against one of the account's keys (of the required authority). Returns false
-   * (never throws) on any error.
-   */
-  static verifyTransactionForAccount(
-    signedTx: SignedTransaction,
-    account: SteemAccount,
-    requiredAuthority?: 'owner' | 'active' | 'posting'
-  ): boolean {
-    if (!SteemService.validateTransactionShape(signedTx)) return false;
-
-    try {
-      ensureConfigured();
-      // Collect the public keys for the relevant authority/authorities.
-      let accountKeys: string[];
-      if (requiredAuthority) {
-        accountKeys = collectAuthorityKeys(account, [requiredAuthority]);
-      } else {
-        // No authority filter: check all keys (owner/active/posting/memo).
-        accountKeys = collectAuthorityKeys(account, ['owner', 'active', 'posting']);
-        if (account.memo_key) accountKeys = [...accountKeys, account.memo_key];
-      }
-      accountKeys = accountKeys.filter((k) => typeof k === 'string' && k.length > 0);
-
-      // verifyTransaction returns true if ANY signature matches the given public
-      // key. We accept the transaction if any of the relevant keys verifies it.
-      return accountKeys.some((pubKey) =>
-        steem.auth.verifyTransaction(
-          signedTx as unknown as Record<string, unknown>,
-          pubKey
-        )
-      );
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Verify a signed transaction's shape and cryptographic signature against the
-   * account named in the transaction (fetched from chain). Convenience wrapper
-   * for broadcast routes that have a `username` but not a pre-fetched account.
-   *
-   * When `requiredAuthority` is provided, only that authority's key set is checked.
-   *
-   * Returns { ok, error? }. On failure `error` explains whether it was a shape
-   * problem, a fetch failure, or a signature mismatch.
-   */
-  static async verifyTransactionForUsername(
-    signedTx: SignedTransaction,
-    username: string,
-    requiredAuthority?: 'owner' | 'active' | 'posting'
-  ): Promise<{ ok: boolean; error?: string }> {
-    if (!SteemService.validateTransactionShape(signedTx)) {
-      return { ok: false, error: 'Invalid transaction format' };
-    }
-    let accounts: SteemAccount[];
-    try {
-      accounts = await SteemService.getAccounts([username]);
-    } catch {
-      return { ok: false, error: 'Could not verify signer (account lookup failed)' };
-    }
-    const account = accounts[0];
-    if (!account) {
-      return { ok: false, error: 'Could not verify signer (account not found)' };
-    }
-    if (!SteemService.verifyTransactionForAccount(signedTx, account, requiredAuthority)) {
-      return { ok: false, error: 'Transaction signature does not match account' };
-    }
-    return { ok: true };
-  }
-
-  /**
-   * @deprecated use {@link validateTransactionShape} (shape only) or
-   * {@link verifyTransactionForUsername} (real crypto verification).
-   * Kept as a shape-only alias for callers that have not migrated.
-   */
-  static verifySignature(signedTx: SignedTransaction): Promise<boolean> {
-    return Promise.resolve(SteemService.validateTransactionShape(signedTx));
   }
 
   /**

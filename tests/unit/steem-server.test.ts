@@ -2,7 +2,7 @@
  * Server-side Steem service unit tests.
  *
  * Three categories of behavior matter here:
- *   1. Pure helpers (generateChallenge, getKeyType, verifySignature shape check) —
+ *   1. Pure helpers (generateChallenge, getKeyType, shape check) —
  *      no I/O, easy boundary tests.
  *   2. Calculation-heavy methods (getWalletPrices, getWalletEstimateExtras) —
  *      assert the math on top of mocked node responses, since this is where
@@ -78,7 +78,7 @@ describe('SteemService.getKeyType', () => {
   });
 });
 
-describe('SteemService.verifySignature (shape check only)', () => {
+describe('SteemService.validateTransactionShape (shape check only)', () => {
   const validTx: SignedTransaction = {
     ref_block_num: 1,
     ref_block_prefix: 1,
@@ -89,7 +89,7 @@ describe('SteemService.verifySignature (shape check only)', () => {
   };
 
   it('accepts a tx with signatures + required fields + at least one op', async () => {
-    expect(await SteemService.verifySignature(validTx)).toBe(true);
+    expect(SteemService.validateTransactionShape(validTx)).toBe(true);
   });
 
   it('accepts ref_block_num === 0 and ref_block_prefix === 0 (valid on-chain refs)', async () => {
@@ -98,7 +98,7 @@ describe('SteemService.verifySignature (shape check only)', () => {
       ref_block_num: 0,
       ref_block_prefix: 0,
     };
-    expect(await SteemService.verifySignature(tx)).toBe(true);
+    expect(SteemService.validateTransactionShape(tx)).toBe(true);
   });
 
   it.each<{ label: string; tx: SignedTransaction }>([
@@ -108,7 +108,7 @@ describe('SteemService.verifySignature (shape check only)', () => {
     { label: 'ref_block_num NaN',  tx: { ...validTx, ref_block_num: NaN } },
     { label: 'missing ref prefix', tx: { ...validTx, ref_block_prefix: NaN } },
   ])('rejects: $label', async ({ tx }) => {
-    expect(await SteemService.verifySignature(tx)).toBe(false);
+    expect(SteemService.validateTransactionShape(tx)).toBe(false);
   });
 });
 
