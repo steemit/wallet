@@ -10,4 +10,7 @@ allowBuilds:
   unrs-resolver: false
 
 minimumReleaseAgeExclude:
-  - '@steemit/steem-js@1.0.20 || 1.2.0'
+  # Our own package: published by us, install immediately without waiting
+  # out the supply-chain minimum-release-age window. All versions excluded
+  # so future bumps don't accumulate stale entries here.
+  - '@steemit/steem-js'
