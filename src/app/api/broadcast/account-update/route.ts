@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (csrfError) return csrfError;
 
     const rateLimitError = await rateLimit(request, 'broadcast', {
-      maxRequests: 5,
+      maxRequests: 10,
       windowSeconds: 60,
     });
     if (rateLimitError) return rateLimitError;
@@ -44,16 +44,6 @@ export async function POST(request: NextRequest) {
     if (shapeError) {
       return NextResponse.json(
         { error: 'Invalid account_update transaction', details: shapeError },
-        { status: 400 }
-      );
-    }
-
-    // Cryptographically verify the signature belongs to the claimed account's
-    // OWNER authority (account_update requires owner). (requires @steemit/steem-js >=1.0.20)
-    const verifyResult = await SteemService.verifyTransactionForUsername(signedTx, username, 'owner');
-    if (!verifyResult.ok) {
-      return NextResponse.json(
-        { error: verifyResult.error ?? 'Transaction verification failed' },
         { status: 400 }
       );
     }
