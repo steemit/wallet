@@ -162,7 +162,7 @@ describe('SteemService.prepareTransactionHeader', () => {
 
 describe('SteemService.getAccounts', () => {
   it('configures the RPC URL and returns the node response', async () => {
-    api.getAccountsAsync.mockResolvedValueOnce([{ name: 'alice' }]);
+    api.getAccountsAsync.mockResolvedValueOnce([{ name: 'alice' }] as never);
     const result = await SteemService.getAccounts(['alice']);
     expect(result).toEqual([{ name: 'alice' }]);
     expect(api.setOptions).toHaveBeenCalledWith({ url: 'https://api.steemit.com' });
@@ -402,7 +402,7 @@ describe('withFailover (multi-URL)', () => {
 
     vi.mocked(mockedSteem.api.getAccountsAsync)
       .mockRejectedValueOnce(new Error('A down'))
-      .mockResolvedValueOnce([{ name: 'alice' }]);
+      .mockResolvedValueOnce([{ name: 'alice' }] as never);
 
     const result = await Service.getAccounts(['alice']);
     expect(result).toEqual([{ name: 'alice' }]);

@@ -10,4 +10,4 @@ allowBuilds:
   unrs-resolver: false
 
 minimumReleaseAgeExclude:
-  - '@steemit/steem-js@1.0.20'
+  - '@steemit/steem-js@1.0.20 || 1.2.0'

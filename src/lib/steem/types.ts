@@ -43,9 +43,6 @@ export interface SteemAccount {
   voting_power: number;
   last_post: string;
   last_root_post: string;
-  last_bandwidth_update: string;
-  average_bandwidth: number;
-  lifetime_bandwidth: number;
   vesting_balance: string;
   reputation: number;
   witness_votes: string[];
