@@ -8,14 +8,24 @@
  * by any JavaScript running in this origin, so XSS or device access exposes a
  * limited signing capability (posting authority only — not active/owner).
  *
- * Mitigations in place:
- *   - Opt-in only (default off); cleared on logout.
- *   - `Content-Security-Policy: frame-ancestors 'none'` + nosniff headers reduce
- *     injection/framing surface (see next.config.ts).
- *   - Posting authority is limited (cannot transfer funds; can vote/post/claim).
+ * RISK ACCEPTANCE (architecture owner ruling, 2026-08-16):
+ *   This exposure is ACCEPTED as-is. Rationale:
+ *   - The primary vector (XSS) is mitigated by the strict CSP (script-src
+ *     'self' + SRI, no unsafe-inline — see next.config.ts); no XSS sink is
+ *     known to exist in this codebase.
+ *   - Posting authority cannot transfer funds; worst case is reputation/abuse
+ *     (impersonation posts, votes), not loss of funds.
+ *   - Residual vectors (malicious browser extensions, shared devices) cannot
+ *     be eliminated by application code in any web wallet.
+ *   - The convenience (one-click claim-rewards after WIF login) is deemed
+ *     worth the residual risk for now.
  *
- * Do NOT store active/owner keys in localStorage. If a stronger posture is
- * required, gate claim-reward behind a per-session re-prompt instead.
+ * FUTURE PATH: if users would accept a PIN prompt, migrate to WebCrypto
+ * PBKDF2 + AES-GCM encryption of the posting key (PIN-derived key). Do NOT
+ * implement silently-gated encryption — the value comes only from a real
+ * per-session user secret. Until then, keep this as plaintext + opt-in.
+ *
+ * Do NOT store active/owner keys in localStorage under any scheme.
  */
 export const REMEMBERED_USERNAME_KEY = 'wallet:rememberedUsername';
 export const REMEMBERED_POSTING_KEY_KEY = 'wallet:rememberedPostingKey';
