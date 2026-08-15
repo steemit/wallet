@@ -2,7 +2,7 @@
 // Generate a login challenge for the user
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
-import { setCSRFToken } from '@/lib/middleware';
+import { setCSRFToken, rateLimit, rateLimitByUser } from '@/lib/middleware';
 import { getRedis, redisKey } from '@/lib/cache/redis';
 
 const CHALLENGE_TTL = 300; // 5 minutes
@@ -26,6 +26,24 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Rate limit BEFORE any Redis write. Two dimensions:
+    //  - per-IP: bounds the write-amplification surface (this endpoint is
+    //    unauthenticated; without a limit it can drive unbounded Redis writes).
+    //  - per-username: an attacker hammering challenges for one victim
+    //    otherwise overwrites the victim's challenge on every attempt,
+    //    locking them out of login (targeted auth DoS).
+    const ipLimit = await rateLimit(request, 'auth_challenge', {
+      maxRequests: 10,
+      windowSeconds: 60,
+    });
+    if (ipLimit) return ipLimit;
+
+    const userLimit = await rateLimitByUser(username, 'auth_challenge', {
+      maxRequests: 10,
+      windowSeconds: 60,
+    });
+    if (userLimit) return userLimit;
 
     // Generate challenge
     const challenge = SteemService.generateChallenge(username);
