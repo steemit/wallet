@@ -175,6 +175,32 @@ function memoryFallbackEnabled(): boolean {
   return process.env.RATE_LIMIT_ALLOW_MEMORY_FALLBACK !== 'false';
 }
 
+/**
+ * Normalize a request pathname into a rate-limit route scope WITHOUT any
+ * attacker-controlled dynamic segments.
+ *
+ * The raw pathname must never enter the key directly: dynamic route params
+ * (e.g. /api/recovery/verify/[code]) are chosen by the caller before any
+ * format validation, so an attacker rotating the param would get a fresh
+ * counter on every request — defeating the limit and allocating unbounded
+ * Redis keys (301s TTL each).
+ *
+ * When adding a new dynamic route under /api/, register its pattern here.
+ */
+function routeScopeOf(pathname: string): string {
+  // Static broadcast routes: prefix is fixed, the op segment never varies.
+  const broadcast = pathname.match(/^\/api\/broadcast\/([a-z0-9-]+)\/?$/);
+  if (broadcast) return `broadcast:${broadcast[1]}`;
+
+  // Dynamic routes: normalize the param segment to a stable placeholder.
+  if (/^\/api\/recovery\/verify\/[^/]+\/?$/.test(pathname)) {
+    return 'recovery:verify';
+  }
+
+  // Static /api paths (no dynamic segments today): keep as-is.
+  return pathname;
+}
+
 export async function rateLimit(
   request: NextRequest,
   action: string,
@@ -184,8 +210,9 @@ export async function rateLimit(
   // Namespace the key by route so that, e.g., the /vote budget is not shared
   // with /transfer. Each broadcast route already passes a distinct action, but
   // scoping here guarantees isolation even if callers reuse an action string.
-  const routeScope =
-    request.nextUrl?.pathname?.replace(/^\/api\/broadcast\//, 'broadcast:') ?? '';
+  const routeScope = request.nextUrl?.pathname
+    ? routeScopeOf(request.nextUrl.pathname)
+    : '';
   const key = `${ip}:${action}${routeScope ? `:${routeScope}` : ''}`;
 
   // Try Redis first (shared source of truth)
