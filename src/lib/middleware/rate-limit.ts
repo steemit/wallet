@@ -175,6 +175,41 @@ function memoryFallbackEnabled(): boolean {
   return process.env.RATE_LIMIT_ALLOW_MEMORY_FALLBACK !== 'false';
 }
 
+/**
+ * Normalize a request pathname into a rate-limit route scope WITHOUT any
+ * attacker-controlled dynamic segments.
+ *
+ * The raw pathname must never enter the key directly: dynamic route params
+ * (e.g. /api/recovery/verify/[code]) are chosen by the caller before any
+ * format validation, so an attacker rotating the param would get a fresh
+ * counter on every request — defeating the limit and allocating unbounded
+ * Redis keys (301s TTL each).
+ *
+ * Output format (enforced for ALL branches): no leading '/', segments
+ * colon-separated, lowercase — e.g. 'broadcast:vote', 'recovery:verify',
+ * 'api:query:history'. Keys therefore never contain '/'.
+ *
+ * Encoding note: Next.js's nextUrl.pathname is ALREADY percent-decoded,
+ * so an encoded slash (%2F) arrives as a literal '/'. Prefix matching below
+ * (rather than strict anchored regexes) ensures decoded segments, trailing
+ * garbage, and query strings can never smuggle a varying part into the key.
+ *
+ * When adding a new dynamic route under /api/, register its pattern here.
+ */
+function routeScopeOf(pathname: string): string {
+  // Broadcast routes: keep only the fixed op segment (a Next.js route
+  // directory name — lowercase letters/digits/hyphens); drop any tail.
+  const broadcast = pathname.match(/^\/api\/broadcast\/([^/]+)/);
+  if (broadcast?.[1]) return `broadcast:${broadcast[1].toLowerCase()}`;
+
+  // /api/recovery/verify/[code] is the ONLY dynamic route: collapse the
+  // entire param (including any decoded slashes) to one stable scope.
+  if (pathname.startsWith('/api/recovery/verify/')) return 'recovery:verify';
+
+  // Static /api paths (no dynamic segments today): canonicalize.
+  return pathname.replace(/^\//, '').replace(/\//g, ':').toLowerCase();
+}
+
 export async function rateLimit(
   request: NextRequest,
   action: string,
@@ -184,8 +219,9 @@ export async function rateLimit(
   // Namespace the key by route so that, e.g., the /vote budget is not shared
   // with /transfer. Each broadcast route already passes a distinct action, but
   // scoping here guarantees isolation even if callers reuse an action string.
-  const routeScope =
-    request.nextUrl?.pathname?.replace(/^\/api\/broadcast\//, 'broadcast:') ?? '';
+  const routeScope = request.nextUrl?.pathname
+    ? routeScopeOf(request.nextUrl.pathname)
+    : '';
   const key = `${ip}:${action}${routeScope ? `:${routeScope}` : ''}`;
 
   // Try Redis first (shared source of truth)

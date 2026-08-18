@@ -84,6 +84,122 @@ describe('rate-limit proxy-aware client IP (TRUST_PROXY_COUNT)', () => {
   });
 });
 
+describe('rate-limit route scope (F14: dynamic segments must not enter the key)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetRedis.mockReturnValue(null); // memory fallback → observable buckets
+  });
+
+  it('recovery/verify: rotating the [code] param does NOT yield a fresh counter', async () => {
+    // The attack: each guess used a new key, defeating the anti-enumeration
+    // limit and allocating unbounded Redis keys. After normalization all
+    // codes share one bucket.
+    const r1 = await rateLimit(makeReq({ 'x-real-ip': '10.0.0.1' }, '/api/recovery/verify/aaaaaaaaaaaaaaaaaaaa'), 'recovery_verify', {
+      maxRequests: 1,
+      windowSeconds: 300,
+    });
+    expect(r1).toBeNull(); // first guess allowed
+
+    // Different code, same normalized bucket → blocked.
+    const r2 = await rateLimit(makeReq({ 'x-real-ip': '10.0.0.1' }, '/api/recovery/verify/bbbbbbbbbbbbbbbbbbbb'), 'recovery_verify', {
+      maxRequests: 1,
+      windowSeconds: 300,
+    });
+    expect(r2).not.toBeNull();
+    expect(r2!.status).toBe(429);
+  });
+
+  it('broadcast routes keep per-op scoping', async () => {
+    await rateLimit(makeReq({ 'x-real-ip': '10.0.0.2' }, '/api/broadcast/vote'), 'broadcast', {
+      maxRequests: 1,
+      windowSeconds: 60,
+    });
+    // Same route: shared bucket → blocked
+    const same = await rateLimit(makeReq({ 'x-real-ip': '10.0.0.2' }, '/api/broadcast/vote'), 'broadcast', {
+      maxRequests: 1,
+      windowSeconds: 60,
+    });
+    expect(same!.status).toBe(429);
+    // Different broadcast route: separate bucket → allowed
+    const other = await rateLimit(makeReq({ 'x-real-ip': '10.0.0.2' }, '/api/broadcast/transfer'), 'broadcast', {
+      maxRequests: 1,
+      windowSeconds: 60,
+    });
+    expect(other).toBeNull();
+  });
+
+  it('static query paths keep distinct buckets', async () => {
+    await rateLimit(makeReq({ 'x-real-ip': '10.0.0.3' }, '/api/query/history'), 'query', {
+      maxRequests: 1,
+      windowSeconds: 60,
+    });
+    const same = await rateLimit(makeReq({ 'x-real-ip': '10.0.0.3' }, '/api/query/history'), 'query', {
+      maxRequests: 1,
+      windowSeconds: 60,
+    });
+    expect(same!.status).toBe(429);
+    const other = await rateLimit(makeReq({ 'x-real-ip': '10.0.0.3' }, '/api/query/witnesses'), 'query', {
+      maxRequests: 1,
+      windowSeconds: 60,
+    });
+    expect(other).toBeNull();
+  });
+
+  it('query strings and trailing slashes do not fork the bucket', async () => {
+    await rateLimit(
+      makeReq({ 'x-real-ip': '10.0.0.4' }, '/api/recovery/verify/aaaaaaaaaaaaaaaaaaaa?foo=bar'),
+      'recovery_verify',
+      { maxRequests: 1, windowSeconds: 300 }
+    );
+    // Trailing slash + different code + query string: same normalized scope.
+    const r = await rateLimit(
+      makeReq({ 'x-real-ip': '10.0.0.4' }, '/api/recovery/verify/bbbbbbbbbbbbbbbbbbbb/'),
+      'recovery_verify',
+      { maxRequests: 1, windowSeconds: 300 }
+    );
+    expect(r!.status).toBe(429);
+  });
+
+  it('encoded slashes (%2F) in the param cannot fork the bucket', async () => {
+    // nextUrl.pathname is percent-decoded, so %2F arrives as '/'. The
+    // prefix-match normalization must still collapse everything under
+    // /api/recovery/verify/ into one scope.
+    await rateLimit(
+      makeReq({ 'x-real-ip': '10.0.0.5' }, '/api/recovery/verify/aaaaaaaaaaaaaaaaaaaa'),
+      'recovery_verify',
+      { maxRequests: 1, windowSeconds: 300 }
+    );
+    const r = await rateLimit(
+      makeReq({ 'x-real-ip': '10.0.0.5' }, '/api/recovery/verify/aaa%2Fbbb%2Fccc'),
+      'recovery_verify',
+      { maxRequests: 1, windowSeconds: 300 }
+    );
+    expect(r!.status).toBe(429);
+  });
+
+  it('Redis path: the normalized key reaches Redis INCR (asserted, not just allowed/blocked)', async () => {
+    // Drive through the Redis branch and assert the exact normalized key.
+    const incr = vi.fn().mockResolvedValue(1);
+    const expire = vi.fn().mockResolvedValue(1);
+    mockGetRedis.mockReturnValue({ incr, expire });
+
+    await rateLimit(
+      makeReq({ 'x-real-ip': '10.0.0.6' }, '/api/recovery/verify/cccccccccccccccccccc'),
+      'recovery_verify',
+      { maxRequests: 10, windowSeconds: 300 }
+    );
+
+    expect(incr).toHaveBeenCalledTimes(1);
+    const redisKey = incr.mock.calls[0]![0] as string;
+    // wallet:ratelimit:<ip>:<action>:<window>:<scope> — the scope portion
+    // must be the stable 'recovery:verify': no raw code, no '/', lowercase.
+    expect(redisKey).toContain('10.0.0.6:recovery_verify:');
+    expect(redisKey).toMatch(/:recovery:verify:\d+$/);
+    expect(redisKey).not.toContain('cccccccc');
+    expect(redisKey).not.toContain('/');
+  });
+});
+
 describe('rate-limit fail-closed when memory fallback disabled', () => {
   afterEach(() => {
     process.env.RATE_LIMIT_ALLOW_MEMORY_FALLBACK = undefined;
