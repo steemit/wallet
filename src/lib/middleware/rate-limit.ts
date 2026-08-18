@@ -185,20 +185,29 @@ function memoryFallbackEnabled(): boolean {
  * counter on every request — defeating the limit and allocating unbounded
  * Redis keys (301s TTL each).
  *
+ * Output format (enforced for ALL branches): no leading '/', segments
+ * colon-separated, lowercase — e.g. 'broadcast:vote', 'recovery:verify',
+ * 'api:query:history'. Keys therefore never contain '/'.
+ *
+ * Encoding note: Next.js's nextUrl.pathname is ALREADY percent-decoded,
+ * so an encoded slash (%2F) arrives as a literal '/'. Prefix matching below
+ * (rather than strict anchored regexes) ensures decoded segments, trailing
+ * garbage, and query strings can never smuggle a varying part into the key.
+ *
  * When adding a new dynamic route under /api/, register its pattern here.
  */
 function routeScopeOf(pathname: string): string {
-  // Static broadcast routes: prefix is fixed, the op segment never varies.
-  const broadcast = pathname.match(/^\/api\/broadcast\/([a-z0-9-]+)\/?$/);
-  if (broadcast) return `broadcast:${broadcast[1]}`;
+  // Broadcast routes: keep only the fixed op segment (a Next.js route
+  // directory name — lowercase letters/digits/hyphens); drop any tail.
+  const broadcast = pathname.match(/^\/api\/broadcast\/([^/]+)/);
+  if (broadcast?.[1]) return `broadcast:${broadcast[1].toLowerCase()}`;
 
-  // Dynamic routes: normalize the param segment to a stable placeholder.
-  if (/^\/api\/recovery\/verify\/[^/]+\/?$/.test(pathname)) {
-    return 'recovery:verify';
-  }
+  // /api/recovery/verify/[code] is the ONLY dynamic route: collapse the
+  // entire param (including any decoded slashes) to one stable scope.
+  if (pathname.startsWith('/api/recovery/verify/')) return 'recovery:verify';
 
-  // Static /api paths (no dynamic segments today): keep as-is.
-  return pathname;
+  // Static /api paths (no dynamic segments today): canonicalize.
+  return pathname.replace(/^\//, '').replace(/\//g, ':').toLowerCase();
 }
 
 export async function rateLimit(
