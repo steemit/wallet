@@ -2,7 +2,7 @@
 // Broadcast a signed recover_account transaction (step 2 of account recovery)
 import { NextRequest, NextResponse } from 'next/server';
 import { steem } from '@steemit/steem-js';
-import { eq } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { getDb } from '@/lib/db';
@@ -164,9 +164,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Look up the LATEST closed recovery record for this account.
+    // The arecs table has only a non-unique index on account_name and
+    // /api/recovery/request lets ANYONE insert rows for ANY account name —
+    // so an attacker can pre-insert a stale 'open' row. Without the status
+    // predicate + newest-first ordering, findFirst could return the
+    // attacker's row and permanently reject the victim's recovery
+    // (recovery denial, not takeover).
     const record = await db.query.arecs.findFirst({
-      where: eq(arecs.accountName, opBody.account_to_recover),
+      where: and(
+        eq(arecs.accountName, opBody.account_to_recover),
+        eq(arecs.status, 'closed')
+      ),
       columns: { id: true, status: true, newOwnerKey: true },
+      orderBy: [desc(arecs.id)],
     });
 
     if (!record || record.status !== 'closed') {
@@ -184,6 +195,16 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await SteemService.broadcastTransaction(txForBroadcast);
+
+    // Consume the record on success: the on-chain recover_account can only
+    // be used once per request_account_recovery, so a closed record must
+    // not authorize a second broadcast (replay hardening). A CAS on
+    // status='closed' keeps a concurrent request from consuming a record
+    // that already flipped.
+    await db
+      .update(arecs)
+      .set({ status: 'consumed' })
+      .where(and(eq(arecs.id, record.id), eq(arecs.status, 'closed')));
 
     return NextResponse.json({ success: true, result });
   } catch (error) {

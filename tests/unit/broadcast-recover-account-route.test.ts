@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { POST } from '@/app/api/broadcast/recover-account/route';
 import { NextRequest } from 'next/server';
+import { MySqlDialect } from 'drizzle-orm/mysql-core';
+import type { SQL } from 'drizzle-orm';
 
 // Mock middleware
 vi.mock('@/lib/middleware', () => ({
@@ -36,11 +38,15 @@ const VALID_KEY_A = 'STM' + B58.slice(0, 50);
 const VALID_KEY_B = 'STM' + B58.slice(1, 51);
 
 const mockFindFirst = vi.fn();
+let mockUpdateFn: ReturnType<typeof vi.fn>;
 const mockDb = {
   query: {
     arecs: {
       findFirst: mockFindFirst,
     },
+  },
+  get update() {
+    return mockUpdateFn;
   },
 };
 const mockGetDb = vi.fn().mockReturnValue(mockDb);
@@ -97,6 +103,11 @@ describe('POST /api/broadcast/recover-account', () => {
       status: 'closed',
       newOwnerKey: VALID_KEY_B,
     });
+    // Default update chain: .set().where() resolves
+    const chain = {
+      where: vi.fn().mockResolvedValue(undefined),
+    };
+    mockUpdateFn = vi.fn().mockReturnValue({ set: vi.fn().mockReturnValue(chain) });
     // Default: owner history contains VALID_KEY_A (the recentKey in makeSignedTx)
     mockGetOwnerHistory.mockResolvedValue([
       { previous_owner_authority: { key_auths: [[VALID_KEY_A, 1]] } },
@@ -302,5 +313,47 @@ describe('POST /api/broadcast/recover-account', () => {
     expect(res.status).toBe(500);
     const data = await res.json();
     expect(data.error).toBe('Failed to broadcast transaction');
+  });
+
+  it('F15: queries ONLY closed records, newest first (attacker pre-inserted rows cannot block recovery)', async () => {
+    const req = makeRequest({ signedTx: makeSignedTx() });
+    await POST(req);
+
+    // Render the actual drizzle where/orderBy to SQL and assert the
+    // semantics: status='closed' filter + newest-first ordering, so an
+    // attacker's stale 'open' row for the same account can never be
+    // selected and deny the victim's recovery.
+    const dialect = new MySqlDialect();
+    const arg = mockFindFirst.mock.calls[0]![0] as {
+      where: SQL;
+      orderBy: SQL[];
+    };
+    const whereSql = dialect.sqlToQuery(arg.where).sql;
+    expect(whereSql).toContain('account_name');
+    expect(whereSql).toContain('status');
+    expect(dialect.sqlToQuery(arg.orderBy[0]!).sql).toContain('`id` desc');
+  });
+
+  it('F15: consumes the record after a successful broadcast (replay hardening)', async () => {
+    const req = makeRequest({ signedTx: makeSignedTx() });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    // The record must be flipped to 'consumed' after broadcast success.
+    expect(mockUpdateFn).toHaveBeenCalledTimes(1);
+    const setFn = (mockUpdateFn.mock.results[0]?.value as { set?: unknown }).set;
+    expect(setFn).toHaveBeenCalledWith({ status: 'consumed' });
+  });
+
+  it('F15: broadcast failure leaves the record closed (retryable)', async () => {
+    const { SteemService } = await import('@/lib/steem/server');
+    vi.mocked(SteemService.broadcastTransaction).mockRejectedValueOnce(
+      new Error('Network error')
+    );
+
+    const req = makeRequest({ signedTx: makeSignedTx() });
+    const res = await POST(req);
+    expect(res.status).toBe(500);
+    expect(mockUpdateFn).not.toHaveBeenCalled();
   });
 });
