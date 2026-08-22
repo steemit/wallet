@@ -56,6 +56,31 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Strict whitelist for new_owner_authority (S3): this is the ONLY field
+  // that decides who owns the account on-chain after recovery, and it is
+  // signed on-chain by the server's high-value CONVEYOR key — so it must
+  // be exactly the single-key authority derived from new_owner_key.
+  // Anything else (extra keys, account_auths delegates, threshold games)
+  // is rejected before the state machine is touched.
+  // This also closes the DB/chain divergence: the key stored in arecs
+  // (new_owner_key) and the key declared on-chain (new_owner_authority)
+  // are now required to be the same key.
+  const auth = body.new_owner_authority;
+  const authValid =
+    auth.weight_threshold === 1 &&
+    Array.isArray(auth.account_auths) &&
+    auth.account_auths.length === 0 &&
+    Array.isArray(auth.key_auths) &&
+    auth.key_auths.length === 1 &&
+    auth.key_auths[0]![0] === body.new_owner_key &&
+    auth.key_auths[0]![1] === 1;
+  if (!authValid) {
+    return NextResponse.json(
+      { status: 'error', error: 'Invalid new owner authority' },
+      { status: 400 }
+    );
+  }
+
   const db = getDb();
   if (!db) {
     return NextResponse.json(

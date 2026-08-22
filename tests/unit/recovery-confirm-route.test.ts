@@ -159,6 +159,97 @@ describe('POST /api/recovery/confirm', () => {
     expect(data.error).toBe('Invalid owner key format');
   });
 
+  // ---- S3: new_owner_authority whitelist ----
+  // The authority is signed on-chain by the server's CONVEYOR key; it must
+  // be exactly the single-key authority derived from new_owner_key.
+
+  it('S3: rejects key_auths that does not match new_owner_key (DB/chain divergence)', async () => {
+    // The audit PoC: authority declares a DIFFERENT key than the one stored
+    // in arecs — previously both were accepted and diverged silently.
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [[VALID_KEY_A, 1]], // VALID_KEY_A != new_owner_key (VALID_KEY_B)
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe('Invalid new owner authority');
+  });
+
+  it('S3: rejects non-empty account_auths (delegation to third-party accounts)', async () => {
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [['attacker', 1]],
+        key_auths: [[VALID_KEY_B, 1]],
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('Invalid new owner authority');
+  });
+
+  it('S3: rejects weight_threshold other than 1', async () => {
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 0, // the audit PoC value
+        account_auths: [],
+        key_auths: [[VALID_KEY_B, 1]],
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it('S3: rejects multiple key_auths entries', async () => {
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [
+          [VALID_KEY_B, 1],
+          [VALID_KEY_A, 1],
+        ],
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it('S3: rejects empty key_auths', async () => {
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [],
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it('S3: authority validation rejects BEFORE the CAS claim (no state touched)', async () => {
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [['attacker', 1]],
+        key_auths: [[VALID_KEY_B, 1]],
+      },
+    });
+    await POST(req);
+    // The CAS update must never have run for a malformed authority.
+    expect(mockUpdateFn).not.toHaveBeenCalled();
+  });
+
   it('returns 400 when atomic update claims 0 rows (already processed / not found)', async () => {
     setupUpdateMocks({ affectedRows: 0 });
 
