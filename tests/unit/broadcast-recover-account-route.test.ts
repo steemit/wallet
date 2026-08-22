@@ -39,6 +39,7 @@ const VALID_KEY_B = 'STM' + B58.slice(1, 51);
 
 const mockFindFirst = vi.fn();
 let mockUpdateFn: ReturnType<typeof vi.fn>;
+let mockUpdateWhere: ReturnType<typeof vi.fn>;
 const mockDb = {
   query: {
     arecs: {
@@ -103,11 +104,11 @@ describe('POST /api/broadcast/recover-account', () => {
       status: 'closed',
       newOwnerKey: VALID_KEY_B,
     });
-    // Default update chain: .set().where() resolves
-    const chain = {
-      where: vi.fn().mockResolvedValue(undefined),
-    };
-    mockUpdateFn = vi.fn().mockReturnValue({ set: vi.fn().mockReturnValue(chain) });
+    // Default update chain: .set().where() resolves with a winning CAS
+    mockUpdateWhere = vi.fn().mockResolvedValue({ affectedRows: 1 });
+    mockUpdateFn = vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({ where: mockUpdateWhere }),
+    });
     // Default: owner history contains VALID_KEY_A (the recentKey in makeSignedTx)
     mockGetOwnerHistory.mockResolvedValue([
       { previous_owner_authority: { key_auths: [[VALID_KEY_A, 1]] } },
@@ -328,9 +329,11 @@ describe('POST /api/broadcast/recover-account', () => {
       where: SQL;
       orderBy: SQL[];
     };
-    const whereSql = dialect.sqlToQuery(arg.where).sql;
-    expect(whereSql).toContain('account_name');
-    expect(whereSql).toContain('status');
+    const whereQuery = dialect.sqlToQuery(arg.where);
+    expect(whereQuery.sql).toContain('account_name');
+    expect(whereQuery.sql).toContain('status');
+    expect(whereQuery.params).toContain('alice');
+    expect(whereQuery.params).toContain('closed');
     expect(dialect.sqlToQuery(arg.orderBy[0]!).sql).toContain('`id` desc');
   });
 
@@ -339,10 +342,18 @@ describe('POST /api/broadcast/recover-account', () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
 
-    // The record must be flipped to 'consumed' after broadcast success.
+    // The record must be flipped to 'consumed' after broadcast success,
+    // CAS-guarded on id + status='closed'.
     expect(mockUpdateFn).toHaveBeenCalledTimes(1);
     const setFn = (mockUpdateFn.mock.results[0]?.value as { set?: unknown }).set;
     expect(setFn).toHaveBeenCalledWith({ status: 'consumed' });
+
+    const dialect = new MySqlDialect();
+    const whereQuery = dialect.sqlToQuery(mockUpdateWhere.mock.calls[0]![0] as SQL);
+    expect(whereQuery.sql).toContain('id');
+    expect(whereQuery.sql).toContain('status');
+    expect(whereQuery.params).toContain(1);
+    expect(whereQuery.params).toContain('closed');
   });
 
   it('F15: broadcast failure leaves the record closed (retryable)', async () => {
@@ -355,5 +366,27 @@ describe('POST /api/broadcast/recover-account', () => {
     const res = await POST(req);
     expect(res.status).toBe(500);
     expect(mockUpdateFn).not.toHaveBeenCalled();
+  });
+
+  it('F15: consume failure after a successful broadcast still returns 200', async () => {
+    mockUpdateWhere.mockRejectedValueOnce(new Error('DB error'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const req = makeRequest({ signedTx: makeSignedTx() });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('F15: consume CAS with 0 affectedRows still returns 200 (already consumed)', async () => {
+    mockUpdateWhere.mockResolvedValueOnce({ affectedRows: 0 });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const req = makeRequest({ signedTx: makeSignedTx() });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(warnSpy).toHaveBeenCalled();
   });
 });

@@ -73,6 +73,8 @@ User Browser          Wallet (Next.js)         turtle            kingdom
     │                      │  condenser_api      │                  │
     │                      │  .broadcast_        │                  │
     │                      │  transaction        │                  │
+    │                      │  Update arecs       │                  │
+    │                      │  status=consumed    │                  │
     │<─────success─────────│                     │                  │
 ```
 
@@ -134,6 +136,9 @@ a link like `https://steemitwallet.com/account_recovery_confirmation/{code}`.
 2. The signed transaction is sent to the server relay endpoint.
 3. Server validates the transaction format (op must be `recover_account`) and
    broadcasts via `condenser_api.broadcast_transaction`.
+4. On broadcast success the server consumes the row (`status='consumed'`).
+   Consume is best-effort: a DB error after a successful relay still returns
+   200, because the on-chain `recover_account` already took effect.
 
 ---
 
@@ -152,7 +157,7 @@ a link like `https://steemitwallet.com/account_recovery_confirmation/{code}`.
 | `memo_key` | TEXT NULL | Memo key |
 | `provider` | VARCHAR(32) | Auth provider (e.g. `email`) |
 | `remote_ip` | VARCHAR(64) | Client IP |
-| `status` | ENUM(open, confirmed, expired, closed) | Request lifecycle |
+| `status` | varchar(32): open, confirmed, processing, expired, closed, consumed | Request lifecycle |
 | `email_confirmation_code` | VARCHAR(255) NULL | Email verification code |
 | `validation_code` | VARCHAR(255) NULL | 20-hex-char code in the recovery email link |
 | `request_submitted_at` | DATETIME NULL | When step 2 was completed |
@@ -162,16 +167,20 @@ a link like `https://steemitwallet.com/account_recovery_confirmation/{code}`.
 ### Status lifecycle
 
 ```
-open → confirmed → processing → closed
+open → confirmed → processing → closed → consumed
               ↘ expired
 ```
 
 - `open`: User submitted step 1, awaiting admin review.
 - `confirmed`: Admin approved, `validation_code` generated, email sent.
-- `processing`: User submitted step 2 confirm; server has claimed the record atomically (CAS). If `kingdom.recovery_account` fails, the record stays in `processing`. **Records stuck in `processing` for >1 hour should be manually reset to `confirmed` by ops** to allow retry.
+- `processing`: Confirm CAS claim. On kingdom/RPC failure the record is rolled
+  back to `confirmed` so the user can retry.
 - `expired`: Code expired (timeout, not currently enforced automatically).
-- `closed`: User completed step 2, recovery done. The `validation_code` is now
-  single-use (cannot be used again).
+- `closed`: Confirm succeeded (`request_account_recovery` is on-chain). The
+  `validation_code` is now single-use. This row authorizes one
+  `recover_account` broadcast via `/api/broadcast/recover-account`.
+- `consumed`: `recover_account` broadcast succeeded. The row can no longer
+  authorize another relay. Terminal state.
 
 ---
 
@@ -226,7 +235,8 @@ open → confirmed → processing → closed
 3. **Rate limiting** on all recovery endpoints to prevent abuse.
 4. **Code validation** — 20-hex-char format enforced server-side.
 5. **Owner key format validation** — strict base58 regex `^STM[1-9A-HJ-NP-Za-km-z]{50}$` (excludes 0/O/I/l).
-6. **Single-use codes** — `status` changes to `closed` after successful step 2,
-   preventing replay.
+6. **Single-use codes** — `status` changes to `closed` after successful confirm
+   (step 2b), then to `consumed` after a successful `recover_account` broadcast
+   (step 2c), preventing replay.
 7. **Account name verification** — Server checks that the account name from the
    arecs record matches the submitted one.

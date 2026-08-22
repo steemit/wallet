@@ -196,15 +196,31 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(txForBroadcast);
 
-    // Consume the record on success: the on-chain recover_account can only
-    // be used once per request_account_recovery, so a closed record must
-    // not authorize a second broadcast (replay hardening). A CAS on
-    // status='closed' keeps a concurrent request from consuming a record
-    // that already flipped.
-    await db
-      .update(arecs)
-      .set({ status: 'consumed' })
-      .where(and(eq(arecs.id, record.id), eq(arecs.status, 'closed')));
+    // Consume is best-effort replay hardening. The on-chain recover_account
+    // is already single-use per request_account_recovery; a DB error here
+    // must not turn a successful recovery into HTTP 500 ("Failed to
+    // broadcast"). CAS on id + status='closed' so a concurrent request
+    // cannot consume a row that already flipped — 0 affectedRows is logged,
+    // not treated as failure, because the broadcast already succeeded.
+    try {
+      const consumeResult = await db
+        .update(arecs)
+        .set({ status: 'consumed' })
+        .where(and(eq(arecs.id, record.id), eq(arecs.status, 'closed')));
+      const affected = (consumeResult as unknown as { affectedRows?: number })
+        .affectedRows;
+      if (!affected || affected === 0) {
+        console.warn(
+          'recover-account consume CAS updated 0 rows (already consumed?)',
+          { id: record.id }
+        );
+      }
+    } catch (consumeError) {
+      console.error(
+        'recover-account consume failed after successful broadcast:',
+        consumeError
+      );
+    }
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
