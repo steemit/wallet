@@ -2,7 +2,7 @@
 // Broadcast a signed recover_account transaction (step 2 of account recovery)
 import { NextRequest, NextResponse } from 'next/server';
 import { steem } from '@steemit/steem-js';
-import { eq } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { getDb } from '@/lib/db';
@@ -164,9 +164,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Look up the LATEST closed recovery record for this account.
+    // The arecs table has only a non-unique index on account_name and
+    // /api/recovery/request lets ANYONE insert rows for ANY account name —
+    // so an attacker can pre-insert a stale 'open' row. Without the status
+    // predicate + newest-first ordering, findFirst could return the
+    // attacker's row and permanently reject the victim's recovery
+    // (recovery denial, not takeover).
     const record = await db.query.arecs.findFirst({
-      where: eq(arecs.accountName, opBody.account_to_recover),
+      where: and(
+        eq(arecs.accountName, opBody.account_to_recover),
+        eq(arecs.status, 'closed')
+      ),
       columns: { id: true, status: true, newOwnerKey: true },
+      orderBy: [desc(arecs.id)],
     });
 
     if (!record || record.status !== 'closed') {
@@ -184,6 +195,32 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await SteemService.broadcastTransaction(txForBroadcast);
+
+    // Consume is best-effort replay hardening. The on-chain recover_account
+    // is already single-use per request_account_recovery; a DB error here
+    // must not turn a successful recovery into HTTP 500 ("Failed to
+    // broadcast"). CAS on id + status='closed' so a concurrent request
+    // cannot consume a row that already flipped — 0 affectedRows is logged,
+    // not treated as failure, because the broadcast already succeeded.
+    try {
+      const consumeResult = await db
+        .update(arecs)
+        .set({ status: 'consumed' })
+        .where(and(eq(arecs.id, record.id), eq(arecs.status, 'closed')));
+      const affected = (consumeResult as unknown as { affectedRows?: number })
+        .affectedRows;
+      if (!affected || affected === 0) {
+        console.warn(
+          'recover-account consume CAS updated 0 rows (already consumed?)',
+          { id: record.id }
+        );
+      }
+    } catch (consumeError) {
+      console.error(
+        'recover-account consume failed after successful broadcast:',
+        consumeError
+      );
+    }
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
