@@ -95,6 +95,7 @@ describe('POST /api/recovery/confirm', () => {
   it('returns ok for valid confirmed recovery (atomic CAS)', async () => {
     setupUpdateMocks({ affectedRows: 1 });
 
+    const { SteemService } = await import('@/lib/steem/server');
     const req = makeRequest(validPayload);
     const res = await POST(req);
     const data = await res.json();
@@ -102,6 +103,14 @@ describe('POST /api/recovery/confirm', () => {
     expect(data.status).toBe('ok');
     expect(res.status).toBe(200);
     expect(mockUpdateFn).toHaveBeenCalledTimes(2);
+    expect(SteemService.requestAccountRecovery).toHaveBeenCalledWith({
+      account_to_recover: 'alice',
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [[VALID_KEY_B, 1]],
+      },
+    });
   });
 
   it('short-circuits when CSRF verification fails', async () => {
@@ -157,6 +166,156 @@ describe('POST /api/recovery/confirm', () => {
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toBe('Invalid owner key format');
+  });
+
+  // ---- S3: new_owner_authority whitelist ----
+  // The authority is signed on-chain by the server's CONVEYOR key; it must
+  // be exactly the single-key authority derived from new_owner_key.
+
+  it('S3: rejects key_auths that does not match new_owner_key (DB/chain divergence)', async () => {
+    // The audit PoC: authority declares a DIFFERENT key than the one stored
+    // in arecs — previously both were accepted and diverged silently.
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [[VALID_KEY_A, 1]], // VALID_KEY_A != new_owner_key (VALID_KEY_B)
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe('Invalid new owner authority');
+  });
+
+  it('S3: rejects non-empty account_auths (delegation to third-party accounts)', async () => {
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [['attacker', 1]],
+        key_auths: [[VALID_KEY_B, 1]],
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('Invalid new owner authority');
+  });
+
+  it('S3: rejects weight_threshold other than 1', async () => {
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 0, // the audit PoC value
+        account_auths: [],
+        key_auths: [[VALID_KEY_B, 1]],
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('Invalid new owner authority');
+  });
+
+  it('S3: rejects key_auths weight other than 1', async () => {
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [[VALID_KEY_B, 0]],
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('Invalid new owner authority');
+    expect(mockUpdateFn).not.toHaveBeenCalled();
+  });
+
+  it('S3: rejects object-map inner key_auths entry (serializer mismatch)', async () => {
+    // `{0: STM…, 1: 1}` satisfies JS index reads but is dropped by
+    // steem-js authorityMapEntries (requires Array.isArray(entry)).
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [{ 0: VALID_KEY_B, 1: 1 }],
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('Invalid new owner authority');
+    expect(mockUpdateFn).not.toHaveBeenCalled();
+  });
+
+  it('S3: signs a server-constructed canonical authority (strips extra fields)', async () => {
+    setupUpdateMocks({ affectedRows: 1 });
+
+    const { SteemService } = await import('@/lib/steem/server');
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        ...validPayload.new_owner_authority,
+        extra_field: 'must-not-reach-conveyor',
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    const forwarded = vi.mocked(SteemService.requestAccountRecovery).mock.calls[0]?.[0];
+    expect(forwarded).toEqual({
+      account_to_recover: 'alice',
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [[VALID_KEY_B, 1]],
+      },
+    });
+    expect(forwarded?.new_owner_authority).not.toHaveProperty('extra_field');
+  });
+
+  it('S3: rejects multiple key_auths entries', async () => {
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [
+          [VALID_KEY_B, 1],
+          [VALID_KEY_A, 1],
+        ],
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it('S3: rejects empty key_auths', async () => {
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [],
+        key_auths: [],
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it('S3: authority validation rejects BEFORE the CAS claim (no state touched)', async () => {
+    const req = makeRequest({
+      ...validPayload,
+      new_owner_authority: {
+        weight_threshold: 1,
+        account_auths: [['attacker', 1]],
+        key_auths: [[VALID_KEY_B, 1]],
+      },
+    });
+    await POST(req);
+    // The CAS update must never have run for a malformed authority.
+    expect(mockUpdateFn).not.toHaveBeenCalled();
   });
 
   it('returns 400 when atomic update claims 0 rows (already processed / not found)', async () => {

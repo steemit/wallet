@@ -56,6 +56,48 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Strict whitelist for new_owner_authority (S3): this is the ONLY field
+  // that decides who owns the account on-chain after recovery, and it is
+  // signed on-chain by the server's high-value CONVEYOR key — so it must
+  // be exactly the single-key authority derived from new_owner_key.
+  // Anything else (extra keys, account_auths delegates, threshold games)
+  // is rejected before the state machine is touched.
+  // This also closes the DB/chain divergence: the key stored in arecs
+  // (new_owner_key) and the key declared on-chain (new_owner_authority)
+  // are now required to be the same key.
+  //
+  // The inner key_auths entry must be a real 2-tuple (Array.isArray). An
+  // object-map `{0: STM…, 1: 1}` satisfies JS index reads but is dropped by
+  // steem-js authorityMapEntries, which would let a malformed payload past
+  // this gate and into the CONVEYOR signing call.
+  const auth = body.new_owner_authority;
+  const firstKeyAuth = auth.key_auths?.[0];
+  const authValid =
+    auth.weight_threshold === 1 &&
+    Array.isArray(auth.account_auths) &&
+    auth.account_auths.length === 0 &&
+    Array.isArray(auth.key_auths) &&
+    auth.key_auths.length === 1 &&
+    Array.isArray(firstKeyAuth) &&
+    firstKeyAuth.length === 2 &&
+    firstKeyAuth[0] === body.new_owner_key &&
+    firstKeyAuth[1] === 1;
+  if (!authValid) {
+    return NextResponse.json(
+      { status: 'error', error: 'Invalid new owner authority' },
+      { status: 400 }
+    );
+  }
+
+  // Never forward the client object. Extra enumerable fields or serializer
+  // quirks must not reach kingdom / the chain; the CONVEYOR key only ever
+  // signs this canonical single-key authority.
+  const newOwnerAuthority = {
+    weight_threshold: 1,
+    account_auths: [] as [string, number][],
+    key_auths: [[body.new_owner_key, 1]] as [string, number][],
+  };
+
   const db = getDb();
   if (!db) {
     return NextResponse.json(
@@ -123,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     await SteemService.requestAccountRecovery({
       account_to_recover: body.account_name,
-      new_owner_authority: body.new_owner_authority,
+      new_owner_authority: newOwnerAuthority,
     });
 
     // Step 3: Mark as closed — success
