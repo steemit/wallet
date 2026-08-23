@@ -60,7 +60,7 @@ let warnedMissingProxyConfig = false;
  *    when an operator forgets to set TRUST_PROXY_COUNT.
  * 3. Neither available: 'unknown' (all clients share one bucket — degraded).
  */
-function getClientIP(request: NextRequest): string {
+export function getClientIP(request: NextRequest): string {
   const trustedHops = getTrustedProxyCount();
   if (trustedHops !== null && trustedHops > 0) {
     const xff = request.headers.get('x-forwarded-for');

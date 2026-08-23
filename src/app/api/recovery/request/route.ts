@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq, and } from 'drizzle-orm';
-import { verifyCSRF, rateLimit } from '@/lib/middleware';
+import { verifyCSRF, rateLimit, getClientIP } from '@/lib/middleware';
 import { getDb } from '@/lib/db';
 import { arecs } from '@/lib/db/schema';
 
@@ -70,11 +70,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: 'duplicate' });
     }
 
-    // Extract client IP
-    const remoteIp =
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      request.headers.get('x-real-ip') ||
-      null;
+    // Extract client IP for forensics: reuse the proxy-aware getClientIP()
+    // (TRUST_PROXY_COUNT-aware) instead of trusting the client-controlled
+    // first X-Forwarded-For entry — arecs.remote_ip is the evidence
+    // operators rely on when reviewing recovery requests.
+    const resolvedIp = getClientIP(request);
+    const remoteIp = resolvedIp === 'unknown' ? null : resolvedIp;
 
     // Insert new recovery request
     await db.insert(arecs).values({

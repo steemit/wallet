@@ -9,6 +9,12 @@ interface AnalyticsEventBody {
   timestamp?: string;
 }
 
+// S7: bounds on unauthenticated (CSRF-token-only) log writes — without them
+// an attacker can push arbitrary-size lines into the server log.
+const MAX_EVENT_NAME = 64;
+const MAX_PROPERTIES_BYTES = 2048;
+const MAX_PROPERTY_KEYS = 16;
+
 export async function POST(request: NextRequest) {
   try {
     // CSRF: analytics is a write endpoint (logs), so require a token to prevent
@@ -26,9 +32,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as AnalyticsEventBody;
     const { event, properties = {}, timestamp } = body;
 
-    if (!event) {
+    if (!event || typeof event !== 'string') {
       return NextResponse.json(
         { error: 'Missing event name' },
+        { status: 400 }
+      );
+    }
+
+    // S7: length/format caps on the event name and property payload before
+    // they reach the log sink.
+    if (event.length > MAX_EVENT_NAME || !/^[\w.:-]+$/.test(event)) {
+      return NextResponse.json(
+        { error: 'Invalid event name' },
+        { status: 400 }
+      );
+    }
+    if (
+      Object.keys(properties).length > MAX_PROPERTY_KEYS ||
+      JSON.stringify(properties).length > MAX_PROPERTIES_BYTES
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid properties' },
         { status: 400 }
       );
     }
