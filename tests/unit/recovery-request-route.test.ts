@@ -6,6 +6,8 @@ import { NextRequest } from 'next/server';
 vi.mock('@/lib/middleware', () => ({
   verifyCSRF: vi.fn().mockResolvedValue(null),
   rateLimit: vi.fn().mockResolvedValue(null),
+  // Proxy-aware IP resolution used for the forensic remote_ip field.
+  getClientIP: vi.fn().mockReturnValue('9.9.9.9'),
 }));
 
 // Mock the Drizzle db module
@@ -62,6 +64,30 @@ describe('POST /api/recovery/request', () => {
     expect(mockFindFirst).toHaveBeenCalledOnce();
     expect(mockInsert).toHaveBeenCalledOnce();
     expect(mockInsertValues).toHaveBeenCalledOnce();
+  });
+
+  it('S6: forensic remote_ip comes from the proxy-aware getClientIP, not raw XFF', async () => {
+    // The request carries a SPOOFED x-forwarded-for; the recorded IP must
+    // come from the (mocked) proxy-aware resolver instead.
+    const req = new NextRequest('http://localhost/api/recovery/request', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': 'test-token',
+        'x-forwarded-for': '1.2.3.4, 6.6.6.6',
+      },
+      body: JSON.stringify({
+        contact_email: 'test@example.com',
+        account_name: 'alice',
+        owner_key: VALID_OWNER_KEY,
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    const inserted = mockInsertValues.mock.calls[0]![0] as { remoteIp: string | null };
+    expect(inserted.remoteIp).toBe('9.9.9.9'); // from getClientIP mock
+    expect(inserted.remoteIp).not.toContain('1.2.3.4');
   });
 
   it('returns duplicate for existing open request', async () => {
