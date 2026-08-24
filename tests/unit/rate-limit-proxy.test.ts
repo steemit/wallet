@@ -10,7 +10,7 @@ vi.mock('@/lib/cache/redis', () => ({
   cacheDeleteByPrefix: vi.fn(),
 }));
 
-import { rateLimit, rateLimitByUser } from '@/lib/middleware/rate-limit';
+import { rateLimit, rateLimitByUser, rateLimitConfigFromEnv } from '@/lib/middleware/rate-limit';
 
 function makeReq(headers: Record<string, string> = {}, path = '/api/broadcast/transfer'): NextRequest {
   const url = new URL(`http://localhost${path}`);
@@ -249,4 +249,36 @@ describe('rateLimitByUser', () => {
     expect(res!.status).toBe(503);
     delete process.env.RATE_LIMIT_ALLOW_MEMORY_FALLBACK;
   });
+});
+
+describe('rateLimitConfigFromEnv', () => {
+  const PREFIX = 'RATE_LIMIT_TEST_ENVCFG';
+  const defaults = { maxRequests: 10, windowSeconds: 60 };
+
+  afterEach(() => {
+    delete process.env[`${PREFIX}_MAX`];
+    delete process.env[`${PREFIX}_WINDOW`];
+  });
+
+  it('returns defaults when env vars are unset', () => {
+    expect(rateLimitConfigFromEnv(PREFIX, defaults)).toEqual(defaults);
+  });
+
+  it('honours valid overrides', () => {
+    process.env[`${PREFIX}_MAX`] = '3';
+    process.env[`${PREFIX}_WINDOW`] = '120';
+    expect(rateLimitConfigFromEnv(PREFIX, defaults)).toEqual({
+      maxRequests: 3,
+      windowSeconds: 120,
+    });
+  });
+
+  it.each(['abc', '0', '-5', '1.5', ''])(
+    'falls back to defaults for invalid value %p',
+    (value) => {
+      process.env[`${PREFIX}_MAX`] = value;
+      process.env[`${PREFIX}_WINDOW`] = value;
+      expect(rateLimitConfigFromEnv(PREFIX, defaults)).toEqual(defaults);
+    }
+  );
 });

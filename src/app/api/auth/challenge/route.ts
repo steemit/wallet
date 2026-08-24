@@ -2,7 +2,7 @@
 // Generate a login challenge for the user
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
-import { setCSRFToken, rateLimit, rateLimitByUser } from '@/lib/middleware';
+import { setCSRFToken, rateLimit, rateLimitByUser, rateLimitConfigFromEnv } from '@/lib/middleware';
 import { getRedis, redisKey } from '@/lib/cache/redis';
 
 const CHALLENGE_TTL = 300; // 5 minutes
@@ -33,16 +33,15 @@ export async function GET(request: NextRequest) {
     //  - per-username: an attacker hammering challenges for one victim
     //    otherwise overwrites the victim's challenge on every attempt,
     //    locking them out of login (targeted auth DoS).
-    const ipLimit = await rateLimit(request, 'auth_challenge', {
+    // Tunable via RATE_LIMIT_AUTH_CHALLENGE_MAX / _WINDOW (see .env.example).
+    const limitConfig = rateLimitConfigFromEnv('RATE_LIMIT_AUTH_CHALLENGE', {
       maxRequests: 10,
       windowSeconds: 60,
     });
+    const ipLimit = await rateLimit(request, 'auth_challenge', limitConfig);
     if (ipLimit) return ipLimit;
 
-    const userLimit = await rateLimitByUser(username, 'auth_challenge', {
-      maxRequests: 10,
-      windowSeconds: 60,
-    });
+    const userLimit = await rateLimitByUser(username, 'auth_challenge', limitConfig);
     if (userLimit) return userLimit;
 
     // Generate challenge
