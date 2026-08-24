@@ -168,6 +168,26 @@ function memoryRateLimit(
   return null;
 }
 
+/**
+ * Build a RateLimitConfig from environment variables so limits can be tuned
+ * at deploy time without a code change. Convention: `<PREFIX>_MAX` is the
+ * max requests per window and `<PREFIX>_WINDOW` the window length in
+ * seconds; unset or non-positive values fall back to `defaults`.
+ */
+export function rateLimitConfigFromEnv(
+  prefix: string,
+  defaults: RateLimitConfig
+): RateLimitConfig {
+  const max = Number(process.env[`${prefix}_MAX`]);
+  const window = Number(process.env[`${prefix}_WINDOW`]);
+  return {
+    maxRequests:
+      Number.isInteger(max) && max > 0 ? max : defaults.maxRequests,
+    windowSeconds:
+      Number.isInteger(window) && window > 0 ? window : defaults.windowSeconds,
+  };
+}
+
 // Whether to allow a memory fallback when Redis is not configured. In a
 // single-instance deploy this is fine; multi-instance deploys should set
 // REDIS_URL (and leave this enabled purely for the Redis-error transient case).
