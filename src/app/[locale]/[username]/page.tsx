@@ -7,6 +7,9 @@ import { usePathname, useRouter } from '@/i18n/routing';
 import { RecentActivityLazy } from '@/components/wallet/client-wrappers';
 import { BalanceRows } from '@/components/wallet/balance-rows';
 import { ClaimRewardsBanner } from '@/components/wallet/claim-rewards-banner';
+import { RecoveryWarningBanner } from '@/components/wallet/recovery-warning-banner';
+import { SavingsWithdrawHistory } from '@/components/wallet/savings-withdraw-history';
+import { AdvancedRoutesNotice } from '@/components/wallet/advanced-routes-notice';
 import { useSteemWalletBalances } from '@/hooks/use-steem-wallet-balances';
 import { UserProfileBanner } from '@/components/layout/user-profile-banner';
 import { AccountWalletNav } from '@/components/layout/account-wallet-nav';
@@ -152,7 +155,7 @@ export default function WalletPage() {
         {...(bannerProfile ?? {})}
       />
 
-      <AccountWalletNav accountname={urlUsername} />
+      <AccountWalletNav accountname={urlUsername} isMyAccount={isMyAccount} />
 
       {/* Wallet content: keep top padding tight under AccountWalletNav */}
       <div className="mx-auto max-w-6xl space-y-3 px-4 pt-3 pb-6">
@@ -161,6 +164,20 @@ export default function WalletPage() {
             balance={balance}
             isMyAccount={isMyAccount}
             loading={balanceLoading}
+          />
+        )}
+        {isTransfersPath && (
+          <RecoveryWarningBanner
+            username={urlUsername}
+            isMyAccount={isMyAccount}
+            onChanged={() => setWalletRefreshNonce((n) => n + 1)}
+          />
+        )}
+        {isTransfersPath && (
+          <AdvancedRoutesNotice
+            username={urlUsername}
+            isMyAccount={isMyAccount}
+            refreshNonce={walletRefreshNonce}
           />
         )}
 
@@ -173,6 +190,12 @@ export default function WalletPage() {
               loading={balanceLoading}
               showBalanceActions={showBalanceActions}
             />
+            {isMyAccount && (
+              <SavingsWithdrawHistory
+                username={urlUsername}
+                onChanged={() => setWalletRefreshNonce((n) => n + 1)}
+              />
+            )}
             <RecentActivityLazy username={urlUsername} refreshNonce={walletRefreshNonce} globalProps={globalProps} />
           </>
         )}

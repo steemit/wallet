@@ -402,6 +402,46 @@ export class SteemSigner {
     return await this.signTransaction(operations, [activeKey]);
   }
 
+  /**
+   * Sign a change_recovery_account operation. Requires the OWNER key —
+   * the chain enforces owner authority for this operation.
+   */
+  static async signChangeRecoveryAccount(
+    accountToRecover: string,
+    newRecoveryAccount: string,
+    ownerKey: string
+  ): Promise<SignedTransaction> {
+    const operations: Operation[] = [
+      [
+        'change_recovery_account',
+        {
+          account_to_recover: accountToRecover,
+          new_recovery_account: newRecoveryAccount,
+          extensions: [],
+        },
+      ],
+    ];
+    return await this.signTransaction(operations, [ownerKey]);
+  }
+
+  /** Sign a cancel_transfer_from_savings operation (active authority). */
+  static async signCancelTransferFromSavings(
+    from: string,
+    requestId: number,
+    activeKey: string
+  ): Promise<SignedTransaction> {
+    const operations: Operation[] = [
+      [
+        'cancel_transfer_from_savings',
+        {
+          from,
+          request_id: requestId,
+        },
+      ],
+    ];
+    return await this.signTransaction(operations, [activeKey]);
+  }
+
   static async signLimitOrderCreate(
     owner: string,
     amountToSell: string,
@@ -951,6 +991,30 @@ export const apiClient = {
     username: string
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/convert', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
+    return response.json();
+  },
+
+  async broadcastChangeRecoveryAccount(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+    const response = await fetch('/api/broadcast/change-recovery-account', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
+    return response.json();
+  },
+
+  async broadcastCancelTransferFromSavings(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+    const response = await fetch('/api/broadcast/cancel-transfer-from-savings', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ signedTx, username }),

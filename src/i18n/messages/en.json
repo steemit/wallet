@@ -212,6 +212,45 @@
     "savingsDesc": "Balance subject to 3 day withdraw waiting period.",
     "estimatedValue": "Estimated Account Value",
     "estimatedValueDesc": "Approximate value in USD based on current market prices.",
+    "steemPowerApr": "STEEM POWER increases at an APR of approximately {value}%, subject to blockchain variance.",
+    "openOrders": "Open Orders",
+    "inConversion": "{amount} in conversion",
+    "conversionCompleteTip": "Will complete on {date}",
+    "viewAllPendingConversions": "View all pending conversions ({count})",
+    "pendingConversionsTitle": "Pending Conversions",
+    "recoveryWarning": {
+      "warning": "Warning: {days} {dayLabel} left until your recovery account change to @{recoveryAccount} becomes final.",
+      "day": "day",
+      "days": "days",
+      "takeAction": "Take Action",
+      "dismiss": "Dismiss"
+    },
+    "savingsWithdrawals": {
+      "title": "Pending Savings Withdrawals",
+      "withdrawTo": "Withdraw {amount} to {to}",
+      "completes": "completes {time}",
+      "cancel": "cancel",
+      "cancelTitle": "Cancel savings withdrawal",
+      "cancelDescription": "Cancel this withdrawal request of {amount}?",
+      "cancelConfirm": "Cancel withdrawal",
+      "cancelling": "Cancelling…",
+      "cancelFailed": "Failed to cancel the withdrawal.",
+      "back": "Back"
+    },
+    "changeRecoveryAccount": {
+      "title": "Change Recovery Account",
+      "faqHint": "Visit the FAQ for more details on the Recovery Account.",
+      "currentAccount": "Account",
+      "currentRecoveryAccount": "Current Recovery Account",
+      "pendingRecoveryAccount": "Pending Change",
+      "newAccount": "New Recovery Account",
+      "required": "Required",
+      "ownerKeyRequired": "This action requires your owner key. Sign in with your master password or owner key.",
+      "submit": "Submit",
+      "submitting": "Submitting…",
+      "cancel": "Cancel",
+      "failed": "Failed to change recovery account."
+    },
     "nextPowerDown": "Next power down is scheduled to happen",
     "navAccount": "Account",
     "navDiscover": "Discover",
@@ -497,6 +536,16 @@
       "successMessage": "Your account has been successfully recovered. You can now log in with your new password.",
       "goToLogin": "Go to login",
       "unknownError": "An unknown error occurred."
+    },
+    "advancedRoutesNotice": "Custom withdrawal routes were configured to receive vesting payments. Please reconfirm in the Advanced Routes options.",
+    "settings": "Settings",
+    "navSmtWhitepaper": "SMT Whitepaper",
+    "navJobs": "Jobs",
+    "navBusinessCenter": "Steem Business Center",
+    "navSupport": "Support",
+    "support": {
+      "title": "Steemit Wallet Support",
+      "emailHint": "Please email questions to"
     }
   },
   "navigation": {
@@ -524,7 +573,34 @@
     "amountMustBePositive": "Amount must be greater than 0",
     "transferProcessing": "Processing transfer...",
     "memoEncrypted": "Memo is encrypted",
-    "memoNotEncrypted": "Memo is not encrypted"
+    "memoNotEncrypted": "Memo is not encrypted",
+    "availableBalance": "Available: {amount} {asset}",
+    "exchangeAlertTitle": "Exchange Account Detected",
+    "exchangeAlertMemo": "Use the correct memo and deposit address provided by the exchange.",
+    "exchangeAlertSuspended": "Verify that the exchange has not suspended deposits.",
+    "exchangeAlertAsset": "Verify that the exchange still supports {asset} deposits.",
+    "similarAccountTitle": "Exchange Account Similarity Detected",
+    "similarAccountWarning": "The recipient address shares {similarity}% similarity with a known exchange account (@{accountName}). Verify the address carefully, as incorrect transfers may result in permanent loss of funds.",
+    "exchangeMisspelling": "The recipient address appears to be an intentional misspelling of a known exchange account. It is strongly recommended not to send any funds.",
+    "acknowledgeWarnings": "I have read and understood the above warnings",
+    "errors": {
+      "account_name_should_not_be_empty": "Account name should not be empty.",
+      "account_name_should_be_longer": "Account name should be longer.",
+      "account_name_should_be_shorter": "Account name should be shorter.",
+      "badactor": "Use caution sending to this account. Please double check your spelling for possible phishing.",
+      "each_account_segment_should_start_with_a_letter": "Each account segment should start with a letter.",
+      "each_account_segment_should_have_only_letters_digits_or_dashes": "Each account segment should have only letters, digits, or dashes.",
+      "each_account_segment_should_have_only_one_dash_in_a_row": "Each account segment should have only one dash in a row.",
+      "each_account_segment_should_end_with_a_letter_or_digit": "Each account segment should end with a letter or digit.",
+      "each_account_segment_should_be_longer": "Each account segment should be longer.",
+      "account_not_found": "Account not found",
+      "insufficient_funds": "Insufficient funds",
+      "invalid_amount": "Please enter a valid amount",
+      "verified_exchange_no_memo": "This recipient is a verified exchange. A memo is required.",
+      "memo_has_privatekey": "Please do not include what appears to be a private key or password in the memo field.",
+      "memo_is_privatekey": "Do not use private keys in memos.",
+      "acknowledge_warnings": "Please acknowledge the warnings above before sending."
+    }
   },
   "powerDown": {
     "title": "Power Down",

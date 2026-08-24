@@ -245,6 +245,45 @@
     "proposals": "Propuestas",
     "market": "Mercado",
     "profileJoined": "Miembro desde",
+    "steemPowerApr": "STEEM POWER aumenta a una APR de aproximadamente {value}%, sujeto a la variación de la blockchain.",
+    "openOrders": "Órdenes abiertas",
+    "inConversion": "{amount} en conversión",
+    "conversionCompleteTip": "Se completará el {date}",
+    "viewAllPendingConversions": "Ver todas las conversiones pendientes ({count})",
+    "pendingConversionsTitle": "Conversiones pendientes",
+    "recoveryWarning": {
+      "warning": "Advertencia: quedan {days} {dayLabel} para que el cambio de su cuenta de recuperación a @{recoveryAccount} sea definitivo.",
+      "day": "día",
+      "days": "días",
+      "takeAction": "Actuar",
+      "dismiss": "Descartar"
+    },
+    "savingsWithdrawals": {
+      "title": "Retiros de ahorro pendientes",
+      "withdrawTo": "Retirar {amount} a {to}",
+      "completes": "se completa {time}",
+      "cancel": "cancelar",
+      "cancelTitle": "Cancelar retiro de ahorro",
+      "cancelDescription": "¿Cancelar esta solicitud de retiro de {amount}?",
+      "cancelConfirm": "Cancelar retiro",
+      "cancelling": "Cancelando…",
+      "cancelFailed": "Error al cancelar el retiro.",
+      "back": "Volver"
+    },
+    "changeRecoveryAccount": {
+      "title": "Cambiar cuenta de recuperación",
+      "faqHint": "Visite las FAQ para más detalles sobre la cuenta de recuperación.",
+      "currentAccount": "Cuenta",
+      "currentRecoveryAccount": "Cuenta de recuperación actual",
+      "pendingRecoveryAccount": "Cambio pendiente",
+      "newAccount": "Nueva cuenta de recuperación",
+      "required": "Obligatorio",
+      "ownerKeyRequired": "Esta acción requiere su clave owner. Inicie sesión con su contraseña maestra o clave owner.",
+      "submit": "Enviar",
+      "submitting": "Enviando…",
+      "cancel": "Cancelar",
+      "failed": "Error al cambiar la cuenta de recuperación."
+    },
     "reauthTitle": "Inicia sesión para continuar",
     "reauthDescription": "Esta acción requiere tu clave activa. Introduce tu contraseña o clave privada.",
     "withdrawRoutes": {
@@ -488,6 +527,16 @@
       "successMessage": "Su cuenta ha sido recuperada exitosamente. Ahora puede iniciar sesión con su nueva contraseña.",
       "goToLogin": "Ir a iniciar sesión",
       "unknownError": "Ocurrió un error desconocido."
+    },
+    "advancedRoutesNotice": "Se configuraron rutas de retiro personalizadas para recibir los pagos de vesting. Confírmelas de nuevo en las opciones de rutas avanzadas.",
+    "settings": "Configuración",
+    "navSmtWhitepaper": "Whitepaper de SMT",
+    "navJobs": "Empleo",
+    "navBusinessCenter": "Centro de negocios Steem",
+    "navSupport": "Soporte",
+    "support": {
+      "title": "Soporte de Steemit Wallet",
+      "emailHint": "Envíe sus preguntas a"
     }
   },
   "navigation": {
@@ -515,7 +564,34 @@
     "amountMustBePositive": "El monto debe ser mayor a 0",
     "transferProcessing": "Procesando transferencia...",
     "memoEncrypted": "Memo está encriptado",
-    "memoNotEncrypted": "Memo no está encriptado"
+    "memoNotEncrypted": "Memo no está encriptado",
+    "availableBalance": "Disponible: {amount} {asset}",
+    "exchangeAlertTitle": "Cuenta de exchange detectada",
+    "exchangeAlertMemo": "Use el memo y la dirección de depósito correctos proporcionados por el exchange.",
+    "exchangeAlertSuspended": "Verifique que el exchange no haya suspendido los depósitos.",
+    "exchangeAlertAsset": "Verifique que el exchange aún admita depósitos de {asset}.",
+    "similarAccountTitle": "Similitud con cuenta de exchange detectada",
+    "similarAccountWarning": "La dirección del destinatario tiene un {similarity}% de similitud con una cuenta de exchange conocida (@{accountName}). Verifique la dirección con cuidado; las transferencias incorrectas pueden causar una pérdida permanente de fondos.",
+    "exchangeMisspelling": "La dirección del destinatario parece ser un error ortográfico intencional de una cuenta de exchange conocida. Se recomienda encarecidamente no enviar fondos.",
+    "acknowledgeWarnings": "He leído y comprendido las advertencias anteriores",
+    "errors": {
+      "account_name_should_not_be_empty": "El nombre de cuenta no debe estar vacío.",
+      "account_name_should_be_longer": "El nombre de cuenta debe ser más largo.",
+      "account_name_should_be_shorter": "El nombre de cuenta debe ser más corto.",
+      "badactor": "Tenga cuidado al enviar a esta cuenta. Revise la ortografía por posible phishing.",
+      "each_account_segment_should_start_with_a_letter": "Cada segmento del nombre debe comenzar con una letra.",
+      "each_account_segment_should_have_only_letters_digits_or_dashes": "Cada segmento solo debe tener letras, dígitos o guiones.",
+      "each_account_segment_should_have_only_one_dash_in_a_row": "Cada segmento solo debe tener un guion seguido.",
+      "each_account_segment_should_end_with_a_letter_or_digit": "Cada segmento debe terminar con una letra o un dígito.",
+      "each_account_segment_should_be_longer": "Cada segmento debe ser más largo.",
+      "account_not_found": "Cuenta no encontrada",
+      "insufficient_funds": "Fondos insuficientes",
+      "invalid_amount": "Introduzca un monto válido",
+      "verified_exchange_no_memo": "Este destinatario es un exchange verificado. Se requiere un memo.",
+      "memo_has_privatekey": "No incluya lo que parece ser una clave privada o contraseña en el memo.",
+      "memo_is_privatekey": "No use claves privadas en los memos.",
+      "acknowledge_warnings": "Confirme las advertencias anteriores antes de enviar."
+    }
   },
   "powerDown": {
     "title": "Power Down",

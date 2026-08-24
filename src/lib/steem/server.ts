@@ -85,7 +85,38 @@ export class SteemService {
     return withFailover(async () => {
       ensureConfigured();
       const accounts = await steem.api.getAccountsAsync(usernames);
-      return accounts as SteemAccount[];
+      const result = accounts as SteemAccount[];
+      // Legacy parity (SagaShared.getAccount): attach any pending
+      // change_recovery_account request for single-account lookups so the
+      // wallet UI can warn the owner.
+      if (usernames.length === 1 && result.length > 0) {
+        const first = result[0];
+        const username = usernames[0];
+        if (first && username) {
+          try {
+            const api = steem.api as unknown as {
+              callAsync: (method: string, params: unknown) => Promise<unknown>;
+            };
+            const recoveryData = (await api.callAsync(
+              'database_api.find_change_recovery_account_requests',
+              { accounts: [username] }
+            )) as {
+              requests?: {
+                account_to_recover: string;
+                recovery_account: string;
+                effective_on: string;
+              }[];
+            };
+            const request = recoveryData?.requests?.[0];
+            if (request && request.account_to_recover === username) {
+              first.account_recovery = request;
+            }
+          } catch (err) {
+            console.warn('Error fetching change recovery account request:', err);
+          }
+        }
+      }
+      return result;
     }).catch((error) => {
       console.error('Error fetching accounts:', error);
       throw new Error(`Failed to fetch accounts: ${(error as Error).message}`);
@@ -380,6 +411,8 @@ export class SteemService {
 
   /**
    * Pending savings withdrawals, open orders, and SBD conversions for estimate extras.
+   * Also returns the detailed rows so the wallet UI can render legacy-parity
+   * indicators (pending conversions list, savings withdrawal history).
    */
   static async getWalletEstimateExtras(
     username: string,
@@ -390,13 +423,43 @@ export class SteemService {
     conversionTotalSbd: number;
     steemOrders: number;
     sbdOrders: number;
+    conversions: { requestid: number; amountSbd: number; finishTime: string }[];
+    savingsWithdrawals: {
+      id: number;
+      requestId: number;
+      from: string;
+      to: string;
+      amount: string;
+      memo: string;
+      complete: string;
+    }[];
   }> {
     const assetPrecision = 1000;
     return withFailover(async () => {
       ensureConfigured();
       const api = steem.api as unknown as {
-        getSavingsWithdrawToAsync: (account: string) => Promise<{ amount: string }[]>;
-        getSavingsWithdrawFromAsync: (account: string) => Promise<{ amount: string }[]>;
+        getSavingsWithdrawToAsync: (account: string) => Promise<
+          {
+            id: number;
+            request_id: number;
+            from: string;
+            to: string;
+            amount: string;
+            memo: string;
+            complete: string;
+          }[]
+        >;
+        getSavingsWithdrawFromAsync: (account: string) => Promise<
+          {
+            id: number;
+            request_id: number;
+            from: string;
+            to: string;
+            amount: string;
+            memo: string;
+            complete: string;
+          }[]
+        >;
         getOpenOrdersAsync: (owner: string) => Promise<
           { for_sale: number; sell_price: { base: string } }[]
         >;
@@ -408,7 +471,7 @@ export class SteemService {
         api.getSavingsWithdrawFromAsync(username),
       ]);
 
-      const withdrawMap = new Map<string, { amount: string }>();
+      const withdrawMap = new Map<string, (typeof toWithdraws)[number]>();
       for (const w of [...toWithdraws, ...fromWithdraws]) {
         const id = (w as { id?: number }).id;
         if (id !== undefined) withdrawMap.set(String(id), w);
@@ -416,14 +479,33 @@ export class SteemService {
 
       let savingsPendingSteem = 0;
       let savingsPendingSbd = 0;
+      const savingsWithdrawals: {
+        id: number;
+        requestId: number;
+        from: string;
+        to: string;
+        amount: string;
+        memo: string;
+        complete: string;
+      }[] = [];
       for (const withdraw of withdrawMap.values()) {
         const [amountStr, asset] = withdraw.amount.split(' ');
         const amount = parseFloat(amountStr || '0');
         if (asset === 'STEEM') savingsPendingSteem += amount;
         else if (asset === 'SBD') savingsPendingSbd += amount;
+        savingsWithdrawals.push({
+          id: withdraw.id,
+          requestId: withdraw.request_id,
+          from: withdraw.from,
+          to: withdraw.to,
+          amount: withdraw.amount,
+          memo: withdraw.memo ?? '',
+          complete: withdraw.complete,
+        });
       }
 
       let conversionTotalSbd = 0;
+      const conversions: { requestid: number; amountSbd: number; finishTime: string }[] = [];
       const now = Date.now();
       try {
         const conversionResult = (await api.callAsync(
@@ -431,6 +513,7 @@ export class SteemService {
           { account: username }
         )) as {
           requests?: {
+            requestid: number;
             conversion_date: string;
             amount: { amount: string; precision: number };
           }[];
@@ -442,7 +525,14 @@ export class SteemService {
           if (finishTime < now) continue;
           const amount =
             parseFloat(request.amount.amount) / 10 ** request.amount.precision;
-          if (!Number.isNaN(amount)) conversionTotalSbd += amount;
+          if (!Number.isNaN(amount)) {
+            conversionTotalSbd += amount;
+            conversions.push({
+              requestid: request.requestid,
+              amountSbd: amount,
+              finishTime: new Date(finishTime).toISOString(),
+            });
+          }
         }
       } catch (err) {
         console.warn('find_sbd_conversion_requests failed:', err);
@@ -473,6 +563,8 @@ export class SteemService {
         conversionTotalSbd,
         steemOrders,
         sbdOrders,
+        conversions,
+        savingsWithdrawals,
       };
     }).catch((error) => {
       console.error('Error fetching wallet estimate extras:', error);
