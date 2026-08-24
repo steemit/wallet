@@ -19,4 +19,8 @@ export interface WalletBalanceData {
 export interface GlobalPropsData {
   total_vesting_shares: string;
   total_vesting_fund_steem: string;
+  /** Present in the full dynamic global properties payload; used for SP APR. */
+  head_block_number?: number;
+  virtual_supply?: string;
+  vesting_reward_percent?: number;
 }

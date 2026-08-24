@@ -47,6 +47,17 @@ export interface SteemAccount {
   reputation: number;
   witness_votes: string[];
   proxy?: string;
+  /** Current recovery account (from the account object). */
+  recovery_account?: string;
+  /**
+   * Pending change_recovery_account request attached by getAccounts for
+   * single-account lookups (legacy SagaShared parity).
+   */
+  account_recovery?: {
+    account_to_recover: string;
+    recovery_account: string;
+    effective_on: string;
+  } | null;
 }
 
 export interface SignedTransaction {

@@ -10,6 +10,32 @@ import {
 import type { GlobalPropsData, WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 import { cachedFetch } from '@/lib/cache/client-fetch';
 
+export interface PendingConversion {
+  requestid: number;
+  amountSbd: number;
+  finishTime: string;
+}
+
+export interface PendingSavingsWithdrawal {
+  id: number;
+  requestId: number;
+  from: string;
+  to: string;
+  amount: string;
+  memo: string;
+  complete: string;
+}
+
+export interface WalletExtrasDetails {
+  savingsPendingSteem: number;
+  savingsPendingSbd: number;
+  conversionTotalSbd: number;
+  steemOrders: number;
+  sbdOrders: number;
+  conversions: PendingConversion[];
+  savingsWithdrawals: PendingSavingsWithdrawal[];
+}
+
 export function useWalletEstimatedValue({
   username,
   balance,
@@ -25,6 +51,7 @@ export function useWalletEstimatedValue({
 }) {
   const [prices, setPrices] = useState<WalletPrices | null>(null);
   const [extras, setExtras] = useState<WalletEstimateExtras>({});
+  const [details, setDetails] = useState<WalletExtrasDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,6 +80,8 @@ export function useWalletEstimatedValue({
                 conversionTotalSbd?: number;
                 steemOrders?: number;
                 sbdOrders?: number;
+                conversions?: PendingConversion[];
+                savingsWithdrawals?: PendingSavingsWithdrawal[];
               }>(
                 `/api/query/wallet-estimate-extras?username=${encodeURIComponent(username)}&includeOpenOrders=${includeOpenOrders}`,
                 { staleMs: 30_000, maxAgeMs: 120_000 }
@@ -82,8 +111,18 @@ export function useWalletEstimatedValue({
               steemOrders: extrasData.steemOrders ?? 0,
               sbdOrders: extrasData.sbdOrders ?? 0,
             });
+            setDetails({
+              savingsPendingSteem: extrasData.savingsPendingSteem ?? 0,
+              savingsPendingSbd: extrasData.savingsPendingSbd ?? 0,
+              conversionTotalSbd: extrasData.conversionTotalSbd ?? 0,
+              steemOrders: extrasData.steemOrders ?? 0,
+              sbdOrders: extrasData.sbdOrders ?? 0,
+              conversions: extrasData.conversions ?? [],
+              savingsWithdrawals: extrasData.savingsWithdrawals ?? [],
+            });
           } else {
             setExtras({});
+            setDetails(null);
           }
         }
       } catch (err) {
@@ -91,6 +130,7 @@ export function useWalletEstimatedValue({
         if (!cancelled) {
           setPrices(null);
           setExtras({});
+          setDetails(null);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -109,5 +149,5 @@ export function useWalletEstimatedValue({
 
   const display = formatEstimatedAccountValueUsd(valueUsd);
 
-  return { display, loading: loading && enabled, valueUsd };
+  return { display, loading: loading && enabled, valueUsd, details };
 }

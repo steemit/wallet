@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   DropdownMenu,
@@ -7,6 +8,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Tooltip,
   TooltipContent,
@@ -26,6 +33,8 @@ import {
   WalletBalanceRowShell,
 } from '@/components/wallet/wallet-balance-row-layout';
 import { useWalletEstimatedValue } from '@/hooks/use-wallet-estimated-value';
+import { getCurrentSteemPowerApr } from '@/lib/wallet/sp-apr';
+import { formatTimeUntil } from '@/lib/wallet/format-time-ago';
 import type { GlobalPropsData, WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 
 function numberWithCommas(x: string): string {
@@ -53,14 +62,19 @@ export function BalanceRows({
 }) {
   const t = useTranslations('wallet');
 
-  const { display: estimatedValueDisplay, loading: estimatedValueLoading } =
-    useWalletEstimatedValue({
-      username,
-      balance,
-      globalProps,
-      includeOpenOrders: showBalanceActions,
-      enabled: !loading && !!balance && !!globalProps,
-    });
+  const {
+    display: estimatedValueDisplay,
+    loading: estimatedValueLoading,
+    details: extrasDetails,
+  } = useWalletEstimatedValue({
+    username,
+    balance,
+    globalProps,
+    includeOpenOrders: showBalanceActions,
+    enabled: !loading && !!balance && !!globalProps,
+  });
+
+  const [showAllConversions, setShowAllConversions] = useState(false);
 
   const formatBalance = (value: string | undefined) => {
     if (!value) return '0.000';
@@ -99,6 +113,11 @@ export function BalanceRows({
 
   const isPoweringDown = balance && parseFloat(balance.vesting_withdraw_rate?.split(' ')[0] || '0') > 0;
   const powerDownRate = balance ? calculateSP(balance.vesting_withdraw_rate) : '0';
+
+  const spApr = globalProps ? getCurrentSteemPowerApr(globalProps) : null;
+  const steemOrders = showBalanceActions ? (extrasDetails?.steemOrders ?? 0) : 0;
+  const sbdOrders = showBalanceActions ? (extrasDetails?.sbdOrders ?? 0) : 0;
+  const conversions = extrasDetails?.conversions ?? [];
 
   if (loading) {
     return (
@@ -172,6 +191,20 @@ export function BalanceRows({
                   { label: 'Market', link: '/market' },
                 ]}
               />
+              {steemOrders > 0 && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  <Link href="/market">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help">
+                          (+{numberWithCommas(steemOrders.toFixed(3))} STEEM)
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('openOrders')}</TooltipContent>
+                    </Tooltip>
+                  </Link>
+                </div>
+              )}
             </div>
           }
         />
@@ -190,6 +223,11 @@ export function BalanceRows({
                 )}
                 {!hasDelegation && (
                   <span className="block mt-1">Your STEEM POWER is not currently delegated.</span>
+                )}
+                {spApr !== null && spApr > 0 && (
+                  <span className="block mt-1">
+                    {t('steemPowerApr', { value: spApr.toFixed(2) })}
+                  </span>
                 )}
               </div>
             </>
@@ -255,6 +293,68 @@ export function BalanceRows({
                   },
                 ]}
               />
+              {sbdOrders > 0 && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  <Link href="/market">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help">
+                          (+${numberWithCommas(sbdOrders.toFixed(3))})
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('openOrders')}</TooltipContent>
+                    </Tooltip>
+                  </Link>
+                </div>
+              )}
+              {conversions.slice(0, 5).map((conv) => (
+                <div key={conv.requestid} className="text-sm text-muted-foreground mt-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help">
+                        (+{t('inConversion', {
+                          amount: '$' + numberWithCommas(conv.amountSbd.toFixed(3)),
+                        })})
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t('conversionCompleteTip', {
+                        date: new Date(conv.finishTime).toLocaleString(),
+                      })}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              ))}
+              {conversions.length > 5 && (
+                <>
+                  <button
+                    type="button"
+                    className="text-primary mt-2 cursor-pointer text-sm hover:underline"
+                    onClick={() => setShowAllConversions(true)}
+                  >
+                    {t('viewAllPendingConversions', { count: conversions.length })}
+                  </button>
+                  <Dialog open={showAllConversions} onOpenChange={setShowAllConversions}>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>{t('pendingConversionsTitle')}</DialogTitle>
+                      </DialogHeader>
+                      <ul className="max-h-[60vh] space-y-2 overflow-y-auto text-sm">
+                        {conversions.map((conv) => (
+                          <li key={conv.requestid} className="flex justify-between gap-4">
+                            <span>${numberWithCommas(conv.amountSbd.toFixed(3))}</span>
+                            <span className="text-muted-foreground">
+                              {t('conversionCompleteTip', {
+                                date: new Date(conv.finishTime).toLocaleString(),
+                              })}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
             </div>
           }
         />
@@ -332,7 +432,7 @@ export function BalanceRows({
             The next power down is scheduled to happen{' '}
             <span className="font-medium">
               {balance?.next_vesting_withdrawal
-                ? new Date(balance.next_vesting_withdrawal).toLocaleDateString()
+                ? formatTimeUntil(balance.next_vesting_withdrawal)
                 : '---'}
             </span>{' '}
             (~{powerDownRate} SP).

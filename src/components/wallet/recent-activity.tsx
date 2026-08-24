@@ -47,6 +47,13 @@ function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?
       };
     case 'withdraw_vesting': {
       const vestStr = asStr(data.vesting_shares);
+      if (vestStr === '0.000000 VESTS') {
+        return {
+          description: 'Stop power down',
+          memo: '',
+          time: formatTimeAgo(item.timestamp),
+        };
+      }
       const sp = globalProps && vestStr
         ? `${formatSteemPowerFromVestsString(vestStr, globalProps)} SP`
         : vestStr ?? '';
@@ -93,6 +100,36 @@ function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?
         memo: typeof data.memo === 'string' ? data.memo : '',
         time: formatTimeAgo(item.timestamp),
       };
+    case 'cancel_transfer_from_savings':
+      return {
+        description: `Cancel transfer from savings (request ${String(data.request_id ?? '')})`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    case 'interest':
+      return {
+        description: `Receive interest of ${asStr(data.interest) ?? ''}`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    case 'fill_convert_request':
+      return {
+        description: `Fill convert request: ${asStr(data.amount_in) ?? ''} for ${asStr(data.amount_out) ?? ''}`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    case 'fill_order': {
+      const openPays = asStr(data.open_pays) ?? '';
+      const currentPays = asStr(data.current_pays) ?? '';
+      return {
+        description:
+          data.open_owner === context
+            ? `Paid ${openPays} for ${currentPays}`
+            : `Paid ${currentPays} for ${openPays}`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    }
     case 'delegate_vesting_shares': {
       const vestStr = asStr(data.vesting_shares);
       const sp = globalProps && vestStr

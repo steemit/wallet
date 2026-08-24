@@ -212,6 +212,45 @@
     "savingsDesc": "余额需等待 3 天才能提取。",
     "estimatedValue": "预估账户价值",
     "estimatedValueDesc": "基于当前市场价格的美元预估价值。",
+    "steemPowerApr": "STEEM POWER 以约 {value}% 的 APR 增长，受区块链波动影响。",
+    "openOrders": "挂单",
+    "inConversion": "{amount} 转换中",
+    "conversionCompleteTip": "将于 {date} 完成",
+    "viewAllPendingConversions": "查看全部待完成转换（{count}）",
+    "pendingConversionsTitle": "待完成转换",
+    "recoveryWarning": {
+      "warning": "警告：您的 recovery account 将在 {days} {dayLabel}后变更为 @{recoveryAccount}，届时生效。",
+      "day": "天",
+      "days": "天",
+      "takeAction": "立即处理",
+      "dismiss": "忽略"
+    },
+    "savingsWithdrawals": {
+      "title": "待提取的储蓄",
+      "withdrawTo": "提取 {amount} 到 {to}",
+      "completes": "{time}后完成",
+      "cancel": "取消",
+      "cancelTitle": "取消储蓄提取",
+      "cancelDescription": "确定取消这笔 {amount} 的提取请求吗？",
+      "cancelConfirm": "确认取消",
+      "cancelling": "取消中…",
+      "cancelFailed": "取消提取失败。",
+      "back": "返回"
+    },
+    "changeRecoveryAccount": {
+      "title": "修改 Recovery Account",
+      "faqHint": "查看 FAQ 了解 Recovery Account 的更多信息。",
+      "currentAccount": "账户",
+      "currentRecoveryAccount": "当前 Recovery Account",
+      "pendingRecoveryAccount": "待生效变更",
+      "newAccount": "新 Recovery Account",
+      "required": "必填",
+      "ownerKeyRequired": "此操作需要您的 owner key。请使用主密码或 owner 私钥登录。",
+      "submit": "提交",
+      "submitting": "提交中…",
+      "cancel": "取消",
+      "failed": "修改 recovery account 失败。"
+    },
     "nextPowerDown": "下次能量下调计划时间",
     "navAccount": "账户",
     "navDiscover": "发现",
@@ -497,6 +536,16 @@
       "successMessage": "您的账户已成功恢复，现在可以使用新密码登录。",
       "goToLogin": "前往登录",
       "unknownError": "发生未知错误。"
+    },
+    "advancedRoutesNotice": "您已配置自定义的 power down 收款路由，请在 Advanced Routes 中重新确认。",
+    "settings": "设置",
+    "navSmtWhitepaper": "SMT 白皮书",
+    "navJobs": "招聘信息",
+    "navBusinessCenter": "Steem 商业中心",
+    "navSupport": "支持",
+    "support": {
+      "title": "Steemit 钱包支持",
+      "emailHint": "如有问题请发送邮件至"
     }
   },
   "navigation": {
@@ -524,7 +573,34 @@
     "amountMustBePositive": "金额必须大于 0",
     "transferProcessing": "转账处理中...",
     "memoEncrypted": "备注已加密",
-    "memoNotEncrypted": "备注未加密"
+    "memoNotEncrypted": "备注未加密",
+    "availableBalance": "可用余额：{amount} {asset}",
+    "exchangeAlertTitle": "检测到交易所账户",
+    "exchangeAlertMemo": "请使用交易所提供的正确 memo 和充值地址。",
+    "exchangeAlertSuspended": "请确认交易所未暂停充值。",
+    "exchangeAlertAsset": "请确认交易所仍支持 {asset} 充值。",
+    "similarAccountTitle": "检测到与交易所账户相似",
+    "similarAccountWarning": "收款地址与已知交易所账户（@{accountName}）有 {similarity}% 相似度。请仔细核对地址，转错账可能导致资金永久损失。",
+    "exchangeMisspelling": "收款地址疑似对已知交易所账户的故意拼写仿冒。强烈建议不要向其转账。",
+    "acknowledgeWarnings": "我已阅读并理解上述警告",
+    "errors": {
+      "account_name_should_not_be_empty": "账户名不能为空。",
+      "account_name_should_be_longer": "账户名过短。",
+      "account_name_should_be_shorter": "账户名过长。",
+      "badactor": "向该账户转账需谨慎，请仔细核对拼写以防钓鱼。",
+      "each_account_segment_should_start_with_a_letter": "账户名每段应以字母开头。",
+      "each_account_segment_should_have_only_letters_digits_or_dashes": "账户名每段只能包含字母、数字或连字符。",
+      "each_account_segment_should_have_only_one_dash_in_a_row": "账户名每段不能有连续两个连字符。",
+      "each_account_segment_should_end_with_a_letter_or_digit": "账户名每段应以字母或数字结尾。",
+      "each_account_segment_should_be_longer": "账户名每段长度不足。",
+      "account_not_found": "账户不存在",
+      "insufficient_funds": "余额不足",
+      "invalid_amount": "请输入有效金额",
+      "verified_exchange_no_memo": "收款方为已验证交易所，必须填写 memo。",
+      "memo_has_privatekey": "请不要在 memo 中包含疑似私钥或密码的内容。",
+      "memo_is_privatekey": "不要在 memo 中使用私钥。",
+      "acknowledge_warnings": "请先勾选确认上述警告再转账。"
+    }
   },
   "powerDown": {
     "title": "能量下调",
