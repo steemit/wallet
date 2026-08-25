@@ -81,10 +81,7 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
   const resourceExternalLinks = [
     { href: SIDE_PANEL_EXTERNAL.apiDocs, label: t('navApiDocs') },
     { href: SIDE_PANEL_EXTERNAL.bluepaper, label: t('navBluepaper') },
-    { href: SIDE_PANEL_EXTERNAL.smtWhitepaper, label: t('navSmtWhitepaper') },
     { href: SIDE_PANEL_EXTERNAL.whitepaper, label: t('navWhitepaper') },
-    { href: SIDE_PANEL_EXTERNAL.jobs, label: t('navJobs') },
-    { href: SIDE_PANEL_EXTERNAL.businessCenter, label: t('navBusinessCenter') },
   ] as const;
 
   const resourceInternalLinks = [

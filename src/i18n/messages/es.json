@@ -530,9 +530,6 @@
     },
     "advancedRoutesNotice": "Se configuraron rutas de retiro personalizadas para recibir los pagos de vesting. Confírmelas de nuevo en las opciones de rutas avanzadas.",
     "settings": "Configuración",
-    "navSmtWhitepaper": "Whitepaper de SMT",
-    "navJobs": "Empleo",
-    "navBusinessCenter": "Centro de negocios Steem",
     "navSupport": "Soporte",
     "support": {
       "title": "Soporte de Steemit Wallet",

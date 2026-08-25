@@ -27,7 +27,11 @@ function buildCsp(nonce: string): string {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${devExtras}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data:",
+    // profile_image/cover_image are arbitrary URLs from on-chain metadata, so image hosts
+    // cannot be allowlisted by name; legacy allowed `imgSrc: *` for the same reason.
+    // Scheme-wide https: covers steemitimages/devimages and user URLs; http is upgraded
+    // by upgrade-insecure-requests below.
+    "img-src 'self' blob: data: https:",
     "font-src 'self'",
     "connect-src 'self'",
     "object-src 'none'",

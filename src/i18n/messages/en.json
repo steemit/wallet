@@ -539,9 +539,6 @@
     },
     "advancedRoutesNotice": "Custom withdrawal routes were configured to receive vesting payments. Please reconfirm in the Advanced Routes options.",
     "settings": "Settings",
-    "navSmtWhitepaper": "SMT Whitepaper",
-    "navJobs": "Jobs",
-    "navBusinessCenter": "Steem Business Center",
     "navSupport": "Support",
     "support": {
       "title": "Steemit Wallet Support",

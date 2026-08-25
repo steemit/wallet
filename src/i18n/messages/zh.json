@@ -539,9 +539,6 @@
     },
     "advancedRoutesNotice": "您已配置自定义的 power down 收款路由，请在 Advanced Routes 中重新确认。",
     "settings": "设置",
-    "navSmtWhitepaper": "SMT 白皮书",
-    "navJobs": "招聘信息",
-    "navBusinessCenter": "Steem 商业中心",
     "navSupport": "支持",
     "support": {
       "title": "Steemit 钱包支持",

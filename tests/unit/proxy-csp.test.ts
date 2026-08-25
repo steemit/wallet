@@ -27,6 +27,8 @@ describe('proxy CSP nonce', () => {
     const scriptSrc = csp!.split(';').find((d) => d.trim().startsWith('script-src'))!;
     expect(scriptSrc).not.toContain("'unsafe-inline'");
     expect(csp).toContain("frame-ancestors 'none'");
+    // Arbitrary on-chain profile/cover image URLs must load (legacy parity: imgSrc '*').
+    expect(csp).toContain("img-src 'self' blob: data: https:");
   });
 
   it('generates a fresh nonce per request', () => {
