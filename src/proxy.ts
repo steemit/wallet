@@ -5,6 +5,40 @@ import { routing } from './i18n/routing';
 const intlMiddleware = createMiddleware(routing);
 
 /**
+ * Per-request CSP nonce. The RSC streaming payload (`self.__next_f.push(...)`) is delivered via
+ * framework-generated inline scripts, so a bare `script-src 'self'` blocks hydration entirely
+ * (SRI integrity attributes only cover external scripts). A random per-request nonce lets the
+ * framework inline scripts run while injected scripts (no nonce) stay blocked.
+ * 'strict-dynamic' extends trust to chunks loaded at runtime by already-trusted scripts.
+ * All pages render dynamically behind this proxy, so the nonce costs no static optimization.
+ */
+function generateNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary);
+}
+
+function buildCsp(nonce: string): string {
+  // Development needs 'unsafe-eval' for React DevTools' error stack reconstruction.
+  const devExtras = process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : '';
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${devExtras}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    'upgrade-insecure-requests',
+  ].join('; ');
+}
+
+/**
  * Steem wallet URLs use /@account/... (legacy). Next.js treats path segments starting with @ as
  * parallel route slots, so /\@user/... never reaches [username] and becomes a 404. Normalize to
  * /account/... before i18n; pages already strip an optional leading @ from the username param.
@@ -30,6 +64,15 @@ export default function proxy(request: NextRequest) {
   }
 
   const normalized = accountPathWithoutAtPrefix(request.nextUrl.pathname);
+
+  // Attach the per-request nonce to the request headers BEFORE the intl middleware builds its
+  // rewrite response, so the renderer sees them. Next.js parses the nonce out of the CSP request
+  // header during render and applies it to framework scripts (external and inline RSC payload).
+  const nonce = generateNonce();
+  const csp = buildCsp(nonce);
+  request.headers.set('x-nonce', nonce);
+  request.headers.set('Content-Security-Policy', csp);
+
   let forIntl: NextRequest = request;
   if (normalized !== null) {
     const url = request.nextUrl.clone();
@@ -39,7 +82,9 @@ export default function proxy(request: NextRequest) {
       headers: request.headers,
     });
   }
-  return intlMiddleware(forIntl);
+  const response = intlMiddleware(forIntl);
+  response.headers.set('Content-Security-Policy', csp);
+  return response;
 }
 
 export const config = {
