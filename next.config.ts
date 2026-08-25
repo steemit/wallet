@@ -22,8 +22,21 @@ const nextConfig: NextConfig = {
   // Compress responses
   compress: true,
 
-  // Exclude mysql2 from client-side bundling (server-only native module)
-  serverExternalPackages: ['mysql2'],
+  // Exclude native / Node-only packages from the client bundle. OpenTelemetry
+  // must stay on the server so the SDK can patch http/undici for W3C propagation.
+  serverExternalPackages: [
+    'mysql2',
+    '@opentelemetry/api',
+    '@opentelemetry/context-async-hooks',
+    '@opentelemetry/core',
+    '@opentelemetry/exporter-trace-otlp-http',
+    '@opentelemetry/instrumentation',
+    '@opentelemetry/instrumentation-http',
+    '@opentelemetry/instrumentation-undici',
+    '@opentelemetry/resources',
+    '@opentelemetry/sdk-trace-node',
+    '@opentelemetry/semantic-conventions',
+  ],
 
   // Subresource Integrity: generate SHA-256 hashes for all JS bundles at
   // build time. Browsers verify file integrity via the `integrity` attribute,
