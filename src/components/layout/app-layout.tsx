@@ -17,7 +17,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <Header onOpenSidePanel={() => setSidePanelOpen(true)} />
         <DegradationBanner />
         <SidePanel open={sidePanelOpen} onOpenChange={setSidePanelOpen} />
-        <main className="pt-16">{children}</main>
+        <main>{children}</main>
       </div>
     </TooltipProvider>
   );

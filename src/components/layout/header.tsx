@@ -64,7 +64,11 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
   return (
     <header
       className={cn(
-        'fixed inset-x-0 top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60'
+        // Sticky (not fixed) so the header stays in document flow: Radix's scroll lock
+        // compensates the removed scrollbar with body padding-right, which fixed
+        // (viewport-relative) elements ignore — that made the header jump sideways
+        // whenever the side panel or login dialog opened.
+        'sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60'
       )}
     >
       <nav className="flex h-16 items-center px-4 md:px-6">
