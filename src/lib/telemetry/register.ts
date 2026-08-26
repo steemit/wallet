@@ -32,6 +32,7 @@ import {
   loadTelemetryConfig,
   type TelemetryConfig,
 } from './config';
+import { FilteringSpanProcessor } from './filter-processor';
 import {
   shouldIgnoreIncomingPath,
   shouldIgnoreOutgoingFetch,
@@ -117,9 +118,15 @@ function startSdk(config: TelemetryConfig): void {
     exporterOptions.headers = config.headers;
   }
 
+  // Filter health-probe spans (Next.js internals bypass HttpInstrumentation
+  // ignoreIncomingRequestHook) before batching/export.
   const nextProvider = new NodeTracerProvider({
     resource: buildResource(config),
-    spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter(exporterOptions))],
+    spanProcessors: [
+      new FilteringSpanProcessor(
+        new BatchSpanProcessor(new OTLPTraceExporter(exporterOptions))
+      ),
+    ],
   });
 
   nextProvider.register({

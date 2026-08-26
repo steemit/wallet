@@ -4,11 +4,25 @@
  * Health probes (ELB / OpenResty / Docker HEALTHCHECK) would otherwise dominate
  * the trace stream. Outgoing calls to the OTLP collector must be ignored to
  * prevent an export-loop of traces about traces.
+ *
+ * Node `HttpInstrumentation.ignoreIncomingRequestHook` only skips the outer
+ * HTTP server span. Next.js still emits framework spans (`HEAD /api/health`,
+ * `executing api route (app) /api/health`, middleware, etc.). Those are dropped
+ * in the FilteringSpanProcessor via {@link shouldDropHealthSpan}.
  */
 
 export const IGNORED_INCOMING_PATHS = [
   '/api/health',
   '/.well-known/healthcheck.json',
+] as const;
+
+/** Attribute keys that may carry the request path on HTTP / Next spans. */
+const PATH_ATTRIBUTE_KEYS = [
+  'http.target',
+  'url.path',
+  'http.route',
+  'http.url',
+  'url.full',
 ] as const;
 
 export function incomingPathname(url: string | undefined): string {
@@ -27,6 +41,40 @@ export function incomingPathname(url: string | undefined): string {
 export function shouldIgnoreIncomingPath(url: string | undefined): boolean {
   const path = incomingPathname(url);
   return IGNORED_INCOMING_PATHS.some((ignored) => path === ignored);
+}
+
+/**
+ * Extract a pathname from span attributes (legacy `http.target` or stable
+ * `url.path` / `http.route`). Returns '' when none are present.
+ */
+export function pathFromSpanAttributes(
+  attributes: Record<string, unknown> | undefined
+): string {
+  if (!attributes) return '';
+  for (const key of PATH_ATTRIBUTE_KEYS) {
+    const value = attributes[key];
+    if (typeof value !== 'string' || !value) continue;
+    const path = incomingPathname(value);
+    if (path) return path;
+  }
+  return '';
+}
+
+/**
+ * True when a finished span is a health probe (by path attribute or span name).
+ * Used by the filtering processor so Next.js internal spans do not fill OO.
+ */
+export function shouldDropHealthSpan(
+  name: string,
+  attributes: Record<string, unknown> | undefined
+): boolean {
+  if (shouldIgnoreIncomingPath(pathFromSpanAttributes(attributes))) {
+    return true;
+  }
+  for (const ignored of IGNORED_INCOMING_PATHS) {
+    if (name.includes(ignored)) return true;
+  }
+  return false;
 }
 
 function defaultPort(protocol: string, port: string): string {

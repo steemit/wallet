@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   incomingPathname,
+  pathFromSpanAttributes,
+  shouldDropHealthSpan,
   shouldIgnoreIncomingPath,
   shouldIgnoreOutgoingFetch,
   shouldIgnoreOutgoingHttp,
@@ -31,6 +33,42 @@ describe('shouldIgnoreIncomingPath', () => {
   it('treats missing url as not ignored', () => {
     expect(shouldIgnoreIncomingPath(undefined)).toBe(false);
     expect(incomingPathname(undefined)).toBe('');
+  });
+});
+
+describe('shouldDropHealthSpan', () => {
+  it('drops spans whose http.target is a health path', () => {
+    expect(
+      shouldDropHealthSpan('GET', { 'http.target': '/.well-known/healthcheck.json' })
+    ).toBe(true);
+    expect(
+      shouldDropHealthSpan('GET', { 'url.path': '/api/health' })
+    ).toBe(true);
+  });
+
+  it('drops Next.js spans that embed the health path in the name', () => {
+    expect(shouldDropHealthSpan('HEAD /api/health', {})).toBe(true);
+    expect(
+      shouldDropHealthSpan('executing api route (app) /api/health', undefined)
+    ).toBe(true);
+  });
+
+  it('keeps normal API and page spans', () => {
+    expect(
+      shouldDropHealthSpan('GET', { 'http.target': '/api/query/accounts' })
+    ).toBe(false);
+    expect(shouldDropHealthSpan('middleware GET', {})).toBe(false);
+    expect(shouldDropHealthSpan('start response', undefined)).toBe(false);
+  });
+});
+
+describe('pathFromSpanAttributes', () => {
+  it('prefers http.target then url.path', () => {
+    expect(pathFromSpanAttributes({ 'http.target': '/api/health?x=1' })).toBe(
+      '/api/health'
+    );
+    expect(pathFromSpanAttributes({ 'url.path': '/market' })).toBe('/market');
+    expect(pathFromSpanAttributes({})).toBe('');
   });
 });
 

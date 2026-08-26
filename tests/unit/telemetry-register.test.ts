@@ -1,10 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const registerMock = vi.fn();
-const shutdownMock = vi.fn().mockResolvedValue(undefined);
-const setLoggerMock = vi.fn();
-const registerInstrumentationsMock = vi.fn();
-const resourceFromAttributesMock = vi.fn().mockReturnValue({ attributes: {} });
+const {
+  registerMock,
+  shutdownMock,
+  setLoggerMock,
+  registerInstrumentationsMock,
+  resourceFromAttributesMock,
+  providerConfigs,
+} = vi.hoisted(() => ({
+  registerMock: vi.fn(),
+  shutdownMock: vi.fn().mockResolvedValue(undefined),
+  setLoggerMock: vi.fn(),
+  registerInstrumentationsMock: vi.fn(),
+  resourceFromAttributesMock: vi.fn().mockReturnValue({ attributes: {} }),
+  providerConfigs: [] as unknown[],
+}));
 
 vi.mock('@opentelemetry/api', () => ({
   diag: { setLogger: (...args: unknown[]) => setLoggerMock(...args) },
@@ -59,9 +69,13 @@ vi.mock('@opentelemetry/resources', () => ({
 }));
 
 vi.mock('@opentelemetry/sdk-trace-node', () => ({
-  BatchSpanProcessor: class {},
+  BatchSpanProcessor: class {
+    constructor(public readonly exporter: unknown) {}
+  },
   NodeTracerProvider: class {
-    constructor(public readonly config: unknown) {}
+    constructor(public readonly config: unknown) {
+      providerConfigs.push(config);
+    }
     register(...args: unknown[]) {
       registerMock(...args);
     }
@@ -98,6 +112,7 @@ describe('registerTelemetry', () => {
     registerMock.mockClear();
     registerInstrumentationsMock.mockClear();
     setLoggerMock.mockClear();
+    providerConfigs.length = 0;
     for (const key of TELEMETRY_ENV_KEYS) {
       original[key] = process.env[key];
       delete process.env[key];
@@ -198,6 +213,17 @@ describe('registerTelemetry', () => {
         path: '/',
       })
     ).toBe(false);
+
+    const { FilteringSpanProcessor } = await import(
+      '@/lib/telemetry/filter-processor'
+    );
+    const providerConfig = providerConfigs[0] as {
+      spanProcessors: unknown[];
+    };
+    expect(providerConfig.spanProcessors).toHaveLength(1);
+    expect(providerConfig.spanProcessors[0]).toBeInstanceOf(
+      FilteringSpanProcessor
+    );
   });
 
   it('suppresses repeated OTLP export errors', async () => {
