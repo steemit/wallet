@@ -35,9 +35,7 @@ function makeSpan(opts: {
   } as unknown as ReadableSpan;
 }
 
-function mockDelegate(): SpanProcessor & {
-  onEnd: ReturnType<typeof vi.fn>;
-} {
+function mockDelegate() {
   return {
     onStart: vi.fn(),
     onEnd: vi.fn(),
@@ -50,7 +48,9 @@ function mockDelegate(): SpanProcessor & {
 describe('FilteringSpanProcessor', () => {
   it('forwards business spans to the delegate', () => {
     const delegate = mockDelegate();
-    const processor = new FilteringSpanProcessor(delegate);
+    const processor = new FilteringSpanProcessor(
+      delegate as unknown as SpanProcessor
+    );
     const span = makeSpan({
       name: 'GET',
       spanId: '1111111111111111',
@@ -62,7 +62,9 @@ describe('FilteringSpanProcessor', () => {
 
   it('drops health spans identified by http.target', () => {
     const delegate = mockDelegate();
-    const processor = new FilteringSpanProcessor(delegate);
+    const processor = new FilteringSpanProcessor(
+      delegate as unknown as SpanProcessor
+    );
     processor.onEnd(
       makeSpan({
         name: 'GET',
@@ -75,7 +77,9 @@ describe('FilteringSpanProcessor', () => {
 
   it('drops Next.js spans that name the health route', () => {
     const delegate = mockDelegate();
-    const processor = new FilteringSpanProcessor(delegate);
+    const processor = new FilteringSpanProcessor(
+      delegate as unknown as SpanProcessor
+    );
     processor.onEnd(
       makeSpan({
         name: 'HEAD /api/health',
@@ -93,7 +97,9 @@ describe('FilteringSpanProcessor', () => {
 
   it('drops descendants of a dropped health span (same parent)', () => {
     const delegate = mockDelegate();
-    const processor = new FilteringSpanProcessor(delegate);
+    const processor = new FilteringSpanProcessor(
+      delegate as unknown as SpanProcessor
+    );
     const parentId = '5555555555555555';
     processor.onEnd(
       makeSpan({
@@ -115,7 +121,9 @@ describe('FilteringSpanProcessor', () => {
 
   it('drops later spans on a dropped health trace even without parent link', () => {
     const delegate = mockDelegate();
-    const processor = new FilteringSpanProcessor(delegate);
+    const processor = new FilteringSpanProcessor(
+      delegate as unknown as SpanProcessor
+    );
     const traceId = 'cccccccccccccccccccccccccccccccc';
     processor.onEnd(
       makeSpan({
@@ -137,7 +145,9 @@ describe('FilteringSpanProcessor', () => {
 
   it('forwards onStart / forceFlush / shutdown to the delegate', async () => {
     const delegate = mockDelegate();
-    const processor = new FilteringSpanProcessor(delegate);
+    const processor = new FilteringSpanProcessor(
+      delegate as unknown as SpanProcessor
+    );
     const span = {} as Span;
     const ctx = {} as Context;
     processor.onStart(span, ctx);
