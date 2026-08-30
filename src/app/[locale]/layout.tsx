@@ -2,10 +2,13 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import { Providers } from '../providers';
 import { AppLayout } from '@/components/layout/app-layout';
+import { GoogleAnalytics } from '@/components/analytics/google-analytics';
+import { getGaMeasurementId } from '@/lib/analytics/ga-id';
 import '../globals.css';
 
 const geistSans = Geist({
@@ -55,12 +58,15 @@ export default async function LocaleLayout({
   // Providing all messages to the client
   // side is the easiest way to get started
   const messages = await getMessages();
+  const gaId = getGaMeasurementId();
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
     <html lang={locale}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {gaId ? <GoogleAnalytics measurementId={gaId} {...(nonce ? { nonce } : {})} /> : null}
         <Providers>
           <NextIntlClientProvider messages={messages}>
             <AppLayout>{children}</AppLayout>

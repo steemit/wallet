@@ -6,6 +6,7 @@ import { steem } from '@steemit/steem-js';
 
 import { formatSteemIsoTimestamp } from '@/lib/steem/chain-time';
 
+import type { OverseerCustomPayload } from '@/lib/analytics/overseer-payload';
 import {
   ORDERBOOK_LIMIT,
   RECENT_TRADES_LIMIT,
@@ -44,6 +45,7 @@ const STEEM_RPC_URLS = (process.env.STEEM_RPC_URL || 'https://api.steemit.com')
   .filter(Boolean);
 
 let currentUrlIndex = 0;
+let overseerWarned = false;
 function getCurrentRpcUrl(): string {
   return STEEM_RPC_URLS[currentUrlIndex % STEEM_RPC_URLS.length] ?? STEEM_RPC_URLS[0]!;
 }
@@ -996,6 +998,34 @@ export class SteemService {
       console.error('Error fetching proposal votes by proposal:', error);
       throw new Error(`Failed to fetch proposal votes: ${(error as Error).message}`);
     });
+  }
+
+  /**
+   * Relay an overseer.collect custom event through the Steem RPC (jussi).
+   * Fire-and-forget from callers: never throws, logs at most once per process
+   * so a missing overseer upstream cannot flood logs or fail user flows.
+   */
+  static async collectOverseer(payload: OverseerCustomPayload): Promise<void> {
+    try {
+      await withFailover(async () => {
+        ensureConfigured();
+        const api = steem.api as unknown as {
+          callAsync?: (method: string, params: unknown) => Promise<unknown>;
+        };
+        if (typeof api.callAsync !== 'function') {
+          throw new Error('Steem API callAsync is not available');
+        }
+        await api.callAsync('overseer.collect', ['custom', payload]);
+      });
+    } catch (err) {
+      if (!overseerWarned) {
+        overseerWarned = true;
+        console.warn(
+          'overseer.collect failed; further errors suppressed:',
+          err instanceof Error ? err.message : err
+        );
+      }
+    }
   }
 
   static async listProposalVotesByVoter(voter: string): Promise<

@@ -37,6 +37,11 @@ services:
       # Analytics
       - MIXPANEL_TOKEN=${MIXPANEL_TOKEN:-}
       - ANALYTICS_ENABLED=${ANALYTICS_ENABLED:-false}
+      # Runtime gtag ID (legacy SDC_GOOGLE_ANALYTICS_ID). Empty = script not injected.
+      - GOOGLE_ANALYTICS_ID=${GOOGLE_ANALYTICS_ID:-}
+      - SDC_GOOGLE_ANALYTICS_ID=${SDC_GOOGLE_ANALYTICS_ID:-}
+      - STEEM_WHALE=${STEEM_WHALE:-10000}
+      - SBD_WHALE=${SBD_WHALE:-500}
 
       # Rate Limiting
       - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}

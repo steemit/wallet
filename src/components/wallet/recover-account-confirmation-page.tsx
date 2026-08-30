@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
+import { userActionRecord } from '@/lib/analytics/overseer';
 
 function passwordToOwnerPubKey(username: string, password: string): string {
   const raw = password.trim();
@@ -128,6 +129,7 @@ export function RecoverAccountConfirmationPage({ code }: { code: string }) {
       }
 
       setSuccess(true);
+      userActionRecord('recovery_account', { username: name });
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : t('unknownError'));
     } finally {

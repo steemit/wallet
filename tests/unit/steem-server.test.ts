@@ -200,6 +200,36 @@ describe('SteemService.broadcastTransaction', () => {
   });
 });
 
+describe('SteemService.collectOverseer', () => {
+  it('calls overseer.collect with the custom payload tuple', async () => {
+    api.callAsync.mockResolvedValueOnce(null);
+    await SteemService.collectOverseer({
+      measurement: 'route',
+      tags: { app: 'wallet', tag: 'market' },
+      fields: { trackingId: 'aa' },
+    });
+    expect(api.callAsync).toHaveBeenCalledWith('overseer.collect', [
+      'custom',
+      {
+        measurement: 'route',
+        tags: { app: 'wallet', tag: 'market' },
+        fields: { trackingId: 'aa' },
+      },
+    ]);
+  });
+
+  it('does not throw when the RPC rejects (analytics must never fail the caller)', async () => {
+    api.callAsync.mockRejectedValueOnce(new Error('unknown method'));
+    await expect(
+      SteemService.collectOverseer({
+        measurement: 'user_login',
+        tags: { entry: 'wallet' },
+        fields: { username: 'alice' },
+      })
+    ).resolves.toBeUndefined();
+  });
+});
+
 describe('SteemService.getCurrentMedianHistoryPrice', () => {
   it('returns base/quote verbatim when the node provides strings', async () => {
     api.callAsync.mockResolvedValueOnce({ base: '1.234 SBD', quote: '5.000 STEEM' });

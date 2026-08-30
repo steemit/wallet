@@ -25,7 +25,10 @@ function buildCsp(nonce: string): string {
   const devExtras = process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : '';
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${devExtras}`,
+    // Host allowlists after 'strict-dynamic' are ignored by supporting browsers
+    // (the nonce'd gtag loader can fetch further scripts). They remain as a
+    // fallback for older browsers, matching wallet-legacy helmet scriptSrc.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://www.googletagmanager.com https://www.google-analytics.com${devExtras}`,
     "style-src 'self' 'unsafe-inline'",
     // profile_image/cover_image are arbitrary URLs from on-chain metadata, so image hosts
     // cannot be allowlisted by name; legacy allowed `imgSrc: *` for the same reason.
@@ -33,7 +36,7 @@ function buildCsp(nonce: string): string {
     // by upgrade-insecure-requests below.
     "img-src 'self' blob: data: https:",
     "font-src 'self'",
-    "connect-src 'self'",
+    "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://analytics.google.com https://*.analytics.google.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

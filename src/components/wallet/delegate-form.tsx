@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { transfersPathForUsername } from '@/lib/wallet/wallet-modal-search-params';
+import { userActionRecord } from '@/lib/analytics/overseer';
 
 export type DelegateFormVariant = 'page' | 'dialog';
 
@@ -86,6 +87,13 @@ export function DelegateForm({
         setIsLoading(false);
         return;
       }
+
+      userActionRecord('delegate_vesting_shares', {
+        transferCoin: 'VESTS',
+        amount: shareValue,
+        from: username,
+        to: delegatee.trim().replace(/^@/, '').toLowerCase(),
+      });
 
       setIsLoading(false);
       startTransition(() => {

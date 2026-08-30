@@ -33,6 +33,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { transfersPathForUsername } from '@/lib/wallet/wallet-modal-search-params';
 import { cn } from '@/lib/utils';
+import { userActionRecord } from '@/lib/analytics/overseer';
 
 export type PowerDownFormVariant = 'page' | 'dialog';
 
@@ -138,6 +139,11 @@ export function PowerDownForm({ variant = 'page', onSuccess }: PowerDownFormProp
         setIsLoading(false);
         return;
       }
+
+      userActionRecord('withdraw_vesting', {
+        username,
+        amount: steemPowerFromVests(withdraw, globalProps),
+      });
 
       finishSuccess();
     } catch (err) {

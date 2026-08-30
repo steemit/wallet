@@ -29,6 +29,10 @@ describe('proxy CSP nonce', () => {
     expect(csp).toContain("frame-ancestors 'none'");
     // Arbitrary on-chain profile/cover image URLs must load (legacy parity: imgSrc '*').
     expect(csp).toContain("img-src 'self' blob: data: https:");
+    // gtag (legacy google_analytics_id) needs connect + a script-src host fallback.
+    expect(csp).toContain('https://www.googletagmanager.com');
+    expect(csp).toContain('https://www.google-analytics.com');
+    expect(csp).toContain('https://*.google-analytics.com');
   });
 
   it('generates a fresh nonce per request', () => {
