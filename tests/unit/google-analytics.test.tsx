@@ -12,7 +12,9 @@ vi.mock('next/script', () => ({
     id?: string;
   }) {
     return (
-      <script data-testid={id ?? src} src={src}>
+      // async: next/script afterInteractive loads asynchronously; without it
+      // this mock trips @next/next/no-sync-scripts.
+      <script data-testid={id ?? src} src={src} async>
         {children}
       </script>
     );
