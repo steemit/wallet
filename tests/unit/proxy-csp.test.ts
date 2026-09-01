@@ -18,8 +18,8 @@ function req(path: string): NextRequest {
 }
 
 describe('proxy CSP nonce', () => {
-  it('sets a CSP response header with a nonce and strict-dynamic on page responses', () => {
-    const res = proxy(req('/market'));
+  it('sets a CSP response header with a nonce and strict-dynamic on page responses', async () => {
+    const res = await proxy(req('/market'));
     const csp = res.headers.get('content-security-policy');
     expect(csp).toBeTruthy();
     expect(csp).toContain("script-src 'self' 'nonce-");
@@ -35,30 +35,30 @@ describe('proxy CSP nonce', () => {
     expect(csp).toContain('https://*.google-analytics.com');
   });
 
-  it('generates a fresh nonce per request', () => {
-    const csp1 = proxy(req('/market')).headers.get('content-security-policy');
-    const csp2 = proxy(req('/market')).headers.get('content-security-policy');
+  it('generates a fresh nonce per request', async () => {
+    const csp1 = (await proxy(req('/market'))).headers.get('content-security-policy');
+    const csp2 = (await proxy(req('/market'))).headers.get('content-security-policy');
     expect(csp1).toBeTruthy();
     expect(csp1).not.toBe(csp2);
   });
 
-  it('mirrors the same nonce into the request headers seen by the renderer', () => {
+  it('mirrors the same nonce into the request headers seen by the renderer', async () => {
     const request = req('/market');
-    proxy(request);
+    await proxy(request);
     const nonce = request.headers.get('x-nonce');
     const cspReq = request.headers.get('content-security-policy');
     expect(nonce).toBeTruthy();
     expect(cspReq).toContain(`'nonce-${nonce}'`);
   });
 
-  it('keeps the /@account normalization working with the nonce applied', () => {
+  it('keeps the /@account normalization working with the nonce applied', async () => {
     const request = req('/@alice/transfers');
-    const res = proxy(request);
+    const res = await proxy(request);
     expect(res.headers.get('content-security-policy')).toContain("'nonce-");
   });
 
-  it('skips CSP on the healthcheck short-circuit', () => {
-    const res = proxy(req('/.well-known/healthcheck.json'));
+  it('skips CSP on the healthcheck short-circuit', async () => {
+    const res = await proxy(req('/.well-known/healthcheck.json'));
     expect(res.headers.get('content-security-policy')).toBeNull();
   });
 });

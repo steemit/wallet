@@ -5,6 +5,8 @@
  *
  * Events POST to /api/analytics/overseer (CSRF + rate limit); the server
  * reconstructs the legacy payload and relays `overseer.collect` to jussi.
+ * The csrf_token cookie is issued by the proxy middleware on every document
+ * response, so it is available to anonymous visitors from the first page load.
  * Failures are swallowed — analytics must never break wallet actions.
  */
 
