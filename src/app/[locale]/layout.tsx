@@ -8,6 +8,7 @@ import { routing } from '@/i18n/routing';
 import { Providers } from '../providers';
 import { AppLayout } from '@/components/layout/app-layout';
 import { GoogleAnalytics } from '@/components/analytics/google-analytics';
+import { GoogleAnalyticsPageviews } from '@/components/analytics/google-analytics-pageviews';
 import { getGaMeasurementId } from '@/lib/analytics/ga-id';
 import '../globals.css';
 
@@ -66,7 +67,12 @@ export default async function LocaleLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* GA scripts must stay in a fragment free of 'use client' elements —
+            a client sibling inside the SAME fragment makes React defer the
+            scripts to hydration instead of emitting them in the SSR HTML.
+            Hence two separate conditionals, not one shared fragment. */}
         {gaId ? <GoogleAnalytics measurementId={gaId} {...(nonce ? { nonce } : {})} /> : null}
+        {gaId ? <GoogleAnalyticsPageviews measurementId={gaId} /> : null}
         <Providers>
           <NextIntlClientProvider messages={messages}>
             <AppLayout>{children}</AppLayout>

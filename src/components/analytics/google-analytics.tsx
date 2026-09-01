@@ -1,23 +1,19 @@
-'use client';
-
-import { useEffect } from 'react';
-import Script from 'next/script';
-import { usePathname } from '@/i18n/routing';
-
-declare global {
-  interface Window {
-    dataLayer?: unknown[];
-    gtag?: (...args: unknown[]) => void;
-  }
-}
-
 /**
- * gtag loader + SPA pageviews. Matches wallet-legacy:
- * - `server-html.jsx` injects gtag/js + config
- * - `JsPlugins.js` also sets cookie_domain: auto and sample_rate: 5
+ * gtag loader rendered straight into the SSR HTML so the browser loads it at
+ * parse time — no client-side injection, no hydration dependency (wallet-legacy
+ * `server-html.jsx` parity; also what condenser settled on in its #4010 fix).
+ * Init config matches legacy `JsPlugins.js`: cookie_domain auto, sample_rate 5,
+ * send_page_view:false (SPA pageviews are reported by GoogleAnalyticsPageviews
+ * — render it as a SEPARATE sibling conditional in the layout, never inside
+ * the same fragment: any 'use client' element sharing a fragment with these
+ * scripts makes React defer them to hydration instead of emitting them in the
+ * SSR HTML).
  *
- * Initial config uses send_page_view: false so the pathname effect is the
- * single source of pageviews (avoids double-counting the first load).
+ * measurementId must arrive validated (getGaMeasurementId — strict GA id
+ * regex) since it is interpolated into an inline script.
+ *
+ * Both scripts carry the CSP nonce: with 'strict-dynamic' the host allowlist
+ * only applies to legacy browsers, so an un-nonced script would be blocked.
  */
 export function GoogleAnalytics({
   measurementId,
@@ -26,34 +22,28 @@ export function GoogleAnalytics({
   measurementId: string;
   nonce?: string;
 }) {
-  const pathname = usePathname();
-
-  useEffect(() => {
-    if (typeof window.gtag !== 'function') return;
-    window.gtag('config', measurementId, { page_path: pathname });
-  }, [pathname, measurementId]);
-
   const scriptProps = nonce ? { nonce } : {};
 
   return (
     <>
-      <Script
+      <script
+        async
         src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
-        strategy="afterInteractive"
         {...scriptProps}
       />
-      <Script id="ga-gtag-init" strategy="afterInteractive" {...scriptProps}>
-        {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${measurementId}', {
-            cookie_domain: 'auto',
-            sample_rate: 5,
-            send_page_view: false
-          });
-        `}
-      </Script>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${measurementId}', {
+  cookie_domain: 'auto',
+  sample_rate: 5,
+  send_page_view: false
+});`,
+        }}
+        {...scriptProps}
+      />
     </>
   );
 }
