@@ -230,6 +230,58 @@ describe('SteemService.collectOverseer', () => {
   });
 });
 
+describe('collectOverseer (no failover — analytics must not disturb chain traffic)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('makes exactly one attempt and never rotates to another URL on failure', async () => {
+    vi.resetModules();
+    vi.stubEnv('STEEM_RPC_URL', 'https://node-a,https://node-b');
+    const { SteemService: Service } = await import('@/lib/steem/server');
+    const { steem: mockedSteem } = await import('@steemit/steem-js');
+
+    vi.mocked(mockedSteem.api.callAsync).mockRejectedValue(new Error('overseer down'));
+
+    await Service.collectOverseer({
+      measurement: 'route',
+      tags: { app: 'wallet', tag: 'market' },
+      fields: { trackingId: 'aa' },
+    });
+
+    expect(mockedSteem.api.callAsync).toHaveBeenCalledTimes(1);
+    const urls = vi
+      .mocked(mockedSteem.api.setOptions)
+      .mock.calls.map((c) => (c[0] as { url: string }).url);
+    // Only the current RPC may be configured — a dead overseer namespace must
+    // not move the shared failover index (and with it, real chain traffic).
+    expect(urls).toEqual(['https://node-a']);
+  });
+
+  it('warns once per process, then stays silent for later failed events', async () => {
+    vi.resetModules();
+    vi.stubEnv('STEEM_RPC_URL', 'https://node-a');
+    const { SteemService: Service } = await import('@/lib/steem/server');
+    const { steem: mockedSteem } = await import('@steemit/steem-js');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    vi.mocked(mockedSteem.api.callAsync).mockRejectedValue(new Error('overseer down'));
+    const payload = {
+      measurement: 'route',
+      tags: { app: 'wallet', tag: 'index' },
+      fields: { trackingId: 'bb' },
+    };
+    await Service.collectOverseer(payload);
+    await Service.collectOverseer(payload);
+    await Service.collectOverseer(payload);
+
+    const overseerWarns = warn.mock.calls.filter((c) =>
+      String(c[0]).includes('overseer.collect failed')
+    );
+    expect(overseerWarns).toHaveLength(1);
+  });
+});
+
 describe('SteemService.getCurrentMedianHistoryPrice', () => {
   it('returns base/quote verbatim when the node provides strings', async () => {
     api.callAsync.mockResolvedValueOnce({ base: '1.234 SBD', quote: '5.000 STEEM' });

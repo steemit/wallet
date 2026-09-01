@@ -1004,19 +1004,23 @@ export class SteemService {
    * Relay an overseer.collect custom event through the Steem RPC (jussi).
    * Fire-and-forget from callers: never throws, logs at most once per process
    * so a missing overseer upstream cannot flood logs or fail user flows.
+   *
+   * Deliberately NOT wrapped in withFailover: analytics must never rotate the
+   * shared failover index (it would move real chain traffic to a different
+   * RPC just because the overseer namespace is down) nor retry every
+   * configured URL per event (a warn per URL per event). One attempt against
+   * the current RPC, then give up.
    */
   static async collectOverseer(payload: OverseerCustomPayload): Promise<void> {
     try {
-      await withFailover(async () => {
-        ensureConfigured();
-        const api = steem.api as unknown as {
-          callAsync?: (method: string, params: unknown) => Promise<unknown>;
-        };
-        if (typeof api.callAsync !== 'function') {
-          throw new Error('Steem API callAsync is not available');
-        }
-        await api.callAsync('overseer.collect', ['custom', payload]);
-      });
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        callAsync?: (method: string, params: unknown) => Promise<unknown>;
+      };
+      if (typeof api.callAsync !== 'function') {
+        throw new Error('Steem API callAsync is not available');
+      }
+      await api.callAsync('overseer.collect', ['custom', payload]);
     } catch (err) {
       if (!overseerWarned) {
         overseerWarned = true;
