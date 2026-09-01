@@ -22,6 +22,12 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+// All routes render per-request (condenser #4012 parity): runtime env like
+// GOOGLE_ANALYTICS_ID must never be baked into prerendered HTML. Pages are
+// already dynamic because of the CSP-nonce headers() call below; this export
+// makes the invariant explicit and independent of that mechanism.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Steemit Wallet',
   description: 'Steemit Wallet is an online wallet for managing Steem accounts.',
