@@ -2,10 +2,14 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import { Providers } from '../providers';
 import { AppLayout } from '@/components/layout/app-layout';
+import { GoogleAnalytics } from '@/components/analytics/google-analytics';
+import { GoogleAnalyticsPageviews } from '@/components/analytics/google-analytics-pageviews';
+import { getGaMeasurementId } from '@/lib/analytics/ga-id';
 import '../globals.css';
 
 const geistSans = Geist({
@@ -17,6 +21,12 @@ const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 });
+
+// All routes render per-request (condenser #4012 parity): runtime env like
+// GOOGLE_ANALYTICS_ID must never be baked into prerendered HTML. Pages are
+// already dynamic because of the CSP-nonce headers() call below; this export
+// makes the invariant explicit and independent of that mechanism.
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Steemit Wallet',
@@ -55,12 +65,20 @@ export default async function LocaleLayout({
   // Providing all messages to the client
   // side is the easiest way to get started
   const messages = await getMessages();
+  const gaId = getGaMeasurementId();
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
     <html lang={locale}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* GA scripts must stay in a fragment free of 'use client' elements —
+            a client sibling inside the SAME fragment makes React defer the
+            scripts to hydration instead of emitting them in the SSR HTML.
+            Hence two separate conditionals, not one shared fragment. */}
+        {gaId ? <GoogleAnalytics measurementId={gaId} {...(nonce ? { nonce } : {})} /> : null}
+        {gaId ? <GoogleAnalyticsPageviews measurementId={gaId} /> : null}
         <Providers>
           <NextIntlClientProvider messages={messages}>
             <AppLayout>{children}</AppLayout>

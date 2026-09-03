@@ -11,6 +11,7 @@ import type { Witness } from '@/lib/steem/types';
 import { LoginForm } from '@/components/auth/login-form';
 import { DISABLED_SIGNING_KEY } from '@/lib/steem/constants';
 import { toast } from 'sonner';
+import { userActionRecord } from '@/lib/analytics/overseer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -158,6 +159,7 @@ export function WitnessVoteForm() {
             (approve ? t('voteError') : t('unvoteError'))
         );
       }
+      userActionRecord('account_witness_vote', { username, witness: witnessName });
     },
     [t, username]
   );
@@ -215,6 +217,7 @@ export function WitnessVoteForm() {
       const signedTx = await SteemSigner.signWitnessProxy(username, nextProxy, key);
       const resp = await apiClient.broadcastWitnessProxy(signedTx, username);
       if (!resp.success) throw new Error(resp.error || tCommon('error'));
+      userActionRecord('account_witness_proxy', { username, proxy: nextProxy });
       setProxyInput('');
       toast.success(nextProxy ? t('proxySetSuccess') : t('proxyClearedSuccess'));
       await refetchAccount();
@@ -255,6 +258,7 @@ export function WitnessVoteForm() {
           const signedTx = await SteemSigner.signWitnessProxy(username, pendingAction.proxy, key);
           const resp = await apiClient.broadcastWitnessProxy(signedTx, username);
           if (!resp.success) throw new Error(resp.error || tCommon('error'));
+          userActionRecord('account_witness_proxy', { username, proxy: pendingAction.proxy });
           toast.success(pendingAction.proxy ? t('proxySetSuccess') : t('proxyClearedSuccess'));
         }
         await refetchAccount();

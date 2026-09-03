@@ -20,6 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { userActionRecord } from '@/lib/analytics/overseer';
 
 export interface ChangePasswordSectionProps {
   username: string;
@@ -116,6 +117,7 @@ export function ChangePasswordSection({
 
       clearRememberedPostingKey();
       setChangeSuccess(true);
+      userActionRecord('change_password', { username });
       await logout();
     } catch (err) {
       const message = err instanceof Error ? err.message : t('broadcastFailed');

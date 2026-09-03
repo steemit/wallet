@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { getRedis, redisKey } from '@/lib/cache/redis';
+import { buildUserLoginPayload } from '@/lib/analytics/overseer-payload';
 
 export async function POST(request: NextRequest) {
   try {
@@ -101,6 +102,10 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Legacy `/login_account` checkpoint: overseer measurement `user_login`.
+    // Do not await — a slow/missing overseer must not delay the session response.
+    void SteemService.collectOverseer(buildUserLoginPayload(account.name));
 
     // Return success with account info
     return NextResponse.json({

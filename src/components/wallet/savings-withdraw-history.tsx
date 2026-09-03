@@ -8,6 +8,7 @@ import { cachedFetch } from '@/lib/cache/client-fetch';
 import { clientCache } from '@/lib/cache/client-cache';
 import { formatTimeUntil } from '@/lib/wallet/format-time-ago';
 import type { PendingSavingsWithdrawal } from '@/hooks/use-wallet-estimated-value';
+import { userActionRecord } from '@/lib/analytics/overseer';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -81,6 +82,7 @@ export function SavingsWithdrawHistory({
         setCancelling(false);
         return;
       }
+      userActionRecord('cancel_transfer_from_savings', { username });
       setCancelTarget(null);
       setCancelling(false);
       clientCache.invalidate(extrasUrl);

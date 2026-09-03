@@ -30,6 +30,7 @@ import {
   transfersPathForUsername,
   type WalletTransferType,
 } from '@/lib/wallet/wallet-modal-search-params';
+import { userActionRecord } from '@/lib/analytics/overseer';
 
 export type TransferFormVariant = 'page' | 'dialog';
 
@@ -346,6 +347,23 @@ export function TransferForm({
         setIsLoading(false);
         return;
       }
+
+      const recipient =
+        transferType === 'transfer'
+          ? formData.to.trim().replace(/^@/, '').toLowerCase()
+          : username;
+      const overseerAction =
+        transferType === 'transfer'
+          ? 'transfer'
+          : transferType === 'savings'
+            ? 'transfer_to_savings'
+            : 'transfer_from_savings';
+      userActionRecord(overseerAction, {
+        transferCoin: amountSuffix,
+        amount: amountValue,
+        from: username,
+        to: recipient,
+      });
 
       setIsLoading(false);
       startTransition(() => {

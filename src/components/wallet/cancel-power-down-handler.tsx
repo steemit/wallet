@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
 import { useActiveSigningKey } from '@/hooks/use-auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
+import { userActionRecord } from '@/lib/analytics/overseer';
 
 export interface CancelPowerDownHandlerProps {
   onSuccess: () => void;
@@ -33,6 +34,7 @@ export function CancelPowerDownHandler({ onSuccess, onCancel }: CancelPowerDownH
           setError(response.error || t('cancelError'));
           return;
         }
+        userActionRecord('cancel_withdraw_vesting', { username });
         onSuccess();
       } catch (err) {
         console.error('Cancel power down error:', err);
