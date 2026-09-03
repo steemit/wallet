@@ -28,15 +28,17 @@ describe('GoogleAnalytics (SSR scripts)', () => {
     expect(loader!.getAttribute('nonce')).toBe('abc123');
   });
 
-  it('renders the inline init with the legacy config and the nonce', () => {
+  it('renders the inline init with the GA4 config and the nonce', () => {
     render(<GoogleAnalytics measurementId="G-TESTID2" nonce="abc123" />);
     const init = document.querySelector('script:not([src])');
     expect(init).toBeTruthy();
     expect(init!.getAttribute('nonce')).toBe('abc123');
     expect(init!.textContent).toContain("gtag('config', 'G-TESTID2'");
     expect(init!.textContent).toContain('cookie_domain: \'auto\'');
-    expect(init!.textContent).toContain('sample_rate: 5');
     expect(init!.textContent).toContain('send_page_view: false');
+    // sample_rate is a Universal-Analytics-only field (absent from the GA4
+    // config reference) — it must not be carried over.
+    expect(init!.textContent).not.toContain('sample_rate');
     // Queue shim must be self-contained (no external dependency at parse time).
     expect(init!.textContent).toContain('function gtag(){dataLayer.push(arguments);}');
   });
@@ -58,7 +60,11 @@ describe('GoogleAnalyticsPageviews (SPA virtual pageviews)', () => {
   it('reports the initial pageview on mount (loader ran at parse time)', () => {
     window.gtag = vi.fn();
     render(<GoogleAnalyticsPageviews measurementId="G-TESTID" />);
-    expect(window.gtag).toHaveBeenCalledWith('config', 'G-TESTID', { page_path: '/market' });
+    expect(window.gtag).toHaveBeenCalledWith('event', 'page_view', {
+      page_path: '/market',
+      page_title: expect.any(String),
+      send_to: 'G-TESTID',
+    });
   });
 
   it('reports a pageview whenever the pathname changes', () => {
@@ -66,7 +72,11 @@ describe('GoogleAnalyticsPageviews (SPA virtual pageviews)', () => {
     const { rerender } = render(<GoogleAnalyticsPageviews measurementId="G-TESTID" />);
     mockPathname.mockReturnValue('/proposals');
     rerender(<GoogleAnalyticsPageviews measurementId="G-TESTID" />);
-    expect(window.gtag).toHaveBeenLastCalledWith('config', 'G-TESTID', { page_path: '/proposals' });
+    expect(window.gtag).toHaveBeenLastCalledWith('event', 'page_view', {
+      page_path: '/proposals',
+      page_title: expect.any(String),
+      send_to: 'G-TESTID',
+    });
   });
 
   it('does nothing when gtag is unavailable (ad-blockers)', () => {

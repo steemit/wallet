@@ -128,6 +128,22 @@ function accountPathWithoutAtPrefix(pathname: string): string | null {
   return `/${account}${suffix}`;
 }
 
+// Static assets are served from public/, but the middleware matcher cannot
+// use "path contains a dot" to skip them (Steem sub-accounts use dots, e.g.
+// /@user.subaccount). Requests that reach next-intl are internally rewritten
+// into the /[locale]/ tree, which 404s every nested public asset
+// (/favicons/*, /images/**). Pass file-like paths through untouched instead.
+// The check is anchored to the LAST segment's extension, so account paths
+// (/@user.transfers-page style names) are unaffected — except /@…-rooted
+// paths, which are always account URLs and never public files.
+const STATIC_ASSET_EXT_RE = /\.(?:png|jpe?g|gif|svg|webp|avif|ico|txt|xml|css|js|mjs|map|woff2?|ttf|otf|eot)$/i;
+
+function isStaticAssetRequest(pathname: string): boolean {
+  if (pathname.startsWith('/@')) return false;
+  const lastSegment = pathname.split('/').pop() ?? '';
+  return STATIC_ASSET_EXT_RE.test(lastSegment);
+}
+
 export default async function proxy(request: NextRequest) {
   // Intercept health check endpoint used by ELB and OpenResty.
   // Must return before i18n middleware to avoid locale redirect issues.
@@ -135,6 +151,12 @@ export default async function proxy(request: NextRequest) {
   // to avoid leaking build-identifying info to anonymous callers.
   if (request.nextUrl.pathname === '/.well-known/healthcheck.json') {
     return NextResponse.json({ status: 'ok' });
+  }
+
+  // Static assets: no CSP nonce, no CSRF cookie, no locale rewriting —
+  // Next.js serves them straight from public/.
+  if (isStaticAssetRequest(request.nextUrl.pathname)) {
+    return NextResponse.next();
   }
 
   const normalized = accountPathWithoutAtPrefix(request.nextUrl.pathname);
@@ -179,6 +201,8 @@ export default async function proxy(request: NextRequest) {
 export const config = {
   // Match all pathnames except api and Next internals.
   // Do NOT use "path contains a dot" (.*\..*) — Steem sub-accounts use dots (e.g. user.subaccount).
+  // Static files are NOT excluded here either; isStaticAssetRequest() above
+  // passes them through before next-intl can rewrite them into /[locale]/.
   matcher: [
     '/((?!api|trpc|_next|_vercel|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
   ],
