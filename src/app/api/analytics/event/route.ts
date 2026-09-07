@@ -14,6 +14,7 @@ interface AnalyticsEventBody {
 const MAX_EVENT_NAME = 64;
 const MAX_PROPERTIES_BYTES = 2048;
 const MAX_PROPERTY_KEYS = 16;
+const MAX_TIMESTAMP_LEN = 32; // ISO-8601 timestamps are at most 29 chars
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,7 +48,25 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    // S7: timestamp is attacker-controlled too and reaches the log line —
+    // same rule: bounded length, parseable date.
     if (
+      timestamp !== undefined &&
+      (typeof timestamp !== 'string' ||
+        timestamp.length > MAX_TIMESTAMP_LEN ||
+        Number.isNaN(Date.parse(timestamp)))
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid timestamp' },
+        { status: 400 }
+      );
+    }
+    // S7: properties must be a plain object — strings/numbers would slip
+    // through the key-count and byte-size checks below.
+    if (
+      typeof properties !== 'object' ||
+      properties === null ||
+      Array.isArray(properties) ||
       Object.keys(properties).length > MAX_PROPERTY_KEYS ||
       JSON.stringify(properties).length > MAX_PROPERTIES_BYTES
     ) {

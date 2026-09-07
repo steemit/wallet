@@ -63,4 +63,43 @@ describe('POST /api/analytics/event (S7 bounds)', () => {
     expect(res.status).toBe(400);
     expect(console.log).not.toHaveBeenCalled();
   });
+
+  it('rejects a timestamp longer than 32 chars', async () => {
+    const res = await POST(makeRequest({ event: 'page_view', timestamp: 'x'.repeat(33) }));
+    expect(res.status).toBe(400);
+    expect(console.log).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-string timestamp', async () => {
+    const res = await POST(makeRequest({ event: 'page_view', timestamp: 1234567890 }));
+    expect(res.status).toBe(400);
+    expect(console.log).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unparseable timestamp', async () => {
+    const res = await POST(makeRequest({ event: 'page_view', timestamp: 'not a date' }));
+    expect(res.status).toBe(400);
+    expect(console.log).not.toHaveBeenCalled();
+  });
+
+  it('accepts a valid ISO timestamp and logs it through', async () => {
+    const res = await POST(makeRequest({
+      event: 'page_view',
+      timestamp: '2026-09-06T12:00:00.000Z',
+    }));
+    expect(res.status).toBe(200);
+    expect(console.log).toHaveBeenCalledOnce();
+  });
+
+  it('rejects non-object properties (string payload)', async () => {
+    const res = await POST(makeRequest({ event: 'page_view', properties: 'x'.repeat(10) }));
+    expect(res.status).toBe(400);
+    expect(console.log).not.toHaveBeenCalled();
+  });
+
+  it('rejects null properties', async () => {
+    const res = await POST(makeRequest({ event: 'page_view', properties: null }));
+    expect(res.status).toBe(400);
+    expect(console.log).not.toHaveBeenCalled();
+  });
 });
