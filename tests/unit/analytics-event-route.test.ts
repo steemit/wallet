@@ -103,3 +103,34 @@ describe('POST /api/analytics/event (S7 bounds)', () => {
     expect(console.log).not.toHaveBeenCalled();
   });
 });
+
+describe('POST /api/analytics/event (S6: single client-IP convention)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  it('logs the IP from the proxy-aware getClientIP, not raw x-forwarded-for', async () => {
+    const { getClientIP } = await import('@/lib/middleware');
+    vi.mocked(getClientIP).mockReturnValueOnce('203.0.113.9');
+
+    const req = new NextRequest('http://localhost/api/analytics/event', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': 't',
+        // Client-supplied spoofed XFF must NOT reach the log line.
+        'x-forwarded-for': '1.2.3.4, 6.6.6.6',
+      },
+      body: JSON.stringify({ event: 'page_view' }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const logged = JSON.parse(vi.mocked(console.log).mock.calls[0]![0] as string);
+    expect(logged.ip).toBe('203.0.113.9');
+    expect(logged.ip).not.toContain('1.2.3.4');
+    expect(logged.ip).not.toBe('unknown');
+  });
+});

@@ -205,4 +205,55 @@ describe('POST /api/recovery/request', () => {
     expect(data.status).toBe('error');
     expect(res.status).toBe(500);
   });
+
+  it.each([
+    '10.1.2.3',            // RFC1918 10/8 (ALB VPC range when realip drifts)
+    '127.0.0.1',           // loopback
+    '192.168.1.1',         // RFC1918 192.168/16
+    '172.16.0.1',          // RFC1918 172.16/12
+    '172.31.255.254',      // RFC1918 172.16/12 upper edge
+    '169.254.169.254',     // IPv4 link-local (EC2 instance metadata)
+    '::1',                 // IPv6 loopback
+    'fd00::1',             // IPv6 ULA
+    'fc00::1',             // IPv6 ULA (currently reserved)
+    'fe80::1',             // IPv6 link-local
+  ])('S6: warns when remote_ip is infrastructure (%s) — realip drift made visible', async (ip) => {
+    const { getClientIP } = await import('@/lib/middleware');
+    vi.mocked(getClientIP).mockReturnValueOnce(ip);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const req = makeRequest({
+        contact_email: 'test@example.com',
+        account_name: 'alice',
+        owner_key: VALID_OWNER_KEY,
+      });
+      const res = await POST(req);
+      // Self-check is warn-only: the recovery flow itself must proceed.
+      expect(res.status).toBe(200);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('looks like infrastructure'),
+        expect.objectContaining({ remoteIp: ip })
+      );
+      const inserted = mockInsertValues.mock.calls[0]![0] as { remoteIp: string | null };
+      expect(inserted.remoteIp).toBe(ip);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('S6: no infra warning for a public client IP', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const req = makeRequest({
+        contact_email: 'test@example.com',
+        account_name: 'alice',
+        owner_key: VALID_OWNER_KEY,
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
 });
