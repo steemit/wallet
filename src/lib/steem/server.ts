@@ -748,6 +748,57 @@ export class SteemService {
   }
 
   /**
+   * Validate the structural shape of a signed transaction for the recovery
+   * broadcast path, which — unlike the pure relay routes — performs real
+   * server-side crypto verification (see the recovery exception in
+   * AGENTS.md's relay architecture section).
+   *
+   * F12 (2026-08-04 audit, re-verified 2026-09-04): `verifyTransaction` runs
+   * synchronous secp256k1 public-key recovery for EVERY signature in the
+   * attacker-controlled `signatures` array. Without an upper bound a single
+   * small request could force thousands of sync ECDSA ops and block the
+   * Node event loop. The relay routes are exempt (they never verify
+   * signatures — the chain does), but the recovery exception zone is NOT.
+   *
+   * Bounds chosen far above anything a legitimate transaction produces:
+   * a multi-sig recovery realistically carries 1-3 signatures; Steem
+   * transactions carry at most a handful of operations.
+   */
+  static validateRecoveryTransactionShape(signedTx: SignedTransaction): boolean {
+    const MAX_SIGNATURES = 4;
+    const MAX_OPERATIONS = 10;
+    // secp256k1 recoverable signatures serialize as 65 bytes → 130 hex chars
+    // (optionally UPPERCASE). Fixed-length check keeps malformed input from
+    // reaching Signature.fromBuffer inside verifyTransaction.
+    const SIGNATURE_HEX = /^[0-9a-f]{130}$/i;
+
+    try {
+      const signatures = signedTx.signatures;
+      if (
+        !Array.isArray(signatures) ||
+        signatures.length === 0 ||
+        signatures.length > MAX_SIGNATURES
+      ) {
+        return false;
+      }
+      if (!signatures.every((sig) => typeof sig === 'string' && SIGNATURE_HEX.test(sig))) {
+        return false;
+      }
+      const operations = signedTx.operations;
+      if (
+        !Array.isArray(operations) ||
+        operations.length === 0 ||
+        operations.length > MAX_OPERATIONS
+      ) {
+        return false;
+      }
+      return this.validateTransactionShape(signedTx);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Validate the structural shape of a signed transaction.
    *
    * This checks only that the transaction has the fields a validly-signed
