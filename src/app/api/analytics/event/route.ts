@@ -1,7 +1,7 @@
 // POST /api/analytics/event
 // Server-side analytics event logging
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyCSRF, rateLimit } from '@/lib/middleware';
+import { verifyCSRF, rateLimit, getClientIP } from '@/lib/middleware';
 
 interface AnalyticsEventBody {
   event: string;
@@ -77,12 +77,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Log analytics event (can be sent to external service later)
+    // S6: use the shared proxy-aware getClientIP() — the repo-wide standard
+    // for client IP resolution — instead of a second, raw-XFF convention.
     console.log(JSON.stringify({
       type: 'analytics',
       event,
       properties,
       timestamp: timestamp || new Date().toISOString(),
-      ip: request.headers.get('x-forwarded-for') || 'unknown',
+      ip: getClientIP(request),
       userAgent: request.headers.get('user-agent') || 'unknown',
     }));
 

@@ -77,6 +77,24 @@ export async function POST(request: NextRequest) {
     const resolvedIp = getClientIP(request);
     const remoteIp = resolvedIp === 'unknown' ? null : resolvedIp;
 
+    // S6 forensic self-check (2026-09-04 re-verification, residual 1): a real
+    // user's recovery request never originates from an internal/loopback
+    // address. If remote_ip lands in these ranges, the reverse proxy's
+    // realip chain failed to resolve the true client (config drift, an
+    // untrusted hop, or a direct-to-ALB bypass) and arecs.remote_ip has NO
+    // forensic value — it is the infrastructure's own address. Warn so the
+    // drift becomes visible in logs; deliberately do NOT block the recovery
+    // flow (availability of the recovery path outweighs the evidence loss).
+    const INFRA_IP =
+      /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|f[cd][0-9a-f]{2}:)/i;
+    if (remoteIp && INFRA_IP.test(remoteIp)) {
+      console.warn(
+        'recovery/request: remote_ip looks like infrastructure, not a client IP ' +
+          '— realip chain may have drifted, arecs.remote_ip has no forensic value',
+        { remoteIp }
+      );
+    }
+
     // Insert new recovery request
     await db.insert(arecs).values({
       uid: null, // not available without login session
