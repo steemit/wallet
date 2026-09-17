@@ -212,9 +212,11 @@ describe('POST /api/recovery/request', () => {
     '192.168.1.1',         // RFC1918 192.168/16
     '172.16.0.1',          // RFC1918 172.16/12
     '172.31.255.254',      // RFC1918 172.16/12 upper edge
+    '169.254.169.254',     // IPv4 link-local (EC2 instance metadata)
     '::1',                 // IPv6 loopback
     'fd00::1',             // IPv6 ULA
     'fc00::1',             // IPv6 ULA (currently reserved)
+    'fe80::1',             // IPv6 link-local
   ])('S6: warns when remote_ip is infrastructure (%s) — realip drift made visible', async (ip) => {
     const { getClientIP } = await import('@/lib/middleware');
     vi.mocked(getClientIP).mockReturnValueOnce(ip);
