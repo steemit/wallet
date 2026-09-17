@@ -52,6 +52,11 @@ describe('GET /api/auth/challenge', () => {
     mockRateLimitByUser.mockResolvedValue(null);
     mockGenerateChallenge.mockReturnValue('login-alice-123-abc');
     mockGetAccounts.mockResolvedValue([{ name: 'alice' }]);
+    // ioredis SET returns 'OK' on success, null when NX loses the race.
+    // Default to success so tests exercise the primary write path unless
+    // they explicitly mock the NX-lost case (undefined !== 'OK' would
+    // silently take the fallback branch).
+    mockRedisSet.mockResolvedValue('OK');
     mockGetRedis.mockReturnValue({ set: mockRedisSet, get: mockRedisGet });
   });
 
@@ -238,5 +243,41 @@ describe('GET /api/auth/challenge', () => {
     // The fresh (attacker-controlled) challenge was never handed out.
     expect(mockGenerateChallenge).toHaveBeenCalledTimes(5); // generated, but…
     expect(mockRedisSet).toHaveBeenCalledTimes(5); // …never overwrote the key
+  });
+
+  it('F6/S2: primary write path — successful NX set serves the FRESH challenge', async () => {
+    // mockRedisSet defaults to 'OK' (set succeeded): the freshly generated
+    // challenge must be served, and Redis must not be read back.
+    mockRedisGet.mockResolvedValue(
+      JSON.stringify({ challenge: 'stale-should-not-appear', createdAt: 0 })
+    );
+    const res = await GET(makeRequest('alice'));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.challenge).toBe('login-alice-123-abc');
+    expect(mockRedisGet).not.toHaveBeenCalled();
+  });
+
+  it('F6/S2: corrupted stored entry (empty challenge) never served as a login challenge', async () => {
+    // NX lost the race but the stored entry has no usable challenge:
+    // serving an empty string would break the victim's login attempt.
+    mockRedisSet.mockResolvedValue(null);
+    mockRedisGet.mockResolvedValue(JSON.stringify({ challenge: '', createdAt: Date.now() }));
+    const res = await GET(makeRequest('alice'));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.challenge).toBe('login-alice-123-abc'); // fresh one served
+  });
+
+  it('F6/S2: corrupted entry under an exhausted username budget falls back to 429, not an empty 200', async () => {
+    mockRateLimitByUser.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'Too many requests' }), {
+        status: 429,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    mockRedisGet.mockResolvedValue(JSON.stringify({ challenge: '', createdAt: Date.now() }));
+    const res = await GET(makeRequest('alice'));
+    expect(res.status).toBe(429);
   });
 });

@@ -60,9 +60,12 @@ export async function GET(request: NextRequest) {
               challenge: string;
               createdAt: number;
             };
-            const response = NextResponse.json({ success: true, challenge });
-            setCSRFToken(response);
-            return response;
+            if (typeof challenge === 'string' && challenge.length > 0) {
+              const response = NextResponse.json({ success: true, challenge });
+              setCSRFToken(response);
+              return response;
+            }
+            // Corrupted entry (no usable challenge): fall through to 429.
           }
         } catch {
           // Redis read failed — fall through to the 429 below.
@@ -73,9 +76,11 @@ export async function GET(request: NextRequest) {
 
     // S2 supplement: verify the account exists BEFORE touching Redis. This
     // endpoint is unauthenticated; without the check any syntactically valid
-    // username string mints a Redis key. One upstream getAccounts call per
-    // challenge request is acceptable — the route is already rate-limited
-    // 10/min/IP (and this mirrors the login route's own existence check).
+    // username string mints a Redis key. Cost: for single-account lookups
+    // getAccounts also fetches pending recovery requests (legacy parity), so
+    // each challenge request is two upstream RPCs — acceptable at the
+    // route's 10/min/IP limit (and this mirrors the login route's own
+    // existence check).
     try {
       const accounts = await SteemService.getAccounts([username]);
       if (!accounts || accounts.length === 0) {
@@ -117,12 +122,21 @@ export async function GET(request: NextRequest) {
             const existingChallenge = (JSON.parse(existing) as {
               challenge: string;
             }).challenge;
-            const response = NextResponse.json({
-              success: true,
-              challenge: existingChallenge,
-            });
-            setCSRFToken(response);
-            return response;
+            if (typeof existingChallenge === 'string' && existingChallenge.length > 0) {
+              const response = NextResponse.json({
+                success: true,
+                challenge: existingChallenge,
+              });
+              setCSRFToken(response);
+              return response;
+            }
+            // Corrupted entry without a usable challenge: hand out the
+            // freshly generated one. NX lost the race against the corrupt
+            // key, so the fresh write did not land; the corrupt entry dies
+            // at TTL (≤5 min) and the next request after that persists a
+            // clean challenge. Login against the corrupt entry would fail
+            // verification anyway — surfacing the fresh challenge here does
+            // NOT weaken it: login still reads whatever is stored.
           }
         } catch {
           // Read failed after failed NX write — fall through and return the
