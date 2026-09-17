@@ -15,6 +15,7 @@ const mockGetOwnerHistory = vi.fn();
 vi.mock('@/lib/steem/server', () => ({
   SteemService: {
     validateTransactionShape: vi.fn().mockReturnValue(true),
+    validateRecoveryTransactionShape: vi.fn().mockReturnValue(true),
     broadcastTransaction: vi.fn().mockResolvedValue({ id: 'tx123' }),
     getOwnerHistory: (...args: unknown[]) => mockGetOwnerHistory(...args),
   },
@@ -138,7 +139,7 @@ describe('POST /api/broadcast/recover-account', () => {
 
   it('returns 400 when transaction shape validation fails', async () => {
     const { SteemService } = await import('@/lib/steem/server');
-    vi.mocked(SteemService.validateTransactionShape).mockReturnValueOnce(false);
+    vi.mocked(SteemService.validateRecoveryTransactionShape).mockReturnValueOnce(false);
 
     const req = makeRequest({ signedTx: makeSignedTx() });
     const res = await POST(req);

@@ -45,7 +45,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValid = SteemService.validateTransactionShape(signedTx);
+    // F12: the recovery exception zone performs real signature verification,
+    // so it must bound the attacker-controlled signatures/operations arrays
+    // BEFORE any sync ECDSA work happens in verifyTransaction below.
+    const isValid = SteemService.validateRecoveryTransactionShape(signedTx);
     if (!isValid) {
       return NextResponse.json({ error: 'Invalid transaction format' }, { status: 400 });
     }
