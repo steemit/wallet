@@ -50,6 +50,11 @@ let warnedMissingProxyConfig = false;
 /**
  * Resolve the client IP.
  *
+ * REPO-WIDE CONVENTION (S6): any server-side code that needs the client IP
+ * MUST go through this function — never read x-forwarded-for / x-real-ip
+ * directly. Two resolutions of the same request must never disagree; a
+ * second convention here previously produced a spoofable forensic field.
+ *
  * Priority:
  * 1. TRUST_PROXY_COUNT set: read the Nth-from-right entry of X-Forwarded-For
  *    (the hop our trusted proxy appended). This is the most spoof-resistant.
@@ -214,20 +219,101 @@ function memoryFallbackEnabled(): boolean {
  * (rather than strict anchored regexes) ensures decoded segments, trailing
  * garbage, and query strings can never smuggle a varying part into the key.
  *
- * When adding a new dynamic route under /api/, register its pattern here.
+ * F14 hardening (2026-09-04 re-verification): the fallback branch is
+ * DEFAULT-DENY for unregistered shapes. Any /api path that is not a static
+ * segment sequence (i.e. contains something the known-pattern list above
+ * does not cover) collapses into the single 'unregistered' scope instead of
+ * letting unknown segments into the key. Adding a new dynamic route under
+ * /api/ then requires registering its pattern HERE — forget it and every
+ * such route shares one conservative bucket (fail-closed), never a fresh
+ * counter per request (fail-open). A unit test walks src/app/api and fails
+ * CI when a dynamic route exists without a registered pattern.
  */
+/**
+ * Registered static API routes (every route.ts under src/app/api without a
+ * dynamic segment), plus the dynamic patterns routeScopeOf knows how to
+ * collapse. This whitelist IS the default-deny boundary: a path not
+ * represented here can never contribute segments to a rate-limit key.
+ *
+ * MAINTENANCE CONTRACT (F14, 2026-09-04 re-verification): when you add a
+ * route under /api/, add it here (or, for a dynamic route, add a collapse
+ * pattern in routeScopeOf). If you forget, requests to it share the single
+ * conservative 'unregistered' bucket — fail-closed, never a fresh counter
+ * per request. The unit test rate-limit-default-deny.test.ts walks the
+ * actual route tree and FAILS when a route is missing from this list, so
+ * CI catches the forget.
+ */
+const STATIC_API_ROUTES = new Set([
+  '/api/analytics/event',
+  '/api/analytics/overseer',
+  '/api/auth/challenge',
+  '/api/auth/login',
+  '/api/auth/logout',
+  '/api/broadcast/account-create',
+  '/api/broadcast/account-update',
+  '/api/broadcast/cancel-transfer-from-savings',
+  '/api/broadcast/change-recovery-account',
+  '/api/broadcast/convert',
+  '/api/broadcast/custom-json',
+  '/api/broadcast/delegate',
+  '/api/broadcast/limit-order-cancel',
+  '/api/broadcast/limit-order-create',
+  '/api/broadcast/power-down',
+  '/api/broadcast/proposal-create',
+  '/api/broadcast/proposal-remove',
+  '/api/broadcast/proposal-vote',
+  '/api/broadcast/recover-account',
+  '/api/broadcast/set-withdraw-vesting-route',
+  '/api/broadcast/transfer',
+  '/api/broadcast/vote',
+  '/api/broadcast/witness-proxy',
+  '/api/broadcast/witness-vote',
+  '/api/health',
+  '/api/query/accounts',
+  '/api/query/expiring-vesting-delegations',
+  '/api/query/global-props',
+  '/api/query/history',
+  '/api/query/market',
+  '/api/query/median-history-price',
+  '/api/query/owner-history',
+  '/api/query/price',
+  '/api/query/proposals',
+  '/api/query/proposals/dao-stats',
+  '/api/query/proposals/votes',
+  '/api/query/transaction-header',
+  '/api/query/vesting-delegations',
+  '/api/query/wallet-estimate-extras',
+  '/api/query/wallet-prices',
+  '/api/query/withdraw-routes',
+  '/api/query/witnesses',
+  '/api/recovery/confirm',
+  '/api/recovery/request',
+]);
+
 function routeScopeOf(pathname: string): string {
   // Broadcast routes: keep only the fixed op segment (a Next.js route
-  // directory name — lowercase letters/digits/hyphens); drop any tail.
-  const broadcast = pathname.match(/^\/api\/broadcast\/([^/]+)/);
-  if (broadcast?.[1]) return `broadcast:${broadcast[1].toLowerCase()}`;
+  // directory name). The op segment is cross-checked against the whitelist
+  // above; an unregistered/garbage tail collapses conservatively.
+  if (pathname.startsWith('/api/broadcast/')) {
+    const op = pathname.slice('/api/broadcast/'.length).split('/')[0]!.toLowerCase();
+    return STATIC_API_ROUTES.has(`/api/broadcast/${op}`)
+      ? `broadcast:${op}`
+      : 'unregistered';
+  }
 
   // /api/recovery/verify/[code] is the ONLY dynamic route: collapse the
   // entire param (including any decoded slashes) to one stable scope.
   if (pathname.startsWith('/api/recovery/verify/')) return 'recovery:verify';
 
-  // Static /api paths (no dynamic segments today): canonicalize.
-  return pathname.replace(/^\//, '').replace(/\//g, ':').toLowerCase();
+  // Static /api paths: canonicalize ONLY when the route is whitelisted.
+  // Anything else — an unregistered new route, an odd tail, mixed case not
+  // matching a known route — collapses into the single 'unregistered' scope
+  // so unknown segments can never fork the rate-limit key.
+  const normalized = pathname.replace(/\/+$/, '').toLowerCase();
+  if (STATIC_API_ROUTES.has(normalized)) {
+    return normalized.replace(/^\//, '').replace(/\//g, ':');
+  }
+  return 'unregistered';
 }
 
 export async function rateLimit(
