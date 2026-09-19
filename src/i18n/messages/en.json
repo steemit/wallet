@@ -45,7 +45,8 @@
     "rememberUsername": "Remember user on this device",
     "rememberUserTooltip": "Remember username and Posting Key on this device (when available)",
     "keepLoggedIn": "Keep me logged in",
-    "passwordUpdateSuccess": "The password for {username} was successfully updated. Please sign in with your new password."
+    "passwordUpdateSuccess": "The password for {username} was successfully updated. Please sign in with your new password.",
+    "insufficientAuthority": "The provided credentials do not include the key authority this action requires. Try the relevant role key (e.g. active) or your master password."
   },
   "wallet": {
     "title": "Wallet",

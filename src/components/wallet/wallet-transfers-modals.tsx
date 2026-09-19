@@ -118,6 +118,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
               onLoginSuccess={() => {
                 /* Redux updates; modal re-renders into the wallet form */
               }}
+              requiredAuthTypes={['active']}
             />
           </>
         )}

@@ -45,7 +45,8 @@
     "rememberUsername": "Recordar usuario en este dispositivo",
     "rememberUserTooltip": "Recordar nombre de usuario y clave Posting Key en este dispositivo (si existe)",
     "keepLoggedIn": "Mantener la sesión iniciada",
-    "passwordUpdateSuccess": "La contraseña de {username} se actualizó correctamente. Inicie sesión con la nueva contraseña."
+    "passwordUpdateSuccess": "La contraseña de {username} se actualizó correctamente. Inicie sesión con la nueva contraseña.",
+    "insufficientAuthority": "Las credenciales proporcionadas no incluyen la autoridad de clave que requiere esta acción. Prueba con la clave del rol correspondiente (p. ej. activa) o tu contraseña maestra."
   },
   "wallet": {
     "title": "Billetera",

@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { transfersPathForUsername } from '@/lib/wallet/wallet-modal-search-params';
+import type { AccountAuthType } from '@/lib/wallet/account-keys';
 
 interface LoginFormData {
   username: string;
@@ -39,11 +40,26 @@ export interface LoginFormProps {
   onLoginSuccess?: () => void;
   /** Show “remember user on this device” (default: true when username is editable). */
   showRememberUser?: boolean;
+  /**
+   * Authorities the caller needs beyond "being logged in" (e.g. ['active'] for
+   * balance actions, [authType] for key reveal). When set, a login that resolves
+   * keys NOT covering every listed authority is rejected with an explicit error
+   * instead of silently succeeding and leaving the caller's gate in place —
+   * previously a posting-only login in the transfer re-auth dialog looped with
+   * no feedback at all. Authority hierarchy: owner signs active/posting ops,
+   * active signs posting ops; memo is independent.
+   */
+  requiredAuthTypes?: AccountAuthType[];
 }
 
 export function LoginForm(props: LoginFormProps = {}) {
-  const { embedded = false, fixedUsername, onLoginSuccess, showRememberUser: showRememberUserProp } =
-    props;
+  const {
+    embedded = false,
+    fixedUsername,
+    onLoginSuccess,
+    showRememberUser: showRememberUserProp,
+    requiredAuthTypes,
+  } = props;
   const showRememberUser = showRememberUserProp ?? !fixedUsername;
   const t = useTranslations('auth');
   const tCommon = useTranslations('common');
@@ -214,6 +230,31 @@ export function LoginForm(props: LoginFormProps = {}) {
         return;
       }
 
+      // When the caller needs specific authorities (re-auth dialogs), a key set
+      // that does not cover them must fail LOUDLY: silently storing the session
+      // would leave the caller's gate in place and the dialog looping with no
+      // feedback (posting-only login in the transfer re-auth dialog).
+      if (requiredAuthTypes && requiredAuthTypes.length > 0) {
+        const covers = (needed: AccountAuthType): boolean => {
+          switch (needed) {
+            case 'owner':
+              return !!ownerKey;
+            case 'active':
+              return !!activeKey || !!ownerKey;
+            case 'posting':
+              return !!postingKey || !!activeKey || !!ownerKey;
+            case 'memo':
+              return !!memoKey;
+          }
+        };
+        const missing = requiredAuthTypes.filter((needed) => !covers(needed));
+        if (missing.length > 0) {
+          setError(t('insufficientAuthority'));
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Restore posting key from device storage when signing in with a key that is not posting
       // (e.g. active WIF) but a posting key was saved earlier for claim-reward signing.
       if (!postingKey && rememberUser && accountPostingKey) {
@@ -272,7 +313,11 @@ export function LoginForm(props: LoginFormProps = {}) {
           } else {
             localStorage.removeItem(REMEMBERED_POSTING_KEY_KEY);
           }
-        } else {
+        } else if (showRememberUser) {
+          // The user was offered the choice and declined it — clear device data.
+          // (When the checkbox is hidden, e.g. embedded re-auth dialogs with a
+          // fixed username, remembered data must be left untouched: a re-auth
+          // is not a decision to forget the device.)
           localStorage.removeItem(REMEMBERED_USERNAME_KEY);
           localStorage.removeItem(REMEMBERED_POSTING_KEY_KEY);
         }
