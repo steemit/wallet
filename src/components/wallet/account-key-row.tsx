@@ -132,6 +132,7 @@ export function AccountKeyRow({
             embedded
             fixedUsername={accountName}
             onLoginSuccess={handleLoginSuccess}
+            requiredAuthTypes={[authType]}
           />
         </DialogContent>
       </Dialog>

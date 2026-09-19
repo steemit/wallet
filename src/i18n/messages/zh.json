@@ -45,7 +45,8 @@
     "rememberUsername": "在本设备记住用户",
     "rememberUserTooltip": "在本设备记住用户名和 Posting Key (如果存在)",
     "keepLoggedIn": "保持登录状态",
-    "passwordUpdateSuccess": "{username} 的密码已成功更新，请使用新密码登录。"
+    "passwordUpdateSuccess": "{username} 的密码已成功更新，请使用新密码登录。",
+    "insufficientAuthority": "当前登录凭据不包含此操作所需的密钥权限。请使用相应角色的私钥（如 active 权限）或主密码重试。"
   },
   "wallet": {
     "title": "钱包",
