@@ -38,13 +38,15 @@ Known inconsistency to not extend: `accounts` uses a 32-hex truncated digest, `w
 `proposals/votes` interpolate trusted integers verbatim. Fine for safety, but the mixed styles are
 why broadcast-side invalidation drifted (see 03). New routes: use `hashedCacheKey` only.
 
-## Post-write invalidation — treat as TTL-only today
+## Post-write invalidation
 
-Per-user invalidation from broadcast routes is a **no-op** (hashed keys vs plaintext deletes) and
-the client `X-Cache-Invalidate` channel is dead — see 03-broadcast.md. Until that is fixed:
-- Pick TTLs assuming **nothing** invalidates them early. User-facing "my balance" freshness comes
-  from short TTLs (accounts 10s, extras 60s, delegations 15s).
-- Do not "fix" staleness by shrinking global caches further; fix the invalidation contract.
+Broadcast routes delete the caches their operation dirties, using
+`hashedUserCachePrefix` for user-scoped keys — see 03-broadcast.md and
+`docs/CACHING_AND_DEGRADATION.md` §2.7 for the full contract and per-route
+table. When adding a user-scoped query cache: build the key with
+`hashedCacheKey(prefix, normalizedUsername, ...)` and normalize the username
+with `normalizeAccountForCache` (trim / strip `@` / lowercase) so the
+broadcast-side delete prefix matches.
 
 ## Rate limiting
 
@@ -117,9 +119,10 @@ the client `X-Cache-Invalidate` channel is dead — see 03-broadcast.md. Until t
 background refresh that **writes the cache but never notifies the caller** (hooks keep rendering
 the stale value for that mount). Implications:
 
-- `noStore: true` is the only true bypass. **Do not** emulate it with `staleMs:0, maxAgeMs:0` —
-  that still writes already-expired entries into the LRU and evicts live ones
-  (`use-delegations` refetch does this today).
+- `noStore: true` is the only true bypass. **Do not** emulate it with
+  `staleMs:0, maxAgeMs:0` — that still writes already-expired entries into
+  the LRU and evicts live ones (the `use-delegations` refetch shipped that
+  bug before being switched to `noStore`).
 - For "refetch now after an action", the working pattern is `clientCache.invalidate(url)` with the
   exact URL (see `savings-withdraw-history.tsx`), optionally combined with the wallet refresh
   nonce (see 06).

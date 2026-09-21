@@ -8,16 +8,17 @@
   localStorage, three values original/light/dark), not in Redux.
 - **The actual data layer is the hooks** (`src/hooks/` + four history hooks historically living in
   `src/lib/wallet/`), each owning local state around `cachedFetch`/`apiClient` calls.
-- **The refresh signal** is the wallet nonce: components dispatch
-  `onWalletDataChanged()` (ui-store helper) → nonce increments → subscribed hooks
-  (`useSteemWalletBalances`, etc.) refetch. ⚠️ **This loop is currently broken end-to-end**:
-  `cachedFetch` serves the fresh-window cache without any request (<10s) or returns the stale
-  value while `backgroundRefresh` silently rewrites the LRU (no subscriber notification — the
-  cache is a bare Map). Net effect: after a successful transfer the balance keeps showing the old
-  value while the activity list refreshes. Until fixed: for a guaranteed fresh read use
-  `noStore: true` or `clientCache.invalidate(url)` with the exact URL
-  (`savings-withdraw-history.tsx` is the working model). When you wire a new broadcast success
-  handler, invalidate explicitly — do not rely on the nonce alone.
+- **The refresh signal** is the wallet nonce, paired with explicit L1
+  invalidation: the broadcast success path (`page.tsx`
+  `handleWalletDataChanged`) first calls `invalidateWalletCache(username)`
+  (`lib/cache/client-invalidate.ts`) — dropping the exact URL-keyed L1 entries
+  the hooks cached — and then bumps the nonce so subscribed hooks refetch.
+  The ordering is load-bearing: `cachedFetch` serves its fresh window without
+  any request and its background refresh rewrites the LRU without notifying
+  anyone, so a nonce bump WITHOUT the invalidation keeps rendering
+  pre-broadcast balances (this shipped and was fixed in 2026-09). When you
+  add a broadcast success handler in a new component, call
+  `invalidateWalletCache` for the acting user before any refetch.
 
 ## Data-fetching rules for new code
 

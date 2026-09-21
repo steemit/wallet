@@ -38,11 +38,14 @@ the hard way.
 
 These are documented in detail in the review report; agents must not *assume* they work:
 
-- **Post-broadcast cache invalidation is a no-op** (both the Redis per-user prefix deletes and the
-  `X-Cache-Invalidate` client channel). The system currently relies on short TTLs. See 04-query-cache.md.
 - **Recovery step 2 CAS reads the wrong drizzle return shape** (`affectedRows` on an array) — the
   confirm route never works against real MySQL and bricks records into `processing`. See 05-recovery.md.
 - **`use-auth.ts`'s `login` and the `wallet`/`ui` Redux slices are dead code.** Do not call them;
   the only live login entry point is `LoginForm`. See 06-frontend.md.
 - **`/api/query/price` returns a constant 0** (reads a nonexistent field) and has no consumers.
   Do not use it; use `/api/query/wallet-prices`. See 04-query-cache.md.
+
+Post-broadcast cache invalidation was in this category until 2026-09-21; it now works as
+documented in 03-broadcast.md §"Cache invalidation after broadcast" and 04-query-cache.md —
+follow those contracts exactly (hashed prefixes server-side, `invalidateWalletCache` +
+nonce client-side) when adding routes or broadcast success paths.

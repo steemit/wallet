@@ -22,3 +22,32 @@ export function hashedCacheKey(prefix: string, ...parts: (string | number | bool
   });
   return [prefix, ...segments].join(':');
 }
+
+/**
+ * Normalize an account name the same way every query route does before it
+ * builds a cache key. Steem names are case-insensitive on chain and callers
+ * pass them with or without a leading '@', so both the write side (query
+ * routes) and the delete side (broadcast routes) must hash this exact form —
+ * otherwise the same account produces different digests and invalidation
+ * never matches.
+ */
+export function normalizeAccountForCache(username: string): string {
+  return username.trim().replace(/^@/, '').toLowerCase();
+}
+
+/**
+ * Prefix covering every cache key `hashedCacheKey(prefix, username, ...)`
+ * can produce for ONE account. Broadcast routes know only the account name —
+ * not the extra key parts a query route adds (e.g. includeOpenOrders) — so
+ * they delete by this prefix and let cacheDeleteByPrefix's trailing `*`
+ * cover the rest: `<prefix>:<sha256(normalized)>` matches both
+ * `<prefix>:<sha256(normalized)>` and `<prefix>:<sha256(normalized)>:<more>`.
+ *
+ * The digest is pure hex, so no Redis glob metacharacter can be smuggled in
+ * via the username (unlike interpolating the raw name into the SCAN pattern).
+ * Pass the result to cacheDeleteByPrefix (which applies the REDIS_KEY_PREFIX
+ * and appends the trailing `*`).
+ */
+export function hashedUserCachePrefix(prefix: string, username: string): string {
+  return `${prefix}:${createHash('sha256').update(normalizeAccountForCache(username)).digest('hex')}`;
+}

@@ -1,8 +1,9 @@
 // POST /api/broadcast/set-withdraw-vesting-route
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
-import { verifyCSRF, rateLimit, setCacheInvalidateHeader } from '@/lib/middleware';
+import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
+import { hashedUserCachePrefix } from '@/lib/cache/cache-key';
 import type { SignedTransaction } from '@/lib/steem/types';
 
 export async function POST(request: NextRequest) {
@@ -35,14 +36,12 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(signedTx);
 
-    // Invalidate Redis caches for this user
+    // This op IS the withdraw-routes data source; the account object also
+    // carries the route. Hashed prefix — see transfer route.
     await cacheDeleteByPrefix('cache:query:accounts');
-    await cacheDeleteByPrefix(`cache:query:wallet-estimate-extras:${username}`);
-    await cacheDeleteByPrefix(`cache:query:withdraw-routes:${username}`);
+    await cacheDeleteByPrefix(hashedUserCachePrefix('cache:query:withdraw-routes', username));
 
-    const response = NextResponse.json({ success: true, result });
-    setCacheInvalidateHeader(response, username);
-    return response;
+    return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Broadcast set-withdraw-vesting-route error:', error);
     return NextResponse.json(

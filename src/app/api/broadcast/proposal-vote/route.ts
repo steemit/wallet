@@ -2,7 +2,7 @@
 // Broadcast a signed proposal vote transaction (update_proposal_votes)
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
-import { verifyCSRF, rateLimit, setCacheInvalidateHeader } from '@/lib/middleware';
+import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
 
@@ -30,12 +30,11 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    // Voting changes the proposals list (upVoted flags / vote counts), not
+    // wallet data — the extras delete was copy-paste drift.
     await cacheDeleteByPrefix('cache:query:proposals');
-    await cacheDeleteByPrefix(`cache:query:wallet-estimate-extras:${username}`);
 
-    const response = NextResponse.json({ success: true, result });
-    setCacheInvalidateHeader(response, username);
-    return response;
+    return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Broadcast proposal vote error:', error);
     return NextResponse.json(

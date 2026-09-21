@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { steem } from '@steemit/steem-js';
 import { SteemService } from '@/lib/steem/server';
 import { validateAccountUpdateSignedTx } from '@/lib/steem/validate-account-update-signed-tx';
-import { verifyCSRF, rateLimit, setCacheInvalidateHeader } from '@/lib/middleware';
+import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
 
@@ -50,12 +50,10 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(txForBroadcast);
 
+    // account_update only changes account data (keys/metadata), not wallet extras.
     await cacheDeleteByPrefix('cache:query:accounts');
-    await cacheDeleteByPrefix(`cache:query:wallet-estimate-extras:${username}`);
 
-    const response = NextResponse.json({ success: true, result });
-    setCacheInvalidateHeader(response, username);
-    return response;
+    return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Broadcast account-update error:', error);
     return NextResponse.json(

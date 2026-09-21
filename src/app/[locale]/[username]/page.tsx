@@ -1,9 +1,10 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/routing';
+import { invalidateWalletCache } from '@/lib/cache/client-invalidate';
 import { RecentActivityLazy } from '@/components/wallet/client-wrappers';
 import { BalanceRows } from '@/components/wallet/balance-rows';
 import { ClaimRewardsBanner } from '@/components/wallet/claim-rewards-banner';
@@ -69,6 +70,15 @@ export default function WalletPage() {
   });
 
   const [walletRefreshNonce, setWalletRefreshNonce] = useState(0);
+
+  // Broadcast success path: drop this account's browser L1 entries FIRST —
+  // cachedFetch would otherwise serve its fresh window without a request and
+  // the nonce-triggered refetch would re-render pre-broadcast balances —
+  // then bump the nonce so the subscribed hooks refetch from the network.
+  const handleWalletDataChanged = useCallback(() => {
+    if (urlUsername) invalidateWalletCache(urlUsername);
+    setWalletRefreshNonce((n) => n + 1);
+  }, [urlUsername]);
 
   const { balance, globalProps, loading: balanceLoading } = useSteemWalletBalances(
     urlUsername,
@@ -170,7 +180,7 @@ export default function WalletPage() {
           <RecoveryWarningBanner
             username={urlUsername}
             isMyAccount={isMyAccount}
-            onChanged={() => setWalletRefreshNonce((n) => n + 1)}
+            onChanged={handleWalletDataChanged}
           />
         )}
         {isTransfersPath && (
@@ -193,7 +203,7 @@ export default function WalletPage() {
             {isMyAccount && (
               <SavingsWithdrawHistory
                 username={urlUsername}
-                onChanged={() => setWalletRefreshNonce((n) => n + 1)}
+                onChanged={handleWalletDataChanged}
               />
             )}
             <RecentActivityLazy username={urlUsername} refreshNonce={walletRefreshNonce} globalProps={globalProps} />
@@ -245,9 +255,7 @@ export default function WalletPage() {
 
       <Suspense fallback={null}>
         {isTransfersPath && (
-          <WalletTransfersModals
-            onWalletDataChanged={() => setWalletRefreshNonce((n) => n + 1)}
-          />
+          <WalletTransfersModals onWalletDataChanged={handleWalletDataChanged} />
         )}
       </Suspense>
     </div>

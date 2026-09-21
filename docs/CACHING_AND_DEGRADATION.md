@@ -157,14 +157,17 @@ Returns `{ data: T; degraded: boolean; staleAge?: number }`.
 
 | Endpoint | Redis Key | TTL (fresh) | Stale TTL | Cache-Control Header | Rationale |
 |----------|-----------|-------------|-----------|---------------------|-----------|
-| accounts | `cache:query:accounts:{names}` | 10s | 300s (5m) | `public, s-maxage=10, stale-while-revalidate=60` | Balances change per transaction |
+| accounts | `cache:query:accounts:{sha256(names)}` | 10s | 300s (5m) | `public, s-maxage=10, stale-while-revalidate=60` | Balances change per transaction |
 | global-props | `cache:query:global-props` | 3s | 300s (5m) | `public, s-maxage=3` | Matches Steem block interval |
 | wallet-prices | `cache:query:wallet-prices` | 60s (1m) | 600s (10m) | `public, s-maxage=60, stale-while-revalidate=120` | Market prices |
 | price | `cache:query:price` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Feed price |
 | median-history-price | `cache:query:median-history-price` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Median feed price |
 | witnesses | `cache:query:witnesses:{limit}` | 600s (10m) | 1800s (30m) | `public, s-maxage=600, stale-while-revalidate=1800` | Rarely changes |
-| wallet-estimate-extras | `cache:query:wallet-estimate-extras:{username}:{includeOpenOrders}` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Savings, orders, conversions |
-| withdraw-routes | `cache:query:withdraw-routes:{username}` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Per-user routing |
+| wallet-estimate-extras | `cache:query:wallet-estimate-extras:{sha256(username)}:{sha256(includeOpenOrders)}` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Savings, orders, conversions |
+| withdraw-routes | `cache:query:withdraw-routes:{sha256(username)}` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Per-user routing |
+
+User-supplied key components are always full SHA-256 digests (`hashedCacheKey` /
+`hashedUserCachePrefix` in `src/lib/cache/cache-key.ts`) — never the raw value.
 
 **Why two layers of TTL?** Cache-Control headers help CDN/edge caches (if deployed). Redis TTL + staleTtl protects against upstream failures at the application level. They are complementary, not redundant.
 
@@ -230,21 +233,62 @@ Auth challenges are stored in Redis to fix a replay vulnerability and support mu
 
 ### 2.7 Cache Invalidation After Broadcast
 
-All broadcast routes (`transfer`, `convert`, `delegate`, `power-down`, `set-withdraw-vesting-route`, `vote`, `witness-vote`) invalidate caches after a successful transaction:
+Every broadcast route deletes the Redis caches its operation dirties, right
+after a successful relay. Two kinds of deletes exist:
 
-**Redis invalidation:**
+**Global prefix deletes** (verbatim trusted prefixes) for data any user's
+broadcast can change:
+
 ```typescript
-await cacheDeleteByPrefix('cache:query:accounts');
-await cacheDeleteByPrefix(`cache:query:wallet-estimate-extras:${username}`);
-await cacheDeleteByPrefix(`cache:query:withdraw-routes:${username}`);
+await cacheDeleteByPrefix('cache:query:accounts');   // balances/authorities
+await cacheDeleteByPrefix('cache:query:market');     // limit-order routes
+await cacheDeleteByPrefix('cache:query:proposals');  // proposal routes
+await cacheDeleteByPrefix('cache:query:witnesses');  // witness-vote/proxy
 ```
 
-**Client invalidation:**
+**Per-user prefix deletes** for user-scoped caches. The username must go
+through `hashedUserCachePrefix` — query routes store keys with the username
+hashed (`hashedCacheKey`), so interpolating the raw name produces a pattern
+that can never match (this exact bug shipped and made every targeted delete
+a silent no-op until 2026-09):
+
 ```typescript
-response.headers.set('X-Cache-Invalidate', username);
+import { hashedUserCachePrefix } from '@/lib/cache/cache-key';
+
+await cacheDeleteByPrefix(
+  hashedUserCachePrefix('cache:query:wallet-estimate-extras', username)
+);
 ```
 
-The `cachedFetch` function reads `X-Cache-Invalidate` from responses and calls `clientCache.invalidate(username)` to clear matching L1 entries.
+`hashedUserCachePrefix` normalizes the name (`trim`, strip leading `@`,
+lowercase) exactly like the query routes, so both sides hash the same string.
+`cacheDeleteByPrefix` appends the trailing `*`, which covers extra key
+components (e.g. the `includeOpenOrders` part of wallet-estimate-extras).
+
+Per-route lists (only delete what the op actually dirties — copying the
+transfer list into unrelated routes caused drift before):
+
+| Route | Invalidations |
+|-------|---------------|
+| transfer / convert / power-down / cancel-transfer-from-savings | accounts, extras(user) |
+| delegate | accounts, vesting-delegations(user), expiring-vesting-delegations(user) |
+| set-withdraw-vesting-route | accounts, withdraw-routes(user) |
+| limit-order-create / limit-order-cancel | accounts, extras(user), market |
+| witness-vote / witness-proxy | accounts, witnesses |
+| proposal-vote / proposal-create / proposal-remove | proposals |
+| account-update / account-create / change-recovery-account / recover-account | accounts |
+| vote / custom-json | (accounts only / none — no wallet caches involved) |
+
+**Client-side (browser L1) invalidation:** there is no server→client
+invalidation header (the former `X-Cache-Invalidate` channel never had a
+working consumer and was removed). Instead, the broadcast success path on the
+wallet page (`[username]/page.tsx` `handleWalletDataChanged`) calls
+`invalidateWalletCache(username)` (`src/lib/cache/client-invalidate.ts`),
+which drops the exact URL-keyed L1 entries the wallet hooks cached, and then
+bumps the refresh nonce so the hooks refetch from the network. This ordering
+matters: `cachedFetch` serves its fresh window without a request, so without
+the explicit invalidation the nonce alone would keep rendering
+pre-broadcast balances.
 
 ---
 

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
-import { hashedCacheKey } from '@/lib/cache/cache-key';
+import { hashedCacheKey, normalizeAccountForCache } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     if (rateLimitError) return rateLimitError;
 
     const { searchParams } = new URL(request.url);
-    const account = searchParams.get('account')?.trim();
+    const rawAccount = searchParams.get('account');
+    const account = rawAccount ? normalizeAccountForCache(rawAccount) : undefined;
 
     if (!account) {
       return NextResponse.json({ error: 'Missing account parameter' }, { status: 400 });

@@ -49,7 +49,6 @@ export async function cachedFetch<T>(
   const res = await fetch(url);
   const data = (await res.json()) as T;
   const isDegraded = res.headers.get('X-Degraded') === 'true';
-  handleCacheInvalidation(res);
   setDegraded(isDegraded);
   // Only cache successful responses — never cache errors (4xx/5xx) or the user
   // gets stuck on a stale error page even after the backend recovers.
@@ -64,7 +63,6 @@ function backgroundRefresh(url: string, opts: CachedFetchOptions): void {
     .then(async (res) => {
       const data = await res.json();
       const isDegraded = res.headers.get('X-Degraded') === 'true';
-      handleCacheInvalidation(res);
       setDegraded(isDegraded);
       // Only refresh-cache on success — a transient error must not replace
       // good cached data with an error body.
@@ -73,9 +71,4 @@ function backgroundRefresh(url: string, opts: CachedFetchOptions): void {
       }
     })
     .catch(() => {});
-}
-
-function handleCacheInvalidation(res: Response): void {
-  const prefix = res.headers.get('X-Cache-Invalidate');
-  if (prefix) clientCache.invalidate(prefix);
 }
