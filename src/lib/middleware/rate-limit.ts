@@ -1,9 +1,12 @@
 // Rate limiting middleware
 //
 // - Redis is the source of truth when available (shared across instances).
-// - When REDIS_URL is unset we fall back to a per-process in-memory store.
-//   This fallback is NOT shared across instances, so in multi-instance
-//   deployments it weakens limits — see TRUST_PROXY_COUNT / REDIS_URL docs.
+// - When Redis is unavailable (REDIS_URL unset, or the instance exists but
+//   commands fail — maxclients/OOM/READONLY) we fall back to a per-process
+//   in-memory store. This fallback is NOT shared across instances, so in
+//   multi-instance deployments it weakens limits — set
+//   RATE_LIMIT_ALLOW_MEMORY_FALLBACK=false to reject instead (fail closed).
+//   See TRUST_PROXY_COUNT / REDIS_URL docs.
 // - Client IP resolution is proxy-aware: when the app sits behind a trusted
 //   proxy (ELB/OpenResty) set TRUST_PROXY_COUNT to the number of trusted hops,
 //   so a spoofable client-supplied X-Forwarded-For cannot reset the limiter.
@@ -98,12 +101,28 @@ export function getClientIP(request: NextRequest): string {
   return 'unknown';
 }
 
+/**
+ * Outcome of a Redis-backed limit check.
+ *
+ * 'command-error' is deliberately distinct from 'no-redis': the singleton
+ * exists (getRedis() non-null — plain disconnects null it via the 'close'
+ * handler) but the command itself failed (maxclients / OOM / READONLY /
+ * auth failure). The request was NOT counted in Redis, so the caller must
+ * NOT treat this as "Redis healthy and did not block" — it must run the
+ * memory fallback or fail closed, exactly like the no-Redis path.
+ */
+type RedisRateLimitOutcome =
+  | { outcome: 'blocked'; response: NextResponse }
+  | { outcome: 'allowed' }
+  | { outcome: 'no-redis' }
+  | { outcome: 'command-error' };
+
 async function redisRateLimit(
   key: string,
   config: RateLimitConfig
-): Promise<NextResponse | null> {
+): Promise<RedisRateLimitOutcome> {
   const redis = getRedis();
-  if (!redis) return null;
+  if (!redis) return { outcome: 'no-redis' };
 
   try {
     const windowStart = Math.floor(Date.now() / (config.windowSeconds * 1000));
@@ -117,23 +136,27 @@ async function redisRateLimit(
 
     if (count > config.maxRequests) {
       const retryAfter = config.windowSeconds;
-      return NextResponse.json(
-        { error: 'Too many requests', retryAfter },
-        {
-          status: 429,
-          headers: {
-            'Retry-After': retryAfter.toString(),
-            'X-RateLimit-Limit': config.maxRequests.toString(),
-            'X-RateLimit-Remaining': '0',
-          },
-        }
-      );
+      return {
+        outcome: 'blocked',
+        response: NextResponse.json(
+          { error: 'Too many requests', retryAfter },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': retryAfter.toString(),
+              'X-RateLimit-Limit': config.maxRequests.toString(),
+              'X-RateLimit-Remaining': '0',
+            },
+          }
+        ),
+      };
     }
 
-    return null;
+    return { outcome: 'allowed' };
   } catch {
-    // Redis error: signal the caller to consult the memory fallback (or reject).
-    return null;
+    // The instance exists but the command failed. Report it so the caller
+    // consults the memory fallback (or rejects) — never "allowed".
+    return { outcome: 'command-error' };
   }
 }
 
@@ -328,17 +351,17 @@ export async function rateLimit(
     : '';
   const key = `${ip}:${action}${routeScope ? `:${routeScope}` : ''}`;
 
-  // Try Redis first (shared source of truth)
+  // Try Redis first (shared source of truth).
   const redisResult = await redisRateLimit(key, config);
-  if (redisResult) return redisResult;
-
-  const redis = getRedis();
-  if (redis) {
-    // Redis healthy and did not block → allow.
+  if (redisResult.outcome === 'blocked') return redisResult.response;
+  if (redisResult.outcome === 'allowed') {
+    // Redis counted the request and did not block → allow.
     return null;
   }
 
-  // Redis unavailable. Use the per-process memory fallback unless disabled.
+  // 'no-redis' or 'command-error': Redis did NOT count this request. Use the
+  // per-process memory fallback unless disabled — with the fallback disabled
+  // this fails closed (reject) instead of letting an uncounted request pass.
   if (!memoryFallbackEnabled()) {
     return NextResponse.json(
       { error: 'Rate limiter unavailable' },
@@ -362,10 +385,14 @@ export async function rateLimitByUser(
   const key = `user:${username}:${action}`;
 
   const redisResult = await redisRateLimit(key, config);
-  if (redisResult) return redisResult;
+  if (redisResult.outcome === 'blocked') return redisResult.response;
+  if (redisResult.outcome === 'allowed') {
+    // Redis counted the request and did not block → allow.
+    return null;
+  }
 
-  if (getRedis()) return null;
-
+  // 'no-redis' or 'command-error': not counted in Redis → memory fallback
+  // (if allowed) or fail closed, mirroring rateLimit().
   if (!memoryFallbackEnabled()) {
     return NextResponse.json(
       { error: 'Rate limiter unavailable' },
