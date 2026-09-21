@@ -184,6 +184,9 @@ Rate limiting uses Redis `INCR` + `EXPIRE` (fixed-window counter) when Redis is 
 
 | Route | Action | `maxRequests` | `windowSeconds` |
 |-------|--------|---------------|-----------------|
+| auth/challenge | `auth_challenge` (IP + per-username, 10/min each; tunable via `RATE_LIMIT_AUTH_CHALLENGE_*`) | 10 | 60 |
+| auth/login | `login` | 10 | 60 |
+| auth/logout | `auth_logout` | 10 | 60 |
 | accounts | `query` | 100 | 60 |
 | global-props | `query` | 60 | 60 |
 | wallet-prices | `query` | 30 | 60 |
@@ -220,14 +223,42 @@ Auth challenges are stored in Redis to fix a replay vulnerability and support mu
 |-----------|-------|
 | Redis key | `auth:challenge:{username}` |
 | TTL | 300s (5 minutes) |
-| Usage | One-time — deleted after successful verification |
+| Storage | `SET ... EX 300 NX` — a live challenge is never overwritten |
+| Usage | One-time — atomically consumed (`GETDEL`) after successful signature verification |
+
+**Fail-closed (both routes REQUIRE Redis):** if Redis is unavailable, the
+challenge route refuses to issue a challenge and the login route refuses to
+verify; both return `503 Login temporarily unavailable`. Login is never
+degraded to public-key-match-only acceptance, and no challenge is handed out
+that could not later be verified server-side.
 
 **Flow:**
-1. Challenge route generates a challenge and stores it in Redis
-2. Login route retrieves the challenge from Redis
-3. After signature verification, the challenge is deleted (prevents replay)
+1. Challenge route generates a challenge and stores it with `SET ... EX 300 NX`.
+   If a live challenge already exists (NX loses the race), the request returns
+   the SAME stored challenge — a new request never invalidates a value a client
+   may currently be signing. Responses carry `Cache-Control: no-store` (and the
+   client fetch uses `cache: 'no-store'`) so no intermediary serves a stale
+   challenge.
+2. Login route reads the challenge from Redis and verifies the client's
+   signature against the stored value. A failed signature does NOT consume the
+   challenge — the client may retry with the same one.
+3. After a successful verify, the challenge is consumed atomically with
+   `GETDEL` (Redis ≥ 6.2; deployment baseline is ElastiCache Redis 7+, and
+   ioredis ≥ 5 ships the command). Of several concurrent requests presenting
+   the same valid signature, exactly one wins the consume; the others get
+   `401 Invalid or expired challenge`. This atomicity is what makes the
+   one-time/replay guarantee actually hold — the previous `GET` → verify →
+   `DEL` sequence let two concurrent replays both pass verification.
 
-**Limitation:** Keyed by username — simultaneous login attempts from multiple devices for the same user will overwrite each other. Acceptable for a wallet application.
+**Multi-device behavior (keyed by username):** the key holds ONE live
+challenge per username. When device B requests a challenge while device A's is
+still live, NX fails and B is handed the already-stored challenge — B does not
+mint a second key and cannot overwrite A's. Whichever device submits a valid
+signature first consumes the challenge; the other device's login then fails
+with `401 Invalid or expired challenge` and it must request a fresh challenge.
+This is the deliberate F6/S2 hardening (no overwrite primitive: an attacker
+spamming challenge requests can never invalidate the challenge a victim is
+about to sign).
 
 ### 2.7 Cache Invalidation After Broadcast
 
