@@ -131,17 +131,54 @@ export function useMarketData(username: string | null) {
   }, [username]);
 
   useEffect(() => {
+    // Polling budget (docs/AI-driver/06 rule 4): the market route allows
+    // 120 req/min/IP and this poll fires every 3s, so background tabs must
+    // not poll — pause on document.hidden, refresh immediately on return to
+    // catch up staleness, then resume the interval (use-service-health model).
     let cancelled = false;
+    const intervalRef: { current: ReturnType<typeof setInterval> | null } = { current: null };
+
+    const startPolling = () => {
+      if (intervalRef.current === null) {
+        intervalRef.current = setInterval(() => {
+          if (!cancelled) void refresh();
+        }, MARKET_POLL_INTERVAL_MS);
+      }
+    };
+    const stopPolling = () => {
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+
     const run = async () => {
       if (!cancelled) await refresh();
     };
     void run();
-    const id = setInterval(() => {
-      if (!cancelled) void refresh();
-    }, MARKET_POLL_INTERVAL_MS);
+    // A tab mounted in the background (e.g. middle-click) must not start the
+    // 3s cadence: it would poll a page nobody is watching until the first
+    // visit. The visibilitychange handler starts the cadence — with an
+    // immediate catch-up refresh — on the first transition to visible.
+    if (document.visibilityState === 'visible') {
+      startPolling();
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        // Immediate catch-up refresh, then keep the cadence.
+        if (!cancelled) void refresh();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [refresh]);
 

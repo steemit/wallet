@@ -610,6 +610,8 @@
       "account_not_found": "Account not found",
       "insufficient_funds": "Insufficient funds",
       "invalid_amount": "Please enter a valid amount",
+      "amount_must_be_positive": "Amount must be greater than 0",
+      "precision_error": "Use only 3 digits of precision",
       "verified_exchange_no_memo": "This recipient is a verified exchange. A memo is required.",
       "memo_has_privatekey": "Please do not include what appears to be a private key or password in the memo field.",
       "memo_is_privatekey": "Do not use private keys in memos.",

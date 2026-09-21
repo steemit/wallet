@@ -13,6 +13,7 @@ import {
   isBadActor,
   exchangeRequiresMemo,
   findSimilarExchange,
+  parseTransferAmountInput,
 } from '@/lib/wallet/transfer-validation';
 
 describe('validateAccountName (legacy ChainValidation parity)', () => {
@@ -135,5 +136,44 @@ describe('validateMemoField', () => {
     expect(
       validateMemoField('5JRandomKeyLookAlikeAbcdEfghIjklMnorPqrst12345', USERNAME, MEMO_KEY)
     ).toBe('memo_has_privatekey');
+  });
+});
+
+describe('parseTransferAmountInput (G-14: strict syntax + 3-decimal parity)', () => {
+  it('rejects multi-dot inputs the old /^[\\d.]+$/ regex passed', () => {
+    // Old behavior: "1.2.3" matched, parseFloat silently truncated to 1.2.
+    expect(parseTransferAmountInput('1.2.3')).toEqual({
+      ok: false,
+      issue: 'invalid_amount',
+    });
+    expect(parseTransferAmountInput('1.2.3.4')).toEqual({ ok: false, issue: 'invalid_amount' });
+  });
+
+  it('rejects non-numeric and malformed input', () => {
+    for (const bad of ['', 'abc', '-1', '1e3', '.5', '5.', '1,000', '$5', '1 2']) {
+      expect(parseTransferAmountInput(bad)).toEqual({ ok: false, issue: 'invalid_amount' });
+    }
+  });
+
+  it('rejects zero and negative-equivalent values', () => {
+    expect(parseTransferAmountInput('0')).toEqual({ ok: false, issue: 'amount_must_be_positive' });
+    expect(parseTransferAmountInput('0.000')).toEqual({
+      ok: false,
+      issue: 'amount_must_be_positive',
+    });
+  });
+
+  it('rejects more than 3 decimal places explicitly (power-up parity)', () => {
+    expect(parseTransferAmountInput('1.0005')).toEqual({ ok: false, issue: 'precision_error' });
+    expect(parseTransferAmountInput('0.1234')).toEqual({ ok: false, issue: 'precision_error' });
+  });
+
+  it('accepts valid amounts with identical semantics to before', () => {
+    expect(parseTransferAmountInput('1')).toEqual({ ok: true, value: 1 });
+    expect(parseTransferAmountInput('1.5')).toEqual({ ok: true, value: 1.5 });
+    expect(parseTransferAmountInput('1.001')).toEqual({ ok: true, value: 1.001 });
+    expect(parseTransferAmountInput('0.123')).toEqual({ ok: true, value: 0.123 });
+    // Trailing whitespace was tolerated by the old regex and still is.
+    expect(parseTransferAmountInput('1.5 ')).toEqual({ ok: true, value: 1.5 });
   });
 });

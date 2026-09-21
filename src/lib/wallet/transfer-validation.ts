@@ -18,6 +18,46 @@ export type AccountNameErrorCode =
   | 'each_account_segment_should_end_with_a_letter_or_digit'
   | 'each_account_segment_should_be_longer';
 
+/**
+ * Transfer amount syntax: a plain decimal number (optionally followed by
+ * whitespace). Unlike a permissive /^[\d.]+$/ this cannot pass "1.2.3" (whose
+ * parseFloat silently truncates to 1.2) or the bare-dot forms ".5" / "5.".
+ */
+export const TRANSFER_AMOUNT_RE = /^(\d+(?:\.\d+)?)(?:\s*)$/;
+
+/** Steem assets carry 3 decimal places; more is an error, never rounded. */
+export function countDecimals(value: string): number {
+  const parts = value.split('.');
+  return parts.length > 1 && parts[1] ? parts[1].length : 0;
+}
+
+export type TransferAmountIssue =
+  | 'invalid_amount'
+  | 'amount_must_be_positive'
+  | 'precision_error';
+
+export type TransferAmountResult =
+  | { ok: true; value: number }
+  | { ok: false; issue: TransferAmountIssue };
+
+/**
+ * Parse and validate a transfer amount input. Mirrors the power-up form's
+ * explicit `countDecimals > 3` rejection so both forms have equal strength;
+ * the caller maps `issue` to `transfer.errors.<issue>` translations.
+ */
+export function parseTransferAmountInput(raw: string): TransferAmountResult {
+  const match = raw.match(TRANSFER_AMOUNT_RE);
+  if (!match || !match[1]) return { ok: false, issue: 'invalid_amount' };
+  const value = parseFloat(match[1]);
+  if (!Number.isFinite(value) || value <= 0) {
+    return { ok: false, issue: 'amount_must_be_positive' };
+  }
+  if (countDecimals(match[1]) > 3) {
+    return { ok: false, issue: 'precision_error' };
+  }
+  return { ok: true, value };
+}
+
 export function validateAccountName(
   value: string,
   exchangeValidation = false

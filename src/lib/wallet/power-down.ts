@@ -5,15 +5,19 @@ import { steemPowerFromVests, vestsFromSteemPower } from '@/lib/wallet/vest-stee
 const MICRO_VEST_SCALE = 1_000_000;
 
 /** Chain `to_withdraw` / `withdrawn` fields are stored in micro-VESTS (legacy /1e6). */
-export function microVestsToVests(micro: number): number {
-  return micro / MICRO_VEST_SCALE;
+export function microVestsToVests(micro: number | string): number {
+  // share_type arrives as number or string depending on node/version —
+  // coerce once at the boundary so downstream arithmetic is never
+  // string-coerced JS.
+  return Number(micro) / MICRO_VEST_SCALE;
 }
 
 export interface PowerDownAccountFields {
   vesting_shares: string;
   delegated_vesting_shares: string;
-  to_withdraw: number;
-  withdrawn: number;
+  /** share_type: number on most nodes, string on some versions/clients. */
+  to_withdraw: number | string;
+  withdrawn: number | string;
 }
 
 /** Max VESTS that can be selected on the power down slider. */
