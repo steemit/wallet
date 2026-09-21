@@ -146,27 +146,56 @@ Returns `{ data: T; degraded: boolean; staleAge?: number }`.
 
 **Decision flow:**
 
-1. No Redis → execute fetcher directly, return `{ data, degraded: false }`
+1. No Redis → execute fetcher directly (single-flight), return `{ data, degraded: false }`
 2. Fresh data in Redis (`age ≤ ttl`) → return immediately
-3. If Steem is known down → skip RPC, return stale data if available
-4. Try fetcher → success → cache result, mark Steem healthy, return
-5. Try fetcher → failure → mark Steem unhealthy, return stale data if available
+3. Steem known down → skip the RPC entirely: return stale data if available; with no cached copy, **throw** (caller returns 503) — a known-down node is never hammered by cache misses
+4. Try fetcher → success → cache result, return fresh. Concurrent misses for one key share a single upstream call (per-process single-flight — see below)
+5. Try fetcher → failure → return stale data if available (`degraded: true`)
 6. No stale data available → throw (caller returns 503)
+
+**Single-flight:** `withCache` keeps a per-process `Map` of in-flight promises
+keyed by cache key. Concurrent identical misses (e.g. a TTL-expiry storm on a
+short-TTL route) coalesce into ONE upstream fetch whose result is shared by
+every waiter; the map entry is removed when the flight settles. This is
+per-instance only (it is not a Redis lock) — its purpose is to stop N
+concurrent requests from becoming N upstream RPCs, not cross-instance
+coordination.
 
 ### 2.4 TTL Strategy Per Data Type
 
 | Endpoint | Redis Key | TTL (fresh) | Stale TTL | Cache-Control Header | Rationale |
 |----------|-----------|-------------|-----------|---------------------|-----------|
-| accounts | `cache:query:accounts:{sha256(names) truncated to 32 hex}` | 10s | 300s (5m) | `public, s-maxage=10, stale-while-revalidate=60` | Balances change per transaction |
+| accounts | `cache:query:accounts:{sha256(names)}` | 10s | 300s (5m) | `public, s-maxage=10, stale-while-revalidate=60` | Balances change per transaction |
 | global-props | `cache:query:global-props` | 3s | 300s (5m) | `public, s-maxage=3` | Matches Steem block interval |
 | wallet-prices | `cache:query:wallet-prices` | 60s (1m) | 600s (10m) | `public, s-maxage=60, stale-while-revalidate=120` | Market prices |
 | median-history-price | `cache:query:median-history-price` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Median feed price |
-| witnesses | `cache:query:witnesses:{limit}` | 600s (10m) | 1800s (30m) | `public, s-maxage=600, stale-while-revalidate=1800` | Rarely changes |
-| wallet-estimate-extras | `cache:query:wallet-estimate-extras:{sha256(username)}:{sha256(includeOpenOrders)}` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Savings, orders, conversions |
-| withdraw-routes | `cache:query:withdraw-routes:{sha256(username)}` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Per-user routing |
+| witnesses | `cache:query:witnesses:{sha256(limit)}` | 600s (10m) | 1800s (30m) | `public, s-maxage=600, stale-while-revalidate=1800` | Rarely changes |
+| market (anonymous) | `cache:query:market:{sha256('-')}:{sha256(since-bucket)}` | 5s | 30s | `public, s-maxage=5, stale-while-revalidate=30` | 4-RPC fan-out per miss; global data only |
+| market (username) | `cache:query:market:{sha256(username)}:{sha256(since-bucket)}` | 5s | 30s | `private, max-age=5` | Body includes the user's open orders |
+| proposals | `cache:query:proposals:{sha256(status,order,direction,limit,username)}` | 15s | 120s | `public, s-maxage=15, stale-while-revalidate=120` / `private, max-age=15` with username | `upVoted` flags are user-scoped |
+| proposals/votes | `cache:query:proposals:votes:{sha256(proposalId)}` | 20s | 60s | `public, s-maxage=20, stale-while-revalidate=60` | Proposal-scoped voter rows (global) |
+| wallet-estimate-extras | `cache:query:wallet-estimate-extras:{sha256(username)}:{sha256(includeOpenOrders)}` | 60s (1m) | 600s (10m) | `private, max-age=60` | Savings (with memos), orders, conversions |
+| withdraw-routes | `cache:query:withdraw-routes:{sha256(username)}` | 60s (1m) | 600s (10m) | `private, max-age=60` | Per-user routing |
+| vesting-delegations | `cache:query:vesting-delegations:{sha256(account)}` | 15s | 120s | `private, max-age=15` | Per-account rows |
+| expiring-vesting-delegations | `cache:query:expiring-vesting-delegations:{sha256(account)}` | 15s | 120s | `private, max-age=15` | Per-account rows |
+| owner-history | `cache:query:owner-history:{sha256(username)}` | 15s | 300s (5m) | `private, max-age=15` | Per-account owner key history |
+| history | `cache:query:history-{fallback,filtered}:{sha256(username[,ops])}` (fallback only, no fresh cache — §3.5) | — | 300s (5m) | `private, no-store` | Per-account rows incl. memos; no fresh window, so no cache may store the body |
 
 User-supplied key components are always full SHA-256 digests (`hashedCacheKey` /
 `hashedUserCachePrefix` in `src/lib/cache/cache-key.ts`) — never the raw value.
+Static single-value keys (`global-props`, `wallet-prices`, `median-history-price`)
+have no components to hash. Key construction was unified 2026-09: `accounts`
+previously used a 32-hex truncated digest and `witnesses` / `proposals/votes`
+interpolated integers in plaintext. Old-format entries are unreachable but
+harmless — they expire by their TTL; no migration is needed.
+
+**Cache-Control choice:** global data → `public, s-maxage=<ttl>,
+stale-while-revalidate=<staleTtl>`; user-scoped bodies (username-parameterized
+rows, open orders, memos) → `private, max-age=<ttl>` so a shared/CDN cache can
+never store one user's rows and serve them to another (§3.6). User-scoped
+responses with **no** server-side fresh cache (history, §3.5) →
+`private, no-store`: there is no freshness window to advertise, so no cache —
+shared or browser — may store or reuse the body.
 
 **Why two layers of TTL?** Cache-Control headers help CDN/edge caches (if deployed). Redis TTL + staleTtl protects against upstream failures at the application level. They are complementary, not redundant.
 
@@ -415,6 +444,9 @@ History is **not** cached in Redis with `withCache` because pagination keys (`fr
 - When `isSteemKnownDown()` returns `true`, the fallback is served immediately (no RPC attempt)
 - When an RPC call fails, the fallback is served if available
 - Fallback responses include `degraded: true` in the body and `X-Degraded: true` header
+- All 200 responses (fresh and degraded) carry `Cache-Control: private, no-store`: rows are
+  user-scoped and the route has no fresh-cache TTL to advertise, so neither shared caches nor
+  the browser may store the body (§2.4 Cache-Control choice)
 
 ### 3.6 Degraded Response Protocol
 
@@ -435,6 +467,15 @@ When the server serves stale/cached data due to upstream failure:
 | Header | Value | Description |
 |--------|-------|-------------|
 | `X-Degraded` | `true` | Signals degraded data to client-side cache |
+
+**Upstream failure with no stale data — unified contract (all `/api/query/*` routes):**
+HTTP `503` with body `{ "error": "<message>", "degraded": true }`. Every query
+route follows this shape (unified 2026-09; previously a mix of plain 500s,
+bare 503s without `degraded`, and double-layer catches whose inner 503 was
+shadowed by an outer 500). Routes with dedicated fallbacks (history, §3.5)
+serve the degraded 200 first and only fall through to this 503 when no
+fallback exists. 4xx validation errors keep the plain `{ error }` shape with
+no `degraded` flag.
 
 ---
 

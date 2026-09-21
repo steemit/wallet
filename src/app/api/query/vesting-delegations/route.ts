@@ -31,14 +31,16 @@ export async function GET(request: NextRequest) {
       delegations: result.data,
       ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
     });
-    response.headers.set('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=60');
+    // Per-account delegation rows — private caching prevents cross-user CDN
+    // poisoning (same pattern as the other user-scoped query routes).
+    response.headers.set('Cache-Control', 'private, max-age=15');
     if (result.degraded) response.headers.set('X-Degraded', 'true');
     return response;
   } catch (error) {
     console.error('Error fetching vesting delegations:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch vesting delegations' },
-      { status: 500 }
+      { error: 'Failed to fetch vesting delegations', degraded: true },
+      { status: 503 }
     );
   }
 }

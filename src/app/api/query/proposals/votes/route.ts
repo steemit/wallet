@@ -1,9 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { hashedCacheKey } from '@/lib/cache/cache-key';
 import { SteemService } from '@/lib/steem/server';
 import { parseSteemAsset } from '@/lib/steem/parse-asset';
 import { votesToSp } from '@/lib/proposals/utils';
+
+// Same per-request cap the accounts route declares (app convention — steem-js
+// forwards the array as-is, so the batch size is ours to keep honest).
+const MAX_VOTER_ACCOUNTS = 200;
+const ACCOUNTS_BATCH_SIZE = 100;
+
+/** Fetch up to MAX_VOTER_ACCOUNTS accounts in getAccounts batches of 100. */
+async function getVoterAccounts(voters: string[]) {
+  const capped = voters.slice(0, MAX_VOTER_ACCOUNTS);
+  const accounts: Awaited<ReturnType<typeof SteemService.getAccounts>> = [];
+  for (let i = 0; i < capped.length; i += ACCOUNTS_BATCH_SIZE) {
+    const batch = await SteemService.getAccounts(capped.slice(i, i + ACCOUNTS_BATCH_SIZE));
+    accounts.push(...batch);
+  }
+  return accounts;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +34,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid proposalId' }, { status: 400 });
     }
 
-    const cacheKey = `cache:query:proposals:votes:${proposalId}`;
+    // hashedCacheKey: every key component is a full SHA-256 digest (never the
+    // plaintext proposalId) — unified key construction across query routes.
+    const cacheKey = hashedCacheKey('cache:query:proposals:votes', proposalId);
     const result = await withCache(cacheKey, 20, 60, async () => {
       const allVotes: { voter: string; proposal: { proposal_id: number } }[] = [];
       let lastVoter = '';
@@ -41,8 +60,9 @@ export async function GET(request: NextRequest) {
       const totalVestingShares = globalProps.total_vesting_shares ?? '0 VESTS';
       const totalVestingFundSteem = globalProps.total_vesting_fund_steem ?? '0 STEEM';
 
-      const accounts =
-        voters.length > 0 ? await SteemService.getAccounts(voters.slice(0, 200)) : [];
+      // Chunked: one getAccounts call never exceeds the 100-name cap the
+      // accounts route declares (>100 voters fan out into merged batches).
+      const accounts = voters.length > 0 ? await getVoterAccounts(voters) : [];
       const rows = accounts.map((acc) => {
         const ext = acc as typeof acc & { proxy?: string; proxied_vsf_votes?: string[] };
         const ownVests = parseSteemAsset(acc.vesting_shares);
@@ -63,13 +83,21 @@ export async function GET(request: NextRequest) {
       return { voters: rows };
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       voters: result.data.voters,
-      ...(result.degraded && { degraded: true }),
+      ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
     });
+    // Voter rows are proposal-scoped (global data), so shared caching is fine.
+    response.headers.set('Cache-Control', 'public, s-maxage=20, stale-while-revalidate=60');
+    if (result.degraded) response.headers.set('X-Degraded', 'true');
+    return response;
   } catch (error) {
     console.error('Error fetching proposal voters:', error);
-    return NextResponse.json({ error: 'Failed to fetch proposal voters' }, { status: 503 });
+    // Unified upstream-failure protocol (§3.6): 503 + degraded body.
+    return NextResponse.json(
+      { error: 'Failed to fetch proposal voters', degraded: true },
+      { status: 503 }
+    );
   }
 }

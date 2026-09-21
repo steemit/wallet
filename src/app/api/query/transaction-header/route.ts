@@ -18,8 +18,9 @@ export async function GET(_request: NextRequest) {
     return response;
   } catch (error) {
     console.error('Error fetching transaction header:', error);
+    // Unified upstream-failure protocol (§3.6): 503 + degraded body.
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch transaction header' },
+      { success: false, error: 'Failed to fetch transaction header', degraded: true },
       { status: 503 }
     );
   }

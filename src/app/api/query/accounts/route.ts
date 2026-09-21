@@ -1,11 +1,10 @@
 // GET /api/query/accounts?names=user1,user2
 // Get account information
 import { NextRequest, NextResponse } from 'next/server';
-import { createHash } from 'crypto';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
-import { normalizeAccountForCache } from '@/lib/cache/cache-key';
+import { hashedCacheKey, normalizeAccountForCache } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,9 +44,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Hash the full normalized list for the cache key so distinct long username
-    // lists that share a 200-char prefix do not collide in cache.
-    const cacheKey = `cache:query:accounts:${createHash('sha256').update(usernames.join(',')).digest('hex').slice(0, 32)}`;
+    // hashedCacheKey: the full normalized list is one SHA-256 component —
+    // same helper as every other query route (no truncated-digest or
+    // plaintext interpolation variants).
+    const cacheKey = hashedCacheKey('cache:query:accounts', usernames.join(','));
     const result = await withCache(cacheKey, 10, 300, () =>
       SteemService.getAccounts(usernames)
     );
