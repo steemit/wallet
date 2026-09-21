@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { fetchAccounts } from '@/lib/steem/accounts-client';
+import { normalizeSteemUsername } from '@/lib/steem/username';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
 import {
   validateAccountName,
@@ -72,6 +73,9 @@ export function TransferForm({
   const [toError, setToError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [senderBalances, setSenderBalances] = useState<SenderBalances | null>(null);
+  /** Sender's on-chain memo_key (from the same accounts fetch as balances);
+   * powers the legacy memo master-password leak check. */
+  const [senderMemoKey, setSenderMemoKey] = useState<string | null>(null);
   /** Legacy exchange warnings: verified exchange / similar name / bad actor. */
   const [exchangeKind, setExchangeKind] = useState<
     'verified' | 'suspicious' | 'badactor' | null
@@ -107,6 +111,7 @@ export function TransferForm({
           savingsSteem: parseAssetAmount(acc.savings_balance ?? '0'),
           savingsSbd: parseAssetAmount(acc.savings_sbd_balance ?? '0'),
         });
+        setSenderMemoKey(acc.memo_key ?? null);
       } catch {
         /* balance hints are best-effort */
       }
@@ -178,11 +183,19 @@ export function TransferForm({
     };
   }, [formData.to, transferType, t]);
 
-  // Live memo key-leak check (legacy validate_memo_field).
+  // Live memo key-leak check (legacy validate_memo_field): WIF patterns plus
+  // the master-password derivation against the sender's memo_key. The seed
+  // uses the normalized username (master-password derivations are lowercase).
   const memoError = useMemo(() => {
-    const leak = formData.memo ? validateMemoField(formData.memo) : null;
+    const leak = formData.memo
+      ? validateMemoField(
+          formData.memo,
+          username ? normalizeSteemUsername(username) : undefined,
+          senderMemoKey ?? undefined
+        )
+      : null;
     return leak ? t(`errors.${leak}`) : '';
-  }, [formData.memo, t]);
+  }, [formData.memo, username, senderMemoKey, t]);
 
   const availableForSelection = useMemo(() => {
     if (!senderBalances) return null;
@@ -281,7 +294,13 @@ export function TransferForm({
         }
       }
 
-      const memoLeak = formData.memo ? validateMemoField(formData.memo) : null;
+      const memoLeak = formData.memo
+        ? validateMemoField(
+            formData.memo,
+            username ? normalizeSteemUsername(username) : undefined,
+            senderMemoKey ?? undefined
+          )
+        : null;
       if (memoLeak) {
         setError(t(`errors.${memoLeak}`));
         setIsLoading(false);
