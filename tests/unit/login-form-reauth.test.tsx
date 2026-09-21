@@ -13,12 +13,17 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from '@/lib/store/slices/auth';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 // Mock next/navigation (LoginForm reads search params / navigates on success).
+// `mockSearchParams` is mutable so per-test cases can simulate query strings
+// (e.g. /login?account=alice&msg=accountrecovered); it dereferences lazily
+// inside the closure, so resetting it per test is safe.
 const mockPush = vi.fn();
+let mockSearchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
   usePathname: () => '/',
 }));
 
@@ -56,6 +61,15 @@ vi.mock('@/lib/steem/client', () => ({
 
 import { LoginForm } from '@/components/auth/login-form';
 
+// jsdom lacks ResizeObserver, required by radix-ui's Tooltip (the remember-user
+// row on the full login-page layout) through its Popper positioning.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+
 const ACCOUNT = {
   name: 'testuser001',
   owner: { key_auths: [['STM8OwnerPub', 1]], weight_threshold: 1, account_auths: [] },
@@ -70,9 +84,13 @@ function makeStore() {
 
 function renderForm(props: Parameters<typeof LoginForm>[0]) {
   const store = makeStore();
+  // In production LoginForm always renders under AppLayout's TooltipProvider
+  // (the remember-user tooltip requires it); mirror that here.
   const utils = render(
     <Provider store={store}>
-      <LoginForm {...props} />
+      <TooltipProvider>
+        <LoginForm {...props} />
+      </TooltipProvider>
     </Provider>
   );
   return { store, ...utils };
@@ -89,6 +107,7 @@ describe('LoginForm requiredAuthTypes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mockSearchParams = new URLSearchParams();
     mockGetAccounts.mockResolvedValue({ accounts: [ACCOUNT] });
     mockGetChallenge.mockResolvedValue({ challenge: 'login-challenge' });
     mockLogin.mockResolvedValue({ success: true });
@@ -167,5 +186,32 @@ describe('LoginForm requiredAuthTypes', () => {
     });
     expect(localStorage.getItem('wallet:rememberedUsername')).toBe('testuser001');
     expect(localStorage.getItem('wallet:rememberedPostingKey')).toBe('5KPostingWif');
+  });
+});
+
+describe('LoginForm post-auth notice (query params)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    mockSearchParams = new URLSearchParams();
+  });
+
+  it('renders the account-recovered notice for msg=accountrecovered', () => {
+    // Redirect target of a finished recovery: /login?account=alice&msg=accountrecovered.
+    mockSearchParams = new URLSearchParams('account=alice&msg=accountrecovered');
+    renderForm({});
+
+    // The next-intl mock renders the key itself (see mock above), so the
+    // notice is asserted by its translation key.
+    expect(screen.getByText('accountRecoverySuccess')).toBeInTheDocument();
+    expect(screen.queryByText('passwordUpdateSuccess')).not.toBeInTheDocument();
+  });
+
+  it('renders no notice without a msg param', () => {
+    mockSearchParams = new URLSearchParams('account=alice');
+    renderForm({});
+
+    expect(screen.queryByText('accountRecoverySuccess')).not.toBeInTheDocument();
+    expect(screen.queryByText('passwordUpdateSuccess')).not.toBeInTheDocument();
   });
 });
