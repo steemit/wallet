@@ -103,10 +103,11 @@ broadcast-side delete prefix matches.
 ## Degradation protocol details
 
 - `withCache` serves stale on fetcher failure; `isSteemKnownDown()` (health-monitor, Redis-backed)
-  short-circuits to stale without an RPC attempt **only when stale exists** — with no cached copy
-  it still tries the fetcher (known deviation from docs §2.3).
-- There is no request coalescing/single-flight: TTL-expiry storms each hit upstream once per
-  concurrent miss. Keep this in mind for any new high-traffic read.
+  short-circuits without an RPC attempt — stale when a cached copy exists, throw (→ 503) when it
+  does not. A known-down node is never hammered by cache misses (docs §2.3).
+- Single-flight: concurrent identical misses share ONE in-process fetch (per-instance Map of
+  pending promises, not a Redis lock). TTL-expiry storms no longer fan out one upstream call per
+  concurrent request — do not add per-request upstream reads to short-TTL routes without this.
 - `docs/CACHING_AND_DEGRADATION.md` is the intent document but has drifted (key table shows
   plaintext usernames; §2.5 documents the pre-S6 IP order including a `cf-connecting-ip` that
   doesn't exist; power-down quota outdated; health polling 30s vs 60s). Code wins; update the doc

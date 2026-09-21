@@ -146,12 +146,20 @@ Returns `{ data: T; degraded: boolean; staleAge?: number }`.
 
 **Decision flow:**
 
-1. No Redis → execute fetcher directly, return `{ data, degraded: false }`
+1. No Redis → execute fetcher directly (single-flight), return `{ data, degraded: false }`
 2. Fresh data in Redis (`age ≤ ttl`) → return immediately
-3. If Steem is known down → skip RPC, return stale data if available
-4. Try fetcher → success → cache result, mark Steem healthy, return
-5. Try fetcher → failure → mark Steem unhealthy, return stale data if available
+3. Steem known down → skip the RPC entirely: return stale data if available; with no cached copy, **throw** (caller returns 503) — a known-down node is never hammered by cache misses
+4. Try fetcher → success → cache result, return fresh. Concurrent misses for one key share a single upstream call (per-process single-flight — see below)
+5. Try fetcher → failure → return stale data if available (`degraded: true`)
 6. No stale data available → throw (caller returns 503)
+
+**Single-flight:** `withCache` keeps a per-process `Map` of in-flight promises
+keyed by cache key. Concurrent identical misses (e.g. a TTL-expiry storm on a
+short-TTL route) coalesce into ONE upstream fetch whose result is shared by
+every waiter; the map entry is removed when the flight settles. This is
+per-instance only (it is not a Redis lock) — its purpose is to stop N
+concurrent requests from becoming N upstream RPCs, not cross-instance
+coordination.
 
 ### 2.4 TTL Strategy Per Data Type
 
