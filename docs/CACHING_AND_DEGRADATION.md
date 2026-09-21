@@ -67,9 +67,8 @@ Wraps `fetch()` with the L1 cache to implement stale-while-revalidate.
 | Header | Direction | Description |
 |--------|-----------|-------------|
 | `X-Degraded` | Server → Client | When `true`, the response contains stale data from server-side fallback |
-| `X-Cache-Invalidate` | Server → Client | Contains a prefix string; all L1 cache entries matching this prefix are invalidated |
 
-When `X-Degraded: true` is detected, the global degradation state is updated via `setDegraded(true)`.
+When `X-Degraded: true` is detected (on every fetch path — cached, `noStore`, and background refresh), the global degradation state is updated via `setDegraded(true)`; a later healthy response resets it via `setDegraded(false)`. `useServiceHealth` subscribes to that state, so the banner (§3.4) reacts within the normal render cycle instead of waiting for the next health poll (§3.3).
 
 ### 1.3 Client-Side Cache Parameters
 
@@ -92,7 +91,7 @@ The rewards history hook stores its accumulated result array in the L1 cache on 
 
 **File:** `src/lib/cache/degradation-state.ts`
 
-A lightweight global state module for tracking whether the server is serving stale/degraded data.
+A lightweight global state module for tracking whether the server is serving stale/degraded data. Written by `cachedFetch` (§1.2) on every network response's `X-Degraded` header; read by `useServiceHealth` (§3.3), which merges it into the status that drives `DegradationBanner` (§3.4).
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -205,34 +204,62 @@ shared or browser — may store or reuse the body.
 
 Rate limiting uses Redis `INCR` + `EXPIRE` (fixed-window counter) when Redis is available, with an in-memory Map fallback.
 
-**Redis rate limit key pattern:** `ratelimit:{ip}:{action}:{windowStart}`
+**Redis rate limit key pattern:** `ratelimit:{ip}:{action}:{routeScope}:{windowStart}`
 
-**In-memory fallback:** Cleans up expired entries every 5 minutes via `setInterval`.
+- `{ip}` — client IP resolved by `getClientIP()` (order below).
+- `{action}` — the caller-supplied action string (`query`, `broadcast`, `login`, …). Route scoping (next) guarantees isolation even when callers reuse an action.
+- `{routeScope}` — `routeScopeOf()` derives the scope from the request path with a **default-deny** policy (F14): every route must be registered in `STATIC_API_ROUTES` (or, for the single dynamic route `/api/recovery/verify/[code]`, collapse to the stable scope `recovery:verify`); anything unrecognized shares one conservative `unregistered` bucket. This keeps attacker-controlled path segments (e.g. the recovery code) out of the key — a rotating param would otherwise mint a fresh counter per request and defeat the limit. A unit test walks `src/app/api` and fails CI when a route is missing from the whitelist.
+- `{windowStart}` — the fixed-window bucket index (`floor(now / windowSeconds)`).
 
-**Rate limits per endpoint:**
+Per-user limits (`rateLimitByUser`) use `ratelimit:user:{username}:{action}:{windowStart}` instead.
 
-| Route | Action | `maxRequests` | `windowSeconds` |
-|-------|--------|---------------|-----------------|
-| auth/challenge | `auth_challenge` (IP + per-username, 10/min each; tunable via `RATE_LIMIT_AUTH_CHALLENGE_*`) | 10 | 60 |
-| auth/login | `login` | 10 | 60 |
-| auth/logout | `auth_logout` | 10 | 60 |
-| accounts | `query` | 100 | 60 |
-| global-props | `query` | 60 | 60 |
-| wallet-prices | `query` | 30 | 60 |
-| median-history-price | `query` | 60 | 60 |
-| witnesses | `query` | 30 | 60 |
-| wallet-estimate-extras | `query` | 30 | 60 |
-| withdraw-routes | `query` | 60 | 60 |
-| history | `query` | 50 | 60 |
-| transfer | `transfer` | 10 | 60 |
-| convert | `convert` | 10 | 60 |
-| power-down | `power-down` | 5 | 60 |
-| delegate | `delegate` | 10 | 60 |
-| witness-vote | `witness-vote` | 10 | 60 |
-| vote | `vote` | 10 | 60 |
-| set-withdraw-vesting-route | `set-route` | 10 | 60 |
+**Client IP detection (`getClientIP`)** — repo-wide convention (S6): any server-side code needing the client IP goes through this function; never read `x-forwarded-for` / `x-real-ip` directly elsewhere.
 
-**Client IP detection order:** `x-forwarded-for` → `x-real-ip` → `cf-connecting-ip` → `"unknown"`
+1. `TRUST_PROXY_COUNT` set (N > 0): take the **Nth-from-right entry of `X-Forwarded-For`** — the hop appended by our trusted reverse proxy (ELB/OpenResty). Client-supplied front entries cannot spoof the value used. Set `TRUST_PROXY_COUNT` to the number of trusted proxy hops (see `.env.example`).
+2. `TRUST_PROXY_COUNT` unset or 0: fall back to **`x-real-ip`**. The reverse proxy sets this header by overwriting any client value, so it is far harder to spoof than the append-only `X-Forwarded-For`. This prevents all clients collapsing into one `'unknown'` bucket when an operator forgets `TRUST_PROXY_COUNT`.
+3. Neither available: **`'unknown'`** — all clients share a single bucket (degraded isolation). In production this logs a one-time warning.
+
+There is **no `cf-connecting-ip` handling** — this deployment sits behind ELB/OpenResty, not Cloudflare. (The previous doc described a pre-S6 order that never matched the implementation.)
+
+**Failover semantics:** if the Redis *instance exists but a command fails* (maxclients / OOM / READONLY / auth failure), the limiter does NOT treat the request as allowed — it falls back to the in-memory store, or rejects with 503 when `RATE_LIMIT_ALLOW_MEMORY_FALLBACK=false` (fail-closed). Plain disconnections are handled by the Redis singleton's `'close'` handler (which nulls the instance → same fallback path); command-level failures are handled inside `redisRateLimit` by an explicit `command-error` outcome.
+
+**In-memory fallback:** per-process Map (NOT shared across instances — multi-instance deploys weaken limits while it is active). Expired entries are cleaned every 5 minutes via `setInterval`.
+
+**Rate limits per route** (rebuilt from the actual route handlers):
+
+| Route | Action | Limit |
+|-------|--------|-------|
+| auth/challenge | `auth_challenge` | 10/min per IP **and** 10/min per username (dual dimension; when the per-username cap trips the still-valid challenge is re-served instead of a hard 429 — a hard 429 would be a targeted auth-DoS). The only route with env overrides: `RATE_LIMIT_AUTH_CHALLENGE_MAX` / `RATE_LIMIT_AUTH_CHALLENGE_WINDOW` |
+| auth/login | `login` | 10/min |
+| auth/logout | `auth_logout` | 10/min |
+| query/accounts | `query` | 100/min |
+| query/global-props | `query` | 60/min |
+| query/median-history-price | `query` | 60/min |
+| query/wallet-prices | `query` | 30/min |
+| query/witnesses | `query` | 30/min |
+| query/market | `query` | 120/min |
+| query/history | `query` | 50/min |
+| query/wallet-estimate-extras | `query` | 30/min |
+| query/withdraw-routes | `query` | 60/min |
+| query/vesting-delegations | `query` | 60/min |
+| query/expiring-vesting-delegations | `query` | 60/min |
+| query/owner-history | `query` | 30/min |
+| query/proposals | `query` | 60/min |
+| query/proposals/votes | `query` | 40/min |
+| query/proposals/dao-stats | `query` | 30/min |
+| query/transaction-header | `query` | 120/min |
+| broadcast/* — 18 routes¹ | `broadcast` | 10/min each (per route scope) |
+| broadcast/recover-account | `broadcast` | 3/min (recovery exception) |
+| recovery/request | `recovery` | 5 per 5 min |
+| recovery/verify/[code] | `recovery_verify` | 10 per 5 min |
+| recovery/confirm | `recovery_confirm` | 5 per 5 min |
+| analytics/overseer | `analytics` | 100/min |
+
+¹ account-create, account-update, cancel-transfer-from-savings, change-recovery-account, claim-reward-balance, convert, custom-json, delegate, limit-order-cancel, limit-order-create, power-down, proposal-create, proposal-remove, proposal-vote, set-withdraw-vesting-route, transfer, witness-proxy, witness-vote. The former `broadcast/vote` route was removed (dead code, 2026-09).
+
+Not rate-limited: `/api/health` (it is the health probe — limiting it would defeat its purpose; it is still registered in `STATIC_API_ROUTES` so any future limiter gets a sane scope).
+
+**Env tunables — reality check:** `rateLimitConfigFromEnv` currently has exactly ONE consumer — the challenge route (`RATE_LIMIT_AUTH_CHALLENGE_MAX` / `RATE_LIMIT_AUTH_CHALLENGE_WINDOW`). Every other route hardcodes its limits in the handler; the `RATE_LIMIT_ENABLED`, `RATE_LIMIT_MAX_QUERY`, `RATE_LIMIT_MAX_BROADCAST`, `RATE_LIMIT_MAX_AUTH` and `RATE_LIMIT_WINDOW_*` names present in `docker/docker-compose.yml` are read by **nothing** and have no effect. The limiter honors only `RATE_LIMIT_AUTH_CHALLENGE_*`, `RATE_LIMIT_ALLOW_MEMORY_FALLBACK`, and `TRUST_PROXY_COUNT`.
 
 **Response headers on 429:**
 
@@ -405,18 +432,32 @@ Checks Steem node connectivity and persists the result to Redis.
 
 Polls `/api/health` every 60 seconds to drive the degradation banner. Maps HTTP 503 with `status: "degraded"` to the amber banner (not full outage).
 
-| Parameter | Value |
-|-----------|-------|
-| Poll interval | 30 000 ms (30s) |
-| Visibility behavior | Pauses polling when page is hidden; resumes + immediate check on visible |
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| Poll interval | 60 000 ms (60s) | Backstop for pages that issue no queries |
+| Visibility behavior | Pauses polling when page is hidden; resumes + immediate check on visible | |
 
 **Status type:** `'healthy' | 'degraded' | 'outage' | 'unknown'`
+
+**Merged per-response signal (wired 2026-09):** besides polling, the hook
+subscribes to the shared degradation state (§1.4), which `cachedFetch` writes
+from every response's `X-Degraded` header (§1.2). Merge precedence:
+
+- `outage` (poll could not reach `/api/health` at all) is the strongest signal;
+- otherwise any recently observed degraded response yields `degraded`, even
+  when the last poll said healthy — a degraded query response shows the banner
+  within its normal render cycle instead of up to 60s later;
+- recovery requires BOTH signals healthy: the next non-degraded response
+  resets the per-response flag (`setDegraded(false)`) AND the poll must say
+  healthy. A poll-reported `degraded` keeps the banner up even after
+  responses recover (the poll is the backstop; each signal can raise the
+  banner, neither alone can lower the other's).
 
 ### 3.4 Degradation Banner
 
 **File:** `src/components/layout/degradation-banner.tsx`
 
-Rendered in `AppLayout` between `<Header>` and `<SidePanel>`.
+Rendered in `AppLayout` between `<Header>` and `<SidePanel>`. Driven by `useServiceHealth` (§3.3), i.e. by the merged health-poll + per-response `X-Degraded` signal — a degraded query response shows the amber banner immediately, without waiting for the next 60s poll.
 
 | Status | Rendered | Style |
 |--------|----------|-------|
@@ -468,6 +509,13 @@ When the server serves stale/cached data due to upstream failure:
 |--------|-------|-------------|
 | `X-Degraded` | `true` | Signals degraded data to client-side cache |
 
+**Client-side consequence:** `cachedFetch` reads the header on every fetch
+path and writes it into the shared degradation state (§1.4); `useServiceHealth`
+(§3.3) merges that signal with the `/api/health` poll, so a degraded response
+surfaces the amber banner (§3.4) within the normal render cycle. The next
+non-degraded response resets the signal (banner hides once the poll is healthy
+too).
+
 **Upstream failure with no stale data — unified contract (all `/api/query/*` routes):**
 HTTP `503` with body `{ "error": "<message>", "degraded": true }`. Every query
 route follows this shape (unified 2026-09; previously a mix of plain 500s,
@@ -490,7 +538,7 @@ no `degraded` flag.
 | `src/lib/cache/server-cache.ts` | 2 | Stale-while-error cache wrapper |
 | `src/lib/cache/health-monitor.ts` | 3 | Steem RPC health tracking |
 | `src/lib/middleware/rate-limit.ts` | 2 | Redis-backed rate limiting |
-| `src/hooks/use-service-health.ts` | 3 | Health polling hook |
+| `src/hooks/use-service-health.ts` | 3 | Health polling hook (merged with per-response degradation signal) |
 | `src/hooks/use-account-data.ts` | 1 | Account data with L1 cache |
 | `src/hooks/use-steem-wallet-balances.ts` | 1 | Balances with L1 cache |
 | `src/hooks/use-wallet-estimated-value.ts` | 1 | Estimated value with L1 cache |
@@ -521,8 +569,9 @@ no `degraded` flag.
 | `tests/unit/client-fetch.test.ts` | 1 | Stale-while-revalidate, header handling |
 | `tests/unit/use-account-data.test.tsx` | 1 | Hook integration with cachedFetch |
 | `tests/unit/server-cache.test.ts` | 2 | withCache fresh/stale/error paths + no-Redis fallback |
-| `tests/unit/rate-limit-redis.test.ts` | 2 | Redis rate limit + in-memory fallback |
+| `tests/unit/rate-limit-redis.test.ts` | 2 | Redis rate limit, command-error fallback/fail-closed, in-memory fallback |
 | `tests/unit/health-monitor.test.ts` | 3 | Health tracking, TTL, known-down check |
+| `tests/unit/use-service-health.test.tsx` | 3 | Poll path + per-response degradation merge, recovery, precedence |
 | `tests/unit/degradation-banner.test.tsx` | 3 | Banner rendering per status |
 | `tests/unit/rewards-history.test.ts` | 1 | Rewards history cache save/restore |
 | `tests/unit/use-rewards-history.test.tsx` | 1 | Hook integration |

@@ -58,16 +58,18 @@ broadcast-side delete prefix matches.
   in-memory fallback per instance. `routeScopeOf()` derives the scope from the path with a
   **default-deny** policy (F14) — every route must be registered in `STATIC_API_ROUTES` or matched
   by the dynamic-collapse rules, and a CI test walks the real route tree.
-- Quotas: broadcast 10/min, query 30–120/min by route, auth challenge dual-dimension,
-  recovery 3–5/min. **Only `auth/challenge` reads env overrides**
+- Quotas: broadcast 10/min (recover-account 3/min), query 30–120/min by route, auth
+  challenge dual-dimension, recovery 3–5/min. **Only `auth/challenge` reads env overrides**
   (`RATE_LIMIT_AUTH_CHALLENGE_MAX/_WINDOW`); all other routes hardcode. Ignore the
   `RATE_LIMIT_MAX_*` names in docker-compose — nothing reads them.
 - Client IP: `getClientIP()` honors `TRUST_PROXY_COUNT` (rightmost-N of `X-Forwarded-For`) →
   `x-real-ip` → `'unknown'`. **Never** read `x-forwarded-for` directly anywhere else (S6).
   Unset trust count in production logs a warning and collapses everyone into one bucket.
-- ⚠️ Known gap: if the Redis *instance exists but commands error* (maxclients/OOM/READONLY),
-  the limiter allows the request (neither Redis nor memory fallback ran). The 'close' event
-  nulls the singleton so plain disconnections are handled; command-level failures are not.
+- Redis instance exists but commands error (maxclients/OOM/READONLY): `redisRateLimit` returns a
+  `command-error` outcome and the caller runs the memory fallback — or rejects with 503 when
+  `RATE_LIMIT_ALLOW_MEMORY_FALLBACK=false`. Never treat a failed command as "Redis healthy and
+  did not block" (that bypass shipped once; fixed 2026-09). Plain disconnects are caught earlier
+  by the singleton's 'close' handler nulling the instance.
 
 ## Response protocol — follow the majority shape
 
@@ -121,12 +123,9 @@ broadcast-side delete prefix matches.
 - Single-flight: concurrent identical misses share ONE in-process fetch (per-instance Map of
   pending promises, not a Redis lock). TTL-expiry storms no longer fan out one upstream call per
   concurrent request — do not add per-request upstream reads to short-TTL routes without this.
-- `docs/CACHING_AND_DEGRADATION.md` is the intent document but has partially drifted. The
-  §2.4 key table was rewritten to SHA-256 digests and now matches `hashedCacheKey`; the
-  remaining drift is §2.5's pre-S6 client-IP order (including a `cf-connecting-ip` that
-  doesn't exist), the outdated power-down quota, and the health polling interval (§3.3's
-  table says 30s; code and the doc's own prose poll every 60s). Code wins; update the doc
-  in the same PR when you change behavior.
+- `docs/CACHING_AND_DEGRADATION.md` is the intent document; a 2026-09 pass re-synced it with the
+  code (§2.5 client-IP order + per-route quota table, §3.3 poll interval 60s). Keep it in sync in
+  the same PR when you change behavior.
 
 ## Client-side L1 cache (browser)
 
@@ -143,12 +142,17 @@ the stale value for that mount). Implications:
   exact URL (see `savings-withdraw-history.tsx`), optionally combined with the wallet refresh
   nonce (see 06).
 
-## Degradation signaling — two mechanisms, one wired
+## Degradation signaling — one store, two inputs (wired 2026-09)
 
-- `X-Degraded: true` responses are read by `cachedFetch` into a global `degradation-state`
-  (`setDegraded`) — but **nothing subscribes to it** (`subscribeToDegradation`/`isDegraded` have
-  zero consumers, and `CachedFetchResult.degraded` is read by no caller). The only user-visible
-  degradation UI is `DegradationBanner` → `useServiceHealth` polling `/api/health` every 60s.
-  If you build per-request degraded UX, subscribe to the existing state instead of inventing a
-  third channel (and beware HTTP-cache interactions: a `private, max-age=15` response makes
-  post-action refresh() serve cached bodies — the proposals vote-toggle staleness bug).
+- The per-response channel: `X-Degraded: true` responses are read by `cachedFetch` on every
+  fetch path (including `noStore` and background refresh) into the global `degradation-state`
+  (`setDegraded`); a healthy response writes `setDegraded(false)` — recovery.
+- The polling channel: `useServiceHealth` polls `/api/health` every 60s AND subscribes to
+  `degradation-state`, merging both: outage > (response-degraded OR poll-degraded) > poll status.
+  Effect: a degraded query response shows `DegradationBanner` within its normal render cycle
+  (not up to 60s later); the poll remains the backstop for pages that issue no queries; the
+  banner hides only when responses are healthy again AND the poll says healthy.
+- If you build per-request degraded UX, subscribe to the existing `degradation-state` store
+  instead of inventing a third channel (and beware HTTP-cache interactions: a
+  `private, max-age=15` response makes post-action refresh() serve cached bodies — the
+  proposals vote-toggle staleness bug).
