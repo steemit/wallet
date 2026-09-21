@@ -40,7 +40,7 @@ DB gating (see 05-recovery.md) — it is a recovery-business route, not a pure r
    or payload checks, tx size caps. If you believe you need one, read
    `docs/RELAY_ROLLBACK_IMPACT.md` and 01-architecture.md first.
 6. Tests: a route-level test that mocks `SteemService.broadcastTransaction` + CSRF/limits
-   (see `tests/unit/proposals-broadcast-routes.test.ts` for the pattern). 12 of 18 routes currently
+   (see `tests/unit/proposals-broadcast-routes.test.ts` for the pattern). 12 of 19 routes currently
    have none — that is how copy-paste drift happened; do not add to the backlog.
 
 ## Response & error conventions (current state; align when touching)
