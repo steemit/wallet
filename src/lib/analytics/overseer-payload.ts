@@ -128,9 +128,17 @@ function whaleFlag(amount: string | number | undefined, coin: string | undefined
   return (amountNumber(amount) > threshold).toString();
 }
 
+import { normalizeSteemUsername } from '@/lib/steem/username';
+
 /**
  * Static routes first (several of these strings are also valid Steem account
- * names, e.g. `market`). Remaining `/<account>` paths map to `user_index`.
+ * names, e.g. `market`). Remaining account paths map to `user_index`. In-app
+ * links all use the `/@account/...` shape (side panel, header, wallet nav),
+ * and usePathname surfaces the leading `@`, so the segment is normalized
+ * through normalizeSteemUsername before the account-name check — the same
+ * parse the username page itself applies to its route param. Bare
+ * `/<account>` paths still classify (src/proxy.ts rewrites `/@account` to
+ * `/account` before i18n).
  */
 const EXACT_ROUTE_TAGS: Record<string, OverseerRouteTag> = {
   '/': 'index',
@@ -159,13 +167,16 @@ export function routeTagFromPathname(pathname: string): {
   }
 
   const userMatch = /^\/([^/]+)(?:\/(.*))?$/.exec(path);
-  const account = userMatch?.[1];
-  if (userMatch && account && isSteemAccountName(account)) {
-    const rest = userMatch[2];
-    if (rest === 'settings') {
-      return { tag: 'change_password', params: { accountname: account } };
+  const rawAccount = userMatch?.[1];
+  if (userMatch && rawAccount) {
+    const account = normalizeSteemUsername(rawAccount);
+    if (isSteemAccountName(account)) {
+      const rest = userMatch[2];
+      if (rest === 'settings') {
+        return { tag: 'change_password', params: { accountname: account } };
+      }
+      return { tag: 'user_index', params: { accountname: account } };
     }
-    return { tag: 'user_index', params: { accountname: account } };
   }
 
   return { tag: 'not_found' };

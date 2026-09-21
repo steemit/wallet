@@ -51,7 +51,33 @@ describe('routeTagFromPathname', () => {
     expect(routeTagFromPathname('/market')).toEqual({ tag: 'market' });
   });
 
-  it('maps account paths to user_index with permlink', () => {
+  it('maps /@account paths (the in-app link shape) to user_index with permlink', () => {
+    expect(routeTagFromPathname('/@alice')).toEqual({
+      tag: 'user_index',
+      params: { accountname: 'alice' },
+    });
+    expect(routeTagFromPathname('/@alice/transfers')).toEqual({
+      tag: 'user_index',
+      params: { accountname: 'alice' },
+    });
+    expect(routeTagFromPathname('/@alice.sub/delegations')).toEqual({
+      tag: 'user_index',
+      params: { accountname: 'alice.sub' },
+    });
+    expect(routeTagFromPathname('/@alice/author-rewards')).toEqual({
+      tag: 'user_index',
+      params: { accountname: 'alice' },
+    });
+  });
+
+  it('normalizes /@Account case like the username page does', () => {
+    expect(routeTagFromPathname('/@Alice/transfers')).toEqual({
+      tag: 'user_index',
+      params: { accountname: 'alice' },
+    });
+  });
+
+  it('still classifies bare /account paths (post-proxy-rewrite shape)', () => {
     expect(routeTagFromPathname('/alice')).toEqual({
       tag: 'user_index',
       params: { accountname: 'alice' },
@@ -60,14 +86,10 @@ describe('routeTagFromPathname', () => {
       tag: 'user_index',
       params: { accountname: 'alice' },
     });
-    expect(routeTagFromPathname('/alice.sub/delegations')).toEqual({
-      tag: 'user_index',
-      params: { accountname: 'alice.sub' },
-    });
   });
 
   it('maps settings to change_password (legacy ChangePassword mount tag)', () => {
-    expect(routeTagFromPathname('/alice/settings')).toEqual({
+    expect(routeTagFromPathname('/@alice/settings')).toEqual({
       tag: 'change_password',
       params: { accountname: 'alice' },
     });
@@ -81,6 +103,7 @@ describe('routeTagFromPathname', () => {
 
   it('maps unknown paths to not_found', () => {
     expect(routeTagFromPathname('/this-is-not-valid!!')).toEqual({ tag: 'not_found' });
+    expect(routeTagFromPathname('/@this-is-not-valid!!')).toEqual({ tag: 'not_found' });
   });
 });
 
