@@ -51,8 +51,15 @@ export function useMarketData(username: string | null) {
   const [snapshot, setSnapshot] = useState<MarketSnapshot>(emptySnapshot);
   const lastTradeRef = useRef<Date | null>(null);
   const historyInitializedRef = useRef(false);
+  // Race guard (docs/AI-driver/06 rule 1): responses of a request started
+  // for a PREVIOUS username (or superseded by a newer poll) must never write
+  // the snapshot — otherwise the previous user's openOrders/orders land in
+  // the new user's view.
+  const requestIdRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    // Latest request wins: each refresh supersedes any still in flight.
+    const requestId = ++requestIdRef.current;
     try {
       const since =
         historyInitializedRef.current && lastTradeRef.current
@@ -63,6 +70,8 @@ export function useMarketData(username: string | null) {
         ...(username ? { username } : {}),
         ...(since ? { since } : {}),
       });
+
+      if (requestId !== requestIdRef.current) return;
 
       if (!data.success || !data.orderbook || !data.ticker) {
         setSnapshot((prev) => ({
@@ -104,6 +113,7 @@ export function useMarketData(username: string | null) {
         lastTradeRef.current = new Date(newest.date.getTime() + 1000);
       }
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setSnapshot((prev) => ({
         ...prev,
         loading: false,
@@ -113,6 +123,8 @@ export function useMarketData(username: string | null) {
   }, [username]);
 
   useEffect(() => {
+    // Invalidate any in-flight request for the previous user.
+    requestIdRef.current += 1;
     historyInitializedRef.current = false;
     lastTradeRef.current = null;
     setSnapshot(emptySnapshot());

@@ -9,6 +9,7 @@ import {
 } from '@/lib/wallet/estimated-account-value';
 import type { GlobalPropsData, WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 import { cachedFetch } from '@/lib/cache/client-fetch';
+import { normalizeSteemUsername } from '@/lib/steem/username';
 
 export interface PendingConversion {
   requestid: number;
@@ -36,6 +37,21 @@ export interface WalletExtrasDetails {
   savingsWithdrawals: PendingSavingsWithdrawal[];
 }
 
+/**
+ * Extras state tagged with the identity it was fetched for. Consumers only
+ * see the data while the tag matches the CURRENT username/options — a plain
+ * state reset would need a synchronous effect write (and a plain "keep the
+ * old state until the new fetch lands" leaks user A's pending conversions
+ * and open-order totals into user B's wallet for the whole load window).
+ */
+interface ExtrasState {
+  key: string;
+  extras: WalletEstimateExtras;
+  details: WalletExtrasDetails | null;
+}
+
+const EMPTY_EXTRAS: WalletEstimateExtras = {};
+
 export function useWalletEstimatedValue({
   username,
   balance,
@@ -50,9 +66,16 @@ export function useWalletEstimatedValue({
   enabled?: boolean;
 }) {
   const [prices, setPrices] = useState<WalletPrices | null>(null);
-  const [extras, setExtras] = useState<WalletEstimateExtras>({});
-  const [details, setDetails] = useState<WalletExtrasDetails | null>(null);
+  const [extrasState, setExtrasState] = useState<ExtrasState>({
+    key: '',
+    extras: EMPTY_EXTRAS,
+    details: null,
+  });
   const [loading, setLoading] = useState(true);
+
+  // Identity of the data currently being fetched: extras are user-specific
+  // (and order totals depend on includeOpenOrders).
+  const extrasKey = `${normalizeSteemUsername(username)}|${includeOpenOrders ? 1 : 0}`;
 
   useEffect(() => {
     // Bail without writing state: the returned `loading: loading && enabled`
@@ -104,33 +127,34 @@ export function useWalletEstimatedValue({
         if (extrasResult) {
           const extrasData = extrasResult.data;
           if (extrasData.success) {
-            setExtras({
-              savingsPendingSteem: extrasData.savingsPendingSteem ?? 0,
-              savingsPendingSbd: extrasData.savingsPendingSbd ?? 0,
-              conversionTotalSbd: extrasData.conversionTotalSbd ?? 0,
-              steemOrders: extrasData.steemOrders ?? 0,
-              sbdOrders: extrasData.sbdOrders ?? 0,
-            });
-            setDetails({
-              savingsPendingSteem: extrasData.savingsPendingSteem ?? 0,
-              savingsPendingSbd: extrasData.savingsPendingSbd ?? 0,
-              conversionTotalSbd: extrasData.conversionTotalSbd ?? 0,
-              steemOrders: extrasData.steemOrders ?? 0,
-              sbdOrders: extrasData.sbdOrders ?? 0,
-              conversions: extrasData.conversions ?? [],
-              savingsWithdrawals: extrasData.savingsWithdrawals ?? [],
+            setExtrasState({
+              key: extrasKey,
+              extras: {
+                savingsPendingSteem: extrasData.savingsPendingSteem ?? 0,
+                savingsPendingSbd: extrasData.savingsPendingSbd ?? 0,
+                conversionTotalSbd: extrasData.conversionTotalSbd ?? 0,
+                steemOrders: extrasData.steemOrders ?? 0,
+                sbdOrders: extrasData.sbdOrders ?? 0,
+              },
+              details: {
+                savingsPendingSteem: extrasData.savingsPendingSteem ?? 0,
+                savingsPendingSbd: extrasData.savingsPendingSbd ?? 0,
+                conversionTotalSbd: extrasData.conversionTotalSbd ?? 0,
+                steemOrders: extrasData.steemOrders ?? 0,
+                sbdOrders: extrasData.sbdOrders ?? 0,
+                conversions: extrasData.conversions ?? [],
+                savingsWithdrawals: extrasData.savingsWithdrawals ?? [],
+              },
             });
           } else {
-            setExtras({});
-            setDetails(null);
+            setExtrasState({ key: extrasKey, extras: EMPTY_EXTRAS, details: null });
           }
         }
       } catch (err) {
         console.error('Error fetching estimated account value:', err);
         if (!cancelled) {
           setPrices(null);
-          setExtras({});
-          setDetails(null);
+          setExtrasState({ key: extrasKey, extras: EMPTY_EXTRAS, details: null });
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -140,7 +164,18 @@ export function useWalletEstimatedValue({
     return () => {
       cancelled = true;
     };
-  }, [username, includeOpenOrders, enabled]);
+    // extrasKey is derived from username/includeOpenOrders (the effect deps).
+  }, [username, includeOpenOrders, enabled, extrasKey]);
+
+  // Only expose extras fetched for the CURRENT identity: on a username
+  // switch the tag mismatches on the very first render of the new identity,
+  // so user A's data disappears immediately instead of lingering until user
+  // B's fetch lands.
+  const extras = useMemo(
+    () => (extrasState.key === extrasKey ? extrasState.extras : EMPTY_EXTRAS),
+    [extrasState, extrasKey]
+  );
+  const details = extrasState.key === extrasKey ? extrasState.details : null;
 
   const valueUsd = useMemo(() => {
     if (!balance || !globalProps || !prices) return null;
