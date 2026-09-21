@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { createHmac } from 'crypto';
 import {
   generateCSRFToken,
   isValidCSRFToken,
@@ -58,6 +59,26 @@ describe('CSRF token generation and verification', () => {
     const tsB64 = Buffer.from('not-a-number', 'utf-8').toString('base64url');
     const mac = Buffer.from('fakemac').toString('base64url');
     expect(isValidCSRFToken(`${tsB64}.${mac}`)).toBe(false);
+  });
+
+  it('rejects a token older than 24h even when the MAC is valid', () => {
+    // Forge a correctly-signed token whose timestamp is past the 24h cookie
+    // max age: the MAC check passes, so ONLY the age branch can reject it.
+    const staleTs = (Date.now() - 25 * 60 * 60 * 1000).toString();
+    const stale = [
+      Buffer.from(staleTs, 'utf-8').toString('base64url'),
+      createHmac('sha256', 'test-secret-for-unit-tests').update(staleTs).digest('base64url'),
+    ].join('.');
+    expect(isValidCSRFToken(stale)).toBe(false);
+  });
+
+  it('accepts a correctly-signed token just inside the 24h window', () => {
+    const freshTs = (Date.now() - 23 * 60 * 60 * 1000).toString();
+    const fresh = [
+      Buffer.from(freshTs, 'utf-8').toString('base64url'),
+      createHmac('sha256', 'test-secret-for-unit-tests').update(freshTs).digest('base64url'),
+    ].join('.');
+    expect(isValidCSRFToken(fresh)).toBe(true);
   });
 });
 
