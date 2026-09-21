@@ -13,9 +13,11 @@ import { clientCache } from './client-cache';
  * the nonce, and the nonce-triggered refetch then misses the cache and hits
  * the network.
  *
- * The market page is intentionally absent: it fetches via plain fetch (no
- * L1 entries exist) and its server-side cache is invalidated globally by
- * the limit-order routes.
+ * The market endpoint is intentionally absent from the key list: the market
+ * page fetches via plain fetch (no L1 entries exist) and its server-side
+ * cache is invalidated globally by the limit-order routes. The market page
+ * still CALLS this helper after order placement/cancellation to drop the
+ * user's wallet entries (orders lock balances and change extras).
  */
 export function invalidateWalletCache(username: string): void {
   const u = encodeURIComponent(username);

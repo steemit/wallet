@@ -4,16 +4,15 @@ import { clientCache } from '@/lib/cache/client-cache';
 import { invalidateWalletCache } from '@/lib/cache/client-invalidate';
 
 // The URL templates below mirror the EXACT call sites that write these cache
-// keys. If a hook changes its URL shape, this test must change with it —
-// that coupling is the point: invalidateWalletCache only works while it
-// tracks the real producers.
+// keys (grep the template literals when updating). If a hook changes its URL
+// shape, this test must change with it — that coupling is the point:
+// invalidateWalletCache only works while it tracks the real producers.
 //
-//   /api/query/accounts?names=            — use-steem-wallet-balances.ts:29,
-//                                           use-account-data.ts:24
-//   /api/query/wallet-estimate-extras     — use-wallet-estimated-value.ts:86
+//   /api/query/accounts?names=            — use-steem-wallet-balances, use-account-data
+//   /api/query/wallet-estimate-extras     — use-wallet-estimated-value
 //                                           (includeOpenOrders both variants)
 //   /api/query/withdraw-routes            — client.ts getWithdrawRoutes
-//   /api/query/vesting-delegations        — use-delegations.ts:33
+//   /api/query/vesting-delegations        — use-delegations
 describe('invalidateWalletCache', () => {
   beforeEach(() => {
     clientCache.clear();

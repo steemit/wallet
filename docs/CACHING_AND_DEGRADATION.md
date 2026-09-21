@@ -157,7 +157,7 @@ Returns `{ data: T; degraded: boolean; staleAge?: number }`.
 
 | Endpoint | Redis Key | TTL (fresh) | Stale TTL | Cache-Control Header | Rationale |
 |----------|-----------|-------------|-----------|---------------------|-----------|
-| accounts | `cache:query:accounts:{sha256(names)}` | 10s | 300s (5m) | `public, s-maxage=10, stale-while-revalidate=60` | Balances change per transaction |
+| accounts | `cache:query:accounts:{sha256(names) truncated to 32 hex}` | 10s | 300s (5m) | `public, s-maxage=10, stale-while-revalidate=60` | Balances change per transaction |
 | global-props | `cache:query:global-props` | 3s | 300s (5m) | `public, s-maxage=3` | Matches Steem block interval |
 | wallet-prices | `cache:query:wallet-prices` | 60s (1m) | 600s (10m) | `public, s-maxage=60, stale-while-revalidate=120` | Market prices |
 | price | `cache:query:price` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Feed price |

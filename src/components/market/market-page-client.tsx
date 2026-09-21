@@ -27,6 +27,7 @@ import {
   STEEM_SYMBOL,
 } from '@/lib/market/constants';
 import { formatAssetAmount } from '@/lib/market/utils';
+import { invalidateWalletCache } from '@/lib/cache/client-invalidate';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
 
 export function MarketPageClient() {
@@ -105,6 +106,9 @@ export function MarketPageClient() {
       }
 
       toast.success(t('orderPlaced', { summary: confirmText }));
+      // Orders lock balances and change the extras open-orders list; drop the
+      // L1 entries so returning to the wallet page shows fresh numbers.
+      invalidateWalletCache(username);
       await refresh();
     },
     [username, activeKey, t, refresh]
@@ -123,6 +127,7 @@ export function MarketPageClient() {
           return;
         }
         toast.success(t('orderCancelled', { orderId: orderid }));
+        invalidateWalletCache(username);
         await refresh();
       } finally {
         setCancellingId(null);

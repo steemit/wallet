@@ -69,6 +69,8 @@ describe('change-recovery-account / cancel-transfer-from-savings broadcast route
     expect(res.status).toBe(200);
     expect(mockBroadcastTransaction).toHaveBeenCalledWith(VALID_TX);
     expect(mockCacheDeleteByPrefix).toHaveBeenCalledWith('cache:query:accounts');
+    // Account data only — the drift-copied extras delete must stay dropped.
+    expect(mockCacheDeleteByPrefix).toHaveBeenCalledTimes(1);
     // The removed X-Cache-Invalidate channel must stay gone (it never had a
     // working consumer — see client-invalidate.test.ts for the live path).
     expect(res.headers.get('X-Cache-Invalidate')).toBeNull();

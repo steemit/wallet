@@ -30,9 +30,17 @@ export function hashedCacheKey(prefix: string, ...parts: (string | number | bool
  * routes) and the delete side (broadcast routes) must hash this exact form —
  * otherwise the same account produces different digests and invalidation
  * never matches.
+ *
+ * String() coerces defensively: broadcast routes only truthiness-check the
+ * body's username, and invalidation runs AFTER a successful broadcast — a
+ * non-string value must degrade to a harmless no-op scan, never throw and
+ * turn an already-broadcast transaction into a 500.
  */
 export function normalizeAccountForCache(username: string): string {
-  return username.trim().replace(/^@/, '').toLowerCase();
+  return String(username)
+    .trim()
+    .replace(/^@/, '')
+    .toLowerCase();
 }
 
 /**
