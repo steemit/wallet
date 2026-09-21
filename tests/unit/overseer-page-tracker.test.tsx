@@ -50,7 +50,8 @@ describe('OverseerPageTracker', () => {
   });
 
   it('passes isLogin when authenticated', () => {
-    mockPathname.mockReturnValue('/alice/transfers');
+    // App-realistic account URL shape: every in-app account link is /@user/...
+    mockPathname.mockReturnValue('/@alice/transfers');
     render(
       <Provider store={makeStore(true)}>
         <OverseerPageTracker />

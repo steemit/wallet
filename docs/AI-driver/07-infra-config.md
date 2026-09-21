@@ -21,7 +21,7 @@ don't exist — trpc/robots/sitemap — harmless legacy). Responsibilities, in o
 6. Hand-off to next-intl middleware (`localePrefix: 'never'`, locales en/zh/es).
 
 When modifying CSP: remember `img-src https:` is intentionally wide (on-chain profile images),
-`connect-src` covers GA only (mixpanel is NOT allowlisted), and any new external origin needs both
+`connect-src` covers GA only, and any new external origin needs both
 the header and an audit of what loads it.
 
 ## Environment variables
@@ -79,11 +79,15 @@ stale template until reconciled.
 
 - **Live:** GA/gtag runtime-injected; overseer page/action tracking (`overseer-page-tracker`,
   `lib/analytics/overseer-payload.ts`) relayed through `/api/analytics/overseer`.
-  ⚠️ `routeTagFromPathname` doesn't strip the leading `@` from `/@account` paths, so all wallet
-  account pages are tagged `not_found` — strip `@` first if you touch analytics.
-- **Dead:** the Mixpanel client module + `/api/analytics/event` + `NEXT_PUBLIC_MIXPANEL_TOKEN`.
-  `mixpanel-browser` isn't even a dependency (`@ts-expect-error` placeholder). Either delete the
-  chain or wire it fully (install dep, init call, CSP `connect-src` entry) — don't half-do it.
+  `routeTagFromPathname` strips the leading `@` from `/@account` paths (via
+  `normalizeSteemUsername`) before the account-name check, so wallet account pages tag as
+  `user_index`/`change_password` instead of `not_found`.
+- **Removed:** the Mixpanel chain (client module `lib/analytics/index.ts`, the
+  `/api/analytics/event` route, `NEXT_PUBLIC_MIXPANEL_TOKEN`, the `tests/mocks/mixpanel-browser.ts`
+  vitest alias) was dead code with zero traffic and has been deleted. `docker/docker-compose.yml`
+  still carries a `MIXPANEL_TOKEN` ghost variable pending a full compose rewrite. Do not
+  reintroduce analytics half-wired — a future backend would need a real dependency, an init call,
+  and a CSP `connect-src` entry.
 
 ## i18n
 
