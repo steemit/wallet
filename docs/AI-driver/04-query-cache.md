@@ -94,9 +94,9 @@ broadcast-side delete prefix matches.
   cursor protocol is client-driven (`use-batch-history`).
 - **transaction-header**: block ref + expiration for signing. Short TTL; see 06 for why signing
   still works with cached headers.
-- **price**: **broken** (reads nonexistent `current_median_history.base_quote`, always 0) and has
-  zero consumers — use `wallet-prices` (`SteemService.getWalletPrices`, which parses base/quote
-  correctly). Do not wire anything to `/api/query/price`.
+- **price**: **removed** (2026-09-22). It read the nonexistent `current_median_history.base_quote`
+  and always returned 0 with zero consumers — use `wallet-prices`
+  (`SteemService.getWalletPrices`, which parses base/quote correctly).
 - **proposals/votes**: passes 200 names to `getAccounts` in one call while the accounts route
   caps at 100 — unverified against the real upstream limit; if it breaks, chunk it.
 

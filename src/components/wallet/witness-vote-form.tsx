@@ -154,9 +154,7 @@ export function WitnessVoteForm() {
       const response = await apiClient.broadcastWitnessVote(signedTx, username);
       if (!response.success) {
         throw new Error(
-          response.details ||
-            response.error ||
-            (approve ? t('voteError') : t('unvoteError'))
+          response.error || (approve ? t('voteError') : t('unvoteError'))
         );
       }
       userActionRecord('account_witness_vote', { username, witness: witnessName });

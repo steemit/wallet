@@ -38,10 +38,10 @@ the hard way.
 
 These are documented in detail in the review report; agents must not *assume* they work:
 
-- **`use-auth.ts`'s `login` and the `wallet`/`ui` Redux slices are dead code.** Do not call them;
-  the only live login entry point is `LoginForm`. See 06-frontend.md.
-- **`/api/query/price` returns a constant 0** (reads a nonexistent field) and has no consumers.
-  Do not use it; use `/api/query/wallet-prices`. See 04-query-cache.md.
+- **`use-auth.ts`'s `login` half and the `wallet`/`ui` Redux slices were dead code and were
+  removed (2026-09-22).** The only live login entry point is `LoginForm`. See 06-frontend.md.
+- **`/api/query/price`** was removed (2026-09-22): it returned a constant 0 (read a nonexistent
+  field) and had no consumers. Use `/api/query/wallet-prices`. See 04-query-cache.md.
 
 Post-broadcast cache invalidation was in this category until 2026-09-21; it now works as
 documented in 03-broadcast.md §"Cache invalidation after broadcast" and 04-query-cache.md —

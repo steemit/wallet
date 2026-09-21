@@ -56,7 +56,7 @@ export function ProposalRemoveDialog({
       const signedTx = await SteemSigner.signRemoveProposal(username, [proposalId], activeKey);
       const res = await apiClient.broadcastProposalRemove(signedTx, username);
       if (!res.success) {
-        toast.error(res.error ?? res.details ?? t('removeFailed'));
+        toast.error(res.error ?? t('removeFailed'));
         return;
       }
       toast.success(t('removeSuccess'));

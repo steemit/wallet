@@ -128,7 +128,7 @@ export function ProposalCreatorDialog({
       );
       const res = await apiClient.broadcastProposalCreate(signedTx, username);
       if (!res.success) {
-        toast.error(res.error ?? res.details ?? t('createFailed'));
+        toast.error(res.error ?? t('createFailed'));
         return;
       }
       toast.success(t('createSuccess'));

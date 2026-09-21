@@ -7,12 +7,10 @@ vi.mock('@/lib/middleware', () => ({
   rateLimit: (...args: unknown[]) => mockRateLimit(...args),
 }));
 
-const mockVerifySignature = vi.fn();
 const mockValidateTransactionShape = vi.fn();
 const mockBroadcastTransaction = vi.fn();
 vi.mock('@/lib/steem/server', () => ({
   SteemService: {
-    verifySignature: (...args: unknown[]) => mockVerifySignature(...args),
     validateTransactionShape: (...args: unknown[]) => mockValidateTransactionShape(...args),
     broadcastTransaction: (...args: unknown[]) => mockBroadcastTransaction(...args),
   },
@@ -31,7 +29,6 @@ describe('proposal broadcast routes', () => {
     vi.clearAllMocks();
     mockVerifyCSRF.mockResolvedValue(null);
     mockRateLimit.mockResolvedValue(null);
-    mockVerifySignature.mockResolvedValue(true);
     // Shape check passes by default (pure relay: no signature verification).
     mockValidateTransactionShape.mockReturnValue(true);
     mockBroadcastTransaction.mockResolvedValue({ id: 'trx', block_num: 1, trx_num: 1, expired: false });

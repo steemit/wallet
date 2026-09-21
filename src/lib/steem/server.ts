@@ -327,20 +327,6 @@ export class SteemService {
   }
 
   /**
-   * Get feed history (price)
-   */
-  static async getFeedHistory(): Promise<unknown> {
-    return withFailover(async () => {
-      ensureConfigured();
-      const api = steem.api as unknown as { getFeedHistoryAsync: () => Promise<unknown> };
-      return await api.getFeedHistoryAsync();
-    }).catch((error) => {
-      console.error('Error fetching feed history:', error);
-      throw new Error(`Failed to fetch feed history: ${(error as Error).message}`);
-    });
-  }
-
-  /**
    * STEEM/SBD USD prices for wallet estimated account value (matches wallet-legacy TransactionSaga).
    */
   static async getWalletPrices(): Promise<{ steemPrice: number; sbdPrice: number }> {

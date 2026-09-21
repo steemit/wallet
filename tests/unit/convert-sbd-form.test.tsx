@@ -49,7 +49,6 @@ function makeStore(sessionUser: string): ReturnType<typeof configureStore> {
       privateKey: '5J-test-active-key',
       publicKey: 'STM-test',
       isAuthenticated: true,
-      challenge: null,
     },
   };
   return configureStore({ reducer: { auth: authReducer }, preloadedState: preloaded });

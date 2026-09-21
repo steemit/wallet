@@ -2,9 +2,9 @@
 
 ## The real architecture (as opposed to the nominal one)
 
-- **Redux** (`src/lib/store/`): only the `auth` slice is live (credentials, keys — sanitized in
-  DevTools). The `wallet` and `ui` slices have **zero consumers** — do not dispatch into them;
-  delete-on-sight candidates. Theming lives in `src/lib/theme.ts` (useSyncExternalStore +
+- **Redux** (`src/lib/store/`): only the `auth` slice exists (credentials, keys — sanitized in
+  DevTools). The former `wallet` and `ui` slices had zero consumers and were removed (2026-09-22);
+  do not reintroduce them. Theming lives in `src/lib/theme.ts` (useSyncExternalStore +
   localStorage, three values original/light/dark), not in Redux.
 - **The actual data layer is the hooks** (`src/hooks/` + four history hooks historically living in
   `src/lib/wallet/`), each owning local state around `cachedFetch`/`apiClient` calls.

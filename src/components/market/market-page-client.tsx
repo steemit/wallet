@@ -101,7 +101,7 @@ export function MarketPageClient() {
 
       const res = await apiClient.broadcastLimitOrderCreate(signedTx, username);
       if (!res.success) {
-        toast.error(res.error ?? res.details ?? t('orderFailed'));
+        toast.error(res.error ?? t('orderFailed'));
         return;
       }
 
@@ -123,7 +123,7 @@ export function MarketPageClient() {
         const signedTx = await SteemSigner.signLimitOrderCancel(username, orderid, activeKey);
         const res = await apiClient.broadcastLimitOrderCancel(signedTx, username);
         if (!res.success) {
-          toast.error(res.error ?? res.details ?? t('orderFailed'));
+          toast.error(res.error ?? t('orderFailed'));
           return;
         }
         toast.success(t('orderCancelled', { orderId: orderid }));

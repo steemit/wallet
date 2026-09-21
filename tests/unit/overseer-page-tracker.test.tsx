@@ -3,8 +3,6 @@ import { render } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer, { setCredentials } from '@/lib/store/slices/auth';
-import walletReducer from '@/lib/store/slices/wallet';
-import uiReducer from '@/lib/store/slices/ui';
 
 const recordRouteTag = vi.fn();
 vi.mock('@/lib/analytics/overseer', () => ({
@@ -21,7 +19,7 @@ import { OverseerPageTracker } from '@/components/analytics/overseer-page-tracke
 
 function makeStore(loggedIn: boolean) {
   const store = configureStore({
-    reducer: { auth: authReducer, wallet: walletReducer, ui: uiReducer },
+    reducer: { auth: authReducer },
   });
   if (loggedIn) {
     store.dispatch(

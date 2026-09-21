@@ -1,7 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/auth';
-import walletReducer from './slices/wallet';
-import uiReducer from './slices/ui';
 import type { AuthState } from './slices/auth';
 
 const AUTH_KEY_FIELDS = ['ownerKey', 'activeKey', 'postingKey', 'memoKey', 'privateKey'] as const;
@@ -31,8 +29,6 @@ export const makeStore = () =>
   configureStore({
     reducer: {
       auth: authReducer,
-      wallet: walletReducer,
-      ui: uiReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
