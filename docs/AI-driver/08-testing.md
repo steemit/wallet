@@ -66,7 +66,7 @@ Rules that follow from this history:
 
 - `/api/auth/login` and `/api/auth/logout` routes — **zero**. Priority when touching auth:
   fail-closed (Redis null → 503), one-time challenge `del`, `validKeys` matching, malformed JSON → 400.
-- 14 of 18 broadcast routes have no route-level tests (the per-route invalidation drift grew in
+- 12 of 18 broadcast routes have no route-level tests (the per-route invalidation drift grew in
   exactly these gaps).
 - `/api/query/price` was deleted (broken, unconsumed) — do not reintroduce it.
 - `csrf.test.ts` lacks the 24h-expiry branch.

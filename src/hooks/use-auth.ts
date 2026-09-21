@@ -13,9 +13,10 @@ interface UseAuthReturn {
 }
 
 /**
- * Session state access for authenticated areas. The login flow itself lives in
- * `LoginForm` (the only live entry point); this hook only exposes the current
- * session and how to end it.
+ * Auth hooks for authenticated areas: `useAuth` exposes the current session
+ * and how to end it (the login flow itself lives in `LoginForm`, the only
+ * live entry point), and `useActiveSigningKey` exposes the active/owner
+ * signing key for authority-checked operations.
  */
 export function useAuth(): UseAuthReturn {
   const dispatch = useDispatch();
