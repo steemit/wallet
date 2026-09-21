@@ -19,6 +19,17 @@ function healthResponse(status: string): Response {
   } as unknown as Response;
 }
 
+/** Fire one poll by simulating the tab becoming visible. */
+function triggerVisiblePoll() {
+  act(() => {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+}
+
 describe('useServiceHealth', () => {
   beforeEach(() => {
     mockFetch.mockReset();
@@ -38,16 +49,49 @@ describe('useServiceHealth', () => {
     const { result } = renderHook(() => useServiceHealth());
     await waitFor(() => expect(result.current).toBe('degraded'));
 
-    mockFetch.mockRejectedValue(new Error('network down'));
     // Poll fires on visibility change; simulate returning to the tab.
-    act(() => {
-      Object.defineProperty(document, 'visibilityState', {
-        configurable: true,
-        value: 'visible',
-      });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
+    // Outage requires OUTAGE_FAILURE_THRESHOLD consecutive failed polls.
+    mockFetch.mockRejectedValue(new Error('network down'));
+    triggerVisiblePoll();
+    // First failure: last known status is kept, no outage flash.
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    expect(result.current).toBe('degraded');
+
+    triggerVisiblePoll();
     await waitFor(() => expect(result.current).toBe('outage'));
+  });
+
+  it('a single failed poll after healthy does not flash an outage banner', async () => {
+    mockFetch.mockResolvedValue(healthResponse('healthy'));
+    const { result } = renderHook(() => useServiceHealth());
+    await waitFor(() => expect(result.current).toBe('healthy'));
+
+    mockFetch.mockRejectedValueOnce(new Error('transient network blip'));
+    triggerVisiblePoll();
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    // One failure is below the threshold: the banner stays down.
+    expect(result.current).toBe('healthy');
+
+    // Next poll succeeds → still healthy, counter reset.
+    triggerVisiblePoll();
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(3));
+    expect(result.current).toBe('healthy');
+  });
+
+  it('recovery from outage is immediate on the first successful poll', async () => {
+    mockFetch.mockRejectedValue(new Error('network down'));
+    const { result } = renderHook(() => useServiceHealth());
+    // Mount poll = first failure: below the threshold, still no banner.
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(result.current).toBe('unknown');
+
+    triggerVisiblePoll(); // second consecutive failure
+    await waitFor(() => expect(result.current).toBe('outage'));
+
+    mockFetch.mockResolvedValue(healthResponse('healthy'));
+    triggerVisiblePoll();
+    await waitFor(() => expect(result.current).toBe('healthy'));
   });
 
   it('per-response degraded flag shows degraded immediately (no 60s poll wait)', async () => {
@@ -87,6 +131,9 @@ describe('useServiceHealth', () => {
   it('outage outranks the per-response degraded flag', async () => {
     mockFetch.mockRejectedValue(new Error('network down'));
     const { result } = renderHook(() => useServiceHealth());
+    triggerVisiblePoll();
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    triggerVisiblePoll();
     await waitFor(() => expect(result.current).toBe('outage'));
 
     act(() => setDegraded(true));

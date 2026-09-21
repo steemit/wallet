@@ -25,7 +25,7 @@ let activityState: {
   error: string | null;
   loadMore: () => Promise<void>;
 };
-vi.mock('@/lib/wallet/use-activity-history', () => ({
+vi.mock('@/hooks/use-activity-history', () => ({
   useActivityHistory: () => activityState,
 }));
 
@@ -38,7 +38,7 @@ let pagerState: {
   loadingOlder: boolean;
   canFetchMore: boolean;
 };
-vi.mock('@/lib/wallet/use-rewards-history-pager', () => ({
+vi.mock('@/hooks/use-rewards-history-pager', () => ({
   useRewardsHistoryPager: () => pagerState,
 }));
 

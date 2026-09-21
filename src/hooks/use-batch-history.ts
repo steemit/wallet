@@ -97,7 +97,13 @@ export interface UseBatchHistoryResult {
   exhausted: boolean;
   totalFetched: number;
   error: string | null;
-  loadMore: () => Promise<void>;
+  /**
+   * Fetch the next older batch. Resolves true when a batch was applied,
+   * false when the call was skipped (already loading / exhausted) or the
+   * fetch failed (see `error`) — pagers must only advance their page index
+   * on true, or a failed fetch desyncs the pager from the data.
+   */
+  loadMore: () => Promise<boolean>;
 }
 
 export function useBatchHistory({
@@ -223,9 +229,9 @@ export function useBatchHistory({
     };
   }, []);
 
-  const loadMore = useCallback(async () => {
-    if (loadingMore || loading) return;
-    if (exhausted && nextCursor === null) return;
+  const loadMore = useCallback(async (): Promise<boolean> => {
+    if (loadingMore || loading) return false;
+    if (exhausted && nextCursor === null) return false;
 
     const requestId = ++requestIdRef.current;
     setLoadingMore(true);
@@ -233,7 +239,7 @@ export function useBatchHistory({
     try {
       const from = nextCursor !== null ? nextCursor : undefined;
       const result = await fetchBatch(username, opsRef.current, from, REWARDS_HISTORY_FETCH_LIMIT);
-      if (requestId !== requestIdRef.current) return;
+      if (requestId !== requestIdRef.current) return false;
 
       // Merge against the snapshot ref (state pair of record) so the persisted
       // cache stays consistent with the rendered history.
@@ -260,11 +266,13 @@ export function useBatchHistory({
         nextCursor: result.exhausted || result.nextFrom === null ? null : result.nextFrom,
         totalFetched: mergedTotal,
       };
+      return true;
     } catch (err) {
       if (requestId === requestIdRef.current) {
         console.error('Error loading more history:', err);
         setError(err instanceof Error ? err.message : 'Failed to load more');
       }
+      return false;
     } finally {
       if (requestId === requestIdRef.current) setLoadingMore(false);
     }

@@ -9,8 +9,8 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useActivityHistory } from '@/lib/wallet/use-activity-history';
-import { useRewardsHistory } from '@/lib/wallet/use-rewards-history';
+import { useActivityHistory } from '@/hooks/use-activity-history';
+import { useRewardsHistory } from '@/hooks/use-rewards-history';
 import { clientCache } from '@/lib/cache/client-cache';
 import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
 

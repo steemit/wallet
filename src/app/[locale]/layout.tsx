@@ -10,6 +10,7 @@ import { AppLayout } from '@/components/layout/app-layout';
 import { GoogleAnalytics } from '@/components/analytics/google-analytics';
 import { GoogleAnalyticsPageviews } from '@/components/analytics/google-analytics-pageviews';
 import { getGaMeasurementId } from '@/lib/analytics/ga-id';
+import { THEME_INIT_SCRIPT } from '@/lib/theme-init';
 import '../globals.css';
 
 const geistSans = Geist({
@@ -73,6 +74,19 @@ export default async function LocaleLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* Theme applied during HTML parsing, before the first paint —
+            dark-theme users would otherwise get a white flash on every full
+            page load (lib/theme.ts only touches the DOM after hydration).
+            Classic blocking inline script as the first child of <body>; runs
+            before any body content is painted. It carries the CSP nonce
+            (proxy.ts mints one per request) — without it 'strict-dynamic'
+            would block the script and the FOUC would return. Like the GA
+            scripts below it must stay in its own fragment with no 'use
+            client' siblings so React emits it in the SSR HTML. */}
+        <script
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+          {...(nonce ? { nonce } : {})}
+        />
         {/* GA scripts must stay in a fragment free of 'use client' elements —
             a client sibling inside the SAME fragment makes React defer the
             scripts to hydration instead of emitting them in the SSR HTML.

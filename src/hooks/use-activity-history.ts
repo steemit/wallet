@@ -1,6 +1,6 @@
 'use client';
 
-import { useBatchHistory, type UseBatchHistoryResult } from '@/lib/wallet/use-batch-history';
+import { useBatchHistory, type UseBatchHistoryResult } from '@/hooks/use-batch-history';
 import { ACTIVITY_OP_TYPES } from '@/lib/steem/history-ops';
 import { normalizeSteemUsername } from '@/lib/steem/username';
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useBatchHistory, type UseBatchHistoryResult } from '@/lib/wallet/use-batch-history';
+import { useBatchHistory, type UseBatchHistoryResult } from '@/hooks/use-batch-history';
 import { normalizeSteemUsername } from '@/lib/steem/username';
 
 export type RewardsOpType = 'curation_reward' | 'author_reward';
