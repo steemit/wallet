@@ -8,7 +8,7 @@ import { RecentActivity } from '@/components/wallet/recent-activity';
 import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, _opts?: unknown) => key,
+  useTranslations: () => (key: string) => key,
 }));
 
 let lazyEnabled = true;

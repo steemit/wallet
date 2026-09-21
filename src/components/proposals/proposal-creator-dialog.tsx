@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
-import { sameSteemAccount } from '@/lib/steem/username';
+import { normalizeSteemUsername, sameSteemAccount } from '@/lib/steem/username';
 import { useActiveSigningKey } from '@/hooks/use-auth';
 
 function defaultDateTimeLocal(): string {
@@ -112,9 +112,13 @@ export function ProposalCreatorDialog({
     setSubmitting(true);
     try {
       const dailyPay = `${parseFloat(dailyAmount).toFixed(3)} SBD`;
+      // The chain only accepts canonical lowercase account names; the typed or
+      // permlink-parsed creator/receiver may carry mixed case or a leading '@'.
+      const creatorName = normalizeSteemUsername(resolvedCreator);
+      const receiverName = normalizeSteemUsername(resolvedReceiver);
       const signedTx = await SteemSigner.signCreateProposal(
-        resolvedCreator,
-        resolvedReceiver,
+        creatorName,
+        receiverName,
         normalizeChainDateTime(startDate),
         normalizeChainDateTime(endDate),
         dailyPay,

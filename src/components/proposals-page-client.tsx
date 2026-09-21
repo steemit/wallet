@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
 import type { Proposal, ProposalOrderBy, ProposalStatus } from '@/lib/steem/types';
 import { parseSteemAsset } from '@/lib/steem/parse-asset';
+import { sameSteemAccount } from '@/lib/steem/username';
 import {
   abbreviateNumber,
   filterProposalsBySearch,
@@ -122,7 +123,7 @@ function ProposalRow({
 
   const approveNext = !proposal.upVoted;
   const voteLabel = proposal.upVoted ? t('unvote') : t('vote');
-  const isCreator = currentUsername === proposal.creator;
+  const isCreator = sameSteemAccount(currentUsername, proposal.creator);
 
   const lifecycleLabel =
     lifecycle === 'finished'
