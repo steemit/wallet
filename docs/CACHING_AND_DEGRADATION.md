@@ -542,7 +542,7 @@ no `degraded` flag.
 | `src/hooks/use-account-data.ts` | 1 | Account data with L1 cache |
 | `src/hooks/use-steem-wallet-balances.ts` | 1 | Balances with L1 cache |
 | `src/hooks/use-wallet-estimated-value.ts` | 1 | Estimated value with L1 cache |
-| `src/lib/wallet/use-rewards-history.ts` | 1 | Rewards history with L1 cache |
+| `src/hooks/use-rewards-history.ts` | 1 | Rewards history with L1 cache |
 | `src/components/layout/degradation-banner.tsx` | 3 | Degradation notification banner |
 | `src/components/layout/app-layout.tsx` | 3 | Banner integration point |
 | `src/app/api/health/route.ts` | 3 | Health check endpoint |

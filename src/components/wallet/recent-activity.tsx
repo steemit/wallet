@@ -2,8 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import { useLazyEnabled } from '@/hooks/use-lazy-enabled';
-import { useActivityHistory } from '@/lib/wallet/use-activity-history';
-import { useRewardsHistoryPager } from '@/lib/wallet/use-rewards-history-pager';
+import { useActivityHistory } from '@/hooks/use-activity-history';
+import { useRewardsHistoryPager } from '@/hooks/use-rewards-history-pager';
 import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
 import { formatSteemPowerFromVestsString } from '@/lib/wallet/vest-steem';

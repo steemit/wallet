@@ -6,7 +6,7 @@ import {
   nextHistoryIndex,
   paginateReversedHistory,
 } from '@/lib/wallet/rewards-history';
-import type { UseBatchHistoryResult } from '@/lib/wallet/use-batch-history';
+import type { UseBatchHistoryResult } from '@/hooks/use-batch-history';
 
 type HistoryBatchState = Pick<
   UseBatchHistoryResult,

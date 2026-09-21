@@ -6,8 +6,8 @@ import { useLazyEnabled } from '@/hooks/use-lazy-enabled';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
 import { sumCurationRewardsLastWeek } from '@/lib/wallet/rewards-history';
-import { useRewardsHistory } from '@/lib/wallet/use-rewards-history';
-import { useRewardsHistoryPager } from '@/lib/wallet/use-rewards-history-pager';
+import { useRewardsHistory } from '@/hooks/use-rewards-history';
+import { useRewardsHistoryPager } from '@/hooks/use-rewards-history-pager';
 import {
   formatSteemPowerDisplay,
   steemPowerFromVests,

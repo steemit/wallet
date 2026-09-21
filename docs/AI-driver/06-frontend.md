@@ -6,8 +6,9 @@
   DevTools). The former `wallet` and `ui` slices had zero consumers and were removed (2026-09-22);
   do not reintroduce them. Theming lives in `src/lib/theme.ts` (useSyncExternalStore +
   localStorage, three values original/light/dark), not in Redux.
-- **The actual data layer is the hooks** (`src/hooks/` + four history hooks historically living in
-  `src/lib/wallet/`), each owning local state around `cachedFetch`/`apiClient` calls.
+- **The actual data layer is the hooks** (`src/hooks/`, including the four history hooks
+  relocated from `src/lib/wallet/` in 2026-09), each owning local state around
+  `cachedFetch`/`apiClient` calls.
 - **The refresh signal** is the wallet nonce, paired with explicit L1
   invalidation: the broadcast success path (`page.tsx`
   `handleWalletDataChanged`) first calls `invalidateWalletCache(username)`

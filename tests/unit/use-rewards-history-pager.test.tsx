@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useRewardsHistoryPager } from '@/lib/wallet/use-rewards-history-pager';
+import { useRewardsHistoryPager } from '@/hooks/use-rewards-history-pager';
 import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
 
 function makeItems(count: number): SteemHistoryItem[] {

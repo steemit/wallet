@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useBatchHistory } from '@/lib/wallet/use-batch-history';
+import { useBatchHistory } from '@/hooks/use-batch-history';
 import { clientCache } from '@/lib/cache/client-cache';
 import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
 
