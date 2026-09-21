@@ -2,7 +2,7 @@
 // Broadcast a signed account_create transaction (community creation step 1)
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
-import { verifyCSRF, rateLimit, setCacheInvalidateHeader } from '@/lib/middleware';
+import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
 
@@ -38,9 +38,7 @@ export async function POST(request: NextRequest) {
 
     await cacheDeleteByPrefix('cache:query:accounts');
 
-    const response = NextResponse.json({ success: true, result });
-    setCacheInvalidateHeader(response, username);
-    return response;
+    return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Broadcast account-create error:', error);
     return NextResponse.json(

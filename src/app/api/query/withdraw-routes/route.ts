@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
-import { hashedCacheKey } from '@/lib/cache/cache-key';
+import { hashedCacheKey, normalizeAccountForCache } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const username = request.nextUrl.searchParams.get('username')?.trim().replace(/^@/, '');
+    const rawUsername = request.nextUrl.searchParams.get('username');
+    const username = rawUsername ? normalizeAccountForCache(rawUsername) : undefined;
     if (!username) {
       return NextResponse.json({ error: 'Missing username' }, { status: 400 });
     }

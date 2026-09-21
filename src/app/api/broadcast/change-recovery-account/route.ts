@@ -2,7 +2,7 @@
 // Broadcast a signed change_recovery_account transaction (owner authority).
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
-import { verifyCSRF, rateLimit, setCacheInvalidateHeader } from '@/lib/middleware';
+import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
 
@@ -38,13 +38,10 @@ export async function POST(request: NextRequest) {
     // Broadcast the transaction
     const result = await SteemService.broadcastTransaction(signedTx);
 
-    // Invalidate Redis caches for this user
+    // Changes the account's recovery partner — account data only.
     await cacheDeleteByPrefix('cache:query:accounts');
-    await cacheDeleteByPrefix(`cache:query:wallet-estimate-extras:${username}`);
 
-    const response = NextResponse.json({ success: true, result });
-    setCacheInvalidateHeader(response, username);
-    return response;
+    return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Broadcast change_recovery_account error:', error);
     return NextResponse.json(

@@ -7,6 +7,7 @@ import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { getDb } from '@/lib/db';
 import { arecs } from '@/lib/db/schema';
+import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
 
 interface RecoverAccountOperation {
@@ -198,6 +199,11 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await SteemService.broadcastTransaction(txForBroadcast);
+
+    // recover_account replaces the account's owner authority — the cached
+    // account object (incl. owner keys and the recovery request the warning
+    // banner reads) is now stale.
+    await cacheDeleteByPrefix('cache:query:accounts');
 
     // Consume is best-effort replay hardening. The on-chain recover_account
     // is already single-use per request_account_recovery; a DB error here

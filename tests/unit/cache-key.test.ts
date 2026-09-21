@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'crypto';
-import { hashedCacheKey } from '@/lib/cache/cache-key';
+import {
+  hashedCacheKey,
+  hashedUserCachePrefix,
+  normalizeAccountForCache,
+} from '@/lib/cache/cache-key';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 
@@ -53,5 +57,42 @@ describe('hashedCacheKey', () => {
     const key = hashedCacheKey('pfx', 'evil*key?[with:new\nlines]');
     const component = key.split(':')[1]!;
     expect(component).toMatch(/^[0-9a-f]+$/);
+  });
+});
+
+describe('hashedUserCachePrefix (broadcast-side invalidation)', () => {
+  // THE regression guard for the 2026-09-21 review finding A-1: broadcast
+  // routes deleted by `prefix:${username}` while query routes stored
+  // `prefix:<sha256(username)>...`, so every targeted delete was a silent
+  // no-op. These tests pin the invalidation prefix to the REAL key
+  // construction the query routes use — not an imagined shape.
+  it('prefixes every key hashedCacheKey produces for the same account', () => {
+    const prefix = hashedUserCachePrefix('cache:query:wallet-estimate-extras', 'alice');
+    expect(hashedCacheKey('cache:query:wallet-estimate-extras', 'alice', true).startsWith(prefix)).toBe(true);
+    expect(hashedCacheKey('cache:query:wallet-estimate-extras', 'alice', false).startsWith(prefix)).toBe(true);
+    // Single-component keys (withdraw-routes) are matched exactly by the
+    // trailing-* SCAN pattern cacheDeleteByPrefix applies.
+    const single = hashedCacheKey('cache:query:withdraw-routes', 'alice');
+    const singlePrefix = hashedUserCachePrefix('cache:query:withdraw-routes', 'alice');
+    expect(single.startsWith(singlePrefix)).toBe(true);
+  });
+
+  it('never prefixes another account key', () => {
+    const prefix = hashedUserCachePrefix('cache:query:wallet-estimate-extras', 'alice');
+    expect(hashedCacheKey('cache:query:wallet-estimate-extras', 'bob', true).startsWith(prefix)).toBe(false);
+    // A same-length digest with a different first char must not match either.
+    const aliceHash = sha('alice');
+    const other = (aliceHash[0] === 'a' ? 'b' : 'a') + aliceHash.slice(1);
+    expect(`${'cache:query:wallet-estimate-extras'}:${other}`.startsWith(prefix)).toBe(false);
+  });
+
+  it('normalizes like the query routes: case and leading @ are irrelevant', () => {
+    expect(normalizeAccountForCache('  @Alice.Sub ')).toBe('alice.sub');
+    expect(hashedUserCachePrefix('pfx', '@Alice.Sub')).toBe(hashedUserCachePrefix('pfx', 'alice.sub'));
+  });
+
+  it('emits only the trusted prefix plus hex — no glob metacharacters', () => {
+    const prefix = hashedUserCachePrefix('pfx', 'evil*name?[with:chars]');
+    expect(prefix.slice('pfx:'.length)).toMatch(/^[0-9a-f]{64}$/);
   });
 });

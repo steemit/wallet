@@ -2,8 +2,9 @@
 // Broadcast a signed transfer transaction
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
-import { verifyCSRF, rateLimit, setCacheInvalidateHeader } from '@/lib/middleware';
+import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
+import { hashedUserCachePrefix } from '@/lib/cache/cache-key';
 import type { SignedTransaction } from '@/lib/steem/types';
 
 export async function POST(request: NextRequest) {
@@ -39,14 +40,13 @@ export async function POST(request: NextRequest) {
     // Broadcast the transaction
     const result = await SteemService.broadcastTransaction(signedTx);
 
-    // Invalidate Redis caches for this user
+    // Invalidate Redis caches for this user. The user-scoped delete must go
+    // through hashedUserCachePrefix: query routes store keys with the username
+    // hashed (hashedCacheKey), so a plaintext-name prefix would never match.
     await cacheDeleteByPrefix('cache:query:accounts');
-    await cacheDeleteByPrefix(`cache:query:wallet-estimate-extras:${username}`);
-    await cacheDeleteByPrefix(`cache:query:withdraw-routes:${username}`);
+    await cacheDeleteByPrefix(hashedUserCachePrefix('cache:query:wallet-estimate-extras', username));
 
-    const response = NextResponse.json({ success: true, result });
-    setCacheInvalidateHeader(response, username);
-    return response;
+    return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Broadcast transfer error:', error);
     return NextResponse.json(

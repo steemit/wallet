@@ -123,19 +123,4 @@ describe('cachedFetch', () => {
 
     expect(result.degraded).toBe(true);
   });
-
-  it('invalidates cache on X-Cache-Invalidate header', async () => {
-    mockFetch.mockResolvedValueOnce(
-      jsonResponse({ value: 1 }, { 'X-Cache-Invalidate': 'user:alice:' })
-    );
-
-    clientCache.set('user:alice:balance', 100, 60_000, 120_000);
-    clientCache.set('user:bob:balance', 200, 60_000, 120_000);
-
-    await cachedFetch('/api/test', { staleMs: 10_000, maxAgeMs: 30_000 });
-
-    // alice entries should be invalidated (prefix match)
-    expect(clientCache.get('user:alice:balance')).toBeNull();
-    expect(clientCache.get('user:bob:balance')).not.toBeNull();
-  });
 });

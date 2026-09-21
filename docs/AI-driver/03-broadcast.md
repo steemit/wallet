@@ -57,29 +57,46 @@ DB gating (see 05-recovery.md) — it is a recovery-business route, not a pure r
 - Success path has no op-level audit log (relies on OTel spans / ELB). Do not assume you can grep
   who broadcast what.
 
-## Cache invalidation after broadcast — ⚠️ mostly dead, know the state
+## Cache invalidation after broadcast — the contract
 
-The design intent: after a successful broadcast, delete the user's now-stale Redis caches and tell
-the browser L1 to drop entries. **Current reality (review 2026-09-21):**
+After a successful relay, delete exactly the Redis caches your op dirties (see
+`docs/CACHING_AND_DEGRADATION.md` §2.7 for the per-route table):
 
-- `cacheDeleteByPrefix('cache:query:accounts' | '...:market' | '...:proposals')` — these three
-  **work** (verbatim prefixes), but are global (any broadcast flushes the whole site's accounts
-  cache).
-- `cacheDeleteByPrefix(\`cache:query:<x>:${username}\`)` — **permanent no-op**: query keys are
-  sha256-hashed (`hashedCacheKey`), so a plaintext username prefix can never match. Affects the
-  `wallet-estimate-extras` / `withdraw-routes` / `vesting-delegations` deletes in every route.
-  When fixing: delete by the *hashed* key (`hashedCacheKey('cache:query:wallet-estimate-extras', username)`
-  is already the full prefix to scan), and sanitize the username (a `*`/`?` in it lands directly
-  in the SCAN MATCH pattern).
-- `X-Cache-Invalidate: <username>` response header — **dead channel**: only `cachedFetch` (GET
-  queries) reads it, broadcast POSTs go through plain `fetch` whose headers are discarded, and the
-  client cache keys are URLs so a username prefix would never match anyway. Do not rely on it;
-  if you build post-action refresh, invalidate explicit URLs like
-  `savings-withdraw-history.tsx:88` does.
-- Known per-route drift (the consequence of copy-paste without tests): `witness-vote`/`witness-proxy`
-  don't invalidate `cache:query:witnesses` (600s TTL!); `recover-account` doesn't invalidate
-  `cache:query:accounts` at all; `proposal-create/remove` require `username` and never use it.
-  When you add a route, list *which* caches your op actually dirties and invalidate exactly those.
+- **Global data** (accounts / market / proposals / witnesses): plain prefix —
+  `cacheDeleteByPrefix('cache:query:accounts')` etc.
+- **User-scoped caches** (wallet-estimate-extras / withdraw-routes / the two
+  delegation endpoints): the username MUST go through
+  `hashedUserCachePrefix(prefix, username)` from `lib/cache/cache-key.ts`:
+
+  ```ts
+  await cacheDeleteByPrefix(
+    hashedUserCachePrefix('cache:query:wallet-estimate-extras', username)
+  );
+  ```
+
+  Query routes store keys with the username SHA-256-hashed (`hashedCacheKey`);
+  interpolating the raw name produces a SCAN pattern that can never match.
+  That exact mismatch shipped once and made every targeted delete a silent
+  no-op — `tests/unit/cache-key.test.ts` pins the invalidation prefix to the
+  real key construction, so keep those tests passing. The helper also
+  normalizes the name (trim / strip `@` / lowercase) identically to the query
+  routes, and its hex-only output cannot smuggle Redis glob metacharacters
+  into the SCAN pattern.
+
+- Only delete what the op changes. The historical copy-paste drift: witness
+  votes invalidating withdraw-routes, proposal votes invalidating wallet
+  extras, `recover-account` invalidating nothing (it replaces owner
+  authority — it must flush accounts). When in doubt, enumerate what the op
+  changes on chain and map it to the caches that serve it.
+
+**Browser L1 invalidation is client-side and explicit** — there is no
+`X-Cache-Invalidate` header anymore (the channel had no working consumer and
+was removed in 2026-09). The wallet page's broadcast success path calls
+`invalidateWalletCache(username)` (`lib/cache/client-invalidate.ts`) and then
+bumps the refresh nonce. If you add a NEW broadcast success handler in a
+component, call `invalidateWalletCache` for the acting user before triggering
+any refetch — `cachedFetch` otherwise serves its fresh window with no request
+and the UI keeps pre-broadcast data (see 06-frontend.md).
 
 ## Route inventory & status (2026-09-21)
 

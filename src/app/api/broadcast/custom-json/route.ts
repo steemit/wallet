@@ -2,7 +2,7 @@
 // Broadcast signed custom_json operations (community hivemind ops, subscribe, etc.)
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
-import { verifyCSRF, rateLimit, setCacheInvalidateHeader } from '@/lib/middleware';
+import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import type { SignedTransaction } from '@/lib/steem/types';
 
 export async function POST(request: NextRequest) {
@@ -35,9 +35,8 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(signedTx);
 
-    const response = NextResponse.json({ success: true, result });
-    setCacheInvalidateHeader(response, username);
-    return response;
+    // custom_json affects none of the query caches; nothing to invalidate.
+    return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Broadcast custom-json error:', error);
     return NextResponse.json(

@@ -2,7 +2,7 @@
 // Broadcast a signed witness proxy transaction
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
-import { verifyCSRF, rateLimit, setCacheInvalidateHeader } from '@/lib/middleware';
+import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
 
@@ -33,13 +33,12 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    // Proxy changes re-rank the witness list (600s TTL cache) and the
+    // account's witness voting state.
     await cacheDeleteByPrefix('cache:query:accounts');
-    await cacheDeleteByPrefix(`cache:query:wallet-estimate-extras:${username}`);
-    await cacheDeleteByPrefix(`cache:query:withdraw-routes:${username}`);
+    await cacheDeleteByPrefix('cache:query:witnesses');
 
-    const response = NextResponse.json({ success: true, result });
-    setCacheInvalidateHeader(response, username);
-    return response;
+    return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Broadcast witness proxy error:', error);
     return NextResponse.json(
