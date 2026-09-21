@@ -45,7 +45,7 @@ export function useSteemWalletBalances(username: string, refreshNonce = 0) {
         }
 
         const account = accountsResponse.accounts[0] as SteemAccount;
-        setBalance(account as unknown as WalletBalanceData);
+        setBalance(account);
         if (propsResponse?.error || !propsResponse?.props) {
           console.warn(propsResponse?.error || 'Failed to fetch global props');
           setGlobalProps(null);

@@ -41,8 +41,8 @@ const BALANCE: WalletBalanceData = {
   savings_balance: '0.000 STEEM',
   savings_sbd_balance: '0.000 SBD',
   next_vesting_withdrawal: '1970-01-01T00:00:00',
-  to_withdraw: '0',
-  withdrawn: '0',
+  to_withdraw: 0,
+  withdrawn: 0,
   // Full pending amounts exactly as the account reports them (legacy parity:
   // zero-valued SBD included; the op claims all three token types).
   reward_steem_balance: '0.500 STEEM',

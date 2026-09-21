@@ -66,6 +66,7 @@ export function clearRememberedDeviceAuth(): void {
   clearRememberedPostingKey();
 }
 
+/** Read the device-remembered username (normalized), or null when none is stored. */
 export function getRememberedDeviceUsername(): string | null {
   if (typeof window === 'undefined') return null;
   try {
