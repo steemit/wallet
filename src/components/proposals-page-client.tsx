@@ -265,6 +265,7 @@ export function ProposalsPageClient() {
     setDirection,
     loadMore,
     refresh,
+    setProposalVotedLocally,
     limit,
   } = useProposals(username);
 
@@ -283,6 +284,12 @@ export function ProposalsPageClient() {
     }
 
     setVotingId(proposalId);
+    // Optimistic flip (K-3): the proposals route serves username'd responses
+    // with `private, max-age=15`, so even the post-vote refresh could echo
+    // the pre-vote upVoted for up to 15s — the local flip is what the user
+    // sees immediately; roll back on any failure below.
+    setProposalVotedLocally(proposalId, approve);
+    const rollback = () => setProposalVotedLocally(proposalId, !approve);
     try {
       const signedTx = await SteemSigner.signUpdateProposalVotes(
         username,
@@ -292,12 +299,16 @@ export function ProposalsPageClient() {
       );
       const res = await apiClient.broadcastProposalVote(signedTx, username);
       if (!res.success) {
+        rollback();
         toast.error(res.error ?? t('voteFailed'));
         return;
       }
       toast.success(approve ? t('voteSuccess') : t('unvoteSuccess'));
-      await Promise.all([refresh(), refreshMeta()]);
+      // noStore: skip the 15s HTTP cache so the refresh confirms the vote
+      // instead of re-serving the pre-vote flag.
+      await Promise.all([refresh({ noStore: true }), refreshMeta()]);
     } catch (err) {
+      rollback();
       toast.error(err instanceof Error ? err.message : t('voteFailed'));
     } finally {
       setVotingId(null);
