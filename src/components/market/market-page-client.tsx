@@ -27,6 +27,7 @@ import {
   STEEM_SYMBOL,
 } from '@/lib/market/constants';
 import { formatAssetAmount } from '@/lib/market/utils';
+import { nextMarketOrderId } from '@/lib/market/order-id';
 import { invalidateWalletCache } from '@/lib/cache/client-invalidate';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
 
@@ -87,29 +88,37 @@ export function MarketPageClient() {
 
       if (!window.confirm(`${confirmText}?`)) return;
 
-      const orderid = Math.floor(Date.now() / 1000);
+      // Unique per session (uint32, no same-second replacement on chain).
+      const orderid = nextMarketOrderId();
       const expiration = Math.floor(Date.now() / 1000) + DEFAULT_LIMIT_ORDER_EXPIRATION_SEC;
 
-      const signedTx = await SteemSigner.signLimitOrderCreate(
-        username,
-        amountToSell,
-        minToReceive,
-        orderid,
-        expiration,
-        activeKey
-      );
+      try {
+        const signedTx = await SteemSigner.signLimitOrderCreate(
+          username,
+          amountToSell,
+          minToReceive,
+          orderid,
+          expiration,
+          activeKey
+        );
 
-      const res = await apiClient.broadcastLimitOrderCreate(signedTx, username);
-      if (!res.success) {
-        toast.error(res.error ?? t('orderFailed'));
-        return;
+        const res = await apiClient.broadcastLimitOrderCreate(signedTx, username);
+        if (!res.success) {
+          toast.error(res.error ?? t('orderFailed'));
+          return;
+        }
+
+        toast.success(t('orderPlaced', { summary: confirmText }));
+        // Orders lock balances and change the extras open-orders list; drop the
+        // L1 entries so returning to the wallet page shows fresh numbers.
+        invalidateWalletCache(username);
+        await refresh();
+      } catch (err) {
+        // Signing failures (missing key, header fetch error) and relay/network
+        // failures must surface instead of dying as unhandled rejections.
+        if (process.env.NODE_ENV !== 'production') console.error('Order error:', err);
+        toast.error(t('orderFailed'));
       }
-
-      toast.success(t('orderPlaced', { summary: confirmText }));
-      // Orders lock balances and change the extras open-orders list; drop the
-      // L1 entries so returning to the wallet page shows fresh numbers.
-      invalidateWalletCache(username);
-      await refresh();
     },
     [username, activeKey, t, refresh]
   );
@@ -129,6 +138,11 @@ export function MarketPageClient() {
         toast.success(t('orderCancelled', { orderId: orderid }));
         invalidateWalletCache(username);
         await refresh();
+      } catch (err) {
+        // Signing/relay errors must surface, not reject unhandled (the
+        // try/finally alone only reset the spinner and rethrew).
+        if (process.env.NODE_ENV !== 'production') console.error('Cancel order error:', err);
+        toast.error(t('orderFailed'));
       } finally {
         setCancellingId(null);
       }
