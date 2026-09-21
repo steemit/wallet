@@ -252,6 +252,9 @@
     "market": "Mercado",
     "profileJoined": "Miembro desde",
     "steemPowerApr": "STEEM POWER aumenta a una APR de aproximadamente {value}%, sujeto a la variación de la blockchain.",
+    "delegatedPowerWarning": "Parte del STEEM POWER de {username} está actualmente delegado. La delegación se dona por influencia o para ayudar a nuevos usuarios a realizar acciones en Steemit. Tu cantidad delegada puede fluctuar.",
+    "powerNotDelegated": "La influencia también puede delegarse a otros usuarios mediante la delegación de tu Steem Power. Devolver tu Steem Power tarda exactamente 5 días, durante los cuales ni tú ni el receptor pueden usarlo.",
+    "delegatedPowerTooltip": "STEEM POWER delegado a/desde esta cuenta",
     "openOrders": "Órdenes abiertas",
     "inConversion": "{amount} en conversión",
     "conversionCompleteTip": "Se completará el {date}",
@@ -602,6 +605,7 @@
       "verified_exchange_no_memo": "Este destinatario es un exchange verificado. Se requiere un memo.",
       "memo_has_privatekey": "No incluya lo que parece ser una clave privada o contraseña en el memo.",
       "memo_is_privatekey": "No use claves privadas en los memos.",
+      "memo_is_password": "No use contraseñas en los memos.",
       "acknowledge_warnings": "Confirme las advertencias anteriores antes de enviar."
     }
   },

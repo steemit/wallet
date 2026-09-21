@@ -35,6 +35,10 @@ import {
 import { useWalletEstimatedValue } from '@/hooks/use-wallet-estimated-value';
 import { getCurrentSteemPowerApr } from '@/lib/wallet/sp-apr';
 import { formatTimeUntil } from '@/lib/wallet/format-time-ago';
+import {
+  formatDelegatedSteemPowerDisplay,
+  netDelegatedSteemPower,
+} from '@/lib/wallet/vest-steem';
 import type { GlobalPropsData, WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 
 function numberWithCommas(x: string): string {
@@ -100,13 +104,14 @@ export function BalanceRows({
   };
 
   const getDelegatedSP = () => {
-    if (!balance?.delegated_vesting_shares || !globalProps) return { display: '0.000', raw: 0 };
-    const delegatedAmount = parseFloat(balance.delegated_vesting_shares.split(' ')[0] || '0') || 0;
-    const totalVestingShares = parseFloat(globalProps.total_vesting_shares?.split(' ')[0] || '1') || 1;
-    const totalVestingFund = parseFloat(globalProps.total_vesting_fund_steem?.split(' ')[0] || '0') || 0;
-    const sp = (delegatedAmount / totalVestingShares) * totalVestingFund;
+    if (!balance || !globalProps) return { display: '0.000', raw: 0 };
+    // Legacy `delegatedSteem` (wallet-legacy StateFunctions.js:63-78): the
+    // shown number is the NET of delegated out minus received.
+    const sp = netDelegatedSteemPower(balance, globalProps);
     return {
-      display: (sp < 0 ? '+' : '') + numberWithCommas(Math.abs(sp).toFixed(3)),
+      // Legacy sign convention (UserWallet.jsx:659-661): net received shows
+      // "+X", net delegated out shows "-X".
+      display: formatDelegatedSteemPowerDisplay(sp),
       raw: sp,
     };
   };
@@ -219,10 +224,12 @@ export function BalanceRows({
               <div className="secondary">
                 Influence tokens which give you more control over post payouts and allow you to earn on curation rewards.
                 {hasDelegation && (
-                  <span className="block mt-1">Part of your STEEM POWER is currently delegated.</span>
+                  <span className="block mt-1">
+                    {t('delegatedPowerWarning', { username })}
+                  </span>
                 )}
                 {!hasDelegation && (
-                  <span className="block mt-1">Your STEEM POWER is not currently delegated.</span>
+                  <span className="block mt-1">{t('powerNotDelegated')}</span>
                 )}
                 {spApr !== null && spApr > 0 && (
                   <span className="block mt-1">
@@ -254,7 +261,7 @@ export function BalanceRows({
                       <span className="cursor-help">({delegatedSP.display} STEEM)</span>
                     </TooltipTrigger>
                     <TooltipContent>
-                      STEEM POWER delegated to/from this account
+                      {t('delegatedPowerTooltip')}
                     </TooltipContent>
                   </Tooltip>
                 </div>
