@@ -303,6 +303,7 @@ describe('apiClient.getChallenge', () => {
     const result = await apiClient.getChallenge('alice/bob');
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/auth/challenge?username=alice%2Fbob',
+      { cache: 'no-store' },
     );
     expect(result).toEqual({ challenge: 'login-test-123' });
   });

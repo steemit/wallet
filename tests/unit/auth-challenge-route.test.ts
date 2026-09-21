@@ -75,6 +75,25 @@ describe('GET /api/auth/challenge', () => {
     );
   });
 
+  it('marks challenge responses Cache-Control: no-store', async () => {
+    const res = await GET(makeRequest('alice'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('fail-closed: Redis unavailable → 503, no challenge issued (symmetric with login)', async () => {
+    // Issuing a challenge REQUIRES Redis: login later verifies against the
+    // stored value. Previously a Redis outage silently skipped storage and
+    // still returned 200 with an unverifiable challenge.
+    mockGetRedis.mockReturnValue(null);
+    const res = await GET(makeRequest('alice'));
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.error).toBe('Login temporarily unavailable');
+    expect(mockRedisSet).not.toHaveBeenCalled();
+    expect(mockGenerateChallenge).not.toHaveBeenCalled();
+  });
+
   it('returns 400 when username is missing', async () => {
     const res = await GET(makeRequest());
     expect(res.status).toBe(400);
@@ -166,6 +185,7 @@ describe('GET /api/auth/challenge', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.challenge).toBe('victim-live-challenge'); // NOT the fresh one
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
     expect(mockRedisSet).toHaveBeenCalledWith(
       'wallet:auth:challenge:alice',
       expect.any(String),

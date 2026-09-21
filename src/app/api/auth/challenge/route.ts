@@ -7,6 +7,19 @@ import { getRedis, redisKey } from '@/lib/cache/redis';
 
 const CHALLENGE_TTL = 300; // 5 minutes
 
+// Challenge-bearing responses must never be stored by browsers or
+// intermediaries: a cached challenge would be signed by the client but
+// verified at login against a different server-side value (guaranteed
+// failure, or worse a stale-but-still-live value replayed elsewhere). The
+// client-side fetch mirrors this with cache: 'no-store'.
+function challengeResponse(payload: { success: true; challenge: string }): NextResponse {
+  const response = NextResponse.json(payload);
+  response.headers.set('Cache-Control', 'no-store');
+  // Set CSRF token cookie (readable by JS, validated server-side)
+  setCSRFToken(response);
+  return response;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -44,6 +57,21 @@ export async function GET(request: NextRequest) {
     if (ipLimit) return ipLimit;
 
     const redis = getRedis();
+
+    // Fail-closed, symmetric with the login route: issuing a challenge
+    // REQUIRES Redis, because login verification later reads the stored
+    // challenge. Previously a Redis outage silently skipped storage and still
+    // returned 200 — handing out challenges that could never verify, and
+    // leaving the route writing nothing while appearing healthy. Reject
+    // instead (same error shape/status as login's fail-closed path).
+    if (!redis) {
+      console.error('Redis unavailable during challenge issuance — rejecting (fail-closed)');
+      return NextResponse.json(
+        { error: 'Login temporarily unavailable' },
+        { status: 503 }
+      );
+    }
+
     const challengeKey = redisKey(`auth:challenge:${username}`);
 
     const userLimit = await rateLimitByUser(username, 'auth_challenge', limitConfig);
@@ -52,24 +80,20 @@ export async function GET(request: NextRequest) {
       // the user's own retries). Do NOT lock the account out: fall back to
       // the still-valid challenge so login remains possible. Only when none
       // exists do we surface the 429.
-      if (redis) {
-        try {
-          const existing = await redis.get(challengeKey);
-          if (existing) {
-            const { challenge } = JSON.parse(existing) as {
-              challenge: string;
-              createdAt: number;
-            };
-            if (typeof challenge === 'string' && challenge.length > 0) {
-              const response = NextResponse.json({ success: true, challenge });
-              setCSRFToken(response);
-              return response;
-            }
-            // Corrupted entry (no usable challenge): fall through to 429.
+      try {
+        const existing = await redis.get(challengeKey);
+        if (existing) {
+          const { challenge } = JSON.parse(existing) as {
+            challenge: string;
+            createdAt: number;
+          };
+          if (typeof challenge === 'string' && challenge.length > 0) {
+            return challengeResponse({ success: true, challenge });
           }
-        } catch {
-          // Redis read failed — fall through to the 429 below.
+          // Corrupted entry (no usable challenge): fall through to 429.
         }
+      } catch {
+        // Redis read failed — fall through to the 429 below.
       }
       return userLimit;
     }
@@ -104,58 +128,46 @@ export async function GET(request: NextRequest) {
     // (attacker refreshes the victim's challenge mid-signing, invalidating
     // the signature the victim is about to submit) is gone. While a
     // challenge is alive the same one is simply handed out again.
-    if (redis) {
-      const stored = await redis.set(
-        challengeKey,
-        JSON.stringify({ challenge, createdAt: Date.now() }),
-        'EX',
-        CHALLENGE_TTL,
-        'NX'
-      );
-      if (stored !== 'OK') {
-        // A live challenge already exists (set NX lost the race or a
-        // previous one is still pending): return it instead of the fresh
-        // one so client and server agree on the signed message.
-        try {
-          const existing = await redis.get(challengeKey);
-          if (existing) {
-            const existingChallenge = (JSON.parse(existing) as {
-              challenge: string;
-            }).challenge;
-            if (typeof existingChallenge === 'string' && existingChallenge.length > 0) {
-              const response = NextResponse.json({
-                success: true,
-                challenge: existingChallenge,
-              });
-              setCSRFToken(response);
-              return response;
-            }
-            // Corrupted entry without a usable challenge: hand out the
-            // freshly generated one. NX lost the race against the corrupt
-            // key, so the fresh write did not land; the corrupt entry dies
-            // at TTL (≤5 min) and the next request after that persists a
-            // clean challenge. Login against the corrupt entry would fail
-            // verification anyway — surfacing the fresh challenge here does
-            // NOT weaken it: login still reads whatever is stored.
+    const stored = await redis.set(
+      challengeKey,
+      JSON.stringify({ challenge, createdAt: Date.now() }),
+      'EX',
+      CHALLENGE_TTL,
+      'NX'
+    );
+    if (stored !== 'OK') {
+      // A live challenge already exists (set NX lost the race or a
+      // previous one is still pending): return it instead of the fresh
+      // one so client and server agree on the signed message.
+      try {
+        const existing = await redis.get(challengeKey);
+        if (existing) {
+          const existingChallenge = (JSON.parse(existing) as {
+            challenge: string;
+          }).challenge;
+          if (typeof existingChallenge === 'string' && existingChallenge.length > 0) {
+            return challengeResponse({
+              success: true,
+              challenge: existingChallenge,
+            });
           }
-        } catch {
-          // Read failed after failed NX write — fall through and return the
-          // freshly generated challenge. Worst case the client signs the new
-          // one while Redis still holds an older entry; login fails once and
-          // the retry (after TTL or successful login consumes the key) works.
+          // Corrupted entry without a usable challenge: hand out the
+          // freshly generated one. NX lost the race against the corrupt
+          // key, so the fresh write did not land; the corrupt entry dies
+          // at TTL (≤5 min) and the next request after that persists a
+          // clean challenge. Login against the corrupt entry would fail
+          // verification anyway — surfacing the fresh challenge here does
+          // NOT weaken it: login still reads whatever is stored.
         }
+      } catch {
+        // Read failed after failed NX write — fall through and return the
+        // freshly generated challenge. Worst case the client signs the new
+        // one while Redis still holds an older entry; login fails once and
+        // the retry (after TTL or successful login consumes the key) works.
       }
     }
 
-    const response = NextResponse.json({
-      success: true,
-      challenge,
-    });
-
-    // Set CSRF token cookie (readable by JS, validated server-side)
-    setCSRFToken(response);
-
-    return response;
+    return challengeResponse({ success: true, challenge });
   } catch (error) {
     console.error('Error generating challenge:', error);
     return NextResponse.json(

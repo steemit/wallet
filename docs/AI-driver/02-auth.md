@@ -6,14 +6,14 @@
 GET  /api/auth/challenge  { username }
       → SteemService.generateChallenge (random)
       → Redis SET auth:challenge:{username} EX 300 NX     (one-time-ish, no overwrite)
-      → { challenge }
+      → { challenge }  (Cache-Control: no-store)
 client: derive WIF for username+role from password, or use stored posting key
       → SteemSigner.signChallenge(challenge, privateKey)   (client-side ECDSA)
-POST /api/auth/login       { username, challenge, signedChallenge, publicKey }
-      → Redis GET challenge → 404 if absent
+POST /api/auth/login       { username, signedChallenge, publicKey }
+      → Redis GET challenge → 401 if absent
       → SteemService.verifyChallengeSignature (ECDSA verify against submitted publicKey)
+      → Redis GETDEL challenge (atomic one-time consume; null → 401)
       → getAccounts(username) → key must be one of posting/active/owner authority keys
-      → Redis DEL challenge (one-time consumption)
       → { account } — NO server session is created
 ```
 
@@ -35,20 +35,26 @@ Auth state is client-side only: Redux `auth` slice + optional localStorage.
 
 ## Invariants
 
-1. **Login fails closed when Redis is unavailable** (`login/route.ts` returns 503). Never "degrade"
-   to signature-only acceptance.
+1. **Both auth routes fail closed when Redis is unavailable** (both return 503:
+   login rejects before verifying; challenge rejects before issuing — it never
+   hands out a challenge that could not be stored and later verified). Never
+   "degrade" login to signature-only acceptance.
 2. **Challenges are stored `NX`** — simultaneous requests share one challenge (a deliberate F6/S2
-   hardening; do not reintroduce overwrite semantics). Consumed via `redis.del` after successful
-   verify. (Known nit: get→verify→del is not atomic; docs call it "prevents replay" — if you touch
-   this, switch to `GETDEL`.)
+   hardening; do not reintroduce overwrite semantics). Consumed atomically via
+   `redis.getdel` AFTER signature verification: a failed signature does not
+   burn the challenge (client may retry), and concurrent replays of a valid
+   signature are decided atomically — exactly one wins, the rest get 401.
+   GETDEL needs Redis ≥ 6.2 (deployment baseline is ElastiCache Redis 7+).
 3. **Verify-then-attribute order**: ECDSA verify against the *submitted* public key first, then
    check that key belongs to the account's authorities. Never skip the second step.
 4. Challenge TTL is 300s; username must match `/^[a-z0-9.-]{2,}$/` (server side) — so **clients
    must normalize** (lowercase, strip `@`) before calling. `LoginForm` does;
-   dead `use-auth.login` does not.
+   dead `use-auth.login` does not. Challenge responses carry
+   `Cache-Control: no-store` and the client `getChallenge` fetch uses
+   `cache: 'no-store'`.
 5. Rate limits: challenge = IP-dimension + username-dimension (username over-limit returns the
-   existing challenge rather than 429, to avoid targeted login-DoS); login and challenge have
-   limits; logout has none (known asymmetry).
+   existing challenge rather than 429, to avoid targeted login-DoS); login and
+   logout each have a 10/min/IP limit.
 
 ## Known functional limitations (recorded in AGENTS.md "待解决问题")
 
@@ -72,7 +78,8 @@ Auth state is client-side only: Redux `auth` slice + optional localStorage.
 
 **Pitfall:** if you add a new POST endpoint, `verifyCSRF` must be the first thing after method
 dispatch, before `request.json()` — malformed-JSON handling after CSRF avoids turning attacker
-garbage into 5xx (login route currently violates this and returns 500 on bad JSON; don't copy it).
+garbage into 5xx. Parse the body inside its own try/catch and return 400 on failure (the login
+route does this; copy that pattern, do not let a parse throw reach the outer catch).
 
 ## Private keys on the client
 
@@ -94,8 +101,11 @@ garbage into 5xx (login route currently violates this and returns 500 on bad JSO
 
 ## Testing notes
 
-- Challenge route has 20+ unit tests (limits, NX, degradation). **Login and logout routes have
-  zero** — when you touch them, add coverage for: Redis-null → 503, challenge one-time `del`,
-  `validKeys` matching, malformed JSON → 400.
+- All three auth routes have unit coverage:
+  `tests/unit/auth-challenge-route.test.ts` (limits, NX, degradation),
+  `tests/unit/auth-login-route.test.ts` (Redis-null → 503, atomic GETDEL
+  one-time consumption incl. concurrent replay, `validKeys` matching,
+  malformed JSON → 400), `tests/unit/auth-logout-route.test.ts` (no-op shape,
+  CSRF, rate limit).
 - Client tests mock `apiClient.login`; server tests mock `@/lib/db`-style singletons
   (see 08-testing.md).

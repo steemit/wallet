@@ -664,7 +664,12 @@ export const apiClient = {
    * Get login challenge
    */
   async getChallenge(username: string): Promise<{ challenge: string }> {
-    const response = await fetch(`/api/auth/challenge?username=${encodeURIComponent(username)}`);
+    // no-store: a challenge served from a browser/intermediary cache would be
+    // signed here but verified server-side against a different stored value.
+    // Mirrors the route's Cache-Control: no-store response header.
+    const response = await fetch(`/api/auth/challenge?username=${encodeURIComponent(username)}`, {
+      cache: 'no-store',
+    });
     if (!response.ok) {
       throw new Error('Failed to get challenge');
     }
