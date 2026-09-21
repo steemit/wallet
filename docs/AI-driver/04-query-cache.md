@@ -121,9 +121,11 @@ broadcast-side delete prefix matches.
 - Single-flight: concurrent identical misses share ONE in-process fetch (per-instance Map of
   pending promises, not a Redis lock). TTL-expiry storms no longer fan out one upstream call per
   concurrent request — do not add per-request upstream reads to short-TTL routes without this.
-- `docs/CACHING_AND_DEGRADATION.md` is the intent document but has drifted (key table shows
-  plaintext usernames; §2.5 documents the pre-S6 IP order including a `cf-connecting-ip` that
-  doesn't exist; power-down quota outdated; health polling 30s vs 60s). Code wins; update the doc
+- `docs/CACHING_AND_DEGRADATION.md` is the intent document but has partially drifted. The
+  §2.4 key table was rewritten to SHA-256 digests and now matches `hashedCacheKey`; the
+  remaining drift is §2.5's pre-S6 client-IP order (including a `cf-connecting-ip` that
+  doesn't exist), the outdated power-down quota, and the health polling interval (§3.3's
+  table says 30s; code and the doc's own prose poll every 60s). Code wins; update the doc
   in the same PR when you change behavior.
 
 ## Client-side L1 cache (browser)

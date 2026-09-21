@@ -18,7 +18,10 @@ import { hashedCacheKey, normalizeAccountForCache } from '@/lib/cache/cache-key'
  * Tradeoff: the delta-window start can be up to ~30s older than requested, so
  * a response may repeat a few trades the client already has. The client
  * dedupes trade rows by key (use-market-data), so this is bounded staleness
- * traded for the cache actually engaging.
+ * traded for the cache actually engaging. Anonymous bucket entries are shared
+ * cross-user, so an anonymous visitor whose cursor is older than the first
+ * filler's can silently skip trades from the gap window until remount (bounded
+ * by the bucket width); logged-in users are keyed per-user and unaffected.
  */
 const SINCE_BUCKET_MS = 30_000;
 
