@@ -24,6 +24,7 @@ import {
 } from '@/components/wallet/client-wrappers';
 import { normalizeProfile } from '@/lib/steem/normalize-profile';
 import { canManageBalanceForPageUrl } from '@/lib/auth/browser-storage';
+import { normalizeSteemUsername, sameSteemAccount } from '@/lib/steem/username';
 
 type BannerProfileFields = {
   displayName?: string;
@@ -59,10 +60,14 @@ export default function WalletPage() {
   const pathname = usePathname();
 
   const rawUsername = params?.username as string | undefined;
-  
-  // Parse username from params (e.g. "@ety001" -> "ety001")
-  const urlUsername = rawUsername ? decodeURIComponent(rawUsername).replace(/^@/, '') : '';
-  const isMyAccount = !!isAuthenticated && !!loggedInUser && loggedInUser === urlUsername;
+
+  // Parse username from params (e.g. "@Alice" -> "alice"). Normalize to the
+  // chain-canonical form so every downstream comparison, cache key, and API
+  // URL sees ONE identity whatever case the visitor's URL used.
+  const urlUsername = rawUsername ? normalizeSteemUsername(decodeURIComponent(rawUsername)) : '';
+  // Compare normalized: the session user may be cased differently from the URL
+  // (login as "alice", visit /@Alice) — raw === would fork the UI state.
+  const isMyAccount = !!isAuthenticated && sameSteemAccount(loggedInUser, urlUsername);
   const showBalanceActions = canManageBalanceForPageUrl({
     urlUsername,
     loggedInUser,
@@ -126,8 +131,11 @@ export default function WalletPage() {
     };
   }, [urlUsername]);
 
-  // Align with wallet-legacy: user homepage /@username has no content, redirect to /@username/transfers
-  const isUserHome = pathname === `/@${urlUsername}` || pathname === `/@${urlUsername}/`;
+  // Align with wallet-legacy: user homepage /@username has no content, redirect to /@username/transfers.
+  // Compare case-insensitively: urlUsername is normalized but the URL path may
+  // keep the visitor's original casing (/@Alice vs /@alice).
+  const pathLower = pathname.toLowerCase();
+  const isUserHome = pathLower === `/@${urlUsername}` || pathLower === `/@${urlUsername}/`;
 
   useEffect(() => {
     if (!urlUsername) {

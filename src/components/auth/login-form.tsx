@@ -12,6 +12,7 @@ import {
   REMEMBERED_POSTING_KEY_KEY,
   REMEMBERED_USERNAME_KEY,
 } from '@/lib/auth/browser-storage';
+import { sameSteemAccount } from '@/lib/steem/username';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -266,11 +267,12 @@ export function LoginForm(props: LoginFormProps = {}) {
         try {
           const savedPosting = localStorage.getItem(REMEMBERED_POSTING_KEY_KEY);
           const savedUser = localStorage.getItem(REMEMBERED_USERNAME_KEY);
-          if (
-            savedPosting &&
-            savedUser === username &&
-            SteemSigner.verifyPrivateKey(savedPosting, accountPostingKey)
-          ) {
+      if (
+        savedPosting &&
+        // localStorage value may predate normalization — compare canonically.
+        sameSteemAccount(savedUser, username) &&
+        SteemSigner.verifyPrivateKey(savedPosting, accountPostingKey)
+      ) {
             postingKey = savedPosting;
           }
         } catch {

@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { sameSteemAccount, normalizeSteemUsername } from '@/lib/steem/username';
 
 export type WithdrawRoutesFormVariant = 'dialog' | 'page';
 
@@ -84,7 +85,7 @@ export function WithdrawRoutesForm({
   const remainingDisplay = Math.max(0, 100 - totalRoutedChain / 100);
 
   const submitRoute = async (toAccount: string, chainPercent: number, vest: boolean) => {
-    if (!loggedIn || !signingKey || loggedIn !== accountUsername) {
+    if (!loggedIn || !signingKey || !sameSteemAccount(loggedIn, accountUsername)) {
       setError(t('mustBeAccountOwner'));
       return;
     }
@@ -128,14 +129,15 @@ export function WithdrawRoutesForm({
       return;
     }
     const chainPercent = Math.round(pct * 100);
-    await submitRoute(proxyAccount.trim().replace(/^@/, ''), chainPercent, autoVest);
+    // Same canonical form as the other destination inputs (delegate/transfer).
+    await submitRoute(normalizeSteemUsername(proxyAccount), chainPercent, autoVest);
   };
 
   const handleRemove = (toAccount: string) => {
     void submitRoute(toAccount, 0, false);
   };
 
-  const canEdit = isMyAccount && !!loggedIn && loggedIn === accountUsername && !!signingKey;
+  const canEdit = isMyAccount && !!loggedIn && sameSteemAccount(loggedIn, accountUsername) && !!signingKey;
 
   const inner = (
     <div className="space-y-4">

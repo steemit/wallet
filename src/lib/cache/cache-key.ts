@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { normalizeSteemUsername } from '@/lib/steem/username';
 
 /**
  * Build a collision-resistant Redis cache key from a prefix and user-supplied
@@ -31,16 +32,15 @@ export function hashedCacheKey(prefix: string, ...parts: (string | number | bool
  * otherwise the same account produces different digests and invalidation
  * never matches.
  *
+ * Delegates to the shared canonical normalizer (@/lib/steem/username) so
+ * client-side comparisons and server-side cache keys cannot drift apart.
  * String() coerces defensively: broadcast routes only truthiness-check the
  * body's username, and invalidation runs AFTER a successful broadcast — a
  * non-string value must degrade to a harmless no-op scan, never throw and
  * turn an already-broadcast transaction into a 500.
  */
 export function normalizeAccountForCache(username: string): string {
-  return String(username)
-    .trim()
-    .replace(/^@/, '')
-    .toLowerCase();
+  return normalizeSteemUsername(String(username));
 }
 
 /**

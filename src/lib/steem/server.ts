@@ -5,6 +5,7 @@ import { randomBytes } from 'crypto';
 import { steem } from '@steemit/steem-js';
 
 import { formatSteemIsoTimestamp } from '@/lib/steem/chain-time';
+import { sameSteemAccount } from '@/lib/steem/username';
 
 import type { OverseerCustomPayload } from '@/lib/analytics/overseer-payload';
 import {
@@ -110,7 +111,8 @@ export class SteemService {
               }[];
             };
             const request = recoveryData?.requests?.[0];
-            if (request && request.account_to_recover === username) {
+            // Chain fields are canonical lowercase; the requested name may not be.
+            if (request && sameSteemAccount(request.account_to_recover, username)) {
               first.account_recovery = request;
             }
           } catch (err) {

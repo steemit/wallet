@@ -5,6 +5,7 @@ import { createHash } from 'crypto';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { normalizeAccountForCache } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +26,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const usernames = namesParam.split(',').map((s) => s.trim()).filter(Boolean);
+    // Normalize every name (trim + strip '@' + lowercase): the same account
+    // list must map to one cache key and one upstream call whatever casing
+    // the client sent.
+    const usernames = namesParam.split(',').map((s) => normalizeAccountForCache(s)).filter(Boolean);
 
     if (usernames.length === 0) {
       return NextResponse.json(
@@ -41,9 +45,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Hash the full names param for the cache key so distinct long username
+    // Hash the full normalized list for the cache key so distinct long username
     // lists that share a 200-char prefix do not collide in cache.
-    const cacheKey = `cache:query:accounts:${createHash('sha256').update(namesParam).digest('hex').slice(0, 32)}`;
+    const cacheKey = `cache:query:accounts:${createHash('sha256').update(usernames.join(',')).digest('hex').slice(0, 32)}`;
     const result = await withCache(cacheKey, 10, 300, () =>
       SteemService.getAccounts(usernames)
     );

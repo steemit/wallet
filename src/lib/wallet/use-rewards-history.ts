@@ -1,6 +1,7 @@
 'use client';
 
 import { useBatchHistory, type UseBatchHistoryResult } from '@/lib/wallet/use-batch-history';
+import { normalizeSteemUsername } from '@/lib/steem/username';
 
 export type RewardsOpType = 'curation_reward' | 'author_reward';
 
@@ -18,7 +19,8 @@ export function useRewardsHistory(
 ): UseRewardsHistoryResult {
   return useBatchHistory({
     username,
-    cacheKey: username ? `rewards:${username}:${opType}` : '',
+    // Normalize the cache-key component so /@Alice and /@alice share one entry.
+    cacheKey: username ? `rewards:${normalizeSteemUsername(username)}:${opType}` : '',
     ops: [opType],
     enabled,
   });

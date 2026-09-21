@@ -9,6 +9,7 @@ import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
 import { formatSteemPowerFromVestsString } from '@/lib/wallet/vest-steem';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
 import type { GlobalPropsData } from '@/lib/wallet/wallet-balance-types';
+import { normalizeSteemUsername } from '@/lib/steem/username';
 import { RewardsHistoryPager } from '@/components/wallet/rewards-history-pager';
 import {
   Table,
@@ -23,12 +24,22 @@ function asStr(val: unknown): string | undefined {
   return typeof val === 'string' ? val : undefined;
 }
 
-function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?: GlobalPropsData | null) {
+/**
+ * Compare a chain op account field against the page-context account.
+ * Op fields arrive chain-canonical lowercase while the page context may carry
+ * the visitor's URL casing (/@Alice) — both sides are normalized.
+ */
+function matchesContext(field: unknown, normalizedContext: string): boolean {
+  return typeof field === 'string' && normalizeSteemUsername(field) === normalizedContext;
+}
+
+export function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?: GlobalPropsData | null) {
   const [type, data] = item.op;
+  const ctx = normalizeSteemUsername(context);
 
   switch (type) {
     case 'transfer': {
-      const isReceive = data.to === context;
+      const isReceive = matchesContext(data.to, ctx);
       return {
         description: isReceive
           ? `Received ${data.amount} from ${data.from}`
@@ -123,7 +134,7 @@ function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?
       const currentPays = asStr(data.current_pays) ?? '';
       return {
         description:
-          data.open_owner === context
+          matchesContext(data.open_owner, ctx)
             ? `Paid ${openPays} for ${currentPays}`
             : `Paid ${currentPays} for ${openPays}`,
         memo: '',
@@ -136,7 +147,7 @@ function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?
         ? `${formatSteemPowerFromVestsString(vestStr, globalProps)} SP`
         : vestStr ?? '';
       return {
-        description: data.delegator === context
+        description: matchesContext(data.delegator, ctx)
           ? `Delegated ${sp} to ${data.delegatee}`
           : `Received delegation of ${sp} from ${data.delegator}`,
         memo: '',

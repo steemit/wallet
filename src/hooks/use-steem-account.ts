@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { cachedFetch } from '@/lib/cache/client-fetch';
+import { normalizeSteemUsername } from '@/lib/steem/username';
 import type { SteemAccount } from '@/lib/steem/types';
 
 export function useSteemAccount(username: string) {
@@ -10,7 +11,9 @@ export function useSteemAccount(username: string) {
   const [error, setError] = useState<string>('');
 
   const refetch = useCallback(async () => {
-    const name = username.trim().replace(/^@/, '');
+    // Canonical form so the request URL (the L1 cache key) is identical
+    // whatever case/'@' spelling the caller passed.
+    const name = normalizeSteemUsername(username);
     if (!name) {
       setData(null);
       setLoading(false);

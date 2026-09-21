@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
+import { sameSteemAccount } from '@/lib/steem/username';
 import { useActiveSigningKey } from '@/hooks/use-auth';
 
 function defaultDateTimeLocal(): string {
@@ -103,7 +104,7 @@ export function ProposalCreatorDialog({
       toast.error(t('createFillAllFields'));
       return;
     }
-    if (resolvedCreator !== username) {
+    if (!sameSteemAccount(resolvedCreator, username)) {
       toast.error(t('createMustSignAsCreator'));
       return;
     }
