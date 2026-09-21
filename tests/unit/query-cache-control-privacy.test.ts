@@ -10,6 +10,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
+import { getRedis } from '@/lib/cache/redis';
+import { isSteemKnownDown } from '@/lib/cache/health-monitor';
 
 vi.mock('@/lib/middleware', () => ({
   rateLimit: vi.fn().mockResolvedValue(null),
@@ -54,6 +56,7 @@ vi.mock('@/lib/steem/server', () => ({
       total_vesting_fund_steem: '1 STEEM',
     }),
     getAccounts: vi.fn().mockResolvedValue([]),
+    getAccountHistory: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -100,6 +103,18 @@ const USER_SCOPED_CASES: CacheControlCase[] = [
     url: '/api/query/proposals?username=alice',
     importRoute: () => import('@/app/api/query/proposals/route'),
     expected: 'private, max-age=15',
+  },
+  {
+    name: 'history legacy path (raw account rows incl. memos) → private, no-store',
+    url: '/api/query/history?username=alice',
+    importRoute: () => import('@/app/api/query/history/route'),
+    expected: 'private, no-store',
+  },
+  {
+    name: 'history filtered path (per-account rows) → private, no-store',
+    url: '/api/query/history?username=alice&ops=transfer',
+    importRoute: () => import('@/app/api/query/history/route'),
+    expected: 'private, no-store',
   },
 ];
 
@@ -158,5 +173,23 @@ describe('GET /api/query/* — Cache-Control privacy for user-scoped bodies', ()
     const body = (await res.json()) as { degraded?: boolean; staleAge?: number };
     expect(body.degraded).toBe(true);
     expect(body.staleAge).toBe(42);
+  });
+
+  it('history degraded fallback keeps the private header AND adds X-Degraded', async () => {
+    // Known-down node + a Redis fallback copy → degraded 200 from §3.5.
+    vi.mocked(isSteemKnownDown).mockResolvedValueOnce(true);
+    vi.mocked(getRedis).mockReturnValueOnce({
+      get: vi.fn().mockResolvedValue(JSON.stringify([{ index: 1, op: ['transfer', {}] }])),
+    } as unknown as ReturnType<typeof getRedis>);
+    const route = await import('@/app/api/query/history/route');
+    const res = await route.GET(
+      new NextRequest('http://localhost/api/query/history?username=alice')
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Cache-Control')).toBe('private, no-store');
+    expect(res.headers.get('X-Degraded')).toBe('true');
+    const body = (await res.json()) as { degraded?: boolean; history?: unknown[] };
+    expect(body.degraded).toBe(true);
+    expect(body.history).toEqual([{ index: 1, op: ['transfer', {}] }]);
   });
 });

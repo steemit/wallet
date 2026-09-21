@@ -179,6 +179,7 @@ coordination.
 | vesting-delegations | `cache:query:vesting-delegations:{sha256(account)}` | 15s | 120s | `private, max-age=15` | Per-account rows |
 | expiring-vesting-delegations | `cache:query:expiring-vesting-delegations:{sha256(account)}` | 15s | 120s | `private, max-age=15` | Per-account rows |
 | owner-history | `cache:query:owner-history:{sha256(username)}` | 15s | 300s (5m) | `private, max-age=15` | Per-account owner key history |
+| history | `cache:query:history-{fallback,filtered}:{sha256(username[,ops])}` (fallback only, no fresh cache — §3.5) | — | 300s (5m) | `private, no-store` | Per-account rows incl. memos; no fresh window, so no cache may store the body |
 
 User-supplied key components are always full SHA-256 digests (`hashedCacheKey` /
 `hashedUserCachePrefix` in `src/lib/cache/cache-key.ts`) — never the raw value.
@@ -191,7 +192,10 @@ harmless — they expire by their TTL; no migration is needed.
 **Cache-Control choice:** global data → `public, s-maxage=<ttl>,
 stale-while-revalidate=<staleTtl>`; user-scoped bodies (username-parameterized
 rows, open orders, memos) → `private, max-age=<ttl>` so a shared/CDN cache can
-never store one user's rows and serve them to another (§3.6).
+never store one user's rows and serve them to another (§3.6). User-scoped
+responses with **no** server-side fresh cache (history, §3.5) →
+`private, no-store`: there is no freshness window to advertise, so no cache —
+shared or browser — may store or reuse the body.
 
 **Why two layers of TTL?** Cache-Control headers help CDN/edge caches (if deployed). Redis TTL + staleTtl protects against upstream failures at the application level. They are complementary, not redundant.
 
@@ -440,6 +444,9 @@ History is **not** cached in Redis with `withCache` because pagination keys (`fr
 - When `isSteemKnownDown()` returns `true`, the fallback is served immediately (no RPC attempt)
 - When an RPC call fails, the fallback is served if available
 - Fallback responses include `degraded: true` in the body and `X-Degraded: true` header
+- All 200 responses (fresh and degraded) carry `Cache-Control: private, no-store`: rows are
+  user-scoped and the route has no fresh-cache TTL to advertise, so neither shared caches nor
+  the browser may store the body (§2.4 Cache-Control choice)
 
 ### 3.6 Degraded Response Protocol
 

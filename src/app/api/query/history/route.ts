@@ -19,6 +19,11 @@ const FALLBACK_TTL = 300; // 5 minutes
 const ALLOWED_OPS = new Set<string>(WALLET_OP_TYPES);
 const BATCH_SIZE = 100; // Steem API hard cap — one batch per request
 
+// Per-account rows (memos included) — private per the user-scoped rule, and
+// no-store because this route keeps no fresh server-side cache (§3.5 fallback
+// only), so there is no freshness window to advertise to any cache.
+const HISTORY_CACHE_CONTROL = 'private, no-store';
+
 export async function GET(request: NextRequest) {
   try {
     const rateLimitError = await rateLimit(request, 'query', {
@@ -74,7 +79,7 @@ export async function GET(request: NextRequest) {
     try {
       const history = await SteemService.getAccountHistory(account, limit, from);
       if (from === -1) await saveLegacyFallback(account, history);
-      return NextResponse.json({ success: true, history });
+      return historyResponse({ success: true, history });
     } catch (error) {
       const fallback = await getLegacyFallback(account);
       if (fallback) return legacyDegradedResponse(fallback);
@@ -112,7 +117,7 @@ async function handleFilteredRequest(
   try {
     const { history, nextFrom, exhausted } = await fetchFiltered(username, from, requestedOps, limit);
     if (from === -1) await saveFilteredFallback(cacheKey, { history, nextFrom, exhausted });
-    return NextResponse.json({ success: true, history, nextFrom, exhausted });
+    return historyResponse({ success: true, history, nextFrom, exhausted });
   } catch (error) {
     const fallback = await getFilteredFallback(cacheKey);
     if (fallback) return filteredDegradedResponse(fallback);
@@ -177,14 +182,22 @@ async function fetchFiltered(
 
 // ── Cache helpers ─────────────────────────────────────────────────────────────
 
+// Every 200 body this route returns is user-scoped (raw account history);
+// stamp the private/no-store header uniformly on fresh and degraded paths.
+function historyResponse(body: Record<string, unknown>): NextResponse {
+  const response = NextResponse.json(body);
+  response.headers.set('Cache-Control', HISTORY_CACHE_CONTROL);
+  return response;
+}
+
 function legacyDegradedResponse(history: unknown[]) {
-  const response = NextResponse.json({ success: true, history, degraded: true });
+  const response = historyResponse({ success: true, history, degraded: true });
   response.headers.set('X-Degraded', 'true');
   return response;
 }
 
 function filteredDegradedResponse(data: FilteredResult) {
-  const response = NextResponse.json({ success: true, ...data, degraded: true });
+  const response = historyResponse({ success: true, ...data, degraded: true });
   response.headers.set('X-Degraded', 'true');
   return response;
 }

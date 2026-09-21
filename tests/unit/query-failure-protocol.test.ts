@@ -149,6 +149,14 @@ const FAILURE_CASES: FailureCase[] = [
     expectedError: 'Failed to fetch proposal voters',
   },
   {
+    // First RPC inside the dao-stats fetcher; its rejection fails withCache
+    // exactly like a real upstream failure.
+    name: 'proposals/dao-stats',
+    url: '/api/query/proposals/dao-stats',
+    method: 'getAccounts',
+    expectedError: 'Failed to fetch DAO stats',
+  },
+  {
     name: 'owner-history',
     url: '/api/query/owner-history?username=alice',
     method: 'getOwnerHistory',
@@ -187,6 +195,7 @@ const ROUTE_MODULES: Record<string, () => Promise<{ GET: (req: NextRequest) => P
   'expiring-vesting-delegations': () => import('@/app/api/query/expiring-vesting-delegations/route'),
   proposals: () => import('@/app/api/query/proposals/route'),
   'proposals/votes': () => import('@/app/api/query/proposals/votes/route'),
+  'proposals/dao-stats': () => import('@/app/api/query/proposals/dao-stats/route'),
   'owner-history': () => import('@/app/api/query/owner-history/route'),
   history: () => import('@/app/api/query/history/route'),
   'transaction-header': () => import('@/app/api/query/transaction-header/route'),
