@@ -20,7 +20,7 @@ function baseState(overrides: Partial<Parameters<typeof useRewardsHistoryPager>[
     loadingMore: false,
     exhausted: false,
     error: null,
-    loadMore: vi.fn().mockResolvedValue(undefined),
+    loadMore: vi.fn().mockResolvedValue(true),
     ...overrides,
   };
 }
@@ -69,7 +69,7 @@ describe('useRewardsHistoryPager', () => {
   });
 
   it('keeps Older enabled after error for retry', async () => {
-    const loadMore = vi.fn().mockResolvedValue(undefined);
+    const loadMore = vi.fn().mockResolvedValue(true);
     const state = baseState({
       history: makeItems(5),
       exhausted: true,
@@ -85,6 +85,33 @@ describe('useRewardsHistoryPager', () => {
     });
 
     expect(loadMore).toHaveBeenCalled();
+  });
+
+  it('does not advance the page index when the loadMore fetch fails', async () => {
+    // At the end of loaded data (5 items < one page): Older must fetch. The
+    // fetch fails (loadMore resolves false, batch hook sets `error`) — the
+    // pager must stay on the current page instead of advancing the index
+    // past the data (which previously desynced canGoNewer from the display
+    // and burned a no-op "Newer" click after every failure).
+    const loadMore = vi.fn().mockResolvedValue(false);
+    const state = baseState({ history: makeItems(5), loadMore });
+    const { result } = renderHook(() => useRewardsHistoryPager(state, 'alice'));
+
+    expect(result.current.canGoNewer).toBe(false);
+
+    await act(async () => {
+      await result.current.onOlder();
+    });
+
+    expect(loadMore).toHaveBeenCalledTimes(1);
+    expect(result.current.canGoNewer).toBe(false);
+
+    // A successful retry advances normally.
+    loadMore.mockResolvedValueOnce(true);
+    await act(async () => {
+      await result.current.onOlder();
+    });
+    expect(result.current.canGoNewer).toBe(true);
   });
 
   it('resets page index when resetKey changes', async () => {

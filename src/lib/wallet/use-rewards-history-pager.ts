@@ -62,8 +62,17 @@ export function useRewardsHistoryPager(
 
     if (!canFetchMore) return;
 
-    await loadMore();
-    setHistoryIndex((i) => nextHistoryIndex(i, 'older'));
+    // Advance the page index only when a new batch actually landed. On a
+    // failed fetch (loadMore resolves false and the batch hook sets `error`)
+    // the pager stays on the current page, the error banner is rendered by
+    // the section, and Older stays enabled (canFetchMoreHistory is true
+    // while `error` is set) so the user can retry — previously the index
+    // advanced anyway, desyncing it from the clamped display and burning a
+    // no-op "Newer" click after every failure.
+    const applied = await loadMore();
+    if (applied) {
+      setHistoryIndex((i) => nextHistoryIndex(i, 'older'));
+    }
   }, [canGoOlderLocal, canFetchMore, loading, loadingMore, loadMore]);
 
   return {
