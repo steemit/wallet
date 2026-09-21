@@ -137,7 +137,20 @@ export async function POST(request: NextRequest) {
       // Unreadable result shape: the row MAY have been claimed above. Roll
       // back any claim (rollback only touches rows still in 'processing')
       // and fail loudly instead of silently sticking the record.
-      await rollbackToConfirmed(db, body.code, body.account_name).catch(() => {});
+      // Log the account and the raw shape (a ResultSetHeader carries no
+      // secrets) so the failure is diagnosable from server logs.
+      console.error(
+        'Recovery confirm CAS update returned an unreadable result shape; failing closed:',
+        { account_name: body.account_name, result }
+      );
+      await rollbackToConfirmed(db, body.code, body.account_name).catch((rollbackErr) => {
+        // The row may now be stuck in 'processing' (no other path resets
+        // it) — that must be visible in logs, not silently swallowed.
+        console.error(
+          'Recovery confirm rollback to confirmed also failed; record may be stuck in processing:',
+          { account_name: body.account_name, error: rollbackErr }
+        );
+      });
       return NextResponse.json(
         { status: 'error', error: 'Internal server error' },
         { status: 500 }
