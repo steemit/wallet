@@ -23,6 +23,7 @@ import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
 import {
   validateAccountName,
   validateMemoField,
+  parseTransferAmountInput,
   isVerifiedExchange,
   isBadActor,
   findSimilarExchange,
@@ -209,7 +210,12 @@ export function TransferForm({
     if (availableForSelection === null) return false;
     const value = parseFloat(formData.amount);
     if (!Number.isFinite(value) || value <= 0) return false;
-    return value > availableForSelection;
+    // Compare at the 3-decimal precision that will actually be broadcast:
+    // toFixed(3) happens at submit time, so comparing the raw value here
+    // could pass an amount (e.g. 99.9996 vs 99.9996 balance) that rounds up
+    // (100.000) and then fails on-chain for exceeding the balance.
+    const normalized = parseFloat(value.toFixed(3));
+    return normalized > availableForSelection;
   }, [availableForSelection, formData.amount]);
 
   /** Legacy: verified exchanges require a memo on direct transfers. */
@@ -241,18 +247,16 @@ export function TransferForm({
     }
 
     try {
-      const amountMatch = formData.amount.match(/^([\d.]+)\s*$/);
-      if (!amountMatch || !amountMatch[1]) {
-        setError(t('errors.invalid_amount'));
+      // Strict syntax + explicit 3-decimal rejection (power-up parity);
+      // the balance check below then compares at the same 3-decimal
+      // precision the broadcast will use.
+      const parsed = parseTransferAmountInput(formData.amount);
+      if (!parsed.ok) {
+        setError(t(`errors.${parsed.issue}`));
         setIsLoading(false);
         return;
       }
-      const amountValue = parseFloat(amountMatch[1]);
-      if (amountValue <= 0 || isNaN(amountValue)) {
-        setError('Amount must be greater than 0');
-        setIsLoading(false);
-        return;
-      }
+      const amountValue = parsed.value;
       if (amountExceedsBalance) {
         setError(t('errors.insufficient_funds'));
         setIsLoading(false);

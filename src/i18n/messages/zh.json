@@ -610,6 +610,8 @@
       "account_not_found": "账户不存在",
       "insufficient_funds": "余额不足",
       "invalid_amount": "请输入有效金额",
+      "amount_must_be_positive": "金额必须大于 0",
+      "precision_error": "金额最多支持 3 位小数",
       "verified_exchange_no_memo": "收款方为已验证交易所，必须填写 memo。",
       "memo_has_privatekey": "请不要在 memo 中包含疑似私钥或密码的内容。",
       "memo_is_privatekey": "不要在 memo 中使用私钥。",

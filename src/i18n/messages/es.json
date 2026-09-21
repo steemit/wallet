@@ -602,6 +602,8 @@
       "account_not_found": "Cuenta no encontrada",
       "insufficient_funds": "Fondos insuficientes",
       "invalid_amount": "Introduzca un monto válido",
+      "amount_must_be_positive": "El monto debe ser mayor que 0",
+      "precision_error": "Use solo 3 dígitos de precisión",
       "verified_exchange_no_memo": "Este destinatario es un exchange verificado. Se requiere un memo.",
       "memo_has_privatekey": "No incluya lo que parece ser una clave privada o contraseña en el memo.",
       "memo_is_privatekey": "No use claves privadas en los memos.",
