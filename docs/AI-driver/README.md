@@ -38,8 +38,6 @@ the hard way.
 
 These are documented in detail in the review report; agents must not *assume* they work:
 
-- **Recovery step 2 CAS reads the wrong drizzle return shape** (`affectedRows` on an array) — the
-  confirm route never works against real MySQL and bricks records into `processing`. See 05-recovery.md.
 - **`use-auth.ts`'s `login` and the `wallet`/`ui` Redux slices are dead code.** Do not call them;
   the only live login entry point is `LoginForm`. See 06-frontend.md.
 - **`/api/query/price` returns a constant 0** (reads a nonexistent field) and has no consumers.
@@ -49,3 +47,9 @@ Post-broadcast cache invalidation was in this category until 2026-09-21; it now 
 documented in 03-broadcast.md §"Cache invalidation after broadcast" and 04-query-cache.md —
 follow those contracts exactly (hashed prefixes server-side, `invalidateWalletCache` +
 nonce client-side) when adding routes or broadcast success paths.
+
+The recovery confirm CAS was in this category until 2026-09-22 (fixed by PR #340): the route
+read `affectedRows` off the raw drizzle mysql2 tuple, so recovery step 2 never worked against
+real MySQL and bricked records into `processing`. It now reads the count via
+`mysqlAffectedRows()` (`src/lib/db/affected-rows.ts`) and rolls the claim back on unreadable
+shapes — see 05-recovery.md §"P0 fixed (2026-09-22)" before touching any CAS in `/api/recovery/**`.
