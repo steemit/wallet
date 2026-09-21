@@ -46,7 +46,8 @@
     "rememberUserTooltip": "Recordar nombre de usuario y clave Posting Key en este dispositivo (si existe)",
     "keepLoggedIn": "Mantener la sesión iniciada",
     "passwordUpdateSuccess": "La contraseña de {username} se actualizó correctamente. Inicie sesión con la nueva contraseña.",
-    "insufficientAuthority": "Las credenciales proporcionadas no incluyen la autoridad de clave que requiere esta acción. Prueba con la clave del rol correspondiente (p. ej. activa) o tu contraseña maestra."
+    "insufficientAuthority": "Las credenciales proporcionadas no incluyen la autoridad de clave que requiere esta acción. Prueba con la clave del rol correspondiente (p. ej. activa) o tu contraseña maestra.",
+    "accountRecoverySuccess": "La cuenta {username} fue recuperada exitosamente. Inicie sesión con su nueva contraseña."
   },
   "wallet": {
     "title": "Billetera",
@@ -527,7 +528,16 @@
       "submit": "Recuperar cuenta",
       "successMessage": "Su cuenta ha sido recuperada exitosamente. Ahora puede iniciar sesión con su nueva contraseña.",
       "goToLogin": "Ir a iniciar sesión",
-      "unknownError": "Ocurrió un error desconocido."
+      "unknownError": "Ocurrió un error desconocido.",
+      "retryModeIntro": "Esta solicitud de recuperación ya fue confirmada. Ingrese la misma contraseña anterior y la nueva que usó durante la confirmación para completar el paso final de recuperación.",
+      "broadcastingRecovery": "Transmitiendo el paso final de recuperación…",
+      "broadcastFailedTitle": "El paso final de recuperación no se completó",
+      "broadcastFailedBody": "Su solicitud de recuperación fue enviada a la cadena, pero la operación final recover_account no pudo transmitirse. Su cuenta TODAVÍA no está recuperada. Reintente a continuación, o vuelva a abrir este enlace de recuperación más tarde para intentarlo de nuevo.",
+      "retryBroadcast": "Reintentar paso final",
+      "statusNotApproved": "Esta solicitud de recuperación aún no ha sido aprobada.",
+      "statusInProgress": "Esta solicitud de recuperación se está procesando. Inténtelo de nuevo en unos minutos.",
+      "statusExpired": "Este enlace de recuperación ha expirado.",
+      "statusAlreadyUsed": "Este enlace de recuperación ya fue usado para completar la recuperación de la cuenta."
     },
     "advancedRoutesNotice": "Se configuraron rutas de retiro personalizadas para recibir los pagos de vesting. Confírmelas de nuevo en las opciones de rutas avanzadas.",
     "settings": "Configuración",

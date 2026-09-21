@@ -55,6 +55,30 @@ describe('GET /api/recovery/verify/[code]', () => {
 
     expect(data.status).toBe('ok');
     expect(data.account_name).toBe('alice');
+    expect(data.record_status).toBe('confirmed');
+    expect(res.status).toBe(200);
+  });
+
+  it('returns ok with record_status=closed for a confirmed-but-not-broadcast code (retry mode)', async () => {
+    // confirm succeeded on-chain (request_account_recovery submitted) but the
+    // final recover_account broadcast may still be pending — the step-2 page
+    // uses this state to offer a retry-broadcast mode without re-running
+    // confirm (whose CAS would reject the closed record).
+    mockFindFirst.mockResolvedValueOnce({
+      id: 2,
+      accountName: 'bob',
+      status: 'closed',
+    });
+
+    const res = await (GET as unknown as GETWithParams)(
+      makeRequest(VALID_CODE),
+      { params: Promise.resolve({ code: VALID_CODE }) }
+    );
+    const data = await res.json();
+
+    expect(data.status).toBe('ok');
+    expect(data.account_name).toBe('bob');
+    expect(data.record_status).toBe('closed');
     expect(res.status).toBe(200);
   });
 
@@ -72,24 +96,7 @@ describe('GET /api/recovery/verify/[code]', () => {
     expect(res.status).toBe(404);
   });
 
-  it('returns error for already used (closed) code', async () => {
-    mockFindFirst.mockResolvedValueOnce({
-      id: 2,
-      accountName: 'bob',
-      status: 'closed',
-    });
-
-    const res = await (GET as unknown as GETWithParams)(
-      makeRequest(VALID_CODE),
-      { params: Promise.resolve({ code: VALID_CODE }) }
-    );
-    const data = await res.json();
-
-    expect(data.status).toBe('error');
-    expect(res.status).toBe(400);
-  });
-
-  it('returns error for open (not yet confirmed) code', async () => {
+  it('returns state-accurate error for open (not yet confirmed) code', async () => {
     mockFindFirst.mockResolvedValueOnce({
       id: 3,
       accountName: 'charlie',
@@ -103,6 +110,65 @@ describe('GET /api/recovery/verify/[code]', () => {
     const data = await res.json();
 
     expect(data.status).toBe('error');
+    expect(data.record_status).toBe('open');
+    expect(data.error).toBe('Recovery request has not been approved yet');
+    expect(res.status).toBe(400);
+  });
+
+  it('returns state-accurate error for processing code (in progress)', async () => {
+    mockFindFirst.mockResolvedValueOnce({
+      id: 4,
+      accountName: 'dave',
+      status: 'processing',
+    });
+
+    const res = await (GET as unknown as GETWithParams)(
+      makeRequest(VALID_CODE),
+      { params: Promise.resolve({ code: VALID_CODE }) }
+    );
+    const data = await res.json();
+
+    expect(data.status).toBe('error');
+    expect(data.record_status).toBe('processing');
+    expect(data.error).toContain('currently being processed');
+    expect(res.status).toBe(400);
+  });
+
+  it('returns state-accurate error for expired code', async () => {
+    mockFindFirst.mockResolvedValueOnce({
+      id: 5,
+      accountName: 'erin',
+      status: 'expired',
+    });
+
+    const res = await (GET as unknown as GETWithParams)(
+      makeRequest(VALID_CODE),
+      { params: Promise.resolve({ code: VALID_CODE }) }
+    );
+    const data = await res.json();
+
+    expect(data.status).toBe('error');
+    expect(data.record_status).toBe('expired');
+    expect(data.error).toContain('expired');
+    expect(res.status).toBe(400);
+  });
+
+  it('returns state-accurate error for consumed code (already used)', async () => {
+    mockFindFirst.mockResolvedValueOnce({
+      id: 6,
+      accountName: 'frank',
+      status: 'consumed',
+    });
+
+    const res = await (GET as unknown as GETWithParams)(
+      makeRequest(VALID_CODE),
+      { params: Promise.resolve({ code: VALID_CODE }) }
+    );
+    const data = await res.json();
+
+    expect(data.status).toBe('error');
+    expect(data.record_status).toBe('consumed');
+    expect(data.error).toContain('already been used');
     expect(res.status).toBe(400);
   });
 

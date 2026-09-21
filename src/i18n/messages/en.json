@@ -46,7 +46,8 @@
     "rememberUserTooltip": "Remember username and Posting Key on this device (when available)",
     "keepLoggedIn": "Keep me logged in",
     "passwordUpdateSuccess": "The password for {username} was successfully updated. Please sign in with your new password.",
-    "insufficientAuthority": "The provided credentials do not include the key authority this action requires. Try the relevant role key (e.g. active) or your master password."
+    "insufficientAuthority": "The provided credentials do not include the key authority this action requires. Try the relevant role key (e.g. active) or your master password.",
+    "accountRecoverySuccess": "The account {username} was successfully recovered. Please sign in with your new password."
   },
   "wallet": {
     "title": "Wallet",
@@ -536,7 +537,16 @@
       "submit": "Recover account",
       "successMessage": "Your account has been successfully recovered. You can now log in with your new password.",
       "goToLogin": "Go to login",
-      "unknownError": "An unknown error occurred."
+      "unknownError": "An unknown error occurred.",
+      "retryModeIntro": "This recovery request was already confirmed. Enter the same old and new passwords you used during confirmation to complete the final recovery step.",
+      "broadcastingRecovery": "Broadcasting the final recovery step…",
+      "broadcastFailedTitle": "Final recovery step did not complete",
+      "broadcastFailedBody": "Your recovery request was submitted on-chain, but the final recover_account operation could not be broadcast. Your account is NOT recovered yet. Retry below, or reopen this recovery link later to try again.",
+      "retryBroadcast": "Retry final step",
+      "statusNotApproved": "This recovery request has not been approved yet.",
+      "statusInProgress": "This recovery request is being processed. Please try again in a few minutes.",
+      "statusExpired": "This recovery link has expired.",
+      "statusAlreadyUsed": "This recovery link has already been used to complete the account recovery."
     },
     "advancedRoutesNotice": "Custom withdrawal routes were configured to receive vesting payments. Please reconfirm in the Advanced Routes options.",
     "settings": "Settings",
