@@ -147,15 +147,21 @@ export function parseOpenOrder(raw: {
   orderid: number;
   created: string;
   sell_price: { base: string; quote: string };
+  /** Remaining amount in the chain payload (precision units). Deliberately
+   * NOT used for the amount columns — see legacy note below. */
   for_sale?: number;
 }): MarketOpenOrderRow {
   const isAsk = raw.sell_price.base.includes(STEEM_SYMBOL);
-  const steem = isAsk
-    ? (raw.for_sale ?? 0) / MARKET_AMOUNT_PRECISION
-    : parseFloat(raw.sell_price.quote.split(' ')[0] || '0');
-  const sbd = isAsk
-    ? parseFloat(raw.sell_price.quote.split(' ')[0] || '0')
-    : (raw.for_sale ?? 0) / MARKET_AMOUNT_PRECISION;
+  // Legacy parity (wallet-legacy src/app/redux/MarketReducer.js:49-59): BOTH
+  // amount columns come from sell_price (the original order amounts). Mixing
+  // for_sale (the remaining amount) into one column made price/steem/sbd
+  // mutually inconsistent for partially-filled orders. for_sale is only used
+  // by the wallet-estimate open-order sums (server.ts, legacy
+  // UserWallet.jsx:455-470), not by this table parser.
+  const steemAsset = isAsk ? raw.sell_price.base : raw.sell_price.quote;
+  const sbdAsset = isAsk ? raw.sell_price.quote : raw.sell_price.base;
+  const steem = parseFloat(steemAsset.split(' ')[0] || '0');
+  const sbd = parseFloat(sbdAsset.split(' ')[0] || '0');
   const price = steem > 0 ? sbd / steem : 0;
   return {
     orderid: raw.orderid,

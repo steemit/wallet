@@ -121,6 +121,39 @@ describe('market parse', () => {
     expect(ask.steem).toBe(5);
   });
 
+  // Legacy parity (wallet-legacy src/app/redux/MarketReducer.js:49-59): the
+  // open-orders table feeds BOTH amount columns from sell_price (original
+  // order amounts), never from for_sale. Mixing for_sale (remaining) into one
+  // column made price/steem/sbd mutually inconsistent for partially-filled
+  // orders (review finding G-12).
+  it('keeps ask columns consistent for partially-filled orders', () => {
+    const ask = parseOpenOrder({
+      orderid: 10,
+      created: '2024-01-01T00:00:00',
+      // Original order: sell 100.000 STEEM for 250.000 SBD; 40.000 filled.
+      sell_price: { base: '100.000 STEEM', quote: '250.000 SBD' },
+      for_sale: 40_000,
+    });
+    expect(ask.type).toBe('ask');
+    expect(ask.steem).toBe(100);
+    expect(ask.sbd).toBe(250);
+    expect(ask.price).toBeCloseTo(2.5, 6);
+  });
+
+  it('keeps bid columns consistent for partially-filled orders', () => {
+    const bid = parseOpenOrder({
+      orderid: 11,
+      created: '2024-01-01T00:00:00',
+      // Original order: buy 100.000 STEEM for 250.000 SBD; 100 SBD filled.
+      sell_price: { base: '250.000 SBD', quote: '100.000 STEEM' },
+      for_sale: 100_000,
+    });
+    expect(bid.type).toBe('bid');
+    expect(bid.steem).toBe(100);
+    expect(bid.sbd).toBe(250);
+    expect(bid.price).toBeCloseTo(2.5, 6);
+  });
+
   it('handles open orders with zero steem', () => {
     const order = parseOpenOrder({
       orderid: 3,
