@@ -1,4 +1,5 @@
 import { clientCache } from './client-cache';
+import { normalizeSteemUsername } from '@/lib/steem/username';
 
 /**
  * Drop the browser L1 cache entries holding this account's data.
@@ -20,7 +21,10 @@ import { clientCache } from './client-cache';
  * user's wallet entries (orders lock balances and change extras).
  */
 export function invalidateWalletCache(username: string): void {
-  const u = encodeURIComponent(username);
+  // Canonical form: the hooks build their URL keys from normalized names, so
+  // invalidation must normalize too or it would miss every entry when called
+  // with a differently-cased spelling of the same account.
+  const u = encodeURIComponent(normalizeSteemUsername(username));
   clientCache.invalidate(`/api/query/accounts?names=${u}`);
   clientCache.invalidate(
     `/api/query/wallet-estimate-extras?username=${u}&includeOpenOrders=true`

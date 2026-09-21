@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { getRedis, redisKey } from '@/lib/cache/redis';
-import { hashedCacheKey } from '@/lib/cache/cache-key';
+import { hashedCacheKey, normalizeAccountForCache } from '@/lib/cache/cache-key';
 import { isSteemKnownDown } from '@/lib/cache/health-monitor';
 import { normalizeSteemHistoryList, type SteemHistoryItem } from '@/lib/wallet/normalize-history';
 import { WALLET_OP_TYPES } from '@/lib/steem/history-ops';
@@ -39,6 +39,9 @@ export async function GET(request: NextRequest) {
     if (!username) {
       return NextResponse.json({ error: 'Missing username parameter' }, { status: 400 });
     }
+    // One account = one cache key / one upstream call, whatever case or '@'
+    // spelling the client sent.
+    const account = normalizeAccountForCache(username);
     if (!Number.isFinite(limit) || limit < 1 || limit > 100) {
       return NextResponse.json({ error: 'Limit must be between 1 and 100' }, { status: 400 });
     }
@@ -54,21 +57,21 @@ export async function GET(request: NextRequest) {
 
     // ── Filtered path ────────────────────────────────────────────────────────
     if (requestedOps) {
-      return handleFilteredRequest(username, from, requestedOps);
+      return handleFilteredRequest(account, from, requestedOps);
     }
 
     // ── Legacy path (no ops param) ───────────────────────────────────────────
     if (await isSteemKnownDown()) {
-      const fallback = await getLegacyFallback(username);
+      const fallback = await getLegacyFallback(account);
       if (fallback) return legacyDegradedResponse(fallback);
     }
 
     try {
-      const history = await SteemService.getAccountHistory(username, limit, from);
-      if (from === -1) await saveLegacyFallback(username, history);
+      const history = await SteemService.getAccountHistory(account, limit, from);
+      if (from === -1) await saveLegacyFallback(account, history);
       return NextResponse.json({ success: true, history });
     } catch (error) {
-      const fallback = await getLegacyFallback(username);
+      const fallback = await getLegacyFallback(account);
       if (fallback) return legacyDegradedResponse(fallback);
       throw error;
     }

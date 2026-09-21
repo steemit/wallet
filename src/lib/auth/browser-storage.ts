@@ -27,13 +27,16 @@
  *
  * Do NOT store active/owner keys in localStorage under any scheme.
  */
+import { normalizeSteemUsername } from '@/lib/steem/username';
+
 export const REMEMBERED_USERNAME_KEY = 'wallet:rememberedUsername';
 export const REMEMBERED_POSTING_KEY_KEY = 'wallet:rememberedPostingKey';
 
-/** Normalize Steem account names for comparisons (matches LoginForm handling). */
-export function normalizeSteemUsername(raw: string): string {
-  return raw.trim().toLowerCase().replace(/^@+/, '');
-}
+/**
+ * Canonical account-name normalization (shared with server code).
+ * Re-exported here for the existing client import sites.
+ */
+export { normalizeSteemUsername };
 
 /** Read remembered username from localStorage (client only). */
 /** Remove saved posting key (e.g. after password rotation invalidates the old key). */

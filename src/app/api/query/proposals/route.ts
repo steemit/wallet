@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
-import { hashedCacheKey } from '@/lib/cache/cache-key';
+import { hashedCacheKey, normalizeAccountForCache } from '@/lib/cache/cache-key';
 import { SteemService } from '@/lib/steem/server';
 import type { ProposalOrderBy, ProposalOrderDirection, ProposalStatus } from '@/lib/steem/types';
 
@@ -40,7 +40,10 @@ export async function GET(request: NextRequest) {
     const direction = asDirection(searchParams.get('direction'));
     const limitParam = searchParams.get('limit');
     const limit = limitParam ? parseInt(limitParam, 10) : 50;
-    const username = searchParams.get('username')?.trim();
+    // Normalize so ?username=Alice and ?username=alice share one cache entry
+    // and the voter filter compares against chain-canonical lowercase names.
+    const rawUsername = searchParams.get('username');
+    const username = rawUsername ? normalizeAccountForCache(rawUsername) : undefined;
 
     if (!Number.isFinite(limit) || limit < 1 || limit > 200) {
       return NextResponse.json({ error: 'Limit must be between 1 and 200' }, { status: 400 });

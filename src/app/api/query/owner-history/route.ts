@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
+import { normalizeAccountForCache } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   const rateLimitError = await rateLimit(request, 'query', { maxRequests: 30, windowSeconds: 60 });
   if (rateLimitError) return rateLimitError;
 
-  const username = new URL(request.url).searchParams.get('username')?.trim().toLowerCase();
+  // Normalize so differently-cased spellings hit the same upstream account.
+  const username = normalizeAccountForCache(
+    new URL(request.url).searchParams.get('username') ?? ''
+  );
   if (!username) {
     return NextResponse.json({ error: 'username required' }, { status: 400 });
   }

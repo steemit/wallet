@@ -7,8 +7,8 @@ import { usePathname, useRouter } from '@/i18n/routing';
 import { useAuth, useActiveSigningKey } from '@/hooks/use-auth';
 import {
   canManageBalanceForPageUrl,
-  normalizeSteemUsername,
 } from '@/lib/auth/browser-storage';
+import { normalizeSteemUsername, sameSteemAccount } from '@/lib/steem/username';
 import { LoginForm } from '@/components/auth/login-form';
 import {
   WALLET_ACTION_QUERY,
@@ -48,8 +48,9 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
   const searchParams = useSearchParams();
 
   const rawUsername = params?.username as string | undefined;
-  const accountUsername = rawUsername ? decodeURIComponent(rawUsername).replace(/^@/, '') : '';
-  const isMyAccount = !!isAuthenticated && !!loggedInUser && loggedInUser === accountUsername;
+  // Normalize the URL account to the chain-canonical form (see @/lib/steem/username).
+  const accountUsername = rawUsername ? normalizeSteemUsername(decodeURIComponent(rawUsername)) : '';
+  const isMyAccount = !!isAuthenticated && sameSteemAccount(loggedInUser, accountUsername);
 
   const canManageBalance = canManageBalanceForPageUrl({
     urlUsername: accountUsername,
@@ -57,10 +58,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
     isAuthenticated,
   });
 
-  const sessionMatchesPage =
-    !isAuthenticated ||
-    (!!loggedInUser &&
-      normalizeSteemUsername(loggedInUser) === normalizeSteemUsername(accountUsername));
+  const sessionMatchesPage = !isAuthenticated || sameSteemAccount(loggedInUser, accountUsername);
 
   const walletAction = parseWalletModalAction(searchParams.get(WALLET_ACTION_QUERY));
   const asset = parseWalletAsset(searchParams.get(WALLET_ASSET_QUERY));

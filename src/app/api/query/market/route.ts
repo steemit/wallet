@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
-import { hashedCacheKey } from '@/lib/cache/cache-key';
+import { hashedCacheKey, normalizeAccountForCache } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,9 @@ export async function GET(request: NextRequest) {
     if (rateLimitError) return rateLimitError;
 
     const { searchParams } = request.nextUrl;
-    const username = searchParams.get('username')?.trim().toLowerCase() || undefined;
+    // Normalize so /?username=Alice and /?username=alice share one cache entry.
+    const rawUsername = searchParams.get('username');
+    const username = rawUsername ? normalizeAccountForCache(rawUsername) : undefined;
     const since = searchParams.get('since')?.trim() || undefined;
 
     // Cache to avoid fanning out 4 parallel RPCs per request (DoS amplifier).
