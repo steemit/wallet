@@ -63,11 +63,15 @@ export async function GET(request: NextRequest) {
       return { voters: rows };
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       voters: result.data.voters,
-      ...(result.degraded && { degraded: true }),
+      ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
     });
+    // Voter rows are proposal-scoped (global data), so shared caching is fine.
+    response.headers.set('Cache-Control', 'public, s-maxage=20, stale-while-revalidate=60');
+    if (result.degraded) response.headers.set('X-Degraded', 'true');
+    return response;
   } catch (error) {
     console.error('Error fetching proposal voters:', error);
     // Unified upstream-failure protocol (§3.6): 503 + degraded body.

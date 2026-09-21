@@ -81,6 +81,21 @@ describe('GET /api/query/proposals/votes', () => {
     mockWithCache.mockRejectedValue(new Error('cache down'));
     const res = await GET({ url: 'http://test/api/query/proposals/votes?proposalId=1' } as never);
     expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.degraded).toBe(true);
+  });
+
+  it('follows the §3.6 degraded protocol: staleAge in body, X-Degraded + Cache-Control headers', async () => {
+    mockWithCache.mockResolvedValueOnce({ data: { voters: [] }, degraded: true, staleAge: 33 });
+
+    const res = await GET({ url: 'http://test/api/query/proposals/votes?proposalId=1' } as never);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.degraded).toBe(true);
+    expect(body.staleAge).toBe(33);
+    expect(res.headers.get('X-Degraded')).toBe('true');
+    // Voter rows are proposal-scoped global data — shared caching is fine.
+    expect(res.headers.get('Cache-Control')).toBe('public, s-maxage=20, stale-while-revalidate=60');
   });
 });
 
