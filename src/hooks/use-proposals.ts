@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '@/lib/steem/client';
 import type {
   GlobalProperties,
@@ -34,6 +34,10 @@ const defaultSnapshot = (): ProposalSnapshot => ({
 
 export function useProposals(username: string | null) {
   const [snapshot, setSnapshot] = useState<ProposalSnapshot>(defaultSnapshot);
+  // Race guard (docs/AI-driver/06 rule 1): only the newest request's
+  // response may write the snapshot — an older query's response (previous
+  // filter/username) arriving late must not overwrite the current list.
+  const requestIdRef = useRef(0);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams({
@@ -46,11 +50,19 @@ export function useProposals(username: string | null) {
     return params.toString();
   }, [snapshot.status, snapshot.order, snapshot.direction, snapshot.limit, username]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (opts?: { noStore?: boolean }) => {
+    // Latest request wins: each refresh supersedes any still in flight.
+    const requestId = ++requestIdRef.current;
     setSnapshot((prev) => ({ ...prev, loading: true, error: null }));
     try {
       const [proposalsRes, globalRes] = await Promise.all([
-        fetch(`/api/query/proposals?${queryString}`).then(
+        // The route serves username'd responses with `private, max-age=15`;
+        // `noStore` skips the HTTP cache so a post-vote refresh cannot echo
+        // the pre-vote upVoted flags for up to 15s.
+        fetch(
+          `/api/query/proposals?${queryString}`,
+          opts?.noStore ? { cache: 'no-store' as const } : undefined
+        ).then(
           (r) =>
             r.json() as Promise<{
               success?: boolean;
@@ -60,6 +72,8 @@ export function useProposals(username: string | null) {
         ),
         apiClient.getGlobalProps(),
       ]);
+
+      if (requestId !== requestIdRef.current) return;
 
       if (!proposalsRes.success || !Array.isArray(proposalsRes.proposals)) {
         setSnapshot((prev) => ({
@@ -78,6 +92,7 @@ export function useProposals(username: string | null) {
         error: null,
       }));
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setSnapshot((prev) => ({
         ...prev,
         loading: false,
@@ -85,6 +100,20 @@ export function useProposals(username: string | null) {
       }));
     }
   }, [queryString]);
+
+  /**
+   * Optimistic local vote flip (see K-3): set the user's own upVoted flag
+   * immediately; the caller rolls it back by passing the previous value if
+   * the broadcast fails.
+   */
+  const setProposalVotedLocally = useCallback((proposalId: number, upVoted: boolean) => {
+    setSnapshot((prev) => ({
+      ...prev,
+      proposals: prev.proposals.map((p) =>
+        p.proposal_id === proposalId ? { ...p, upVoted } : p
+      ),
+    }));
+  }, []);
 
   useEffect(() => {
     void refresh();
@@ -109,6 +138,7 @@ export function useProposals(username: string | null) {
   return {
     ...snapshot,
     refresh,
+    setProposalVotedLocally,
     setStatus,
     setOrder,
     setDirection,

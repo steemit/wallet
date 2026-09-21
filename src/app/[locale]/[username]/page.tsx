@@ -25,6 +25,7 @@ import {
 import { normalizeProfile } from '@/lib/steem/normalize-profile';
 import { canManageBalanceForPageUrl } from '@/lib/auth/browser-storage';
 import { normalizeSteemUsername, sameSteemAccount } from '@/lib/steem/username';
+import { fetchAccounts } from '@/lib/steem/accounts-client';
 
 type BannerProfileFields = {
   displayName?: string;
@@ -97,19 +98,10 @@ export default function WalletPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(
-          `/api/query/accounts?names=${encodeURIComponent(urlUsername)}`,
-          { cache: 'no-store' }
-        );
-        const data = (await res.json()) as {
-          success?: boolean;
-          accounts?: Array<{
-            name?: string;
-            created?: string;
-            json_metadata?: string;
-            posting_json_metadata?: string;
-          }>;
-        };
+        // Shared accounts fetch path (lib/steem/accounts-client): shares one
+        // in-flight request + L1 entry with the balances hook and recovery
+        // banner instead of issuing a second raw fetch on the same mount.
+        const data = await fetchAccounts([urlUsername]);
         if (cancelled || !data.success) {
           if (!cancelled) setBannerProfile({});
           return;

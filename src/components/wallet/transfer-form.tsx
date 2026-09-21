@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { cachedFetch } from '@/lib/cache/client-fetch';
+import { fetchAccounts } from '@/lib/steem/accounts-client';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
 import {
   validateAccountName,
@@ -97,18 +97,7 @@ export function TransferForm({
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await cachedFetch<{
-          success?: boolean;
-          accounts?: Array<{
-            balance?: string;
-            sbd_balance?: string;
-            savings_balance?: string;
-            savings_sbd_balance?: string;
-          }>;
-        }>(`/api/query/accounts?names=${encodeURIComponent(username)}`, {
-          staleMs: 10_000,
-          maxAgeMs: 60_000,
-        });
+        const data = await fetchAccounts([username]);
         if (cancelled || !data.success) return;
         const acc = data.accounts?.[0];
         if (!acc) return;
@@ -152,13 +141,7 @@ export function TransferForm({
       }
       void (async () => {
         try {
-          const { data } = await cachedFetch<{
-            success?: boolean;
-            accounts?: Array<{ name?: string } | null>;
-          }>(`/api/query/accounts?names=${encodeURIComponent(target)}`, {
-            staleMs: 60_000,
-            maxAgeMs: 300_000,
-          });
+          const data = await fetchAccounts([target]);
           if (!active) return;
           const exists = data.success && !!data.accounts?.[0];
           if (!exists) {

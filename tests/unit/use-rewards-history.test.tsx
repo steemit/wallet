@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useRewardsHistory } from '@/lib/wallet/use-rewards-history';
+import { clientCache } from '@/lib/cache/client-cache';
 import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
 
 vi.mock('@/lib/steem/client', () => ({
@@ -43,6 +44,9 @@ function serverPage(
 describe('useRewardsHistory', () => {
   beforeEach(() => {
     mockGetHistory.mockReset();
+    // Unmount persistence (G-5 fix) now actually writes the L1 cache, so
+    // entries must not leak from one test's unmounted hook into the next.
+    clientCache.clear();
   });
 
   it('does not fetch until enabled', async () => {

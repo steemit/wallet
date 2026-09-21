@@ -7,12 +7,13 @@ import { unixSecToSteemIsoTimestamp } from '@/lib/steem/chain-time';
 import type {
   Operation,
   SignedTransaction,
-  SteemAccount,
   GlobalProperties,
   BroadcastResult,
   OwnerHistoryEntry,
 } from './types';
 import { buildAccountCreateOperation } from '@/lib/wallet/community';
+import { fetchAccounts, type AccountsResponse } from '@/lib/steem/accounts-client';
+import { noteResponseDegraded } from '@/lib/cache/degradation-state';
 
 export type TransactionHeaderFields = {
   ref_block_num: number;
@@ -22,6 +23,7 @@ export type TransactionHeaderFields = {
 
 async function fetchTransactionHeader(): Promise<TransactionHeaderFields> {
   const response = await fetch('/api/query/transaction-header');
+  noteResponseDegraded(response);
   const data = (await response.json()) as {
     success?: boolean;
     ref_block_num?: unknown;
@@ -821,17 +823,15 @@ export const apiClient = {
   },
 
   /**
-   * Get account information
+   * Get account information. Delegates to the shared fetchAccounts path
+   * (lib/steem/accounts-client): one URL builder, one cache policy, in-flight
+   * dedup. Names are normalized and encoded there.
    */
   async getAccounts(
     usernames: string[],
     options?: { fresh?: boolean }
-  ): Promise<{ accounts: SteemAccount[]; error?: string }> {
-    const url = `/api/query/accounts?names=${usernames.join(',')}`;
-    const response = options?.fresh
-      ? await fetch(url, { cache: 'no-store' })
-      : await fetch(url);
-    return response.json();
+  ): Promise<AccountsResponse> {
+    return fetchAccounts(usernames, options);
   },
 
   /**
@@ -853,12 +853,14 @@ export const apiClient = {
     if (typeof from === 'number') params.set('from', String(from));
     if (ops && ops.length > 0) params.set('ops', ops.join(','));
     const response = await fetch(`/api/query/history?${params.toString()}`);
+    noteResponseDegraded(response);
     return response.json();
   },
   async getOwnerHistory(
     username: string
   ): Promise<{ success?: boolean; history?: OwnerHistoryEntry[]; error?: string }> {
     const response = await fetch(`/api/query/owner-history?username=${encodeURIComponent(username)}`);
+    noteResponseDegraded(response);
     return response.json();
   },
 
@@ -937,6 +939,7 @@ export const apiClient = {
    */
   async getWitnesses(limit: number = 100): Promise<{ witnesses: unknown[]; error?: string }> {
     const response = await fetch(`/api/query/witnesses?limit=${limit}`);
+    noteResponseDegraded(response);
     return response.json();
   },
 
@@ -945,6 +948,7 @@ export const apiClient = {
    */
   async getGlobalProps(): Promise<{ props: GlobalProperties; error?: string }> {
     const response = await fetch('/api/query/global-props');
+    noteResponseDegraded(response);
     return response.json();
   },
 
@@ -961,6 +965,7 @@ export const apiClient = {
     const response = await fetch(
       `/api/query/withdraw-routes?username=${encodeURIComponent(username)}`
     );
+    noteResponseDegraded(response);
     return response.json();
   },
 
@@ -974,6 +979,7 @@ export const apiClient = {
     error?: string;
   }> {
     const response = await fetch('/api/query/median-history-price');
+    noteResponseDegraded(response);
     return response.json();
   },
 
@@ -1105,6 +1111,7 @@ export const apiClient = {
     if (params?.since) qs.set('since', params.since);
     const suffix = qs.toString() ? `?${qs.toString()}` : '';
     const response = await fetch(`/api/query/market${suffix}`);
+    noteResponseDegraded(response);
     return response.json();
   },
 

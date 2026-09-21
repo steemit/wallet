@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
-import { cachedFetch } from '@/lib/cache/client-fetch';
+import { fetchAccounts } from '@/lib/steem/accounts-client';
 import { clientCache } from '@/lib/cache/client-cache';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,21 +54,7 @@ export function RecoveryWarningBanner({
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await cachedFetch<{
-          success?: boolean;
-          accounts?: Array<{
-            name?: string;
-            recovery_account?: string;
-            account_recovery?: {
-              account_to_recover: string;
-              recovery_account: string;
-              effective_on: string;
-            } | null;
-          }>;
-        }>(`/api/query/accounts?names=${encodeURIComponent(username)}`, {
-          staleMs: 30_000,
-          maxAgeMs: 120_000,
-        });
+        const data = await fetchAccounts([username]);
         if (cancelled || !data.success) return;
         const acc = data.accounts?.[0];
         const recoveryInfo = acc?.account_recovery;
