@@ -159,7 +159,7 @@ describe('MarketOrderForm', () => {
   });
 
   it('derives total from amount and flags far-from-market prices', async () => {
-    const onSubmit = vi.fn(async (_payload: OrderFormPayload) => {});
+    const onSubmit = vi.fn(async () => {});
     renderBuyForm(onSubmit);
 
     const amount = screen.getByLabelText('amount');
@@ -180,7 +180,7 @@ describe('MarketOrderForm', () => {
   });
 
   it('derives amount from total and submits near-market prices without warning', async () => {
-    const onSubmit = vi.fn(async (_payload: OrderFormPayload) => {});
+    const onSubmit = vi.fn(async () => {});
     renderBuyForm(onSubmit);
 
     fireEvent.change(screen.getByLabelText('total'), { target: { value: '2.2' } });
@@ -197,7 +197,7 @@ describe('MarketOrderForm', () => {
   });
 
   it('fillAvailable and snapMarketPrice seed the form from balances/ticker', () => {
-    const onSubmit = vi.fn(async (_payload: OrderFormPayload) => {});
+    const onSubmit = vi.fn(async () => {});
     renderBuyForm(onSubmit);
 
     fireEvent.click(screen.getByRole('button', { name: /available/ }));

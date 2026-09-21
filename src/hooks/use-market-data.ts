@@ -156,7 +156,13 @@ export function useMarketData(username: string | null) {
       if (!cancelled) await refresh();
     };
     void run();
-    startPolling();
+    // A tab mounted in the background (e.g. middle-click) must not start the
+    // 3s cadence: it would poll a page nobody is watching until the first
+    // visit. The visibilitychange handler starts the cadence — with an
+    // immediate catch-up refresh — on the first transition to visible.
+    if (document.visibilityState === 'visible') {
+      startPolling();
+    }
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {

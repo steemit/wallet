@@ -109,6 +109,35 @@ describe('useMarketData — polling pauses on hidden page (G-9)', () => {
     expect(mockGetMarketData).toHaveBeenCalledTimes(6);
   });
 
+  it('does not start the interval when mounted while hidden (background tab)', async () => {
+    // Simulate a tab opened in the background (middle-click): the hook mounts
+    // with visibilityState already 'hidden' and no visibilitychange has fired.
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'hidden',
+    });
+    renderHook(() => useMarketData('alice'));
+
+    // Initial mount refresh only — the 3s cadence must not start while hidden.
+    await act(async () => {});
+    expect(mockGetMarketData).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(mockGetMarketData).toHaveBeenCalledTimes(1);
+
+    // First visit (transition to visible): catch-up refresh, then cadence.
+    act(() => setVisibility('visible'));
+    await act(async () => {});
+    expect(mockGetMarketData).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(mockGetMarketData).toHaveBeenCalledTimes(4);
+  });
+
   it('stops polling after unmount even while visible', async () => {
     const { unmount } = renderHook(() => useMarketData('alice'));
 
