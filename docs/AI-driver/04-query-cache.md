@@ -34,9 +34,12 @@ poisoning). **Never add a passthrough branch**, and never interpolate raw user i
 The Redis layer additionally prefixes everything with `REDIS_KEY_PREFIX` (default `wallet`) —
 that prefix is why deletion helpers take the *unprefixed* key.
 
-Known inconsistency to not extend: `accounts` uses a 32-hex truncated digest, `witnesses`/
-`proposals/votes` interpolate trusted integers verbatim. Fine for safety, but the mixed styles are
-why broadcast-side invalidation drifted (see 03). New routes: use `hashedCacheKey` only.
+Key construction is unified (2026-09): every route with key components goes through
+`hashedCacheKey` — `accounts` previously used a 32-hex truncated digest and `witnesses` /
+`proposals/votes` interpolated trusted integers verbatim. Old-format entries are
+unreachable but harmless (they expire by TTL; no migration). Static single-value keys
+(`global-props`, `wallet-prices`, `median-history-price`) have no components to hash and
+stay literal.
 
 ## Post-write invalidation
 
@@ -70,12 +73,15 @@ broadcast-side delete prefix matches.
 
 - Body: `{ success: true, <data>, degraded?: true, staleAge?: number }`.
 - Headers: `Cache-Control` always; `X-Degraded: true` when degraded.
-- Error: upstream-down with no stale → **503** with `{ error, degraded: true }`. (Four routes
-  still return 500 — history/market/vesting-delegations/expiring-… — don't copy them.)
+- Error: upstream-down with no stale → **503** with `{ error, degraded: true }` — the
+  unified contract for every query route (2026-09; four routes previously returned 500
+  and two more shadowed their inner 503 behind an outer 500).
 - `Cache-Control` choice: `public, s-maxage=<ttl>, stale-while-revalidate=<staleTtl>` for global
-  data; `private, max-age=…` when the body contains user-specific rows (proposals does this for
-  `username`-scoped responses). market / wallet-estimate-extras / withdraw-routes currently ship
-  user-scoped bodies with `public` — do not replicate; treat proposals' pattern as the rule.
+  data; `private, max-age=<ttl>` when the body contains user-specific rows. User-scoped routes
+  (wallet-estimate-extras, withdraw-routes, vesting-delegations*, owner-history, and market /
+  proposals when a username param is present) are `private` — a shared/CDN cache must never
+  store one user's rows under a `public` directive. market is public only for anonymous
+  (no-username) requests.
 - Username params: normalize once at the top (`trim().replace(/^@/,'').toLowerCase()`). Routes
   currently disagree (market lowercases, withdraw-routes doesn't, history doesn't at all) →
   same account = multiple cache keys. Be the normalized one.
@@ -86,19 +92,26 @@ broadcast-side delete prefix matches.
   truth. Multiple frontend callers with different cache params (see 06) — prefer adding a shared
   hook over a 7th fetch site.
 - **global-props**: 3s TTL (block-time-sensitive).
-- **market**: fans out 4 upstream RPCs per miss (orderbook+ticker+trades+openOrders). Cache key
-  includes `since` for logged-in polling, which makes the cache per-user/per-round — the "DoS
-  amplifier" comment only really protects anonymous traffic. Validate/clamp `since` if you touch it.
-- **wallet-estimate-extras**: composites savings/conversions/open orders; 60s/600s.
-- **history**: filtered mode ignores `limit` after validating it (returns up to 100); pagination
-  cursor protocol is client-driven (`use-batch-history`).
+- **market**: fans out 4 upstream RPCs per miss (orderbook+ticker+trades+openOrders). `since`
+  is validated (ISO-8601; garbage → 400) and quantized to a 30s bucket for the cache KEY only —
+  keying the raw per-tick cursor minted a unique key per poll (cache never engaged for logged-in
+  traffic). The upstream call still gets the precise timestamp; the client dedupes any repeated
+  trade rows. Responses with `username` are `private` (open orders in body).
+- **wallet-estimate-extras**: composites savings/conversions/open orders; 60s/600s; `private`
+  (savings withdrawals carry memos).
+- **history**: filtered mode honors `limit` — it caps the returned matching items, and when
+  truncated the cursor resumes below the oldest RETURNED match so the remainder is paged, never
+  skipped. Pagination cursor protocol is client-driven (`use-batch-history`).
 - **transaction-header**: block ref + expiration for signing. Short TTL; see 06 for why signing
   still works with cached headers.
 - **price**: **removed** (2026-09-22). It read the nonexistent `current_median_history.base_quote`
   and always returned 0 with zero consumers — use `wallet-prices`
   (`SteemService.getWalletPrices`, which parses base/quote correctly).
-- **proposals/votes**: passes 200 names to `getAccounts` in one call while the accounts route
-  caps at 100 — unverified against the real upstream limit; if it breaks, chunk it.
+- **proposals/votes**: getAccounts is chunked in batches of 100 (the accounts-route cap; the
+  limit is this app's own convention — steem-js forwards the array as-is). Keyed by
+  `hashedCacheKey('cache:query:proposals:votes', proposalId)`; public Cache-Control (voter rows
+  are proposal-scoped global data).
+- **owner-history**: user-scoped, `private`; cached 15s/300s via withCache like its siblings.
 
 ## Degradation protocol details
 

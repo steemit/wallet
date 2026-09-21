@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { hashedCacheKey } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,8 +26,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // hashedCacheKey: the limit is a full SHA-256 component like every other
+    // query route — one key-construction style, no plaintext interpolation
+    // (even for trusted integers).
     const result = await withCache(
-      `cache:query:witnesses:${limit}`,
+      hashedCacheKey('cache:query:witnesses', limit),
       600,
       1800,
       () => SteemService.getWitnessesByVote(limit)
