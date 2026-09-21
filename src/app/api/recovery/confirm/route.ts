@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq, and } from 'drizzle-orm';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { getDb } from '@/lib/db';
+import { mysqlAffectedRows } from '@/lib/db/affected-rows';
 import { arecs } from '@/lib/db/schema';
 
 export async function POST(request: NextRequest) {
@@ -123,12 +124,23 @@ export async function POST(request: NextRequest) {
         )
       );
 
-    // Drizzle mysql2 returns { affectedRows: number } for raw updates
-    const affected = (result as unknown as { affectedRows?: number }).affectedRows;
-    if (!affected || affected === 0) {
+    // Drizzle mysql2 update (no .returning()) resolves to the raw mysql2
+    // tuple [ResultSetHeader, FieldPacket[]]; the header is at index 0.
+    const affected = mysqlAffectedRows(result);
+    if (affected === 0) {
       return NextResponse.json(
         { status: 'error', error: 'Recovery request not found or already processed' },
         { status: 400 }
+      );
+    }
+    if (affected === undefined) {
+      // Unreadable result shape: the row MAY have been claimed above. Roll
+      // back any claim (rollback only touches rows still in 'processing')
+      // and fail loudly instead of silently sticking the record.
+      await rollbackToConfirmed(db, body.code, body.account_name).catch(() => {});
+      return NextResponse.json(
+        { status: 'error', error: 'Internal server error' },
+        { status: 500 }
       );
     }
     claimed = true;

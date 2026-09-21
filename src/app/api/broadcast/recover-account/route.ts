@@ -6,6 +6,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { getDb } from '@/lib/db';
+import { mysqlAffectedRows } from '@/lib/db/affected-rows';
 import { arecs } from '@/lib/db/schema';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
@@ -216,9 +217,9 @@ export async function POST(request: NextRequest) {
         .update(arecs)
         .set({ status: 'consumed' })
         .where(and(eq(arecs.id, record.id), eq(arecs.status, 'closed')));
-      const affected = (consumeResult as unknown as { affectedRows?: number })
-        .affectedRows;
-      if (!affected || affected === 0) {
+      // Drizzle mysql2 resolves the update to [ResultSetHeader, FieldPacket[]].
+      const affected = mysqlAffectedRows(consumeResult);
+      if (affected !== 1) {
         console.warn(
           'recover-account consume CAS updated 0 rows (already consumed?)',
           { id: record.id }
