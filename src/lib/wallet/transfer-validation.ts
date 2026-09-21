@@ -3,6 +3,7 @@
  * `utils/ChainValidation.js`. Returns i18n error codes (translated by the
  * caller under the `transfer.errors` namespace) or null when valid.
  */
+import { steem } from '@steemit/steem-js';
 import { BAD_ACTOR_LIST } from '@/lib/wallet/bad-actor-list';
 import { VERIFIED_EXCHANGE_LIST } from '@/lib/wallet/verified-exchange-list';
 
@@ -59,19 +60,54 @@ export function exchangeRequiresMemo(name: string, memo: string): boolean {
   return isVerifiedExchange(name) && !memo.trim();
 }
 
-/** Legacy `validate_memo_field` (key leak detection, WIF patterns only). */
-export type MemoErrorCode = 'memo_has_privatekey' | 'memo_is_privatekey';
+/**
+ * Legacy `validate_memo_field` (key leak detection): WIF patterns plus the
+ * master-password derivation check.
+ */
+export type MemoErrorCode =
+  | 'memo_has_privatekey'
+  | 'memo_is_privatekey'
+  | 'memo_is_password';
 
-export function validateMemoField(value: string): MemoErrorCode | null {
+export function validateMemoField(
+  value: string,
+  username?: string,
+  memoKey?: string
+): MemoErrorCode | null {
   const words = value.split(' ').filter((w) => w !== '');
   for (const word of words) {
     // Only perform key tests if it might be a key, i.e. it is a long string.
     if (word.length >= 39) {
       if (/5[HJK]\w{40,45}/i.test(word)) return 'memo_has_privatekey';
       if (/^5[1-9A-HJ-NP-Za-km-z]{50,51}$/.test(word)) return 'memo_is_privatekey';
+      // Legacy (ChainValidation.js:100-107): a word that derives the account's
+      // memo public key via the master-password path (username + 'memo' +
+      // password) IS the master password — pasting it in a memo leaks the
+      // wallet to anyone who can read the memo.
+      if (
+        username &&
+        memoKey &&
+        memoPublicKeyFromSeed(username, word) === memoKey
+      ) {
+        return 'memo_is_password';
+      }
     }
   }
   return null;
+}
+
+/** Memo public key derived from the master-password seed
+ * `username + 'memo' + password`, legacy
+ * `PrivateKey.fromSeed(...).toPublicKey().toString()`. Returns null when the
+ * derivation fails (never throws on arbitrary memo text). */
+function memoPublicKeyFromSeed(username: string, password: string): string | null {
+  try {
+    return steem.auth.PrivateKey.fromSeed(username + 'memo' + password)
+      .toPublicKey()
+      .toString();
+  } catch {
+    return null;
+  }
 }
 
 /**

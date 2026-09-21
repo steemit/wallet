@@ -1,5 +1,5 @@
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
-import type { GlobalPropsData } from '@/lib/wallet/wallet-balance-types';
+import type { GlobalPropsData, WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 
 export const STEEM_POWER_TICKER = 'SP';
 
@@ -50,4 +50,30 @@ export function formatSteemPowerFromVestsString(
   globalProps: GlobalPropsData
 ): string {
   return formatSteemPowerDisplay(steemPowerFromVestsString(vestAsset, globalProps));
+}
+
+/**
+ * Net delegated STEEM POWER: delegated out minus received. Ports legacy
+ * `delegatedSteem` (wallet-legacy src/app/utils/StateFunctions.js:63-78,
+ * `vests = delegated_vests - received_vests`). Positive = net delegated out,
+ * negative = net received from other accounts.
+ */
+export function netDelegatedSteemPower(
+  balance: Pick<WalletBalanceData, 'delegated_vesting_shares' | 'received_vesting_shares'>,
+  globalProps: GlobalPropsData
+): number {
+  const delegatedVests = parseAssetAmount(balance.delegated_vesting_shares);
+  const receivedVests = parseAssetAmount(balance.received_vesting_shares);
+  return steemPowerFromVests(delegatedVests - receivedVests, globalProps);
+}
+
+/**
+ * Signed display string for the delegation indicator, legacy sign convention
+ * (wallet-legacy src/app/components/modules/UserWallet.jsx:659-661:
+ * `(delegated_steem < 0 ? '+' : '') + (-delegated_steem).toFixed(3)`):
+ * net received renders "+X", net delegated out renders "-X".
+ */
+export function formatDelegatedSteemPowerDisplay(netDelegated: number): string {
+  const sign = netDelegated < 0 ? '+' : '';
+  return sign + formatSteemPowerDisplay(-netDelegated);
 }

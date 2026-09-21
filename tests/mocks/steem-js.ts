@@ -18,6 +18,10 @@ const auth = {
   sanitizeAccountUpdatePayload: realAuth.sanitizeAccountUpdatePayload,
   resolveAuthorityForSerialize: realAuth.resolveAuthorityForSerialize,
   normalizeAuthoritySource: realAuth.normalizeAuthoritySource,
+  // Real crypto classes: transfer-validation derives the memo public key from
+  // the master-password seed (legacy PrivateKey.fromSeed path).
+  PrivateKey: realAuth.PrivateKey,
+  PublicKey: realAuth.PublicKey,
   signTransaction: vi.fn(() => ({ signatures: ['SIG'], operations: [] })),
   sign: vi.fn(() => 'signed'),
   getPublicKey: vi.fn((wif: string) => (wif ? 'STM' + wif.slice(-8) : 'STM')),

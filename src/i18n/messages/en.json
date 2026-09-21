@@ -218,6 +218,9 @@
     "estimatedValue": "Estimated Account Value",
     "estimatedValueDesc": "Approximate value in USD based on current market prices.",
     "steemPowerApr": "STEEM POWER increases at an APR of approximately {value}%, subject to blockchain variance.",
+    "delegatedPowerWarning": "Part of {username}'s STEEM POWER is currently delegated. Delegation is donated for influence or to help new users perform actions on Steemit. Your delegation amount can fluctuate.",
+    "powerNotDelegated": "Influence can also be delegated to other users via delegating your Steem Power. Returning your Steem Power takes exactly 5 days in which neither you nor the delegatee can use it.",
+    "delegatedPowerTooltip": "STEEM POWER delegated to/from this account",
     "openOrders": "Open Orders",
     "inConversion": "{amount} in conversion",
     "conversionCompleteTip": "Will complete on {date}",
@@ -610,6 +613,7 @@
       "verified_exchange_no_memo": "This recipient is a verified exchange. A memo is required.",
       "memo_has_privatekey": "Please do not include what appears to be a private key or password in the memo field.",
       "memo_is_privatekey": "Do not use private keys in memos.",
+      "memo_is_password": "Do not use passwords in memos.",
       "acknowledge_warnings": "Please acknowledge the warnings above before sending."
     }
   },

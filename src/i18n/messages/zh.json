@@ -218,6 +218,9 @@
     "estimatedValue": "预估账户价值",
     "estimatedValueDesc": "基于当前市场价格的美元预估价值。",
     "steemPowerApr": "STEEM POWER 以约 {value}% 的 APR 增长，受区块链波动影响。",
+    "delegatedPowerWarning": "{username} 的部分 STEEM POWER 当前处于委托状态。委托是为影响力而捐助、或用于帮助新用户在 Steemit 上执行操作。你的委托数量可能会波动。",
+    "powerNotDelegated": "影响力也可以通过委托你的 Steem Power 授予其他用户。收回 Steem Power 恰好需要 5 天，在此期间你和被委托方都无法使用它。",
+    "delegatedPowerTooltip": "委托给该账户／由该账户委托出的 STEEM POWER",
     "openOrders": "挂单",
     "inConversion": "{amount} 转换中",
     "conversionCompleteTip": "将于 {date} 完成",
@@ -610,6 +613,7 @@
       "verified_exchange_no_memo": "收款方为已验证交易所，必须填写 memo。",
       "memo_has_privatekey": "请不要在 memo 中包含疑似私钥或密码的内容。",
       "memo_is_privatekey": "不要在 memo 中使用私钥。",
+      "memo_is_password": "不要在 memo 中使用密码。",
       "acknowledge_warnings": "请先勾选确认上述警告再转账。"
     }
   },
