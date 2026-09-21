@@ -18,8 +18,25 @@ export async function POST(request: NextRequest) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const body = await request.json();
-    const { username, signedChallenge, publicKey } = body;
+    // Malformed JSON is a client error, not a server fault. Parse in its own
+    // try/catch so a garbage body gets a 400 instead of falling through to
+    // the outer catch (which surfaced as a 500). Same convention as the
+    // challenge route's input validation: reject bad input with 4xx, never
+    // 5xx.
+    let parsed: unknown;
+    try {
+      parsed = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    if (typeof parsed !== 'object' || parsed === null) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    const { username, signedChallenge, publicKey } = parsed as {
+      username?: string;
+      signedChallenge?: string;
+      publicKey?: string;
+    };
 
     // Validate required fields
     if (!username || !signedChallenge || !publicKey) {
@@ -65,8 +82,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Delete challenge (one-time use)
-    await redis.del(redisKey(`auth:challenge:${username}`));
+    // Atomic one-time consumption via GETDEL (Redis >= 6.2; the deployment
+    // baseline is ElastiCache Redis 7+ — see docs/CACHING_AND_DEGRADATION.md
+    // §2.6). The previous get → verify → del sequence allowed two concurrent
+    // requests carrying the same valid signature to both pass verification
+    // before the delete landed, so "one-time" was not actually enforced
+    // against races. Ordering here is deliberate:
+    //   - verification happens BEFORE the consume, so a failed-signature
+    //     attempt never burns the challenge (the client can retry with the
+    //     same one);
+    //   - the consume itself is atomic, so of several concurrent requests
+    //     presenting the same valid signature exactly one wins — the rest
+    //     see a null return and get the same rejection as a missing or
+    //     expired challenge. This is what makes the documented "one-time"
+    //     replay guarantee actually true.
+    const consumed = await redis.getdel(redisKey(`auth:challenge:${username}`));
+    if (!consumed) {
+      return NextResponse.json(
+        { error: 'Invalid or expired challenge' },
+        { status: 401 }
+      );
+    }
 
     // Get the account to verify the public key belongs to it
     const accounts = await SteemService.getAccounts([username]);
