@@ -110,12 +110,12 @@ describe('rate-limit route scope (F14: dynamic segments must not enter the key)'
   });
 
   it('broadcast routes keep per-op scoping', async () => {
-    await rateLimit(makeReq({ 'x-real-ip': '10.0.0.2' }, '/api/broadcast/vote'), 'broadcast', {
+    await rateLimit(makeReq({ 'x-real-ip': '10.0.0.2' }, '/api/broadcast/delegate'), 'broadcast', {
       maxRequests: 1,
       windowSeconds: 60,
     });
     // Same route: shared bucket → blocked
-    const same = await rateLimit(makeReq({ 'x-real-ip': '10.0.0.2' }, '/api/broadcast/vote'), 'broadcast', {
+    const same = await rateLimit(makeReq({ 'x-real-ip': '10.0.0.2' }, '/api/broadcast/delegate'), 'broadcast', {
       maxRequests: 1,
       windowSeconds: 60,
     });
