@@ -7,12 +7,12 @@ import { unixSecToSteemIsoTimestamp } from '@/lib/steem/chain-time';
 import type {
   Operation,
   SignedTransaction,
-  SteemAccount,
   GlobalProperties,
   BroadcastResult,
   OwnerHistoryEntry,
 } from './types';
 import { buildAccountCreateOperation } from '@/lib/wallet/community';
+import { fetchAccounts, type AccountsResponse } from '@/lib/steem/accounts-client';
 import { noteResponseDegraded } from '@/lib/cache/degradation-state';
 
 export type TransactionHeaderFields = {
@@ -823,17 +823,15 @@ export const apiClient = {
   },
 
   /**
-   * Get account information
+   * Get account information. Delegates to the shared fetchAccounts path
+   * (lib/steem/accounts-client): one URL builder, one cache policy, in-flight
+   * dedup. Names are normalized and encoded there.
    */
   async getAccounts(
     usernames: string[],
     options?: { fresh?: boolean }
-  ): Promise<{ accounts: SteemAccount[]; error?: string }> {
-    const url = `/api/query/accounts?names=${usernames.join(',')}`;
-    const response = options?.fresh
-      ? await fetch(url, { cache: 'no-store' })
-      : await fetch(url);
-    return response.json();
+  ): Promise<AccountsResponse> {
+    return fetchAccounts(usernames, options);
   },
 
   /**

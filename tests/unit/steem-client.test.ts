@@ -40,6 +40,7 @@ beforeEach(() => {
     if (url.includes('/api/query/transaction-header')) {
       return Promise.resolve({
         ok: true,
+        headers: new Headers(),
         json: async () => ({
           success: true,
           ref_block_num: 99,
@@ -48,8 +49,10 @@ beforeEach(() => {
         }),
       });
     }
+    // headers: real fetch paths read X-Degraded off every response.
     return Promise.resolve({
       ok: true,
+      headers: new Headers(),
       json: async () => ({ success: true }),
     });
   });

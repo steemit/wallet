@@ -171,10 +171,10 @@ describe('WalletPage — isMyAccount with URL case != session case', () => {
 
   it('queries the accounts API with the normalized name for the profile banner', async () => {
     render(<WalletPage />);
+    // The banner goes through the shared fetchAccounts path (G-13): a cache
+    // miss is a plain one-argument fetch of the canonical URL.
     await waitFor(() =>
-      expect(mocks.fetch).toHaveBeenCalledWith('/api/query/accounts?names=alice', {
-        cache: 'no-store',
-      })
+      expect(mocks.fetch).toHaveBeenCalledWith('/api/query/accounts?names=alice')
     );
   });
 

@@ -1,57 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { cachedFetch } from '@/lib/cache/client-fetch';
-import { normalizeSteemUsername } from '@/lib/steem/username';
-import type { SteemAccount } from '@/lib/steem/types';
+import { useAccount } from '@/hooks/use-account';
 
+/**
+ * Page-account lookup (settings, market). Thin wrapper over the shared
+ * useAccount hook (one fetch path / cache policy — see
+ * lib/steem/accounts-client). `fresh` keeps the previous no-store semantics:
+ * these surfaces read key/balance state the user may have just changed.
+ */
 export function useSteemAccount(username: string) {
-  const [data, setData] = useState<SteemAccount | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>('');
-
-  const refetch = useCallback(async () => {
-    // Canonical form so the request URL (the L1 cache key) is identical
-    // whatever case/'@' spelling the caller passed.
-    const name = normalizeSteemUsername(username);
-    if (!name) {
-      setData(null);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError('');
-      const { data: response } = await cachedFetch<{
-        accounts?: SteemAccount[];
-        success?: boolean;
-        error?: string;
-      }>(`/api/query/accounts?names=${encodeURIComponent(name)}`, {
-        staleMs: 10_000,
-        maxAgeMs: 60_000,
-        noStore: true,
-      });
-
-      if (response.error || !response.accounts?.length) {
-        setError(response.error || 'Failed to fetch account');
-        setData(null);
-        return;
-      }
-
-      const acc = response.accounts[0];
-      setData(acc ?? null);
-    } catch {
-      setError('Failed to fetch account');
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [username]);
-
-  useEffect(() => {
-    void Promise.resolve().then(refetch);
-  }, [refetch]);
-
-  return { data, loading, error, refetch };
+  return useAccount(username, { fresh: true });
 }

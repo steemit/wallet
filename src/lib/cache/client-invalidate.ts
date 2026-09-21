@@ -1,4 +1,5 @@
 import { clientCache } from './client-cache';
+import { clearInFlightAccountRequests } from '@/lib/steem/accounts-client';
 import { normalizeSteemUsername } from '@/lib/steem/username';
 
 /**
@@ -26,6 +27,10 @@ export function invalidateWalletCache(username: string): void {
   // with a differently-cased spelling of the same account.
   const u = encodeURIComponent(normalizeSteemUsername(username));
   clientCache.invalidate(`/api/query/accounts?names=${u}`);
+  // Also drop pending deduped account requests: an in-flight pre-broadcast
+  // response would repopulate the cache entry this invalidation just evicted
+  // (and the nonce-triggered refetch would join that stale request).
+  clearInFlightAccountRequests();
   clientCache.invalidate(
     `/api/query/wallet-estimate-extras?username=${u}&includeOpenOrders=true`
   );
