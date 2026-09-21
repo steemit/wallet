@@ -105,6 +105,7 @@ stale template until reconciled.
   `.zcode/` if used) next time you touch the ignore file.
 - `AGENTS.md` is local-only (`.git/info/exclude`) but loaded every session — keep its counts
   accurate (it currently says Next 16.2.4 / 16 broadcast routes; reality was 16.2.11 / 19,
-  and 18 after the 2026-09-22 dead-code removal).
+  18 after the 2026-09-22 dead-code removal, and 19 again once claim-reward-balance landed
+  the same day).
 - Type discipline is excellent (`@ts-ignore` ×1, `as any` ×3) — don't break the streak. Note
   `tsconfig` injects `vitest/globals` into all of src; don't lean on test globals in app code.

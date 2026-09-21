@@ -44,6 +44,13 @@ export interface SteemAccount {
   last_post: string;
   last_root_post: string;
   vesting_balance: string;
+  /** Pending (unclaimed) rewards; consumed by the rewards UI and the claim_reward_balance op. */
+  reward_steem_balance: string;
+  reward_sbd_balance: string;
+  /** STEEM-denominated value of the pending vesting reward. */
+  reward_vesting_steem: string;
+  /** VESTS-denominated counterpart of reward_vesting_steem; the claim_reward_balance op payload. */
+  reward_vesting_balance: string;
   reputation: number;
   witness_votes: string[];
   proxy?: string;

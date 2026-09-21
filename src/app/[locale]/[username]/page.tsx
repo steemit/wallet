@@ -179,9 +179,11 @@ export default function WalletPage() {
       <div className="mx-auto max-w-6xl space-y-3 px-4 pt-3 pb-6">
         {isTransfersPath && (
           <ClaimRewardsBanner
+            username={urlUsername}
             balance={balance}
             isMyAccount={isMyAccount}
             loading={balanceLoading}
+            onClaimed={handleWalletDataChanged}
           />
         )}
         {isTransfersPath && (

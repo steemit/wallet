@@ -9,11 +9,14 @@ export interface WalletBalanceData {
   savings_balance: string;
   savings_sbd_balance: string;
   next_vesting_withdrawal: string;
-  to_withdraw: string;
-  withdrawn: string;
+  /** Chain fields, micro-VESTS integers (see lib/wallet/power-down.ts). */
+  to_withdraw: number;
+  withdrawn: number;
   reward_steem_balance: string;
   reward_sbd_balance: string;
   reward_vesting_steem: string;
+  /** VESTS-denominated counterpart of reward_vesting_steem; the claim_reward_balance op payload. */
+  reward_vesting_balance: string;
 }
 
 export interface GlobalPropsData {

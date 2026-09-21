@@ -3,7 +3,7 @@
 ## What a relay route is
 
 A thin POST endpoint that takes an already-signed transaction from the client and forwards it to
-the chain. 18 routes exist. The canonical body is:
+the chain. 19 routes exist. The canonical body is:
 
 ```json
 { "signedTx": <SignedTransaction>, "username": "<account>" }
@@ -40,7 +40,7 @@ DB gating (see 05-recovery.md) — it is a recovery-business route, not a pure r
    or payload checks, tx size caps. If you believe you need one, read
    `docs/RELAY_ROLLBACK_IMPACT.md` and 01-architecture.md first.
 6. Tests: a route-level test that mocks `SteemService.broadcastTransaction` + CSRF/limits
-   (see `tests/unit/proposals-broadcast-routes.test.ts` for the pattern). 12 of 18 routes currently
+   (see `tests/unit/proposals-broadcast-routes.test.ts` for the pattern). 12 of 19 routes currently
    have none — that is how copy-paste drift happened; do not add to the backlog.
 
 ## Response & error conventions (current state; align when touching)
@@ -103,7 +103,7 @@ and the UI keeps pre-broadcast data (see 06-frontend.md).
 Working & consumed: transfer, convert, delegate, power-down, custom-json, limit-order-create,
 limit-order-cancel, proposal-vote, proposal-create, proposal-remove, witness-vote, witness-proxy,
 account-update, change-recovery-account, cancel-transfer-from-savings,
-set-withdraw-vesting-route, recover-account (see 05 for its CAS bug).
+set-withdraw-vesting-route, claim-reward-balance, recover-account (see 05 for its CAS bug).
 
 - `vote` — removed (2026-09-22): dead route with no callers; the wallet does not do content voting.
 - `account-create` — exists, no frontend consumer found in review; verify before relying on it.

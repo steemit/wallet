@@ -252,6 +252,7 @@ const STATIC_API_ROUTES = new Set([
   '/api/broadcast/account-update',
   '/api/broadcast/cancel-transfer-from-savings',
   '/api/broadcast/change-recovery-account',
+  '/api/broadcast/claim-reward-balance',
   '/api/broadcast/convert',
   '/api/broadcast/custom-json',
   '/api/broadcast/delegate',

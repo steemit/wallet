@@ -269,6 +269,7 @@ transfer list into unrelated routes caused drift before):
 | Route | Invalidations |
 |-------|---------------|
 | transfer / convert / power-down / cancel-transfer-from-savings | accounts, extras(user) |
+| claim-reward-balance | accounts (claim moves reward_* into balances; savings/conversions/orders untouched) |
 | delegate | accounts, vesting-delegations(user), expiring-vesting-delegations(user) |
 | set-withdraw-vesting-route | accounts, withdraw-routes(user) |
 | limit-order-create / limit-order-cancel | accounts, extras(user), market |
