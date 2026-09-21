@@ -2,8 +2,10 @@
 // Get account transaction history with optional server-side op-type filtering.
 //
 // Without `ops`: returns raw Steem history (legacy path, backward compatible).
-// With `ops`:    server fetches batches internally until `limit` matching ops are
-//                found, normalizes them, and returns { history, nextFrom, exhausted }.
+// With `ops`:    fetches ONE batch (up to BATCH_SIZE entries) per request, keeps
+//                up to `limit` matching ops, and returns { history, nextFrom,
+//                exhausted }; the client drives pagination by passing nextFrom
+//                back as `from` on the next request.
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
       // `return await` (not `return`): without the await, a rejection from
       // handleFilteredRequest would bypass this try/catch entirely and escape
       // as an unhandled rejection instead of the unified 503 protocol.
-      return await handleFilteredRequest(account, from, requestedOps);
+      return await handleFilteredRequest(account, from, requestedOps, limit);
     }
 
     // ── Legacy path (no ops param) ───────────────────────────────────────────
@@ -92,7 +94,8 @@ export async function GET(request: NextRequest) {
 async function handleFilteredRequest(
   username: string,
   from: number,
-  requestedOps: string[]
+  requestedOps: string[],
+  limit: number
 ): Promise<NextResponse> {
   const opsKey = [...requestedOps].sort().join('+');
   const cacheKey = redisKey(hashedCacheKey('cache:query:history-filtered', username, opsKey));
@@ -107,7 +110,7 @@ async function handleFilteredRequest(
   }
 
   try {
-    const { history, nextFrom, exhausted } = await fetchFiltered(username, from, requestedOps);
+    const { history, nextFrom, exhausted } = await fetchFiltered(username, from, requestedOps, limit);
     if (from === -1) await saveFilteredFallback(cacheKey, { history, nextFrom, exhausted });
     return NextResponse.json({ success: true, history, nextFrom, exhausted });
   } catch (error) {
@@ -126,7 +129,8 @@ interface FilteredResult {
 async function fetchFiltered(
   username: string,
   from: number,
-  requestedOps: string[]
+  requestedOps: string[],
+  limit: number
 ): Promise<FilteredResult> {
   const opSet = new Set(requestedOps);
   // One Steem RPC call per HTTP request — client controls the outer loop.
@@ -138,21 +142,37 @@ async function fetchFiltered(
 
   const matching = normalized.filter((item) => opSet.has(item.op[0]));
 
-  // Advance cursor using oldest index in the WHOLE batch (not just matching),
-  // so non-matching ops near the bottom don't stall progress.
-  let oldestInBatch: number | undefined;
-  for (const item of normalized) {
-    if (typeof item.index === 'number') {
-      if (oldestInBatch === undefined || item.index < oldestInBatch) {
-        oldestInBatch = item.index;
+  // `limit` caps the matching items returned per request (it is validated
+  // above and must not be silently ignored). Truncation keeps the NEWEST
+  // `limit` matches; the cursor then resumes below the oldest RETURNED item
+  // so the matches dropped by the truncation are picked up by the next page
+  // instead of being skipped forever.
+  const truncated = matching.length > limit;
+  const history = truncated ? matching.slice(0, limit) : matching;
+
+  const oldestIndex = (items: SteemHistoryItem[]): number | undefined => {
+    let oldest: number | undefined;
+    for (const item of items) {
+      if (typeof item.index === 'number') {
+        if (oldest === undefined || item.index < oldest) oldest = item.index;
       }
     }
-  }
+    return oldest;
+  };
 
-  const exhausted = normalized.length === 0 || oldestInBatch === undefined || oldestInBatch <= 0;
-  const nextFrom = exhausted ? null : oldestInBatch! - 1;
+  // Advance the cursor using the oldest index in the WHOLE batch (not just
+  // matching), so non-matching ops near the bottom don't stall progress —
+  // unless we truncated, where the cursor must stop at the oldest RETURNED
+  // match to avoid skipping the truncated remainder.
+  const oldestInBatch = oldestIndex(normalized);
+  const oldestReturned = truncated ? oldestIndex(history) : undefined;
+  const resumeFrom = truncated ? (oldestReturned ?? oldestInBatch) : oldestInBatch;
 
-  return { history: matching, nextFrom, exhausted };
+  const exhausted =
+    !truncated && (normalized.length === 0 || oldestInBatch === undefined || oldestInBatch <= 0);
+  const nextFrom = exhausted || resumeFrom === undefined ? null : resumeFrom - 1;
+
+  return { history, nextFrom, exhausted };
 }
 
 // ── Cache helpers ─────────────────────────────────────────────────────────────
