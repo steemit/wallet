@@ -160,7 +160,6 @@ Returns `{ data: T; degraded: boolean; staleAge?: number }`.
 | accounts | `cache:query:accounts:{sha256(names) truncated to 32 hex}` | 10s | 300s (5m) | `public, s-maxage=10, stale-while-revalidate=60` | Balances change per transaction |
 | global-props | `cache:query:global-props` | 3s | 300s (5m) | `public, s-maxage=3` | Matches Steem block interval |
 | wallet-prices | `cache:query:wallet-prices` | 60s (1m) | 600s (10m) | `public, s-maxage=60, stale-while-revalidate=120` | Market prices |
-| price | `cache:query:price` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Feed price |
 | median-history-price | `cache:query:median-history-price` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Median feed price |
 | witnesses | `cache:query:witnesses:{limit}` | 600s (10m) | 1800s (30m) | `public, s-maxage=600, stale-while-revalidate=1800` | Rarely changes |
 | wallet-estimate-extras | `cache:query:wallet-estimate-extras:{sha256(username)}:{sha256(includeOpenOrders)}` | 60s (1m) | 600s (10m) | `public, s-maxage=60` | Savings, orders, conversions |
@@ -188,7 +187,6 @@ Rate limiting uses Redis `INCR` + `EXPIRE` (fixed-window counter) when Redis is 
 | accounts | `query` | 100 | 60 |
 | global-props | `query` | 60 | 60 |
 | wallet-prices | `query` | 30 | 60 |
-| price | `query` | 30 | 60 |
 | median-history-price | `query` | 60 | 60 |
 | witnesses | `query` | 30 | 60 |
 | wallet-estimate-extras | `query` | 30 | 60 |

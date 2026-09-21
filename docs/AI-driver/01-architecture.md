@@ -56,7 +56,7 @@ src/lib/middleware/              csrf.ts, rate-limit.ts, cache-invalidate.ts
 src/lib/cache/                   redis.ts (lazy singleton), server-cache.ts (withCache), cache-key.ts,
                                  client-cache.ts / client-fetch.ts (browser L1)
 src/lib/db/                      drizzle pool singleton + schema (arecs only)
-src/lib/store/                   Redux: auth slice (live), wallet & ui slices (dead code)
+src/lib/store/                   Redux: auth slice (only live slice)
 src/hooks/                       data-fetching hooks (the real client data layer)
 src/lib/wallet/                  wallet domain logic + (historically misplaced) history hooks
 src/i18n/                        next-intl, locales en/zh/es, localePrefix 'never'
