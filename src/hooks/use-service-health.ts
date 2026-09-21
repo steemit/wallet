@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { isDegraded, subscribeToDegradation } from '@/lib/cache/degradation-state';
 
 export type ServiceHealthStatus = 'healthy' | 'degraded' | 'outage' | 'unknown';
 
@@ -8,6 +9,11 @@ const POLL_INTERVAL = 60_000;
 
 export function useServiceHealth() {
   const [status, setStatus] = useState<ServiceHealthStatus>('unknown');
+  // Per-response signal: cachedFetch writes the X-Degraded header of every
+  // network response into degradation-state. Subscribing here lets the
+  // banner react to a degraded query response within its normal render
+  // cycle instead of waiting up to POLL_INTERVAL for the next poll.
+  const [responseDegraded, setResponseDegraded] = useState(() => isDegraded());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const check = useCallback(async () => {
@@ -24,6 +30,11 @@ export function useServiceHealth() {
     } catch {
       setStatus('outage');
     }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToDegradation(setResponseDegraded);
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -53,5 +64,15 @@ export function useServiceHealth() {
     };
   }, [check]);
 
+  // Merge the two signals with explicit precedence:
+  // - outage (poll could not reach /api/health at all) is the strongest signal;
+  // - otherwise ANY recently observed degraded response shows 'degraded', even
+  //   when the last poll said healthy — the poll is the 60s backstop for pages
+  //   with no queries, the per-response flag is the fast path;
+  // - recovery requires BOTH signals healthy: cachedFetch resets the flag on
+  //   the next non-degraded response, and the poll must say healthy too.
+  if (responseDegraded) {
+    return status === 'outage' ? 'outage' : 'degraded';
+  }
   return status;
 }
