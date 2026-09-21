@@ -25,7 +25,6 @@ const config = {
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      'mixpanel-browser': path.resolve(__dirname, './tests/mocks/mixpanel-browser.ts'),
       '@steemit/steem-js': path.resolve(__dirname, './tests/mocks/steem-js.ts'),
     },
   },

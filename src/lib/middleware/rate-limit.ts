@@ -244,7 +244,6 @@ function memoryFallbackEnabled(): boolean {
  * CI catches the forget.
  */
 const STATIC_API_ROUTES = new Set([
-  '/api/analytics/event',
   '/api/analytics/overseer',
   '/api/auth/challenge',
   '/api/auth/login',

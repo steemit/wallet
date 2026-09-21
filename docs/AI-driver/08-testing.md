@@ -6,7 +6,6 @@
 tests/unit/*.test.{ts,tsx}     Vitest (jsdom), the vast majority
 tests/e2e/smoke.spec.ts        Playwright; CI runs with workers=1 (CI=true)
 tests/mocks/steem-js.ts        aliased for '@steemit/steem-js' (loads REAL auth helpers from node_modules)
-tests/mocks/mixpanel-browser.ts
 ```
 
 - `pnpm test` / `pnpm test:coverage` — coverage thresholds: lines/functions/statements 80%,
@@ -22,8 +21,8 @@ vi.mock('@/lib/db', () => ({ getDb: vi.fn(/* return mock drizzle db or null */) 
 vi.mock('@/lib/cache/redis', () => ({ getRedis: vi.fn() /* null = degraded path */ }));
 ```
 
-`@steemit/steem-js` and `mixpanel-browser` are already aliased globally in `vitest.config.ts` —
-never mock them per-file.
+`@steemit/steem-js` is already aliased globally in `vitest.config.ts` —
+never mock it per-file.
 
 ## Route tests — the pattern
 

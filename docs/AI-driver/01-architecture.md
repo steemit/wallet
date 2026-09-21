@@ -48,7 +48,7 @@ src/app/api/auth/*               challenge / login / logout (stateful login, Red
 src/app/api/broadcast/*          19 relay routes (client-signed tx in, relay out)
 src/app/api/query/*              17 read-only chain queries with Redis stale-while-error caching
 src/app/api/recovery/*           account recovery (MySQL + conveyor/kingdom; real server business)
-src/app/api/analytics/*          overseer relay (live) + /analytics/event (dead Mixpanel chain)
+src/app/api/analytics/overseer    overseer relay (the dead Mixpanel /analytics/event chain was removed)
 src/lib/steem/client.ts          CLIENT: SteemSigner (local signing) + apiClient (fetch wrappers)
 src/lib/steem/server.ts          SERVER: SteemService — upstream calls, failover, challenge verify,
                                  recovery signing; ~1100 lines, the single upstream gateway
