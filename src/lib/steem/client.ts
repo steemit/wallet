@@ -224,31 +224,6 @@ export class SteemSigner {
   }
 
   /**
-   * Sign a vote operation
-   */
-  static async signVote(
-    voter: string,
-    author: string,
-    permlink: string,
-    weight: number,
-    postingKey: string
-  ): Promise<SignedTransaction> {
-    const operations: Operation[] = [
-      [
-        'vote',
-        {
-          voter,
-          author,
-          permlink,
-          weight,
-        },
-      ],
-    ];
-
-    return await this.signTransaction(operations, [postingKey]);
-  }
-
-  /**
    * Sign a witness vote operation
    */
   static async signWitnessVote(
@@ -748,27 +723,12 @@ export const apiClient = {
   },
 
   /**
-   * Broadcast a signed vote
-   */
-  async broadcastVote(
-    signedTx: SignedTransaction,
-    username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
-    const response = await fetch('/api/broadcast/vote', {
-      method: 'POST',
-      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ signedTx, username }),
-    });
-    return response.json();
-  },
-
-  /**
    * Broadcast a signed witness vote
    */
   async broadcastWitnessVote(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/witness-vote', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
@@ -780,7 +740,7 @@ export const apiClient = {
   async broadcastProposalVote(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/proposal-vote', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
@@ -792,7 +752,7 @@ export const apiClient = {
   async broadcastProposalCreate(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/proposal-create', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
@@ -804,7 +764,7 @@ export const apiClient = {
   async broadcastProposalRemove(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/proposal-remove', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
@@ -931,7 +891,7 @@ export const apiClient = {
    */
   async broadcastRecoverAccountTx(
     signedTx: unknown
-  ): Promise<{ success: boolean; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; error?: string }> {
     const response = await fetch('/api/broadcast/recover-account', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
@@ -1107,7 +1067,7 @@ export const apiClient = {
   async broadcastLimitOrderCreate(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/limit-order-create', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
@@ -1119,7 +1079,7 @@ export const apiClient = {
   async broadcastLimitOrderCancel(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/limit-order-cancel', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),

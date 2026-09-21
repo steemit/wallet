@@ -133,14 +133,6 @@ describe('SteemSigner.signXxx — produces the expected operations payload', () 
       keys: ['5Jactive'],
     },
     {
-      name: 'signVote (uses posting key)',
-      call: () => SteemSigner.signVote('voter', 'author', 'permlink', 10000, '5Jposting'),
-      operations: [
-        ['vote', { voter: 'voter', author: 'author', permlink: 'permlink', weight: 10000 }],
-      ],
-      keys: ['5Jposting'],
-    },
-    {
       name: 'signWitnessVote',
       call: () => SteemSigner.signWitnessVote('alice', 'witness1', true, '5Jactive'),
       operations: [
@@ -345,11 +337,6 @@ describe('apiClient broadcasts — every method posts the signed tx to its endpo
       name: 'broadcastDelegate',
       endpoint: '/api/broadcast/delegate',
       call: () => apiClient.broadcastDelegate(mockTx, 'alice'),
-    },
-    {
-      name: 'broadcastVote',
-      endpoint: '/api/broadcast/vote',
-      call: () => apiClient.broadcastVote(mockTx, 'alice'),
     },
     {
       name: 'broadcastWitnessVote',

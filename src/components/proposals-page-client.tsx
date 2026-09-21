@@ -292,7 +292,7 @@ export function ProposalsPageClient() {
       );
       const res = await apiClient.broadcastProposalVote(signedTx, username);
       if (!res.success) {
-        toast.error(res.error ?? res.details ?? t('voteFailed'));
+        toast.error(res.error ?? t('voteFailed'));
         return;
       }
       toast.success(approve ? t('voteSuccess') : t('unvoteSuccess'));
