@@ -138,6 +138,9 @@ export function PowerUpForm({
     }
 
     try {
+      // Known asymmetry (intentional, not rerouted): power up rides the
+      // /transfer broadcast endpoint while power down has a dedicated one —
+      // the relay treats both identically and no rerouting is planned.
       const amountStr = `${amountValue.toFixed(3)} STEEM`;
       const signedTx = await SteemSigner.signTransferToVesting(
         username,

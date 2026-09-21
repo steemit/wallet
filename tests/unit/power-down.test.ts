@@ -28,6 +28,26 @@ describe('power-down', () => {
     expect(microVestsToVests(5_000_000)).toBe(5);
   });
 
+  it('normalizes string share_type values at the boundary (#344 residual)', () => {
+    // Chain nodes return to_withdraw/withdrawn as number OR string depending
+    // on node/version; arithmetic must never rely on implicit JS coercion.
+    expect(microVestsToVests('5000000')).toBe(5);
+    expect(
+      getPowerDownToWithdrawVests({ ...baseAccount, to_withdraw: '40000000' })
+    ).toBe(40);
+    expect(
+      getPowerDownWithdrawnVests({ ...baseAccount, withdrawn: '10000000' })
+    ).toBe(10);
+    // The subtraction site (default slider position) works end-to-end with
+    // string inputs: 40 - 10 = 30 remaining.
+    expect(
+      getDefaultPowerDownVests(
+        { ...baseAccount, to_withdraw: '40000000', withdrawn: '10000000' },
+        globalProps
+      )
+    ).toBe(30);
+  });
+
   it('computes max vests as vesting minus delegated', () => {
     expect(getPowerDownMaxVests(baseAccount)).toBe(90);
   });
