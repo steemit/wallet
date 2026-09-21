@@ -111,8 +111,8 @@ describe('GET /api/query/proposals/votes', () => {
 
     // Two upstream batches: 100 + 50 names, merged in order.
     expect(mockGetAccounts).toHaveBeenCalledTimes(2);
-    const firstBatch = mockGetAccounts.mock.calls[0][0] as string[];
-    const secondBatch = mockGetAccounts.mock.calls[1][0] as string[];
+    const firstBatch = mockGetAccounts.mock.calls[0]![0] as string[];
+    const secondBatch = mockGetAccounts.mock.calls[1]![0] as string[];
     expect(firstBatch).toHaveLength(100);
     expect(secondBatch).toHaveLength(50);
     expect(firstBatch[0]).toBe('voter-0');

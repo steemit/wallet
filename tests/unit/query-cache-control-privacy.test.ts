@@ -127,8 +127,8 @@ describe('GET /api/query/* — Cache-Control privacy for user-scoped bodies', ()
   it.each(USER_SCOPED_CASES.map((c) => [c.name, c] as const))(
     '%s',
     async (_name, testCase) => {
-      const module = await testCase.importRoute();
-      const res = await module.GET(new NextRequest(`http://localhost${testCase.url}`));
+      const route = await testCase.importRoute();
+      const res = await route.GET(new NextRequest(`http://localhost${testCase.url}`));
       expect(res.status).toBe(200);
       expect(res.headers.get('Cache-Control')).toBe(testCase.expected);
       // Private responses must never announce shared-cache directives.
@@ -139,8 +139,8 @@ describe('GET /api/query/* — Cache-Control privacy for user-scoped bodies', ()
   it.each(GLOBAL_CASES.map((c) => [c.name, c] as const))(
     '%s',
     async (_name, testCase) => {
-      const module = await testCase.importRoute();
-      const res = await module.GET(new NextRequest(`http://localhost${testCase.url}`));
+      const route = await testCase.importRoute();
+      const res = await route.GET(new NextRequest(`http://localhost${testCase.url}`));
       expect(res.status).toBe(200);
       expect(res.headers.get('Cache-Control')).toBe(testCase.expected);
     }
@@ -148,8 +148,8 @@ describe('GET /api/query/* — Cache-Control privacy for user-scoped bodies', ()
 
   it('market degraded responses keep the private header AND add X-Degraded', async () => {
     withCacheResult = { degraded: true, staleAge: 42 };
-    const module = await import('@/app/api/query/market/route');
-    const res = await module.GET(
+    const route = await import('@/app/api/query/market/route');
+    const res = await route.GET(
       new NextRequest('http://localhost/api/query/market?username=alice')
     );
     expect(res.status).toBe(200);

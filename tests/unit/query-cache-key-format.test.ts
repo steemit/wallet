@@ -100,6 +100,6 @@ describe('query cache-key construction — one helper, full digests', () => {
     // the leading component so broadcast-side deletes keep matching.
     const { GET } = await import('@/app/api/query/witnesses/route');
     await GET(makeRequest('/api/query/witnesses', { limit: '100' }));
-    expect(withCacheKeys[0].startsWith('cache:query:witnesses:')).toBe(true);
+    expect(withCacheKeys[0]!.startsWith('cache:query:witnesses:')).toBe(true);
   });
 });

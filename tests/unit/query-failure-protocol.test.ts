@@ -194,8 +194,13 @@ const ROUTE_MODULES: Record<string, () => Promise<{ GET: (req: NextRequest) => P
 
 function routeKey(name: string): string {
   // "history (legacy path)" / "history (filtered path)" share one module.
-  const base = name.split(' ')[0];
-  return base;
+  return name.replace(/\s*\(.*\)$/, '');
+}
+
+async function loadRoute(name: string) {
+  const loader = ROUTE_MODULES[routeKey(name)];
+  if (!loader) throw new Error(`No route module registered for: ${name}`);
+  return loader();
 }
 
 describe('GET /api/query/* — unified upstream-failure protocol (§3.6)', () => {
@@ -206,11 +211,11 @@ describe('GET /api/query/* — unified upstream-failure protocol (§3.6)', () =>
   it.each(FAILURE_CASES.map((c) => [c.name, c] as const))(
     '%s: upstream failure with no stale data → 503 + { error, degraded: true }',
     async (_name, testCase) => {
-      const module = await ROUTE_MODULES[routeKey(testCase.name)]();
-      vi.mocked(SteemService[testCase.method] as () => Promise<unknown>)
-        .mockRejectedValueOnce(new Error('RPC down'));
+      const route = await loadRoute(testCase.name);
+      const serviceFn = SteemService[testCase.method] as () => Promise<unknown>;
+      vi.mocked(serviceFn).mockRejectedValueOnce(new Error('RPC down'));
 
-      const res = await module.GET(new NextRequest(`http://localhost${testCase.url}`));
+      const res = await route.GET(new NextRequest(`http://localhost${testCase.url}`));
 
       expect(res.status).toBe(503);
       const body = (await res.json()) as { error?: string; degraded?: boolean };
@@ -220,8 +225,8 @@ describe('GET /api/query/* — unified upstream-failure protocol (§3.6)', () =>
   );
 
   it('validation errors stay plain 400 responses without a degraded flag', async () => {
-    const module = await ROUTE_MODULES['accounts']();
-    const res = await module.GET(new NextRequest('http://localhost/api/query/accounts'));
+    const route = await loadRoute('accounts');
+    const res = await route.GET(new NextRequest('http://localhost/api/query/accounts'));
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error?: string; degraded?: boolean };
     expect(body.error).toBe('Missing names parameter');
