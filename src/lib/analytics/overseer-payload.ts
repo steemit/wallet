@@ -76,6 +76,12 @@ export interface UserActionParams {
   transferCoin?: string;
   witness?: string;
   proxy?: string;
+  /**
+   * Outcome qualifier for multi-step flows where the action name alone would
+   * lie (e.g. recovery_account with the final broadcast failed). Omitted on
+   * success to keep the legacy payload shape byte-identical.
+   */
+  status?: string;
 }
 
 export interface RouteTagParams {
@@ -213,6 +219,10 @@ export function buildUserActionPayload(
       break;
     case 'recovery_account':
       fields = { username: String(params.username ?? '') };
+      // Distinguish a completed recovery from one whose final recover_account
+      // broadcast failed (the on-chain request was submitted, the account is
+      // still compromised). Absent = success (legacy shape unchanged).
+      if (params.status) fields.status = params.status;
       break;
     case 'withdraw_vesting':
       tags = {

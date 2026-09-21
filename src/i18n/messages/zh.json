@@ -46,7 +46,8 @@
     "rememberUserTooltip": "在本设备记住用户名和 Posting Key (如果存在)",
     "keepLoggedIn": "保持登录状态",
     "passwordUpdateSuccess": "{username} 的密码已成功更新，请使用新密码登录。",
-    "insufficientAuthority": "当前登录凭据不包含此操作所需的密钥权限。请使用相应角色的私钥（如 active 权限）或主密码重试。"
+    "insufficientAuthority": "当前登录凭据不包含此操作所需的密钥权限。请使用相应角色的私钥（如 active 权限）或主密码重试。",
+    "accountRecoverySuccess": "账户 {username} 已成功恢复，请使用新密码登录。"
   },
   "wallet": {
     "title": "钱包",
@@ -536,7 +537,16 @@
       "submit": "恢复账户",
       "successMessage": "您的账户已成功恢复，现在可以使用新密码登录。",
       "goToLogin": "前往登录",
-      "unknownError": "发生未知错误。"
+      "unknownError": "发生未知错误。",
+      "retryModeIntro": "此恢复请求已确认。请输入与确认时相同的旧密码和新密码，以完成最后的恢复步骤。",
+      "broadcastingRecovery": "正在广播最后的恢复步骤…",
+      "broadcastFailedTitle": "最后的恢复步骤未完成",
+      "broadcastFailedBody": "恢复请求已提交上链，但最后的 recover_account 操作未能广播。您的账户尚未恢复。请在下方重试，或稍后重新打开此恢复链接再次尝试。",
+      "retryBroadcast": "重试最后步骤",
+      "statusNotApproved": "此恢复请求尚未获得批准。",
+      "statusInProgress": "此恢复请求正在处理中，请稍后重试。",
+      "statusExpired": "此恢复链接已过期。",
+      "statusAlreadyUsed": "此恢复链接已被用于完成账户恢复。"
     },
     "advancedRoutesNotice": "您已配置自定义的 power down 收款路由，请在 Advanced Routes 中重新确认。",
     "settings": "设置",

@@ -181,6 +181,14 @@ describe('buildUserActionPayload', () => {
     expect(buildUserActionPayload('recovery_account', { username: 'alice' }).fields).toEqual({
       username: 'alice',
     });
+    // Status distinguishes a completed recovery from one whose final
+    // recover_account broadcast failed; absent = success (legacy shape).
+    expect(
+      buildUserActionPayload('recovery_account', {
+        username: 'alice',
+        status: 'broadcast_failed',
+      }).fields
+    ).toEqual({ username: 'alice', status: 'broadcast_failed' });
     expect(
       buildUserActionPayload('cancel_withdraw_vesting', { username: 'alice' }).tags.action_type
     ).toBe('cancel_withdraw_vesting');

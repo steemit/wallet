@@ -120,6 +120,37 @@ describe('POST /api/analytics/overseer', () => {
     expect(payload.fields.to_username).toBe('bob');
   });
 
+  it('relays a valid recovery status token and drops free-text status', async () => {
+    const ok = await POST(
+      makeRequest({
+        kind: 'action',
+        action: 'recovery_account',
+        params: { username: 'alice', status: 'broadcast_failed' },
+      })
+    );
+    expect(ok.status).toBe(200);
+    expect(collectOverseer).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: { username: 'alice', status: 'broadcast_failed' },
+      })
+    );
+
+    // Free text / wrong shape must not ride into the overseer payload.
+    const bad = await POST(
+      makeRequest({
+        kind: 'action',
+        action: 'recovery_account',
+        params: { username: 'alice', status: 'NOT VALID!!! <script>' },
+      })
+    );
+    expect(bad.status).toBe(200);
+    expect(collectOverseer).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: { username: 'alice' },
+      })
+    );
+  });
+
   it('returns success when overseer relay throws (do not break the client)', async () => {
     collectOverseer.mockRejectedValueOnce(new Error('boom'));
     const res = await POST(

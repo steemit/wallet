@@ -42,6 +42,19 @@ vi.mock('@/lib/db', () => ({
 
 const VALID_CODE = '5bc350832943043e8a82';
 
+/**
+ * The REAL drizzle-orm mysql2 contract for an update without .returning():
+ * MySql2PreparedQuery.execute() resolves to the raw mysql2 query result,
+ * the tuple [ResultSetHeader, FieldPacket[]]. The old mocks resolved
+ * `{ affectedRows: 1 }` — a shape the real dependency never returns — which
+ * masked the CAS result-shape bug (see src/lib/db/affected-rows.ts).
+ */
+const MYSQL_RESULT_HEADER = { affectedRows: 1, insertId: 0 };
+const MYSQL_RESULT_FIELDS: unknown[] = [];
+function mysqlUpdateResult(affectedRows: number): unknown {
+  return [{ ...MYSQL_RESULT_HEADER, affectedRows }, MYSQL_RESULT_FIELDS];
+}
+
 function makeRequest(body: Record<string, unknown>): NextRequest {
   return new NextRequest('http://localhost/api/recovery/confirm', {
     method: 'POST',
@@ -93,7 +106,7 @@ describe('POST /api/recovery/confirm', () => {
   };
 
   it('returns ok for valid confirmed recovery (atomic CAS)', async () => {
-    setupUpdateMocks({ affectedRows: 1 });
+    setupUpdateMocks(mysqlUpdateResult(1));
 
     const { SteemService } = await import('@/lib/steem/server');
     const req = makeRequest(validPayload);
@@ -250,7 +263,7 @@ describe('POST /api/recovery/confirm', () => {
   });
 
   it('S3: signs a server-constructed canonical authority (strips extra fields)', async () => {
-    setupUpdateMocks({ affectedRows: 1 });
+    setupUpdateMocks(mysqlUpdateResult(1));
 
     const { SteemService } = await import('@/lib/steem/server');
     const req = makeRequest({
@@ -319,7 +332,7 @@ describe('POST /api/recovery/confirm', () => {
   });
 
   it('returns 400 when atomic update claims 0 rows (already processed / not found)', async () => {
-    setupUpdateMocks({ affectedRows: 0 });
+    setupUpdateMocks(mysqlUpdateResult(0));
 
     const req = makeRequest(validPayload);
     const res = await POST(req);
@@ -330,7 +343,7 @@ describe('POST /api/recovery/confirm', () => {
   });
 
   it('returns 400 when old_owner_key does not match DB record (owner key mismatch)', async () => {
-    setupUpdateMocks({ affectedRows: 1 });
+    setupUpdateMocks(mysqlUpdateResult(1));
     // DB has a different ownerKey
     mockFindFirst.mockResolvedValue({ id: 1, ownerKey: VALID_KEY_B });
 
@@ -345,7 +358,7 @@ describe('POST /api/recovery/confirm', () => {
   });
 
   it('allows confirm when DB ownerKey is null (legacy records)', async () => {
-    setupUpdateMocks({ affectedRows: 1 });
+    setupUpdateMocks(mysqlUpdateResult(1));
     mockFindFirst.mockResolvedValue({ id: 1, ownerKey: null });
 
     const req = makeRequest(validPayload);
@@ -367,7 +380,7 @@ describe('POST /api/recovery/confirm', () => {
   });
 
   it('returns 500 when requestAccountRecovery throws', async () => {
-    setupUpdateMocks({ affectedRows: 1 });
+    setupUpdateMocks(mysqlUpdateResult(1));
 
     const { SteemService } = await import('@/lib/steem/server');
     vi.mocked(SteemService.requestAccountRecovery).mockRejectedValueOnce(
@@ -384,7 +397,7 @@ describe('POST /api/recovery/confirm', () => {
   it('rolls back to confirmed when requestAccountRecovery throws (retryable)', async () => {
     // Regression test: without rollback, a transient RPC error leaves the
     // record stuck in 'processing' forever — the user can never retry.
-    setupUpdateMocks({ affectedRows: 1 });
+    setupUpdateMocks(mysqlUpdateResult(1));
 
     const { SteemService } = await import('@/lib/steem/server');
     vi.mocked(SteemService.requestAccountRecovery).mockRejectedValueOnce(
@@ -400,7 +413,7 @@ describe('POST /api/recovery/confirm', () => {
   });
 
   it('rolls back to confirmed when conveyor config is missing (503 retryable)', async () => {
-    setupUpdateMocks({ affectedRows: 1 });
+    setupUpdateMocks(mysqlUpdateResult(1));
 
     const { SteemService } = await import('@/lib/steem/server');
     vi.mocked(SteemService.validateConveyorConfig).mockReturnValueOnce(
@@ -424,5 +437,61 @@ describe('POST /api/recovery/confirm', () => {
     expect(res.status).toBe(500);
     const data = await res.json();
     expect(data.status).toBe('error');
+  });
+
+  // ---- CAS result-shape regression (drizzle mysql2 contract) ----
+  // The CAS used to read `(result as { affectedRows }).affectedRows`, which
+  // is undefined on the real driver tuple [ResultSetHeader, FieldPacket[]] —
+  // step 2 has NEVER worked against a real MySQL. These tests pin the real
+  // contract so a shape regression cannot hide behind mocks again.
+
+  it('CAS: succeeds reading the real drizzle tuple shape [ResultSetHeader, FieldPacket[]]', async () => {
+    const { SteemService } = await import('@/lib/steem/server');
+
+    // Exact mysql2 driver shape: array with the header at index 0 and the
+    // field-packet array at index 1. affectedRows lives on the header only.
+    setupUpdateMocks([
+      Object.assign(Object.create(null), {
+        affectedRows: 1,
+        insertId: 0,
+        info: 'Rows matched: 1  Changed: 1  Warnings: 0',
+      }),
+      [],
+    ]);
+
+    const req = makeRequest(validPayload);
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(data.status).toBe('ok');
+    expect(res.status).toBe(200);
+    expect(SteemService.requestAccountRecovery).toHaveBeenCalledTimes(1);
+  });
+
+  it('CAS: treats an unreadable (non-tuple) result shape as an error and rolls back', async () => {
+    // This is the shape the OLD unit mocks used ({ affectedRows: 1 }) — a
+    // shape the real dependency never returns. The route must not mistake it
+    // for a CAS miss (400, row left stuck in 'processing'): it rolls the
+    // claim back and fails with 500.
+    setupUpdateMocks({ affectedRows: 1 });
+
+    const { SteemService } = await import('@/lib/steem/server');
+    const req = makeRequest(validPayload);
+    const res = await POST(req);
+
+    expect(res.status).toBe(500);
+    // CAS claim (1st) → rollback (2nd). requestAccountRecovery never runs.
+    expect(mockUpdateFn).toHaveBeenCalledTimes(2);
+    expect(SteemService.requestAccountRecovery).not.toHaveBeenCalled();
+  });
+
+  it('CAS: undefined-shaped update result rolls back and returns 500 (not a silent 400)', async () => {
+    setupUpdateMocks(undefined);
+
+    const req = makeRequest(validPayload);
+    const res = await POST(req);
+    expect(res.status).toBe(500);
+    // CAS claim (1st) → rollback (2nd) so the record is not stuck.
+    expect(mockUpdateFn).toHaveBeenCalledTimes(2);
   });
 });

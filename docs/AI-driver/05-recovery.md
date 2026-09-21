@@ -47,9 +47,9 @@ set new password, derive keys, confirm, then broadcast `recover_account`.
 7. Rate limits: request 5/300s/IP, confirm 5/300s/IP, recover-account 3/60s/IP. Forensic IP
    self-check (`INFRA_IP`) compares the client IP against infra ranges and alerts on drift.
 
-## ⚠️ P0 known bug (as of 2026-09-21) — drizzle update result shape
+## ✅ P0 fixed (2026-09-22) — drizzle update result shape
 
-Both CAS sites read the update result as `{ affectedRows }`:
+Both CAS sites used to read the update result as `{ affectedRows }`:
 
 ```ts
 const result = await db.update(arecs).set({ status: 'processing' }).where(...);
@@ -57,29 +57,37 @@ const affected = (result as unknown as { affectedRows?: number }).affectedRows; 
 ```
 
 drizzle@0.45 mysql2 resolves to the mysql2 tuple `[ResultSetHeader, FieldPacket[]]`, so
-`affected` is **always `undefined`**. Consequences: confirm claims the row (`processing`), then
-returns 400, never rolls back (the `claimed` flag is set after the check), and the row is
-permanently stuck (`verify` says "not approved", re-confirm CAS-matches 0 rows).
-`requestAccountRecovery` is never reached — **step 2 has never worked against a real MySQL**.
+`affected` was **always `undefined`**: confirm claimed the row (`processing`), then
+returned 400 without rollback, and `requestAccountRecovery` was never reached —
+step 2 had never worked against a real MySQL (unit tests mocked the wrong shape).
 
-Fix: `result[0]?.affectedRows` (both confirm/route.ts:127 and recover-account/route.ts:213), then
-re-run the whole flow against a real MySQL — the unit tests mock the update as resolving
-`{affectedRows:1}`, which is why CI stayed green (see 08-testing.md, mock-contract discipline).
+Fixed by `mysqlAffectedRows()` (`src/lib/db/affected-rows.ts`), which reads
+`result[0]?.affectedRows` and distinguishes `0` (clean CAS miss → 400) from an
+unreadable shape (→ rollback + 500, never a silent stuck row). The unit-test
+mocks now use the real tuple contract, with regression tests pinning it.
 
 ## Other known issues (from the 2026-09-21 review)
 
-- **Frontend swallows broadcast failure** (`recover-account-confirmation-page.tsx:118-131`):
-  non-production-only `console.warn`, then `setSuccess(true)` + `recovery_account` analytics event.
-  There is no retry path: the form always re-runs confirm, which CAS-rejects `closed` rows, so the
-  tx can never be re-broadcast; rows linger in `closed` (never `consumed`).
-- Success page links to `/login.html#…&msg=accountrecovered` — **does not exist** in this app
-  (login is `/login`; `msg` handling only knows `passwordupdated`). Legacy leftover → 404.
+Fixed 2026-09-22 (`fix/recovery-critical`):
+
+- **Frontend swallowed broadcast failure** — fixed. A failed final broadcast
+  now renders an explicit error panel (never the success state), offers a
+  working retry (same page or via `verify` returning `record_status: 'closed'`
+  → retry-broadcast mode that skips confirm), and reports the
+  `recovery_account` analytics event with `status: 'broadcast_failed'`.
+- Success page linked to `/login.html#…&msg=accountrecovered` — fixed: real
+  `/login?account=…&msg=accountrecovered`, and the login form renders an
+  "account recovered" notice for that `msg` value.
+- `verify/[code]` returned "has not been approved yet" for
+  closed/consumed/processing alike — fixed with state-accurate responses
+  (`record_status` machine-readable field).
+
+Still open:
+
 - Frontend owner-history proof only checks `key_auths[0][0]` while the server checks the full key
   set — multi-key owners are wrongly rejected in the UI.
 - `newPasswordError` state is never set: zero password strength/length validation before key
   derivation. Legacy enforced strength.
-- `verify/[code]` returns "has not been approved yet" for closed/consumed/processing alike —
-  misleading copy for used/stuck codes.
 - No `expired` enforcement, no failure-count cap on code attempts (rate limit only), no
   un-sticking path for crashed `processing` rows.
 - `contact_email` has no length bound vs `varchar(256)` — strict-mode MySQL turns >256 into 500.

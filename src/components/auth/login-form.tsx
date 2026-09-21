@@ -82,13 +82,18 @@ export function LoginForm(props: LoginFormProps = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberUser, setRememberUser] = useState(false);
 
-  const passwordUpdatedNotice = useMemo(() => {
-    if (searchParams.get('msg') !== 'passwordupdated') return null;
+  // Post-authentication notices from query params (redirects from password
+  // change / account recovery flows): msg=passwordupdated|accountrecovered.
+  const authNotice = useMemo(() => {
+    const msg = searchParams.get('msg');
+    if (msg !== 'passwordupdated' && msg !== 'accountrecovered') return null;
     const displayName = accountFromQuery
       ? normalizeSteemUsername(accountFromQuery)
       : formData.username;
     if (!displayName) return null;
-    return t('passwordUpdateSuccess', { username: displayName });
+    return msg === 'passwordupdated'
+      ? t('passwordUpdateSuccess', { username: displayName })
+      : t('accountRecoverySuccess', { username: displayName });
   }, [accountFromQuery, formData.username, t]);
 
   useEffect(() => {
@@ -352,13 +357,13 @@ export function LoginForm(props: LoginFormProps = {}) {
         }
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          {passwordUpdatedNotice && (
+          {authNotice && (
             <div
               className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-4"
               role="status"
             >
               <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
-                {passwordUpdatedNotice}
+                {authNotice}
               </p>
             </div>
           )}

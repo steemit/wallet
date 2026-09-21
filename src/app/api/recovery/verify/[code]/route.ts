@@ -47,17 +47,66 @@ export async function GET(
       );
     }
 
-    if (arec.status !== 'confirmed') {
-      return NextResponse.json(
-        { status: 'error', error: 'Recovery request has not been approved yet' },
-        { status: 400 }
-      );
+    // State-accurate responses: the step-2 page maps `record_status` to a
+    // localized message and decides which mode to render. `confirmed` is the
+    // normal flow; `closed` means confirm already succeeded on-chain
+    // (request_account_recovery submitted) and only the final recover_account
+    // broadcast may still be pending — the page offers a retry-broadcast
+    // mode for that state instead of a misleading "not approved" error.
+    switch (arec.status) {
+      case 'confirmed':
+      case 'closed':
+        return NextResponse.json({
+          status: 'ok',
+          account_name: arec.accountName,
+          record_status: arec.status,
+        });
+      case 'open':
+        return NextResponse.json(
+          {
+            status: 'error',
+            error: 'Recovery request has not been approved yet',
+            record_status: 'open',
+          },
+          { status: 400 }
+        );
+      case 'processing':
+        return NextResponse.json(
+          {
+            status: 'error',
+            error: 'Recovery request is currently being processed. Please try again in a few minutes.',
+            record_status: 'processing',
+          },
+          { status: 400 }
+        );
+      case 'expired':
+        return NextResponse.json(
+          {
+            status: 'error',
+            error: 'This recovery link has expired.',
+            record_status: 'expired',
+          },
+          { status: 400 }
+        );
+      case 'consumed':
+        return NextResponse.json(
+          {
+            status: 'error',
+            error: 'This recovery link has already been used to complete the account recovery.',
+            record_status: 'consumed',
+          },
+          { status: 400 }
+        );
+      default:
+        return NextResponse.json(
+          {
+            status: 'error',
+            error: 'Recovery request is not available.',
+            record_status: arec.status,
+          },
+          { status: 400 }
+        );
     }
-
-    return NextResponse.json({
-      status: 'ok',
-      account_name: arec.accountName,
-    });
   } catch (err) {
     console.error('Recovery verify failed:', err);
     return NextResponse.json(

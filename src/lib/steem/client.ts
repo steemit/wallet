@@ -884,11 +884,22 @@ export const apiClient = {
   },
 
   /**
-   * Verify a recovery confirmation code
+   * Verify a recovery confirmation code.
+   *
+   * `record_status` is the arecs row state: 'confirmed' (normal step-2 flow)
+   * or 'closed' (confirm already done on-chain — only the final
+   * recover_account broadcast may be retried). Error responses carry a
+   * machine-readable `record_status` (open/processing/expired/consumed)
+   * the UI maps to localized copy.
    */
   async verifyRecoveryCode(
     code: string
-  ): Promise<{ status: 'ok' | 'error'; account_name?: string; error?: string }> {
+  ): Promise<{
+    status: 'ok' | 'error';
+    account_name?: string;
+    record_status?: string;
+    error?: string;
+  }> {
     const response = await fetch(`/api/recovery/verify/${encodeURIComponent(code)}`);
     return response.json();
   },

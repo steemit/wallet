@@ -63,6 +63,11 @@ function sanitizeActionParams(raw: unknown): UserActionParams {
   }
   const transferCoin = asOptionalString(o.transferCoin);
   const amount = asOptionalAmount(o.amount);
+  // Outcome qualifier (e.g. 'broadcast_failed'): short snake_case token only,
+  // so arbitrary free text cannot ride into the overseer payload.
+  const status = asOptionalString(o.status);
+  const safeStatus =
+    status && /^[a-z][a-z0-9_]{0,31}$/.test(status) ? status : undefined;
   if (username !== undefined) params.username = username;
   if (from !== undefined) params.from = from;
   if (to !== undefined) params.to = to;
@@ -70,6 +75,7 @@ function sanitizeActionParams(raw: unknown): UserActionParams {
   if (proxy !== undefined) params.proxy = proxy;
   if (transferCoin !== undefined) params.transferCoin = transferCoin;
   if (amount !== undefined) params.amount = amount;
+  if (safeStatus !== undefined) params.status = safeStatus;
   return params;
 }
 

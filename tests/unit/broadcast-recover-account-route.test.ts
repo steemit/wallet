@@ -105,8 +105,10 @@ describe('POST /api/broadcast/recover-account', () => {
       status: 'closed',
       newOwnerKey: VALID_KEY_B,
     });
-    // Default update chain: .set().where() resolves with a winning CAS
-    mockUpdateWhere = vi.fn().mockResolvedValue({ affectedRows: 1 });
+    // Real drizzle mysql2 contract: update without .returning() resolves to
+    // the raw mysql2 tuple [ResultSetHeader, FieldPacket[]]. Default: the
+    // consume CAS wins (1 affected row).
+    mockUpdateWhere = vi.fn().mockResolvedValue([{ affectedRows: 1, insertId: 0 }, []]);
     mockUpdateFn = vi.fn().mockReturnValue({
       set: vi.fn().mockReturnValue({ where: mockUpdateWhere }),
     });
@@ -382,12 +384,28 @@ describe('POST /api/broadcast/recover-account', () => {
   });
 
   it('F15: consume CAS with 0 affectedRows still returns 200 (already consumed)', async () => {
-    mockUpdateWhere.mockResolvedValueOnce({ affectedRows: 0 });
+    mockUpdateWhere.mockResolvedValueOnce([{ affectedRows: 0, insertId: 0 }, []]);
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const req = makeRequest({ signedTx: makeSignedTx() });
     const res = await POST(req);
     expect(res.status).toBe(200);
     expect(warnSpy).toHaveBeenCalled();
+  });
+
+  // ---- CAS result-shape regression (drizzle mysql2 contract) ----
+  // The consume site used to read `(result as { affectedRows }).affectedRows`,
+  // which is undefined on the real driver tuple — every successful consume
+  // was mis-logged as a warn. The mock must use the REAL contract.
+
+  it('consume CAS success does not warn (real drizzle tuple shape)', async () => {
+    // Default beforeEach mock already resolves [{ affectedRows: 1 }, []].
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const req = makeRequest({ signedTx: makeSignedTx() });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect((await res.json()).success).toBe(true);
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 });
