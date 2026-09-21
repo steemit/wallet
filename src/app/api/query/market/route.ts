@@ -53,8 +53,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Market query error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch market data' },
-      { status: 500 }
+      { error: 'Failed to fetch market data', degraded: true },
+      { status: 503 }
     );
   }
 }

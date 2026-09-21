@@ -13,34 +13,28 @@ export async function GET(request: NextRequest) {
     });
     if (rateLimitError) return rateLimitError;
 
-    try {
-      const result = await withCache(
-        'cache:query:median-history-price',
-        60,
-        600,
-        () => SteemService.getCurrentMedianHistoryPrice()
-      );
+    const result = await withCache(
+      'cache:query:median-history-price',
+      60,
+      600,
+      () => SteemService.getCurrentMedianHistoryPrice()
+    );
 
-      const response = NextResponse.json({
-        success: true,
-        ...result.data,
-        ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
-      });
-      response.headers.set('Cache-Control', 'public, s-maxage=60');
-      if (result.degraded) response.headers.set('X-Degraded', 'true');
-      return response;
-    } catch (error) {
-      console.error('median-history-price query error:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch median history price', degraded: true },
-        { status: 503 }
-      );
-    }
+    const response = NextResponse.json({
+      success: true,
+      ...result.data,
+      ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
+    });
+    response.headers.set('Cache-Control', 'public, s-maxage=60');
+    if (result.degraded) response.headers.set('X-Degraded', 'true');
+    return response;
   } catch (error) {
+    // Unified upstream-failure protocol (§3.6): 503 + degraded body. A single
+    // catch — no inner catch whose 503 could be shadowed by an outer 500.
     console.error('median-history-price query error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch median history price'},
-      { status: 500 }
+      { error: 'Failed to fetch median history price', degraded: true },
+      { status: 503 }
     );
   }
 }

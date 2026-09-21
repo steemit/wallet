@@ -21,34 +21,28 @@ export async function GET(request: NextRequest) {
     const includeOpenOrders =
       request.nextUrl.searchParams.get('includeOpenOrders') === 'true';
 
-    try {
-      const result = await withCache(
-        hashedCacheKey('cache:query:wallet-estimate-extras', username, includeOpenOrders),
-        60,
-        600,
-        () => SteemService.getWalletEstimateExtras(username, { includeOpenOrders })
-      );
+    const result = await withCache(
+      hashedCacheKey('cache:query:wallet-estimate-extras', username, includeOpenOrders),
+      60,
+      600,
+      () => SteemService.getWalletEstimateExtras(username, { includeOpenOrders })
+    );
 
-      const response = NextResponse.json({
-        success: true,
-        ...result.data,
-        ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
-      });
-      response.headers.set('Cache-Control', 'public, s-maxage=60');
-      if (result.degraded) response.headers.set('X-Degraded', 'true');
-      return response;
-    } catch (error) {
-      console.error('wallet-estimate-extras query error:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch wallet estimate extras', degraded: true },
-        { status: 503 }
-      );
-    }
+    const response = NextResponse.json({
+      success: true,
+      ...result.data,
+      ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
+    });
+    response.headers.set('Cache-Control', 'public, s-maxage=60');
+    if (result.degraded) response.headers.set('X-Degraded', 'true');
+    return response;
   } catch (error) {
+    // Unified upstream-failure protocol (§3.6): 503 + degraded body. A single
+    // catch — no inner catch whose 503 could be shadowed by an outer 500.
     console.error('wallet-estimate-extras query error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch wallet estimate extras'},
-      { status: 500 }
+      { error: 'Failed to fetch wallet estimate extras', degraded: true },
+      { status: 503 }
     );
   }
 }

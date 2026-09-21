@@ -25,34 +25,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    try {
-      const result = await withCache(
-        `cache:query:witnesses:${limit}`,
-        600,
-        1800,
-        () => SteemService.getWitnessesByVote(limit)
-      );
+    const result = await withCache(
+      `cache:query:witnesses:${limit}`,
+      600,
+      1800,
+      () => SteemService.getWitnessesByVote(limit)
+    );
 
-      const response = NextResponse.json({
-        success: true,
-        witnesses: result.data,
-        ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
-      });
-      response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1800');
-      if (result.degraded) response.headers.set('X-Degraded', 'true');
-      return response;
-    } catch (error) {
-      console.error('Error fetching witnesses:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch witnesses', degraded: true },
-        { status: 503 }
-      );
-    }
+    const response = NextResponse.json({
+      success: true,
+      witnesses: result.data,
+      ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
+    });
+    response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1800');
+    if (result.degraded) response.headers.set('X-Degraded', 'true');
+    return response;
   } catch (error) {
+    // Unified upstream-failure protocol (§3.6): 503 + degraded body. A single
+    // catch — no inner catch whose 503 could be shadowed by an outer 500.
     console.error('Error fetching witnesses:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch witnesses'},
-      { status: 500 }
+      { error: 'Failed to fetch witnesses', degraded: true },
+      { status: 503 }
     );
   }
 }

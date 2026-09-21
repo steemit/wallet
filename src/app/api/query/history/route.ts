@@ -57,7 +57,10 @@ export async function GET(request: NextRequest) {
 
     // ── Filtered path ────────────────────────────────────────────────────────
     if (requestedOps) {
-      return handleFilteredRequest(account, from, requestedOps);
+      // `return await` (not `return`): without the await, a rejection from
+      // handleFilteredRequest would bypass this try/catch entirely and escape
+      // as an unhandled rejection instead of the unified 503 protocol.
+      return await handleFilteredRequest(account, from, requestedOps);
     }
 
     // ── Legacy path (no ops param) ───────────────────────────────────────────
@@ -78,8 +81,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching history:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch history'},
-      { status: 500 }
+      { error: 'Failed to fetch history', degraded: true },
+      { status: 503 }
     );
   }
 }
@@ -97,7 +100,10 @@ async function handleFilteredRequest(
   if (await isSteemKnownDown()) {
     const fallback = await getFilteredFallback(cacheKey);
     if (fallback) return filteredDegradedResponse(fallback);
-    return NextResponse.json({ error: 'Steem node unavailable and no cached data' }, { status: 503 });
+    return NextResponse.json(
+      { error: 'Steem node unavailable and no cached data', degraded: true },
+      { status: 503 }
+    );
   }
 
   try {

@@ -70,6 +70,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching proposal voters:', error);
-    return NextResponse.json({ error: 'Failed to fetch proposal voters' }, { status: 503 });
+    // Unified upstream-failure protocol (§3.6): 503 + degraded body.
+    return NextResponse.json(
+      { error: 'Failed to fetch proposal voters', degraded: true },
+      { status: 503 }
+    );
   }
 }

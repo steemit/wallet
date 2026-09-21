@@ -20,6 +20,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, history });
   } catch (error) {
     console.error('owner-history error:', error);
-    return NextResponse.json({ error: 'Failed to fetch owner history' }, { status: 503 });
+    // Unified upstream-failure protocol (§3.6): 503 + degraded body.
+    return NextResponse.json(
+      { error: 'Failed to fetch owner history', degraded: true },
+      { status: 503 }
+    );
   }
 }

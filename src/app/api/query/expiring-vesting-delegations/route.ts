@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching expiring vesting delegations:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch expiring vesting delegations' },
-      { status: 500 }
+      { error: 'Failed to fetch expiring vesting delegations', degraded: true },
+      { status: 503 }
     );
   }
 }

@@ -444,6 +444,15 @@ When the server serves stale/cached data due to upstream failure:
 |--------|-------|-------------|
 | `X-Degraded` | `true` | Signals degraded data to client-side cache |
 
+**Upstream failure with no stale data — unified contract (all `/api/query/*` routes):**
+HTTP `503` with body `{ "error": "<message>", "degraded": true }`. Every query
+route follows this shape (unified 2026-09; previously a mix of plain 500s,
+bare 503s without `degraded`, and double-layer catches whose inner 503 was
+shadowed by an outer 500). Routes with dedicated fallbacks (history, §3.5)
+serve the degraded 200 first and only fall through to this 503 when no
+fallback exists. 4xx validation errors keep the plain `{ error }` shape with
+no `degraded` flag.
+
 ---
 
 ## File Index
