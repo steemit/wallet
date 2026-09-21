@@ -108,8 +108,19 @@ a link like `https://steemitwallet.com/account_recovery_confirmation/{code}`.
 **API:** `GET /api/recovery/verify/[code]`
 
 - Looks up `arecs` by `validation_code`.
-- Must be `status='confirmed'` (admin approved).
-- Returns `account_name` to the frontend.
+- Response is state-accurate: the `record_status` field carries the arecs row
+  state so the frontend can render the right mode/copy without parsing prose.
+- `status: 'confirmed'` → 200 `{ status: 'ok', account_name, record_status: 'confirmed' }`
+  (admin approved; render the full step-2 form).
+- `status: 'closed'` → 200 `{ status: 'ok', account_name, record_status: 'closed' }`
+  (confirm already succeeded on-chain; only the final `recover_account`
+  broadcast may still be pending — the page enters **retry-broadcast mode**,
+  see 2c).
+- Every other state → 400 `{ status: 'error', error, record_status }` with
+  state-accurate copy: `open` → "has not been approved yet",
+  `processing` → "currently being processed, try again in a few minutes",
+  `expired` → "link has expired", `consumed` → "already used to complete the
+  account recovery".
 
 ### 2b. Submit recovery
 
@@ -119,10 +130,14 @@ a link like `https://steemitwallet.com/account_recovery_confirmation/{code}`.
    (key never leaves the browser).
 2. Frontend sends `code`, `account_name`, `old_owner_key` (pub), `new_owner_key` (pub),
    and `new_owner_authority` to the server.
-3. Server calls `SteemService.requestAccountRecovery()` which invokes
+3. Server CAS-claims the record (`confirmed → processing`, conditional UPDATE
+   counting affected rows via the drizzle mysql2 tuple shape
+   `result[0].affectedRows`), cross-checks `old_owner_key` against the record,
+   then calls `SteemService.requestAccountRecovery()` which invokes
    `kingdom.recovery_account` via `steem.api.signedCallAsync`. This uses
    `CONVEYOR_USERNAME` / `CONVEYOR_POSTING_WIF` credentials to sign the JSON-RPC
    request. Kingdom then broadcasts `request_account_recovery` on-chain.
+   Failure paths roll the claim back to `confirmed` so the user can retry.
 4. Server updates `arecs` → `status='closed'`, records `old_owner_key`, `new_owner_key`,
    `request_submitted_at`.
 
@@ -134,11 +149,38 @@ a link like `https://steemitwallet.com/account_recovery_confirmation/{code}`.
    **locally**. This derives the old and new owner private keys from the passwords,
    constructs a `recover_account` operation, and signs it with the old owner key.
 2. The signed transaction is sent to the server relay endpoint.
-3. Server validates the transaction format (op must be `recover_account`) and
-   broadcasts via `condenser_api.broadcast_transaction`.
+3. Server validates the transaction format (op must be `recover_account`), proves
+   the signature against the real on-chain owner-key history, cross-checks the
+   `new_owner_key` against the closed arecs record, then broadcasts via
+   `condenser_api.broadcast_transaction`.
 4. On broadcast success the server consumes the row (`status='consumed'`).
    Consume is best-effort: a DB error after a successful relay still returns
    200, because the on-chain `recover_account` already took effect.
+
+**Broadcast failure is a visible, retryable state.** If step 2c fails (relay
+error or a thrown signing/broadcast error), the confirmation page shows an
+explicit error panel — it never pretends the recovery succeeded. The user can:
+
+- click **Retry final step** on the same page (re-signs and re-broadcasts; the
+  confirm step is NOT re-run), or
+- reopen the recovery link later: `verify/[code]` reports `record_status:
+  'closed'` and the page enters **retry-broadcast mode**, asking for the same
+  old/new passwords and going straight to the broadcast (confirm is skipped —
+  its CAS only accepts `status='confirmed'` and would reject the closed
+  record). Server-side integrity is unchanged: the broadcast route still
+  requires the owner-history signature proof, the closed-record lookup, and
+  the `new_owner_key` binding, so a retry can never change the recovery
+  outcome — only complete or fail the already-approved one.
+
+The `recovery_account` overseer analytics event distinguishes outcomes: the
+default (success) payload keeps the legacy shape `{ username }`; a failed
+final broadcast is reported with `status: 'broadcast_failed'`.
+
+### After recovery
+
+The success panel links to `/login?account=<account>&msg=accountrecovered`;
+the login form shows an "account recovered" notice for that `msg` value
+(same pattern as `msg=passwordupdated` after a password change).
 
 ---
 
@@ -178,7 +220,9 @@ open → confirmed → processing → closed → consumed
 - `expired`: Code expired (timeout, not currently enforced automatically).
 - `closed`: Confirm succeeded (`request_account_recovery` is on-chain). The
   `validation_code` is now single-use. This row authorizes one
-  `recover_account` broadcast via `/api/broadcast/recover-account`.
+  `recover_account` broadcast via `/api/broadcast/recover-account`. While it
+  remains `closed` (broadcast failed or not yet retried), the step-2 page
+  re-enters retry-broadcast mode via `verify/[code]`.
 - `consumed`: `recover_account` broadcast succeeded. The row can no longer
   authorize another relay. Terminal state.
 
