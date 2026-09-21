@@ -25,6 +25,7 @@ const balance: WalletBalanceData = {
   reward_steem_balance: '0.000 STEEM',
   reward_sbd_balance: '0.000 SBD',
   reward_vesting_steem: '0.000000 VESTS',
+  reward_vesting_balance: '0.000000 VESTS',
 };
 
 describe('computeEstimatedAccountValueUsd', () => {

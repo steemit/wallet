@@ -378,6 +378,33 @@ export class SteemSigner {
   }
 
   /**
+   * Claim pending rewards (claim_reward_balance, posting authority).
+   * Legacy parity (wallet-legacy UserWallet.jsx claimRewards): always claims
+   * the FULL pending amounts for all three token types, exactly as the
+   * account reports them (zero-valued strings included — the chain accepts).
+   */
+  static async signClaimRewardBalance(
+    account: string,
+    rewardSteem: string,
+    rewardSbd: string,
+    rewardVests: string,
+    postingKey: string
+  ): Promise<SignedTransaction> {
+    const operations: Operation[] = [
+      [
+        'claim_reward_balance',
+        {
+          account,
+          reward_steem: rewardSteem,
+          reward_sbd: rewardSbd,
+          reward_vests: rewardVests,
+        },
+      ],
+    ];
+    return await this.signTransaction(operations, [postingKey]);
+  }
+
+  /**
    * Sign a change_recovery_account operation. Requires the OWNER key —
    * the chain enforces owner authority for this operation.
    */
@@ -986,6 +1013,18 @@ export const apiClient = {
     username: string
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/cancel-transfer-from-savings', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
+    return response.json();
+  },
+
+  async broadcastClaimRewardBalance(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+    const response = await fetch('/api/broadcast/claim-reward-balance', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ signedTx, username }),

@@ -141,6 +141,29 @@ describe('SteemSigner.signXxx — produces the expected operations payload', () 
       keys: ['5Jactive'],
     },
     {
+      name: 'signClaimRewardBalance (full pending amounts, posting key)',
+      call: () =>
+        SteemSigner.signClaimRewardBalance(
+          'alice',
+          '0.000 STEEM',
+          '1.500 SBD',
+          '123.456789 VESTS',
+          '5Jposting'
+        ),
+      operations: [
+        [
+          'claim_reward_balance',
+          {
+            account: 'alice',
+            reward_steem: '0.000 STEEM',
+            reward_sbd: '1.500 SBD',
+            reward_vests: '123.456789 VESTS',
+          },
+        ],
+      ],
+      keys: ['5Jposting'],
+    },
+    {
       name: 'signSetWithdrawVestingRoute',
       call: () =>
         SteemSigner.signSetWithdrawVestingRoute('alice', 'bob', 5000, true, '5Jactive'),
@@ -377,6 +400,11 @@ describe('apiClient broadcasts — every method posts the signed tx to its endpo
       name: 'broadcastLimitOrderCancel',
       endpoint: '/api/broadcast/limit-order-cancel',
       call: () => apiClient.broadcastLimitOrderCancel(mockTx, 'alice'),
+    },
+    {
+      name: 'broadcastClaimRewardBalance',
+      endpoint: '/api/broadcast/claim-reward-balance',
+      call: () => apiClient.broadcastClaimRewardBalance(mockTx, 'alice'),
     },
   ])('$name → POST $endpoint with CSRF + signedTx', async ({ endpoint, call }) => {
     await call();

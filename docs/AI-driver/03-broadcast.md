@@ -3,7 +3,7 @@
 ## What a relay route is
 
 A thin POST endpoint that takes an already-signed transaction from the client and forwards it to
-the chain. 18 routes exist. The canonical body is:
+the chain. 19 routes exist. The canonical body is:
 
 ```json
 { "signedTx": <SignedTransaction>, "username": "<account>" }
@@ -103,7 +103,7 @@ and the UI keeps pre-broadcast data (see 06-frontend.md).
 Working & consumed: transfer, convert, delegate, power-down, custom-json, limit-order-create,
 limit-order-cancel, proposal-vote, proposal-create, proposal-remove, witness-vote, witness-proxy,
 account-update, change-recovery-account, cancel-transfer-from-savings,
-set-withdraw-vesting-route, recover-account (see 05 for its CAS bug).
+set-withdraw-vesting-route, claim-reward-balance, recover-account (see 05 for its CAS bug).
 
 - `vote` — removed (2026-09-22): dead route with no callers; the wallet does not do content voting.
 - `account-create` — exists, no frontend consumer found in review; verify before relying on it.

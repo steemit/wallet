@@ -14,6 +14,8 @@ export interface WalletBalanceData {
   reward_steem_balance: string;
   reward_sbd_balance: string;
   reward_vesting_steem: string;
+  /** VESTS-denominated counterpart of reward_vesting_steem; the claim_reward_balance op payload. */
+  reward_vesting_balance: string;
 }
 
 export interface GlobalPropsData {

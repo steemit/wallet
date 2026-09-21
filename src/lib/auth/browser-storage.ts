@@ -3,8 +3,10 @@
  * Never sent to the server.
  *
  * SECURITY RISK: when the user opts into "remember me", the posting private key
- * is written to `localStorage` so claim-reward signing works across reloads
- * (even when signed in with the active/owner key). `localStorage` is readable
+ * is written to `localStorage` and restored at the NEXT login when signing in
+ * with an active/owner key (see login-form), so posting-authority actions —
+ * claim_reward_balance via the wallet's "Redeem Rewards" button on
+ * /@user/transfers — keep working in that session. `localStorage` is readable
  * by any JavaScript running in this origin, so XSS or device access exposes a
  * limited signing capability (posting authority only — not active/owner).
  *
@@ -38,7 +40,6 @@ export const REMEMBERED_POSTING_KEY_KEY = 'wallet:rememberedPostingKey';
  */
 export { normalizeSteemUsername };
 
-/** Read remembered username from localStorage (client only). */
 /** Remove saved posting key (e.g. after password rotation invalidates the old key). */
 export function clearRememberedPostingKey(): void {
   if (typeof window === 'undefined') return;
