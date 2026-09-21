@@ -113,8 +113,8 @@ describe('useProposalsMeta error surface', () => {
       jsonResponse({ success: true, daoTreasury: '1.000 SBD' })
     );
     await result.current.refreshMeta();
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.error).toBe('');
+    await waitFor(() => expect(result.current.error).toBe(''));
+    expect(result.current.loading).toBe(false);
     expect(result.current.daoTreasury).toBe('1.000 SBD');
   });
 });

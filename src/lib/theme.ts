@@ -1,14 +1,14 @@
 'use client';
 
 import { useCallback, useLayoutEffect, useSyncExternalStore } from 'react';
+import {
+  DEFAULT_THEME,
+  THEME_STORAGE_KEY,
+  VALID_THEMES,
+  type LegacyTheme,
+} from '@/lib/theme-init';
 
-export type LegacyTheme = 'original' | 'light' | 'dark';
-
-const THEME_KEY = 'wallet-theme';
-const validThemes: LegacyTheme[] = ['original', 'light', 'dark'];
-
-/** Default day theme — wallet-legacy uses `theme-light` only (see App.jsx), not `theme-original`. */
-const DEFAULT_THEME: LegacyTheme = 'light';
+export type { LegacyTheme } from '@/lib/theme-init';
 
 // Module-level store so useSyncExternalStore can subscribe to mutations.
 // Initialized from localStorage at module load time on the client — the
@@ -24,13 +24,13 @@ function _notify() {
 }
 
 if (typeof window !== 'undefined') {
-  const stored = localStorage.getItem(THEME_KEY) as LegacyTheme;
-  if (stored && validThemes.includes(stored)) _theme = stored;
+  const stored = localStorage.getItem(THEME_STORAGE_KEY) as LegacyTheme;
+  if (stored && VALID_THEMES.includes(stored)) _theme = stored;
 
-  // Keep tabs in sync: when another tab writes to THEME_KEY, update the
+  // Keep tabs in sync: when another tab writes to the theme key, update the
   // module store and notify all subscribers in this tab.
   window.addEventListener('storage', (e) => {
-    if (e.key === THEME_KEY && e.newValue && validThemes.includes(e.newValue as LegacyTheme)) {
+    if (e.key === THEME_STORAGE_KEY && e.newValue && VALID_THEMES.includes(e.newValue as LegacyTheme)) {
       _theme = e.newValue as LegacyTheme;
       _notify();
     }
@@ -60,12 +60,12 @@ export function useTheme() {
   }, [theme]);
 
   const changeTheme = useCallback((newTheme: LegacyTheme) => {
-    if (!validThemes.includes(newTheme)) {
-      console.warn(`Invalid theme: ${newTheme}. Valid themes are: ${validThemes.join(', ')}`);
+    if (!VALID_THEMES.includes(newTheme)) {
+      console.warn(`Invalid theme: ${newTheme}. Valid themes are: ${VALID_THEMES.join(', ')}`);
       return;
     }
     _theme = newTheme;
-    localStorage.setItem(THEME_KEY, newTheme);
+    localStorage.setItem(THEME_STORAGE_KEY, newTheme);
     // Apply immediately to avoid FOUC between this call and the useLayoutEffect
     // that fires after React processes the re-render triggered by _notify().
     document.documentElement.classList.remove('theme-original', 'theme-light', 'theme-dark');
@@ -77,9 +77,9 @@ export function useTheme() {
   // it doesn't close over the `theme` snapshot and won't invalidate memoized
   // children that receive cycleTheme as a prop.
   const cycleTheme = useCallback(() => {
-    const currentIndex = validThemes.indexOf(_theme);
-    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % validThemes.length : 0;
-    const nextTheme = validThemes[nextIndex];
+    const currentIndex = VALID_THEMES.indexOf(_theme);
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % VALID_THEMES.length : 0;
+    const nextTheme = VALID_THEMES[nextIndex];
     if (nextTheme) changeTheme(nextTheme);
   }, [changeTheme]);
 
@@ -87,7 +87,7 @@ export function useTheme() {
     theme,
     changeTheme,
     cycleTheme,
-    themes: validThemes,
+    themes: VALID_THEMES,
   };
 }
 
