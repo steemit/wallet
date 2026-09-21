@@ -33,7 +33,10 @@ export async function GET(request: NextRequest) {
       ...result.data,
       ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
     });
-    response.headers.set('Cache-Control', 'public, s-maxage=60');
+    // The body contains this user's savings withdrawals (with memos), open
+    // orders and conversions — use private caching to prevent cross-user CDN
+    // poisoning.
+    response.headers.set('Cache-Control', 'private, max-age=60');
     if (result.degraded) response.headers.set('X-Degraded', 'true');
     return response;
   } catch (error) {

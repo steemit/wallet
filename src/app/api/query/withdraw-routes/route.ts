@@ -31,7 +31,9 @@ export async function GET(request: NextRequest) {
       routes: result.data,
       ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
     });
-    response.headers.set('Cache-Control', 'public, s-maxage=60');
+    // Per-user routing data — private caching prevents cross-user CDN
+    // poisoning.
+    response.headers.set('Cache-Control', 'private, max-age=60');
     if (result.degraded) response.headers.set('X-Degraded', 'true');
     return response;
   } catch (error) {

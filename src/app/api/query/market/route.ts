@@ -47,7 +47,15 @@ export async function GET(request: NextRequest) {
       ...result.data,
       ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
     });
-    response.headers.set('Cache-Control', 'public, s-maxage=5, stale-while-revalidate=30');
+    // With a username the response includes that user's open orders, so use
+    // private caching to prevent cross-user CDN poisoning. Anonymous
+    // responses contain only global orderbook/ticker/trades data.
+    response.headers.set(
+      'Cache-Control',
+      username
+        ? 'private, max-age=5'
+        : 'public, s-maxage=5, stale-while-revalidate=30'
+    );
     if (result.degraded) response.headers.set('X-Degraded', 'true');
     return response;
   } catch (error) {
