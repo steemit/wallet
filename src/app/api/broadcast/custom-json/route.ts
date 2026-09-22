@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,10 +36,12 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    logBroadcastSuccess('custom-json', signedTx, username, result);
+
     // custom_json affects none of the query caches; nothing to invalidate.
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast custom-json error:', error);
+    logBroadcastFailure('custom-json', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

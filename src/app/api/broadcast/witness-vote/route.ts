@@ -5,6 +5,7 @@ import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +40,8 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    logBroadcastSuccess('witness-vote', signedTx, username, result);
+
     // Witness votes change the account object and the witness list (600s TTL
     // cache) — not the wallet-estimate extras or withdraw routes (those
     // deletes were copy-paste drift from the transfer route).
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast witness vote error:', error);
+    logBroadcastFailure('witness-vote', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

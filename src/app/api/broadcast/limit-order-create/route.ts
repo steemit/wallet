@@ -5,6 +5,7 @@ import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import { hashedUserCachePrefix } from '@/lib/cache/cache-key';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,13 +37,15 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    logBroadcastSuccess('limit-order-create', signedTx, username, result);
+
     await cacheDeleteByPrefix('cache:query:accounts');
     await cacheDeleteByPrefix(hashedUserCachePrefix('cache:query:wallet-estimate-extras', username));
     await cacheDeleteByPrefix('cache:query:market');
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast limit_order_create error:', error);
+    logBroadcastFailure('limit-order-create', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

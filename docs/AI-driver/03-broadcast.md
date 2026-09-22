@@ -51,11 +51,13 @@ DB gating (see 05-recovery.md) — it is a recovery-business route, not a pure r
 - Upstream/chain errors propagate as 500 with a generic message. Error strings must stay
   non-revealing (no stack, no upstream internals) — the chain's rejection message is echoed via
   `BroadcastResult` only.
-- Server-side failure logs exist but have **no unified format** (`'Broadcast transfer error:'` vs
-  `'Broadcast proposal create error:'` — mixed case/underscores). If you add logging, pick
-  `Broadcast <route> error:` and consider unifying neighbors opportunistically.
-- Success path has no op-level audit log (relies on OTel spans / ELB). Do not assume you can grep
-  who broadcast what.
+- Every route logs through `src/lib/steem/broadcast-audit.ts` — one uniform success line
+  (`Broadcast succeeded: op=<op_type> route=<route> account=<name> tx_id=<tx> block=<n>`,
+  emitted right after `broadcastTransaction` resolves) and one failure pattern
+  (`Broadcast failed: route=<route>` + error object). Only public chain data is logged
+  (op type, account name, tx id); never payloads, memos, or signatures. All interpolated
+  values are whitespace-stripped so body fields cannot forge log lines. New routes MUST call
+  `logBroadcastSuccess`/`logBroadcastFailure` (see `transfer/route.ts`).
 
 ## Cache invalidation after broadcast — the contract
 

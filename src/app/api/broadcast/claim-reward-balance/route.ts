@@ -5,6 +5,7 @@ import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,6 +39,8 @@ export async function POST(request: NextRequest) {
     // Broadcast the transaction
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    logBroadcastSuccess('claim-reward-balance', signedTx, username, result);
+
     // Claiming moves reward_* balances into liquid/vesting balances — the only
     // server cache serving that data is the accounts cache. Savings
     // withdrawals, conversions and open orders (wallet-estimate-extras) are
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast claim-reward-balance error:', error);
+    logBroadcastFailure('claim-reward-balance', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

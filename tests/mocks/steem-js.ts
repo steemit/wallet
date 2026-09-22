@@ -10,7 +10,7 @@ const realSteemJsPath = path.resolve(
 const realSteemJs = await import(pathToFileURL(realSteemJsPath).href);
 const realAuth = realSteemJs.steem.auth;
 
-// Mock for @steemit/steem-js (1.0.x); client uses named import: import { steem } from '@steemit/steem-js'
+// Mock for @steemit/steem-js (^1.2.0); client uses named import: import { steem } from '@steemit/steem-js'
 const auth = {
   normalizeOperationForBroadcast: realAuth.normalizeOperationForBroadcast,
   normalizeTransactionForBroadcast: realAuth.normalizeTransactionForBroadcast,

@@ -62,6 +62,67 @@ describe('POST /api/broadcast/transfer', () => {
     expect(res.headers.get('X-Cache-Invalidate')).toBeNull();
   });
 
+  it('emits the uniform broadcast success audit log', async () => {
+    // All broadcast routes share the logBroadcastSuccess contract: one
+    // grep-aggregatable line with op type, route, account and chain tx id.
+    // Asserted here (the reference route) so a format change anywhere in
+    // broadcast-audit.ts fails loudly.
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    try {
+      const res = await POST(makeRequest({ signedTx: VALID_TX, username: 'alice' }));
+      expect(res.status).toBe(200);
+      expect(infoSpy).toHaveBeenCalledTimes(1);
+      expect(infoSpy).toHaveBeenCalledWith(
+        'Broadcast succeeded: op=transfer route=transfer account=alice tx_id=trx block=1'
+      );
+    } finally {
+      infoSpy.mockRestore();
+    }
+  });
+
+  it('sanitizes the audit log line against log injection and non-string usernames', async () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    try {
+      // A crafted username must not be able to forge additional log lines
+      // (newlines/tabs stripped); a non-string username must not throw and
+      // 500 an already-broadcast transaction.
+      const res = await POST(
+        makeRequest({
+          signedTx: VALID_TX,
+          username: 'ev\nil injected=false' as unknown as string,
+        })
+      );
+      expect(res.status).toBe(200);
+      const line = infoSpy.mock.calls[0]?.[0] as string;
+      expect(line).toBe(
+        'Broadcast succeeded: op=transfer route=transfer account=evilinjected=false tx_id=trx block=1'
+      );
+
+      const res2 = await POST(makeRequest({ signedTx: VALID_TX, username: 12345 }));
+      expect(res2.status).toBe(200);
+      expect(infoSpy).toHaveBeenLastCalledWith(
+        'Broadcast succeeded: op=transfer route=transfer account=12345 tx_id=trx block=1'
+      );
+    } finally {
+      infoSpy.mockRestore();
+    }
+  });
+
+  it('emits the uniform failure audit log when the relay throws', async () => {
+    // Failure lines across all broadcast routes follow one pattern:
+    // `Broadcast failed: route=<route>` + error object.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const boom = new Error('upstream exploded');
+      mockBroadcastTransaction.mockRejectedValue(boom);
+      const res = await POST(makeRequest({ signedTx: VALID_TX, username: 'alice' }));
+      expect(res.status).toBe(500);
+      expect(errorSpy).toHaveBeenCalledWith('Broadcast failed: route=transfer', boom);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it('does not fail the response when username is a non-string truthy value', async () => {
     // Routes only truthiness-check username (the `as` cast is compile-time
     // only). Invalidation runs AFTER a successful broadcast, so a garbage

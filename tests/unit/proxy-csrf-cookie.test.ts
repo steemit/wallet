@@ -1,18 +1,11 @@
 // @vitest-environment node
 // Node environment: the middleware's Web Crypto HMAC (crypto.subtle) is a
 // global here but not under jsdom; NextRequest/NextResponse are server classes.
+// The REAL next-intl middleware runs (vitest.config.ts inlines next-intl);
+// CSRF cookie behavior does not depend on intl routing, so no intl mock is
+// needed.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { NextRequest, NextResponse } from 'next/server';
-
-// next-intl's middleware module cannot be resolved in the vitest environment;
-// the CSRF cookie behavior under test does not depend on intl routing.
-vi.mock('next-intl/middleware', () => ({
-  default: () => (request: NextRequest) =>
-    NextResponse.next({ request: { headers: request.headers } }),
-}));
-vi.mock('@/i18n/routing', () => ({
-  routing: { locales: ['en'], defaultLocale: 'en' },
-}));
+import { NextRequest } from 'next/server';
 
 import proxy from '@/proxy';
 import { generateCSRFToken, isValidCSRFToken } from '@/lib/middleware/csrf';

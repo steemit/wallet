@@ -26,7 +26,9 @@ const geistMono = Geist_Mono({
 // All routes render per-request (condenser #4012 parity): runtime env like
 // GOOGLE_ANALYTICS_ID must never be baked into prerendered HTML. Pages are
 // already dynamic because of the CSP-nonce headers() call below; this export
-// makes the invariant explicit and independent of that mechanism.
+// makes the invariant explicit and independent of that mechanism. No
+// generateStaticParams here on purpose — with force-dynamic it would be a
+// no-op (it is only meaningful for statically prerendered routes).
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
@@ -44,10 +46,6 @@ export const metadata: Metadata = {
     ],
   },
 };
-
-export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale }));
-}
 
 export default async function LocaleLayout({
   children,

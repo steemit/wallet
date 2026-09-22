@@ -2,7 +2,9 @@
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
-    "types": ["vitest/globals"],
+    // No "types" field on purpose: test globals (vitest) are NOT ambient in
+    // src — tests import describe/it/expect from 'vitest' explicitly, and the
+    // DOM matchers come from '@testing-library/jest-dom/vitest' in setup.ts.
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,

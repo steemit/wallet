@@ -5,6 +5,7 @@ import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,12 +39,14 @@ export async function POST(request: NextRequest) {
     // Broadcast the transaction
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    logBroadcastSuccess('change-recovery-account', signedTx, username, result);
+
     // Changes the account's recovery partner — account data only.
     await cacheDeleteByPrefix('cache:query:accounts');
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast change_recovery_account error:', error);
+    logBroadcastFailure('change-recovery-account', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

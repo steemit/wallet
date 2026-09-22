@@ -5,6 +5,7 @@ import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,6 +34,8 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    logBroadcastSuccess('witness-proxy', signedTx, username, result);
+
     // Proxy changes re-rank the witness list (600s TTL cache) and the
     // account's witness voting state.
     await cacheDeleteByPrefix('cache:query:accounts');
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast witness proxy error:', error);
+    logBroadcastFailure('witness-proxy', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

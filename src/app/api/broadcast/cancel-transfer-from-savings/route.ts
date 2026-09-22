@@ -6,6 +6,7 @@ import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import { hashedUserCachePrefix } from '@/lib/cache/cache-key';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +40,8 @@ export async function POST(request: NextRequest) {
     // Broadcast the transaction
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    logBroadcastSuccess('cancel-transfer-from-savings', signedTx, username, result);
+
     // Cancelling a pending savings withdrawal changes balances and the
     // extras savings-withdrawals list. Hashed prefix — see transfer route.
     await cacheDeleteByPrefix('cache:query:accounts');
@@ -46,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast cancel_transfer_from_savings error:', error);
+    logBroadcastFailure('cancel-transfer-from-savings', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

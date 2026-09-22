@@ -18,10 +18,23 @@ describe('shouldIgnoreIncomingPath', () => {
     expect(shouldIgnoreIncomingPath('/.well-known/healthcheck.json')).toBe(true);
   });
 
+  it('ignores high-volume static asset paths (standalone server spans)', () => {
+    expect(
+      shouldIgnoreIncomingPath('/_next/static/chunks/main-app-abc123.js')
+    ).toBe(true);
+    expect(shouldIgnoreIncomingPath('/_next/static/media/logo.woff2')).toBe(true);
+    expect(shouldIgnoreIncomingPath('/_next/image?url=%2Fimg.png&w=64')).toBe(true);
+    expect(shouldIgnoreIncomingPath('/favicon.ico')).toBe(true);
+  });
+
   it('does not ignore wallet API routes', () => {
     expect(shouldIgnoreIncomingPath('/api/broadcast/transfer')).toBe(false);
     expect(shouldIgnoreIncomingPath('/api/query/accounts')).toBe(false);
     expect(shouldIgnoreIncomingPath('/api/healthz')).toBe(false);
+    // The prefix must not swallow unrelated /_next-adjacent or public paths.
+    expect(shouldIgnoreIncomingPath('/_next/data.json')).toBe(false);
+    expect(shouldIgnoreIncomingPath('/images/foo.png')).toBe(false);
+    expect(shouldIgnoreIncomingPath('/@_next.static/transfers')).toBe(false);
   });
 
   it('accepts a full URL from some runtimes', () => {
@@ -51,6 +64,13 @@ describe('shouldDropHealthSpan', () => {
     expect(
       shouldDropHealthSpan('executing api route (app) /api/health', undefined)
     ).toBe(true);
+  });
+
+  it('drops framework spans for static asset paths', () => {
+    expect(
+      shouldDropHealthSpan('GET', { 'http.target': '/_next/static/chunks/x.js' })
+    ).toBe(true);
+    expect(shouldDropHealthSpan('GET /_next/image?url=x', {})).toBe(true);
   });
 
   it('keeps normal API and page spans', () => {
