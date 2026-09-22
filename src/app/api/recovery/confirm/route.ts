@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, gte } from 'drizzle-orm';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { getDb } from '@/lib/db';
 import { mysqlAffectedRows } from '@/lib/db/affected-rows';
 import { arecs } from '@/lib/db/schema';
+import {
+  RECOVERY_CODE_TTL_MS,
+  isBeyondCodeTtl,
+  isStuckProcessingClaim,
+  markExpiredIfStale,
+  reclaimStuckProcessing,
+} from '@/lib/recovery/lifecycle';
 
 export async function POST(request: NextRequest) {
   const csrfError = await verifyCSRF(request);
@@ -113,26 +120,14 @@ export async function POST(request: NextRequest) {
   try {
     // Step 1: Atomically claim the record by setting status to 'processing'.
     // This prevents TOCTOU races — only one request will win the CAS.
-    const result = await db
-      .update(arecs)
-      .set({ status: 'processing' })
-      .where(
-        and(
-          eq(arecs.validationCode, body.code),
-          eq(arecs.accountName, body.account_name),
-          eq(arecs.status, 'confirmed')
-        )
-      );
+    // The claim is TTL-bounded (updated_at within the code TTL): a code
+    // approved longer than RECOVERY_CODE_TTL_MS ago can no longer be claimed,
+    // so stale codes die here even before the lazy expiry below runs.
+    const result = await claimConfirmed(db, body.code, body.account_name);
 
     // Drizzle mysql2 update (no .returning()) resolves to the raw mysql2
     // tuple [ResultSetHeader, FieldPacket[]]; the header is at index 0.
     const affected = mysqlAffectedRows(result);
-    if (affected === 0) {
-      return NextResponse.json(
-        { status: 'error', error: 'Recovery request not found or already processed' },
-        { status: 400 }
-      );
-    }
     if (affected === undefined) {
       // Unreadable result shape: the row MAY have been claimed above. Roll
       // back any claim (rollback only touches rows still in 'processing')
@@ -155,6 +150,14 @@ export async function POST(request: NextRequest) {
         { status: 'error', error: 'Internal server error' },
         { status: 500 }
       );
+    }
+    if (affected === 0) {
+      // Not claimable as-is. Diagnose the miss: lazily expire stale codes,
+      // un-stick crashed processing claims (bounded self-heal), or return a
+      // state-accurate error. If the diagnosis reclaimed and re-claimed the
+      // row, fall through and run the normal flow.
+      const outcome = await diagnoseClaimMiss(db, body.code, body.account_name);
+      if (outcome.response) return outcome.response;
     }
     claimed = true;
 
@@ -223,6 +226,158 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * The confirmed → processing CAS claim. TTL-bounded: the record's last state
+ * change must be within RECOVERY_CODE_TTL_MS, so a stale confirmed record is
+ * not claimable (it is expired by diagnoseClaimMiss instead).
+ */
+function claimConfirmed(
+  db: NonNullable<ReturnType<typeof getDb>>,
+  code: string,
+  accountName: string
+) {
+  return db
+    .update(arecs)
+    .set({ status: 'processing' })
+    .where(
+      and(
+        eq(arecs.validationCode, code),
+        eq(arecs.accountName, accountName),
+        eq(arecs.status, 'confirmed'),
+        gte(arecs.updatedAt, new Date(Date.now() - RECOVERY_CODE_TTL_MS))
+      )
+    );
+}
+
+/**
+ * Diagnose a missed claim (affected === 0) and self-heal where bounded:
+ *
+ * - confirmed/processing beyond the code TTL → lazily persist the terminal
+ *   `expired` status and reject with a state-accurate error (machine-readable
+ *   record_status so the frontend renders localized copy);
+ * - processing beyond the stuck threshold → a crashed claim: CAS it back to
+ *   `confirmed` and retry the claim once, so one dead request cannot brick
+ *   the recovery forever;
+ * - anything else (open/closed/consumed, live processing, wrong account)
+ *   → state-accurate error without touching the row.
+ *
+ * Returns `{ reclaimed: true }` when the stuck-claim reclaim succeeded AND
+ * the retried claim won (the caller continues the normal flow, with `claimed`
+ * semantics intact), otherwise `{ response }` with the error to return.
+ */
+async function diagnoseClaimMiss(
+  db: NonNullable<ReturnType<typeof getDb>>,
+  code: string,
+  accountName: string
+): Promise<{ response?: NextResponse; reclaimed?: boolean }> {
+  const record = await db.query.arecs.findFirst({
+    where: eq(arecs.validationCode, code),
+    columns: { id: true, status: true, updatedAt: true },
+  });
+
+  const genericMiss = () =>
+    NextResponse.json(
+      { status: 'error', error: 'Recovery request not found or already processed' },
+      { status: 400 }
+    );
+  const expiredResponse = () =>
+    NextResponse.json(
+      {
+        status: 'error',
+        error: 'This recovery link has expired. Please submit a new recovery request.',
+        record_status: 'expired',
+      },
+      { status: 400 }
+    );
+  const processingResponse = () =>
+    NextResponse.json(
+      {
+        status: 'error',
+        error:
+          'Recovery request is currently being processed. Please try again in a few minutes.',
+        record_status: 'processing',
+      },
+      { status: 400 }
+    );
+
+  if (!record) return { response: genericMiss() };
+
+  if (record.status === 'confirmed' || record.status === 'processing') {
+    // Code TTL: a record whose last state change predates the TTL is dead.
+    // Persist the terminal status (best-effort CAS; a lost race simply means
+    // another request already transitioned the row) and reject.
+    if (isBeyondCodeTtl(record.updatedAt)) {
+      await markExpiredIfStale(
+        db,
+        code,
+        accountName,
+        record.status,
+        record.updatedAt
+      ).catch((err) => {
+        console.error('Recovery confirm lazy-expire update failed:', err);
+      });
+      return { response: expiredResponse() };
+    }
+
+    if (record.status === 'processing') {
+      // Bounded self-heal for crashed claims: a processing row older than
+      // the stuck threshold cannot be a live request anymore.
+      if (isStuckProcessingClaim(record.updatedAt)) {
+        const reclaimAffected = await reclaimStuckProcessing(
+          db,
+          code,
+          accountName,
+          record.updatedAt
+        );
+        if (reclaimAffected === 1) {
+          // Reclaim won: retry the claim once under the same CAS discipline.
+          const retryAffected = mysqlAffectedRows(
+            await claimConfirmed(db, code, accountName)
+          );
+          if (retryAffected === 1) {
+            console.warn(
+              'Recovery confirm reclaimed a stuck processing record (crashed claim):',
+              { code, account_name: accountName, id: record.id }
+            );
+            return { reclaimed: true };
+          }
+          if (retryAffected === undefined) {
+            // Unreadable retry result: the row may be claimed by us. Roll
+            // back best-effort and fail loudly; if the rollback misses, the
+            // stuck-reclaim path will un-stick it on a later request.
+            console.error(
+              'Recovery confirm retry claim returned an unreadable result shape; failing closed:',
+              { account_name: accountName }
+            );
+            await rollbackToConfirmed(db, code, accountName).catch(() => {});
+            return {
+              response: NextResponse.json(
+                { status: 'error', error: 'Internal server error' },
+                { status: 500 }
+              ),
+            };
+          }
+          // Lost the re-claim race (another request is proceeding).
+          return { response: processingResponse() };
+        }
+        if (reclaimAffected === undefined) {
+          console.error(
+            'Recovery confirm stuck-reclaim update returned an unreadable result shape:',
+            { account_name: accountName }
+          );
+        }
+        // 0 (lost the reclaim race) or unreadable: treat as in-progress.
+        return { response: processingResponse() };
+      }
+      // Live claim by another request.
+      return { response: processingResponse() };
+    }
+  }
+
+  if (record.status === 'expired') return { response: expiredResponse() };
+  return { response: genericMiss() };
 }
 
 /**

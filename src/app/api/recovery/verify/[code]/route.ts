@@ -3,6 +3,12 @@ import { eq } from 'drizzle-orm';
 import { rateLimit } from '@/lib/middleware';
 import { getDb } from '@/lib/db';
 import { arecs } from '@/lib/db/schema';
+import {
+  isBeyondCodeTtl,
+  isStuckProcessingClaim,
+  markExpiredIfStale,
+  reclaimStuckProcessing,
+} from '@/lib/recovery/lifecycle';
 
 export async function GET(
   request: NextRequest,
@@ -37,7 +43,7 @@ export async function GET(
   try {
     const arec = await db.query.arecs.findFirst({
       where: eq(arecs.validationCode, code),
-      columns: { id: true, accountName: true, status: true },
+      columns: { id: true, accountName: true, status: true, updatedAt: true },
     });
 
     if (!arec) {
@@ -45,6 +51,65 @@ export async function GET(
         { status: 'error', error: 'Confirmation code not found' },
         { status: 404 }
       );
+    }
+
+    // Lazy code-TTL enforcement: a confirmed/processing record whose last
+    // state change predates the TTL is expired. Persist the terminal status
+    // (idempotent CAS — a lost race means someone else already transitioned
+    // the row; a DB error is logged but does not change this answer, which
+    // is derived from the timestamps, not the write) so admin tooling and
+    // later requests see the truth. The write is bounded by the same
+    // rate limit as the read.
+    if (
+      (arec.status === 'confirmed' || arec.status === 'processing') &&
+      isBeyondCodeTtl(arec.updatedAt)
+    ) {
+      await markExpiredIfStale(
+        db,
+        code,
+        arec.accountName,
+        arec.status,
+        arec.updatedAt
+      ).catch((err) => {
+        console.error('Recovery verify lazy-expire update failed:', err);
+      });
+      return NextResponse.json(
+        {
+          status: 'error',
+          error: 'This recovery link has expired.',
+          record_status: 'expired',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Bounded self-heal for crashed confirm claims: a processing record
+    // older than the stuck threshold is a dead claim (the confirm path's
+    // conveyor call finishes in minutes). Reclaim it to 'confirmed' so the
+    // user is not permanently blocked by a request that crashed mid-flight;
+    // the CAS threshold guarantees a live claim is never reclaimed.
+    if (arec.status === 'processing' && isStuckProcessingClaim(arec.updatedAt)) {
+      try {
+        const reclaimAffected = await reclaimStuckProcessing(
+          db,
+          code,
+          arec.accountName,
+          arec.updatedAt
+        );
+        if (reclaimAffected === 1) {
+          console.warn(
+            'Recovery verify reclaimed a stuck processing record (crashed claim):',
+            { code, account_name: arec.accountName, id: arec.id }
+          );
+          return NextResponse.json({
+            status: 'ok',
+            account_name: arec.accountName,
+            record_status: 'confirmed',
+          });
+        }
+      } catch (err) {
+        console.error('Recovery verify stuck-reclaim update failed:', err);
+      }
     }
 
     // State-accurate responses: the step-2 page maps `record_status` to a
