@@ -138,10 +138,30 @@ function accountPathWithoutAtPrefix(pathname: string): string | null {
 // paths, which are always account URLs and never public files.
 const STATIC_ASSET_EXT_RE = /\.(?:png|jpe?g|gif|svg|webp|avif|ico|txt|xml|css|js|mjs|map|woff2?|ttf|otf|eot)$/i;
 
+// Well-formed Steem account name shape (chain rules, simplified): 3-16 chars
+// of letters/digits/dots/hyphens starting with a letter. Case-insensitive —
+// account names are case-insensitive on chain.
+const ACCOUNT_NAME_RE = /^[a-z][a-z0-9.-]{2,15}$/i;
+
 function isStaticAssetRequest(pathname: string): boolean {
   if (pathname.startsWith('/@')) return false;
   const lastSegment = pathname.split('/').pop() ?? '';
-  return STATIC_ASSET_EXT_RE.test(lastSegment);
+  if (!STATIC_ASSET_EXT_RE.test(lastSegment)) return false;
+  // A SINGLE-segment, extension-bearing path that is also a well-formed
+  // account name (e.g. /user.png — dots are legal in account names) is
+  // ambiguous: it could be a bare external account link OR a root-level
+  // public/ file. Resolve in favor of the account route. Every public asset
+  // shipped today lives in a subdirectory (/favicons/*, /images/**) — the
+  // only root-level files are unreferenced Next.js template leftovers
+  // (file.svg, globe.svg, ...), which now 404 as unknown accounts instead of
+  // being served; a real account named after one of them still resolves.
+  // Multi-segment paths (/images/foo.png) stay static: public assets live in
+  // subdirectories and account subpaths (transfers, delegations, ...) never
+  // carry file extensions.
+  if (!pathname.slice(1).includes('/') && ACCOUNT_NAME_RE.test(lastSegment)) {
+    return false;
+  }
+  return true;
 }
 
 export default async function proxy(request: NextRequest) {
@@ -203,7 +223,9 @@ export const config = {
   // Do NOT use "path contains a dot" (.*\..*) — Steem sub-accounts use dots (e.g. user.subaccount).
   // Static files are NOT excluded here either; isStaticAssetRequest() above
   // passes them through before next-intl can rewrite them into /[locale]/.
-  matcher: [
-    '/((?!api|trpc|_next|_vercel|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
-  ],
+  // favicon.ico is excluded so browser favicon probes never enter the i18n
+  // pipeline (the layout metadata references it even though no such file is
+  // shipped); robots.txt/sitemap.xml/trpc exclusions were removed with the
+  // files/routes themselves — re-add them only if those actually appear.
+  matcher: ['/((?!api|_next|_vercel|favicon.ico).*)'],
 };
