@@ -911,7 +911,7 @@ export const apiClient = {
       account_auths: [string, number][];
       key_auths: [string, number][];
     };
-  }): Promise<{ status: 'ok' | 'error'; error?: string }> {
+  }): Promise<{ status: 'ok' | 'error'; error?: string; record_status?: string }> {
     const response = await fetch('/api/recovery/confirm', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),

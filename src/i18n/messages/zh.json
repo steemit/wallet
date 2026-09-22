@@ -492,6 +492,7 @@
       "checkingOwner": "正在验证旧 owner 密钥…",
       "submittingRecovery": "正在提交恢复…",
       "oldPasswordNotInHistory": "此密码与该账户最近的 owner 密钥不匹配。",
+      "newPasswordTooShort": "新密码长度不得少于 {amount} 个字符。",
       "submit": "恢复账户",
       "successMessage": "您的账户已成功恢复，现在可以使用新密码登录。",
       "goToLogin": "前往登录",
