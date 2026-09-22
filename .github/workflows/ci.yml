@@ -12,9 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm version is derived from the "packageManager" field in
+      # package.json (single source of truth; do not pin a version here).
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
@@ -44,9 +44,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm version is derived from the "packageManager" field in
+      # package.json (single source of truth; do not pin a version here).
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
