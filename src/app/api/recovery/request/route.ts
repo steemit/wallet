@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq, and } from 'drizzle-orm';
 import { verifyCSRF, rateLimit, getClientIP } from '@/lib/middleware';
+import { isInfrastructureIp } from '@/lib/middleware/infra-ip';
 import { getDb } from '@/lib/db';
 import { arecs } from '@/lib/db/schema';
+
+// arecs.contact_email is varchar(256); reject longer (format-valid) values
+// with a clean 400 instead of letting strict-mode MySQL fail the INSERT
+// with "Data too long" (which would surface as a 500).
+const CONTACT_EMAIL_MAX_LENGTH = 256;
 
 export async function POST(request: NextRequest) {
   const csrfError = await verifyCSRF(request);
@@ -35,6 +41,12 @@ export async function POST(request: NextRequest) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
     return NextResponse.json(
       { status: 'error', error: 'Invalid email format' },
+      { status: 400 }
+    );
+  }
+  if (contactEmail.length > CONTACT_EMAIL_MAX_LENGTH) {
+    return NextResponse.json(
+      { status: 'error', error: 'Email address is too long' },
       { status: 400 }
     );
   }
@@ -86,13 +98,12 @@ export async function POST(request: NextRequest) {
     // in logs; deliberately do NOT block the recovery flow (availability of
     // the recovery path outweighs the evidence loss). Ranges: RFC1918,
     // loopback, IPv6 ULA (fc00::/7), IPv6 link-local (fe80::/10 — never
-    // routes to the public internet), and IPv4 link-local (169.254/16 —
-    // includes the EC2 instance-metadata address 169.254.169.254). None of
-    // these can be a genuine public client, so the check has no
+    // routes to the public internet), IPv4 link-local (169.254/16 — includes
+    // the EC2 instance-metadata address 169.254.169.254), and IPv4-mapped
+    // IPv6 whose embedded IPv4 is one of the above (see infra-ip.ts). None
+    // of these can be a genuine public client, so the check has no
     // false-positive surface.
-    const INFRA_IP =
-      /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|::1$|f[cd][0-9a-f]{2}:|fe[89ab][0-9a-f]:)/i;
-    if (remoteIp && INFRA_IP.test(remoteIp)) {
+    if (remoteIp && isInfrastructureIp(remoteIp)) {
       console.warn(
         'recovery/request: remote_ip looks like infrastructure, not a client IP ' +
           '— realip chain may have drifted, arecs.remote_ip has no forensic value',

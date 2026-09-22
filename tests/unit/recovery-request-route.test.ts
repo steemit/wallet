@@ -139,6 +139,40 @@ describe('POST /api/recovery/request', () => {
     expect(res.status).toBe(400);
   });
 
+  it('B-8: returns 400 for a format-valid email longer than the varchar(256) column', async () => {
+    // 245-char local part + '@example.com' (12) = 257 chars — passes the
+    // shape check but exceeds arecs.contact_email's width; without this
+    // guard strict-mode MySQL rejects the INSERT with "Data too long" (500).
+    const longEmail = 'a'.repeat(245) + '@example.com';
+    expect(longEmail.length).toBe(257);
+
+    const req = makeRequest({
+      contact_email: longEmail,
+      account_name: 'alice',
+      owner_key: VALID_OWNER_KEY,
+    });
+    const res = await POST(req);
+    const data = await res.json();
+    expect(res.status).toBe(400);
+    expect(data.status).toBe('error');
+    expect(data.error).toBe('Email address is too long');
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it('B-8: a 256-char email (exactly the column width) is accepted', async () => {
+    const maxEmail = 'a'.repeat(244) + '@example.com';
+    expect(maxEmail.length).toBe(256);
+
+    const req = makeRequest({
+      contact_email: maxEmail,
+      account_name: 'alice',
+      owner_key: VALID_OWNER_KEY,
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(mockInsert).toHaveBeenCalledOnce();
+  });
+
   it('returns 400 for invalid account_name format', async () => {
     const req = makeRequest({
       contact_email: 'test@example.com',
@@ -217,6 +251,10 @@ describe('POST /api/recovery/request', () => {
     'fd00::1',             // IPv6 ULA
     'fc00::1',             // IPv6 ULA (currently reserved)
     'fe80::1',             // IPv6 link-local
+    '::ffff:10.0.0.1',     // IPv4-mapped RFC1918 (B-10: previously missed)
+    '::ffff:169.254.169.254', // IPv4-mapped link-local / instance metadata
+    '::ffff:172.16.0.1',   // IPv4-mapped RFC1918
+    '::FFFF:127.0.0.1',    // IPv4-mapped loopback, uppercase prefix
   ])('S6: warns when remote_ip is infrastructure (%s) — realip drift made visible', async (ip) => {
     const { getClientIP } = await import('@/lib/middleware');
     vi.mocked(getClientIP).mockReturnValueOnce(ip);
@@ -252,6 +290,28 @@ describe('POST /api/recovery/request', () => {
       const res = await POST(req);
       expect(res.status).toBe(200);
       expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('S6/B-10: no infra warning for an IPv4-mapped PUBLIC address (::ffff:8.8.8.8)', async () => {
+    // The mapped prefix alone is not infra — the embedded IPv4 must be in
+    // an infra range, otherwise every mapped client address would alert.
+    const { getClientIP } = await import('@/lib/middleware');
+    vi.mocked(getClientIP).mockReturnValueOnce('::ffff:8.8.8.8');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const req = makeRequest({
+        contact_email: 'test@example.com',
+        account_name: 'alice',
+        owner_key: VALID_OWNER_KEY,
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+      expect(warn).not.toHaveBeenCalled();
+      const inserted = mockInsertValues.mock.calls[0]![0] as { remoteIp: string | null };
+      expect(inserted.remoteIp).toBe('::ffff:8.8.8.8');
     } finally {
       warn.mockRestore();
     }
