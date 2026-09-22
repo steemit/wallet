@@ -26,12 +26,13 @@ the header and an audit of what loads it.
 
 ## Environment variables
 
-Authoritative list = code, not `.env.example` (which has drifted). Highlights:
+Authoritative list = code; `.env.example` and `docker/docker-compose.yml` are kept
+in sync with it by `tests/unit/infra-single-source.test.ts`. Highlights:
 
 | Variable | Notes |
 |----------|-------|
 | `STEEM_RPC_URL` | comma-separated failover list (single URL = single node, no amplification) |
-| `REDIS_URL` / `REDIS_KEY_PREFIX` | prefix defaults `wallet`; the multi-instance isolation knob — **not in .env.example** |
+| `REDIS_URL` / `REDIS_KEY_PREFIX` | prefix defaults `wallet`; the multi-instance isolation knob |
 | `DATABASE_URL` | recovery only; no hardcoded fallback (drizzle.config.ts included) |
 | `CSRF_SECRET` | production-required; missing = all mutations fail closed |
 | `CONVEYOR_USERNAME` / `CONVEYOR_POSTING_WIF` | recovery signing; missing → confirm 503s cleanly |
@@ -43,28 +44,32 @@ Authoritative list = code, not `.env.example` (which has drifted). Highlights:
 | `OTEL_*` / `WALLET_TELEMETRY_*` / `OTEL_SDK_DISABLED` | standard OTel vars are read as fallbacks |
 | `SESSION_SECRET` | declared, **unused** (no server sessions) |
 
-**docker-compose.yml is not a source of truth**: 16 of its variables are read by nothing
-(`RATE_LIMIT_MAX_*`, `FEATURE_*`, `MAINTENANCE_MODE`, …) and it omits every dependency the app
-actually needs (`DATABASE_URL`, `REDIS_URL`, `CONVEYOR_*`, `TRUST_PROXY_COUNT`). Treat it as a
-stale template until reconciled.
+**docker-compose.yml** passes only variables the code reads (guarded by
+`tests/unit/infra-single-source.test.ts`, which fails if compose passes an
+undocumented variable or omits a required one). Secrets are env-var
+references, never literals.
 
 ## Health checks — two different semantics
 
-- `/.well-known/healthcheck.json` (proxy) = liveness. Use for LBs.
-- `/api/health` = readiness: probes the Steem RPC (probe-locked, cached via Redis health state)
-  and returns 503 when degraded.
-- ⚠️ `docker/Dockerfile`'s HEALTHCHECK targets `/api/health` — an upstream Steem outage marks
-  containers unhealthy. Container liveness should use the well-known endpoint. Also note compose
-  doesn't pass `REDIS_URL`, so `/api/health` re-probes upstream every call.
+- `/.well-known/healthcheck.json` (proxy) = liveness. Use for LBs and
+  container health checks (Dockerfile HEALTHCHECK, compose healthcheck, and
+  the ELB all use it).
+- `/api/health` = readiness: probes the Steem RPC (probe-locked, cached via
+  Redis health state) and returns 503 when degraded. For humans/monitoring
+  only — never wire it to container liveness, or an upstream Steem outage
+  marks every container unhealthy.
 
 ## Docker / builds
 
-- Two Dockerfiles exist: root `Dockerfile` (minimal, likely the EB entry) and `docker/Dockerfile`
-  (hardened: non-root, dumb-init, HEALTHCHECK, HOSTNAME). Compose uses the latter. **When changing
-  one, check whether the other needs the same change.**
+- **Single Dockerfile truth**: `docker/Dockerfile` is the canonical recipe;
+  the root `./Dockerfile` is a byte-identical copy required by the external
+  CodeBuild pipeline (orchestration repo runs `docker build .` from the repo
+  root). `tests/unit/infra-single-source.test.ts` fails if they diverge —
+  edit `docker/Dockerfile`, then re-copy to the root.
 - standalone output; container port **8080** (`next start -p 8080` equivalent via ENV PORT).
-- pnpm versions drift (CI pins 10, Docker pulls latest, no `packageManager` field). If you touch
-  build tooling, consider anchoring `packageManager`.
+- pnpm is anchored: `packageManager` in package.json is the single source of
+  truth; the Dockerfile corepack pin and CI derive from/must match it (also
+  guarded by the same test).
 - `pnpm verify` = type-check + lint + coverage + build; run before proposing commits.
 
 ## Telemetry (OTel)
