@@ -90,6 +90,14 @@ test.describe('Wallet main flows', () => {
 
     // Degraded data state is surfaced as an alert, not a crash or an
     // eternal skeleton (use-market-data sets `error` when the query fails).
-    await expect(page.getByRole('alert')).toBeVisible({ timeout: 15_000 });
+    // Scope to the app's error paragraph inside <main> and pin its text:
+    // Next.js's #__next_route_announcer__ (outside <main>) also carries
+    // role="alert", so an unscoped getByRole('alert') matches 2 elements
+    // and trips strict mode. The text is Chromium's TypeError message for
+    // an aborted fetch, passed through verbatim by use-market-data
+    // (chromium is the only e2e project, so it is deterministic).
+    await expect(
+      page.locator('main p[role="alert"]', { hasText: 'Failed to fetch' })
+    ).toBeVisible({ timeout: 15_000 });
   });
 });
