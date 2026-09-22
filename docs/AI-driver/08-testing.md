@@ -62,16 +62,20 @@ Rules that follow from this history:
 4. A green suite proves the code matches the mocks — nothing more. Treat "all tests pass" on a
    change to mock-heavy code as low evidence.
 
-## What has no tests today (gap map, 2026-09-21)
+## What has no tests today (gap map, 2026-09-22)
 
 - `/api/auth/login` and `/api/auth/logout` routes — **zero**. Priority when touching auth:
   fail-closed (Redis null → 503), one-time challenge `del`, `validKeys` matching, malformed JSON → 400.
-- 12 of 19 broadcast routes have no route-level tests (the per-route invalidation drift grew in
-  exactly these gaps; the 7 covered: transfer, recover-account, proposal-create, proposal-remove,
-  change-recovery-account, cancel-transfer-from-savings, claim-reward-balance).
+- All 19 broadcast routes have route-level tests (the final 12 were added in
+  `tests/unit/broadcast-routes-coverage.test.ts`, 2026-09-22 — table-driven shared
+  runner with EACH route's cache-invalidation contract asserted individually).
+  When adding route #20, extend that file's `ROUTE_CASES` table.
 - `/api/query/price` was deleted (broken, unconsumed) — do not reintroduce it.
 - `csrf.test.ts` lacks the 24h-expiry branch.
-- e2e covers only smoke; no recovery, no market order placement.
+- e2e covers smoke + wallet main flows (`tests/e2e/wallet-main-flows.spec.ts`:
+  degraded transfers shell, login client-side validation, market shell/degraded
+  alert — all deterministic via `/api/query/*` interception or static-shell
+  assertions); no recovery, no market order placement.
 
 ## Conventions that work well (keep them)
 
