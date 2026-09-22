@@ -6,6 +6,7 @@ import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import { hashedUserCachePrefix } from '@/lib/cache/cache-key';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +41,8 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    logBroadcastSuccess('delegate', signedTx, username, result);
+
     // Invalidate Redis caches for this user (hashed prefix — see transfer route).
     // Delegation changes account vests and the delegation lists, not the
     // wallet-estimate extras (savings/conversions/open orders).
@@ -51,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast delegate error:', error);
+    logBroadcastFailure('delegate', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

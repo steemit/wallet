@@ -3,6 +3,7 @@ import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,11 +29,13 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    logBroadcastSuccess('proposal-remove', signedTx, username, result);
+
     await cacheDeleteByPrefix('cache:query:proposals');
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast proposal remove error:', error);
+    logBroadcastFailure('proposal-remove', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

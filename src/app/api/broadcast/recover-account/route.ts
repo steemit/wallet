@@ -10,6 +10,7 @@ import { mysqlAffectedRows } from '@/lib/db/affected-rows';
 import { arecs } from '@/lib/db/schema';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 interface RecoverAccountOperation {
   account_to_recover: string;
@@ -201,6 +202,8 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(txForBroadcast);
 
+    logBroadcastSuccess('recover-account', txForBroadcast, opBody.account_to_recover, result);
+
     // recover_account replaces the account's owner authority — the cached
     // account object (incl. owner keys and the recovery request the warning
     // banner reads) is now stale.
@@ -234,7 +237,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast recover-account error:', error);
+    logBroadcastFailure('recover-account', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

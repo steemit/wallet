@@ -5,6 +5,7 @@ import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,13 +31,15 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    logBroadcastSuccess('proposal-vote', signedTx, username, result);
+
     // Voting changes the proposals list (upVoted flags / vote counts), not
     // wallet data — the extras delete was copy-paste drift.
     await cacheDeleteByPrefix('cache:query:proposals');
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast proposal vote error:', error);
+    logBroadcastFailure('proposal-vote', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

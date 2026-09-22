@@ -6,6 +6,7 @@ import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import { hashedUserCachePrefix } from '@/lib/cache/cache-key';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +41,8 @@ export async function POST(request: NextRequest) {
     // Broadcast the transaction
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    logBroadcastSuccess('transfer', signedTx, username, result);
+
     // Invalidate Redis caches for this user. The user-scoped delete must go
     // through hashedUserCachePrefix: query routes store keys with the username
     // hashed (hashedCacheKey), so a plaintext-name prefix would never match.
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast transfer error:', error);
+    logBroadcastFailure('transfer', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

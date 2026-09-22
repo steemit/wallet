@@ -5,6 +5,7 @@ import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import { hashedUserCachePrefix } from '@/lib/cache/cache-key';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,6 +37,8 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(signedTx);
 
+    logBroadcastSuccess('set-withdraw-vesting-route', signedTx, username, result);
+
     // This op IS the withdraw-routes data source; the account object also
     // carries the route. Hashed prefix — see transfer route.
     await cacheDeleteByPrefix('cache:query:accounts');
@@ -43,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast set-withdraw-vesting-route error:', error);
+    logBroadcastFailure('set-withdraw-vesting-route', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }

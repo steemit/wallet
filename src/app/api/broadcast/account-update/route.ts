@@ -7,6 +7,7 @@ import { validateAccountUpdateSignedTx } from '@/lib/steem/validate-account-upda
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,12 +51,14 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(txForBroadcast);
 
+    logBroadcastSuccess('account-update', txForBroadcast, username, result);
+
     // account_update only changes account data (keys/metadata), not wallet extras.
     await cacheDeleteByPrefix('cache:query:accounts');
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast account-update error:', error);
+    logBroadcastFailure('account-update', error);
     return NextResponse.json(
       { error: 'Failed to broadcast transaction' },
       { status: 500 }
