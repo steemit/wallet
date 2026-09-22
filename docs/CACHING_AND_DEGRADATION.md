@@ -259,7 +259,7 @@ There is **no `cf-connecting-ip` handling** — this deployment sits behind ELB/
 
 Not rate-limited: `/api/health` (it is the health probe — limiting it would defeat its purpose; it is still registered in `STATIC_API_ROUTES` so any future limiter gets a sane scope).
 
-**Env tunables — reality check:** `rateLimitConfigFromEnv` currently has exactly ONE consumer — the challenge route (`RATE_LIMIT_AUTH_CHALLENGE_MAX` / `RATE_LIMIT_AUTH_CHALLENGE_WINDOW`). Every other route hardcodes its limits in the handler; the `RATE_LIMIT_ENABLED`, `RATE_LIMIT_MAX_QUERY`, `RATE_LIMIT_MAX_BROADCAST`, `RATE_LIMIT_MAX_AUTH` and `RATE_LIMIT_WINDOW_*` names present in `docker/docker-compose.yml` are read by **nothing** and have no effect. The limiter honors only `RATE_LIMIT_AUTH_CHALLENGE_*`, `RATE_LIMIT_ALLOW_MEMORY_FALLBACK`, and `TRUST_PROXY_COUNT`.
+**Env tunables — reality check:** `rateLimitConfigFromEnv` currently has exactly ONE consumer — the challenge route (`RATE_LIMIT_AUTH_CHALLENGE_MAX` / `RATE_LIMIT_AUTH_CHALLENGE_WINDOW`). Every other route hardcodes its limits in the handler. The ghost `RATE_LIMIT_ENABLED` / `RATE_LIMIT_MAX_QUERY` / `RATE_LIMIT_MAX_BROADCAST` / `RATE_LIMIT_MAX_AUTH` / `RATE_LIMIT_WINDOW_*` names that `docker/docker-compose.yml` used to pass are read by **nothing** and were removed from compose (infra single-source PR); do not reintroduce them there — `tests/unit/infra-single-source.test.ts` fails on undocumented compose variables. The limiter honors only `RATE_LIMIT_AUTH_CHALLENGE_*`, `RATE_LIMIT_ALLOW_MEMORY_FALLBACK`, and `TRUST_PROXY_COUNT`.
 
 **Response headers on 429:**
 

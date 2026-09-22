@@ -2,14 +2,16 @@
 
 ## `src/proxy.ts` (Next.js 16 middleware — file name is `proxy.ts`, NOT `middleware.ts`)
 
-Runs on every non-API path (matcher excludes `api`, `_next`, `_vercel`, plus names of things that
-don't exist — trpc/robots/sitemap — harmless legacy). Responsibilities, in order:
+Runs on every non-API path (matcher excludes `api`, `_next`, `_vercel`, `favicon.ico`). Responsibilities, in order:
 
 1. `/.well-known/healthcheck.json` short-circuit — **liveness only**, `{status:'ok'}`, used by
    ELB/OpenResty. Deliberately leaks nothing else.
 2. Static-asset pass-through via last-segment extension regex (needed because Steem sub-account
-   names contain dots, so the matcher can't use "contains a dot"). Edge case: a bare
-   `/user.png`-style account URL (no `@`) is treated as a static file → 404.
+   names contain dots, so the matcher can't use "contains a dot"). Single-segment paths that are
+   also well-formed Steem account names (`/user.png` — bare external account links) are routed to
+   the account page, NOT treated as static files; multi-segment paths (`/images/x.png`) always
+   pass through. The only root-level public files (Next.js template leftovers like `file.svg`)
+   now 404 as unknown accounts — nothing references them.
 3. `/@account/... → /account/...` normalization (Next.js treats `@` segments as parallel-route
    slots; pages additionally strip a leading `@` from the param).
 4. Per-request CSP nonce (`x-nonce` request header + `Content-Security-Policy` response header);
@@ -76,8 +78,9 @@ references, never literals.
 
 - Node runtime only (`instrumentation.ts` gates on `NEXT_RUNTIME === 'nodejs'`). No exporter
   endpoint → no init (fully dormant; `OTEL_SDK_DISABLED` honored).
-- Incoming-path ignore list covers the health probes only. High-volume paths (static chunks) are
-  not filtered — if trace noise matters, extend `telemetry/ignore.ts` with measurements.
+- Incoming-path ignore list covers the health probes, `favicon.ico`, and the static prefixes
+  `/_next/static` / `/_next/image` — in standalone mode the Node server itself serves those, so
+  without the prefix filter a single page load emits 10-20 asset spans.
 - Self-exported spans are ignored to avoid loops.
 
 ## Analytics
@@ -89,8 +92,8 @@ references, never literals.
   `user_index`/`change_password` instead of `not_found`.
 - **Removed:** the Mixpanel chain (client module `lib/analytics/index.ts`, the
   `/api/analytics/event` route, `NEXT_PUBLIC_MIXPANEL_TOKEN`, the `tests/mocks/mixpanel-browser.ts`
-  vitest alias) was dead code with zero traffic and has been deleted. `docker/docker-compose.yml`
-  still carries a `MIXPANEL_TOKEN` ghost variable pending a full compose rewrite. Do not
+  vitest alias) was dead code with zero traffic and has been deleted (compose ghost variables included — the
+  infra single-source guard now fails on any undocumented compose variable). Do not
   reintroduce analytics half-wired — a future backend would need a real dependency, an init call,
   and a CSP `connect-src` entry.
 
@@ -106,11 +109,12 @@ references, never literals.
 
 ## Repo hygiene
 
-- `.multica/` (local AI workflow dir) is untracked and **not** in `.gitignore` — add it (with
-  `.zcode/` if used) next time you touch the ignore file.
+- `.multica/` (local AI workflow dir) and `.zcode/` are in `.gitignore` under the AI section.
 - `AGENTS.md` is local-only (`.git/info/exclude`) but loaded every session — keep its counts
   accurate (it currently says Next 16.2.4 / 16 broadcast routes; reality was 16.2.11 / 19,
   18 after the 2026-09-22 dead-code removal, and 19 again once claim-reward-balance landed
   the same day).
-- Type discipline is excellent (`@ts-ignore` ×1, `as any` ×3) — don't break the streak. Note
-  `tsconfig` injects `vitest/globals` into all of src; don't lean on test globals in app code.
+- Type discipline is excellent (`@ts-ignore` ×1, `as any` ×3) — don't break the streak. Test
+  globals are NOT ambient anymore: `tsconfig` has no `types` field, tests import
+  describe/it/expect from `vitest` explicitly, and the DOM matchers come from
+  `@testing-library/jest-dom/vitest` in `tests/setup.ts`.
