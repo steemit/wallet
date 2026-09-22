@@ -196,8 +196,11 @@ export async function POST(request: NextRequest) {
       new_owner_authority: newOwnerAuthority,
     });
 
-    // Step 3: Mark as closed — success
-    await db
+    // Step 3: Mark as closed — success. The WHERE pins status='processing'
+    // (i.e. OUR claim): a zombie confirm must never overwrite a row that a
+    // later confirm (via the stuck-claim reclaim) already closed, or that
+    // the recover-account consume CAS already flipped to 'consumed'.
+    const closeResult = await db
       .update(arecs)
       .set({
         oldOwnerKey: body.old_owner_key,
@@ -205,7 +208,43 @@ export async function POST(request: NextRequest) {
         requestSubmittedAt: new Date(),
         status: 'closed',
       })
-      .where(and(eq(arecs.validationCode, body.code), eq(arecs.accountName, body.account_name)));
+      .where(
+        and(
+          eq(arecs.validationCode, body.code),
+          eq(arecs.accountName, body.account_name),
+          eq(arecs.status, 'processing')
+        )
+      );
+    const closeAffected = mysqlAffectedRows(closeResult);
+    if (closeAffected === 0) {
+      // Lost race: another request moved the row out of 'processing'
+      // between our claim and this write. Do not report success, and do
+      // NOT roll back — the row is no longer ours, and a rollback could
+      // reset a NEW live claim held by the request that progressed it.
+      // Same 400 family the route uses for claim misses (genericMiss).
+      console.warn('Recovery confirm lost the close race (row already progressed):', {
+        code: body.code,
+        account_name: body.account_name,
+      });
+      return NextResponse.json(
+        { status: 'error', error: 'Recovery request not found or already processed' },
+        { status: 400 }
+      );
+    }
+    if (closeAffected === undefined) {
+      // Unreadable result shape (driver contract drift): fail loudly like
+      // the claim CAS. No rollback here: the broadcast already succeeded
+      // and the row state is unknown — a row left in 'processing' by this
+      // path is reclaimed by the bounded stuck-claim self-heal.
+      console.error(
+        'Recovery confirm close update returned an unreadable result shape; failing closed:',
+        { account_name: body.account_name }
+      );
+      return NextResponse.json(
+        { status: 'error', error: 'Internal server error' },
+        { status: 500 }
+      );
+    }
 
     console.info('Account recovery confirmed:', {
       code: body.code,

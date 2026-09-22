@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { POST } from '@/app/api/recovery/confirm/route';
 import { NextRequest, NextResponse } from 'next/server';
+import { and, eq } from 'drizzle-orm';
+import { arecs } from '@/lib/db/schema';
 
 // Mock the CSRF and rate limit middleware
 vi.mock('@/lib/middleware', () => ({
@@ -67,9 +69,12 @@ function makeRequest(body: Record<string, unknown>): NextRequest {
 /**
  * Queue one drizzle update result per expected update call, in order. The
  * chains are kept in `lastUpdateChains` so tests can assert which values
- * each CAS set. The queue is padded to at least 3 chains (matching the
- * historical helper) so success-path tests that only pin the claim result
- * still have a chain for the close/rollback updates.
+ * each CAS set and which conditions each WHERE pinned. The queue is padded
+ * to at least 3 chains so tests always have a chain to assert on, but note
+ * that the route READS the result of every CAS update (claim and close):
+ * a success-path test that only pins the claim result will see the padded
+ * `undefined` resolve for the close write and fail with the route's
+ * unreadable-shape 500 — queue an explicit result for the close too.
  */
 function setupUpdateMocks(...results: unknown[]) {
   const padded = [...results];
@@ -117,7 +122,7 @@ describe('POST /api/recovery/confirm', () => {
   };
 
   it('returns ok for valid confirmed recovery (atomic CAS)', async () => {
-    setupUpdateMocks(mysqlUpdateResult(1));
+    setupUpdateMocks(mysqlUpdateResult(1), mysqlUpdateResult(1));
 
     const { SteemService } = await import('@/lib/steem/server');
     const req = makeRequest(validPayload);
@@ -274,7 +279,7 @@ describe('POST /api/recovery/confirm', () => {
   });
 
   it('S3: signs a server-constructed canonical authority (strips extra fields)', async () => {
-    setupUpdateMocks(mysqlUpdateResult(1));
+    setupUpdateMocks(mysqlUpdateResult(1), mysqlUpdateResult(1));
 
     const { SteemService } = await import('@/lib/steem/server');
     const req = makeRequest({
@@ -369,7 +374,7 @@ describe('POST /api/recovery/confirm', () => {
   });
 
   it('allows confirm when DB ownerKey is null (legacy records)', async () => {
-    setupUpdateMocks(mysqlUpdateResult(1));
+    setupUpdateMocks(mysqlUpdateResult(1), mysqlUpdateResult(1));
     mockFindFirst.mockResolvedValue({ id: 1, ownerKey: null });
 
     const req = makeRequest(validPayload);
@@ -461,14 +466,18 @@ describe('POST /api/recovery/confirm', () => {
 
     // Exact mysql2 driver shape: array with the header at index 0 and the
     // field-packet array at index 1. affectedRows lives on the header only.
-    setupUpdateMocks([
-      Object.assign(Object.create(null), {
-        affectedRows: 1,
-        insertId: 0,
-        info: 'Rows matched: 1  Changed: 1  Warnings: 0',
-      }),
-      [],
-    ]);
+    // The close write (2nd update) is pinned with the helper shape.
+    setupUpdateMocks(
+      [
+        Object.assign(Object.create(null), {
+          affectedRows: 1,
+          insertId: 0,
+          info: 'Rows matched: 1  Changed: 1  Warnings: 0',
+        }),
+        [],
+      ],
+      mysqlUpdateResult(1)
+    );
 
     const req = makeRequest(validPayload);
     const res = await POST(req);
@@ -650,5 +659,86 @@ describe('POST /api/recovery/confirm', () => {
     expect(res.status).toBe(400);
     expect(data.record_status).toBe('processing');
     expect(mockUpdateFn).toHaveBeenCalledTimes(2);
+  });
+
+  // ---- Close-write race guard (WHERE pins status='processing') ----
+  // The success write used to match only (code, account_name), so in a
+  // reclaim/interleaving scenario a zombie confirm could overwrite a row
+  // written by a later confirm (or the recover-account consume CAS's
+  // 'consumed' state). The guard makes the close conditional on our claim
+  // still being live; a 0-row miss must NOT report success.
+
+  it('close race: claim won but close update matched 0 rows → 400 miss, no success, no rollback', async () => {
+    const { SteemService } = await import('@/lib/steem/server');
+    setupUpdateMocks(mysqlUpdateResult(1), mysqlUpdateResult(0));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const req = makeRequest(validPayload);
+      const res = await POST(req);
+      const data = await res.json();
+
+      // Same 400 family the route uses for claim misses (genericMiss).
+      expect(res.status).toBe(400);
+      expect(data.status).toBe('error');
+      expect(data.error).toBe('Recovery request not found or already processed');
+      // The broadcast DID run before the close write, but the route must
+      // not report success for a row it no longer owns.
+      expect(SteemService.requestAccountRecovery).toHaveBeenCalledTimes(1);
+      // Claim (1st) + guarded close (2nd). No third update: a rollback
+      // could reset a NEW live claim held by the request that progressed
+      // the row, so the miss path must not touch the row again.
+      expect(mockUpdateFn).toHaveBeenCalledTimes(2);
+      expect(lastUpdateChains[1]!.set).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'closed' })
+      );
+      expect(warn).toHaveBeenCalledWith(
+        'Recovery confirm lost the close race (row already progressed):',
+        { code: VALID_CODE, account_name: 'alice' }
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('close race: unreadable close result shape → 500, no rollback (row state unknown)', async () => {
+    // The shape the OLD unit mocks used — the real driver never returns it.
+    setupUpdateMocks(mysqlUpdateResult(1), { affectedRows: 1 });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      const req = makeRequest(validPayload);
+      const res = await POST(req);
+      const data = await res.json();
+
+      // Fail loudly like the claim CAS: unreadable is an error, not a miss
+      // and definitely not a silent success.
+      expect(res.status).toBe(500);
+      expect(data.error).toBe('Internal server error');
+      // Claim (1st) + close (2nd). No rollback: the broadcast already
+      // succeeded and the row state is unknown (stuck-claim self-heal
+      // covers a row left in 'processing').
+      expect(mockUpdateFn).toHaveBeenCalledTimes(2);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it('close write pins code + account + status=processing in its WHERE (anti-zombie guard)', async () => {
+    // The audit found the WHERE conditions unasserted elsewhere; this pins
+    // the full condition chain for THIS write so the status guard cannot
+    // silently regress.
+    setupUpdateMocks(mysqlUpdateResult(1), mysqlUpdateResult(1));
+
+    const req = makeRequest(validPayload);
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    const expectedWhere = and(
+      eq(arecs.validationCode, VALID_CODE),
+      eq(arecs.accountName, 'alice'),
+      eq(arecs.status, 'processing')
+    );
+    expect(lastUpdateChains[1]!.where).toHaveBeenCalledWith(expectedWhere);
   });
 });
