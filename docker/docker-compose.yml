@@ -1,5 +1,9 @@
 # ==========================================
 # Steem Wallet - Docker Compose Configuration
+#
+# The environment section mirrors .env.example exactly: every variable below
+# is read by the code (verified by tests/unit/infra-single-source.test.ts).
+# Secrets come from the host environment / a local .env file — never literals.
 # ==========================================
 
 services:
@@ -19,60 +23,60 @@ services:
       - "${HOST_PORT:-3000}:8080"
 
     environment:
-      # Application
+      # Application (PORT/NODE_ENV are also baked into the image)
       - NODE_ENV=production
       - PORT=8080
 
-      # Steem Blockchain
+      # Steem RPC (comma-separated list = failover chain)
       - STEEM_RPC_URL=${STEEM_RPC_URL:-https://api.steemit.com}
-      - STEEM_RPC_FALLBACKS=${STEEM_RPC_FALLBACKS:-}
 
-      # Security — CSRF_SECRET is REQUIRED in production. With no secret all
-      # mutations are rejected. Generate one: openssl rand -hex 32
-      # SESSION_SECRET is unused (no server-side session) and kept for reference.
-      - SESSION_SECRET=${SESSION_SECRET:-}
+      # Database (MySQL) for account recovery records. Without it the
+      # recovery routes return 503 — everything else works.
+      - DATABASE_URL=${DATABASE_URL:-}
+
+      # Conveyor credentials for account recovery (kingdom.recovery_account).
+      - CONVEYOR_USERNAME=${CONVEYOR_USERNAME:-}
+      - CONVEYOR_POSTING_WIF=${CONVEYOR_POSTING_WIF:-}
+
+      # CSRF secret — REQUIRED. With no secret all mutations are rejected.
+      # Generate one: openssl rand -hex 32
       - CSRF_SECRET=${CSRF_SECRET:?CSRF_SECRET is required in production}
-      - SESSION_MAX_AGE=${SESSION_MAX_AGE:-604800}
 
-      # Analytics
-      - MIXPANEL_TOKEN=${MIXPANEL_TOKEN:-}
-      - ANALYTICS_ENABLED=${ANALYTICS_ENABLED:-false}
-      # Runtime gtag ID (legacy SDC_GOOGLE_ANALYTICS_ID). Empty = script not injected.
+      # Redis: shared cache, rate limiting, auth challenges. Without it the
+      # app degrades to per-process in-memory state (not multi-instance safe).
+      - REDIS_URL=${REDIS_URL:-}
+      - REDIS_KEY_PREFIX=${REDIS_KEY_PREFIX:-wallet}
+
+      # Rate limiting / proxy trust.
+      # TRUST_PROXY_COUNT: trusted reverse-proxy hops; without it all clients
+      # share one 'unknown' bucket. Set to 1 behind a single ELB/OpenResty.
+      - TRUST_PROXY_COUNT=${TRUST_PROXY_COUNT:-1}
+      - RATE_LIMIT_ALLOW_MEMORY_FALLBACK=${RATE_LIMIT_ALLOW_MEMORY_FALLBACK:-}
+      # The only tunable per-route limits (login challenges).
+      - RATE_LIMIT_AUTH_CHALLENGE_MAX=${RATE_LIMIT_AUTH_CHALLENGE_MAX:-}
+      - RATE_LIMIT_AUTH_CHALLENGE_WINDOW=${RATE_LIMIT_AUTH_CHALLENGE_WINDOW:-}
+
+      # Analytics (runtime gtag injection; illegal IDs are ignored)
       - GOOGLE_ANALYTICS_ID=${GOOGLE_ANALYTICS_ID:-}
       - SDC_GOOGLE_ANALYTICS_ID=${SDC_GOOGLE_ANALYTICS_ID:-}
+      # Overseer user_action whale thresholds
       - STEEM_WHALE=${STEEM_WHALE:-10000}
       - SBD_WHALE=${SBD_WHALE:-500}
 
-      # Rate Limiting
-      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
-      - RATE_LIMIT_MAX_QUERY=${RATE_LIMIT_MAX_QUERY:-100}
-      - RATE_LIMIT_WINDOW_QUERY=${RATE_LIMIT_WINDOW_QUERY:-60}
-      - RATE_LIMIT_MAX_BROADCAST=${RATE_LIMIT_MAX_BROADCAST:-10}
-      - RATE_LIMIT_WINDOW_BROADCAST=${RATE_LIMIT_WINDOW_BROADCAST:-60}
-      - RATE_LIMIT_MAX_AUTH=${RATE_LIMIT_MAX_AUTH:-10}
-      - RATE_LIMIT_WINDOW_AUTH=${RATE_LIMIT_WINDOW_AUTH:-60}
-
-      # Feature Flags
-      - MAINTENANCE_MODE=${MAINTENANCE_MODE:-false}
-      - FEATURE_WITNESS_VOTING=${FEATURE_WITNESS_VOTING:-true}
-      - FEATURE_POWER_DOWN=${FEATURE_POWER_DOWN:-true}
-      - FEATURE_DELEGATIONS=${FEATURE_DELEGATIONS:-true}
-
-      # Logging
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - LOG_REQUESTS=${LOG_REQUESTS:-false}
-
-      # OpenTelemetry (optional; off unless WALLET_TELEMETRY_OTLP_ENDPOINT is set)
+      # OpenTelemetry (optional; off unless an OTLP endpoint is set)
       - WALLET_TELEMETRY_ENABLED=${WALLET_TELEMETRY_ENABLED:-}
       - WALLET_TELEMETRY_SERVICE_NAME=${WALLET_TELEMETRY_SERVICE_NAME:-wallet}
       - WALLET_TELEMETRY_OTLP_ENDPOINT=${WALLET_TELEMETRY_OTLP_ENDPOINT:-}
       - WALLET_TELEMETRY_OTLP_PATH=${WALLET_TELEMETRY_OTLP_PATH:-}
       - WALLET_TELEMETRY_OTLP_HEADERS=${WALLET_TELEMETRY_OTLP_HEADERS:-}
       - WALLET_TELEMETRY_RESOURCE_ATTRIBUTES=${WALLET_TELEMETRY_RESOURCE_ATTRIBUTES:-}
+      # Standard OTel kill switch (takes precedence over everything)
+      - OTEL_SDK_DISABLED=${OTEL_SDK_DISABLED:-}
 
-    # Health check
+    # Health check — LIVENESS (same endpoint as the Dockerfile HEALTHCHECK
+    # and the ELB). Never probes the Steem RPC; see docker/Dockerfile.
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/.well-known/healthcheck.json"]
       interval: 30s
       timeout: 10s
       retries: 3
