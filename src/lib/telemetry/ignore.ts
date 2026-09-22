@@ -5,6 +5,12 @@
  * the trace stream. Outgoing calls to the OTLP collector must be ignored to
  * prevent an export-loop of traces about traces.
  *
+ * High-volume non-business paths are ignored too: in standalone mode the Node
+ * server itself serves /_next/static chunks, /_next/image responses and
+ * favicon probes — the proxy (middleware) matcher exclusions do not apply at
+ * the HTTP-instrumentation layer, so a single page load would otherwise emit
+ * 10-20 static-asset spans.
+ *
  * Node `HttpInstrumentation.ignoreIncomingRequestHook` only skips the outer
  * HTTP server span. Next.js still emits framework spans (`HEAD /api/health`,
  * `executing api route (app) /api/health`, middleware, etc.). Those are dropped
@@ -14,6 +20,13 @@
 export const IGNORED_INCOMING_PATHS = [
   '/api/health',
   '/.well-known/healthcheck.json',
+  '/favicon.ico',
+] as const;
+
+/** Prefix matches for high-volume static asset paths (see module doc). */
+export const IGNORED_INCOMING_PATH_PREFIXES = [
+  '/_next/static',
+  '/_next/image',
 ] as const;
 
 /** Attribute keys that may carry the request path on HTTP / Next spans. */
@@ -40,7 +53,8 @@ export function incomingPathname(url: string | undefined): string {
 
 export function shouldIgnoreIncomingPath(url: string | undefined): boolean {
   const path = incomingPathname(url);
-  return IGNORED_INCOMING_PATHS.some((ignored) => path === ignored);
+  if (IGNORED_INCOMING_PATHS.some((ignored) => path === ignored)) return true;
+  return IGNORED_INCOMING_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
 /**
@@ -61,8 +75,9 @@ export function pathFromSpanAttributes(
 }
 
 /**
- * True when a finished span is a health probe (by path attribute or span name).
- * Used by the filtering processor so Next.js internal spans do not fill OO.
+ * True when a finished span is a health probe or static-asset request (by path
+ * attribute or span name). Used by the filtering processor so Next.js internal
+ * spans and high-volume asset spans do not fill OO.
  */
 export function shouldDropHealthSpan(
   name: string,
@@ -73,6 +88,9 @@ export function shouldDropHealthSpan(
   }
   for (const ignored of IGNORED_INCOMING_PATHS) {
     if (name.includes(ignored)) return true;
+  }
+  for (const prefix of IGNORED_INCOMING_PATH_PREFIXES) {
+    if (name.includes(prefix)) return true;
   }
   return false;
 }
