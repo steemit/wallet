@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
+import { normalizeSteemUsername } from '@/lib/steem/username';
 import { useActiveSigningKey } from '@/hooks/use-auth';
 
 type ProposalRemoveDialogProps = {
@@ -53,7 +54,12 @@ export function ProposalRemoveDialog({
 
     setSubmitting(true);
     try {
-      const signedTx = await SteemSigner.signRemoveProposal(username, [proposalId], activeKey);
+      // The chain only accepts canonical lowercase account names. Login-time
+      // normalization makes the session username lowercase today, but the
+      // submit site normalizes again as defense-in-depth — mirrors
+      // proposal-creator-dialog (#341 residual).
+      const ownerName = normalizeSteemUsername(username);
+      const signedTx = await SteemSigner.signRemoveProposal(ownerName, [proposalId], activeKey);
       const res = await apiClient.broadcastProposalRemove(signedTx, username);
       if (!res.success) {
         toast.error(res.error ?? t('removeFailed'));
