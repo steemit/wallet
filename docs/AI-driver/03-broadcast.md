@@ -39,9 +39,12 @@ DB gating (see 05-recovery.md) — it is a recovery-business route, not a pure r
 5. Do **not** add: op-type allowlists, authority checks, signature verification, custom_json id
    or payload checks, tx size caps. If you believe you need one, read
    `docs/RELAY_ROLLBACK_IMPACT.md` and 01-architecture.md first.
-6. Tests: a route-level test that mocks `SteemService.broadcastTransaction` + CSRF/limits
-   (see `tests/unit/proposals-broadcast-routes.test.ts` for the pattern). 12 of 19 routes currently
-   have none — that is how copy-paste drift happened; do not add to the backlog.
+6. Tests: a route-level test that mocks `SteemService.broadcastTransaction` + CSRF/limits.
+   ALL 19 routes are covered as of 2026-09-22 — the 12 formerly-untested routes live in
+   `tests/unit/broadcast-routes-coverage.test.ts` (table-driven runner; each route's
+   cache-invalidation prefixes/count/order are asserted individually, plus CSRF → rate-limit →
+   shape rejection, unchanged relay, and the audit-log contract). Add route #20 to its
+   `ROUTE_CASES` table — an unregistered route is how copy-paste drift happened before.
 
 ## Response & error conventions (current state; align when touching)
 
