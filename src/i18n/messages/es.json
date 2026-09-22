@@ -5,6 +5,14 @@
     "cancel": "Cancelar",
     "submit": "Enviar"
   },
+  "errors": {
+    "notFoundTitle": "Página no encontrada",
+    "notFoundMessage": "La página que busca no existe o ha sido movida.",
+    "backHome": "Volver al inicio",
+    "unexpectedTitle": "Algo salió mal",
+    "unexpectedMessage": "Ocurrió un error inesperado al cargar esta página. Inténtelo de nuevo.",
+    "tryAgain": "Reintentar"
+  },
   "auth": {
     "login": "Iniciar sesión",
     "logout": "Cerrar sesión",

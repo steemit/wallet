@@ -5,6 +5,14 @@
     "cancel": "Cancel",
     "submit": "Submit"
   },
+  "errors": {
+    "notFoundTitle": "Page not found",
+    "notFoundMessage": "The page you are looking for does not exist or has been moved.",
+    "backHome": "Back to home",
+    "unexpectedTitle": "Something went wrong",
+    "unexpectedMessage": "An unexpected error occurred while loading this page. Please try again.",
+    "tryAgain": "Try again"
+  },
   "auth": {
     "login": "Login",
     "logout": "Logout",
