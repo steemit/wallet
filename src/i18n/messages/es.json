@@ -489,6 +489,7 @@
       "checkingOwner": "Verificando clave de owner anterior…",
       "submittingRecovery": "Enviando recuperación…",
       "oldPasswordNotInHistory": "Esta contraseña no coincide con ninguna clave de owner reciente de esta cuenta.",
+      "newPasswordTooShort": "La nueva contraseña debe tener al menos {amount} caracteres.",
       "submit": "Recuperar cuenta",
       "successMessage": "Su cuenta ha sido recuperada exitosamente. Ahora puede iniciar sesión con su nueva contraseña.",
       "goToLogin": "Ir a iniciar sesión",

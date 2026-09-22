@@ -53,6 +53,10 @@ import { RecoverAccountConfirmationPage } from '@/components/wallet/recover-acco
 
 const OLD_PUB = 'STM8OldOwnerPub';
 const NEW_PUB = 'STM5NewOwnerPub';
+// New passwords must clear the 32-character minimum (legacy PasswordInput
+// rule); the old password has no length rule.
+const OLD_PWD = 'old-password';
+const NEW_PWD = 'new-password-0123456789abcdefghijklmnop';
 
 function setupCommon() {
   // Passwords derive to OLD_PUB / NEW_PUB; old key is in owner history.
@@ -63,7 +67,7 @@ function setupCommon() {
     (_username: unknown, password: string) => `wif:${password}`
   );
   mockPrivateKeyToPublicKey.mockImplementation((wif: string) =>
-    wif === 'wif:new-password' ? NEW_PUB : OLD_PUB
+    wif === `wif:${NEW_PWD}` ? NEW_PUB : OLD_PUB
   );
   mockGetOwnerHistory.mockResolvedValue({
     history: [{ previous_owner_authority: { key_auths: [[OLD_PUB, 1]] } }],
@@ -78,10 +82,10 @@ async function submitForm() {
   // The next-intl mock returns the message KEY, so labels resolve to
   // 'oldPassword' / 'newPassword' and the submit button to 'submit'.
   fireEvent.change(screen.getByLabelText('oldPassword'), {
-    target: { value: 'old-password' },
+    target: { value: OLD_PWD },
   });
   fireEvent.change(screen.getByLabelText('newPassword'), {
-    target: { value: 'new-password' },
+    target: { value: NEW_PWD },
   });
   fireEvent.click(screen.getByRole('button', { name: 'submit' }));
 }
@@ -256,5 +260,165 @@ describe('RecoverAccountConfirmationPage', () => {
     await waitFor(() => {
       expect(screen.getByText('statusAlreadyUsed')).toBeInTheDocument();
     });
+  });
+
+  // ---- B-5: full owner-key-set matching (multi-key owner accounts) ----
+
+  it('accepts an old password whose key is the 2nd key of a multi-key owner authority', async () => {
+    // The server (broadcast/recover-account) validates against the FULL key
+    // set; the frontend precheck must not check only key_auths[0][0] and
+    // wrongly reject the legitimate holder of a later key.
+    mockVerifyRecoveryCode.mockResolvedValue({
+      status: 'ok',
+      account_name: 'alice',
+      record_status: 'confirmed',
+    });
+    mockGetOwnerHistory.mockResolvedValue({
+      history: [
+        {
+          previous_owner_authority: {
+            key_auths: [
+              ['STM7AnotherKey', 1],
+              [OLD_PUB, 1],
+            ],
+          },
+        },
+      ],
+    });
+
+    render(<RecoverAccountConfirmationPage code="5bc350832943043e8a82" />);
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('alice')).toBeInTheDocument();
+    });
+
+    await submitForm();
+
+    await waitFor(() => {
+      expect(screen.getByText('successMessage')).toBeInTheDocument();
+    });
+    // The old-password check passed (no oldPasswordNotInHistory error) and
+    // the flow ran to the broadcast.
+    expect(mockConfirmAccountRecovery).toHaveBeenCalledTimes(1);
+    expect(mockBroadcastRecoverAccountTx).toHaveBeenCalledTimes(1);
+  });
+
+  it('still rejects an old password matching no key in the history key sets', async () => {
+    mockVerifyRecoveryCode.mockResolvedValue({
+      status: 'ok',
+      account_name: 'alice',
+      record_status: 'confirmed',
+    });
+    mockGetOwnerHistory.mockResolvedValue({
+      history: [
+        {
+          previous_owner_authority: {
+            key_auths: [
+              ['STM7AnotherKey', 1],
+              ['STM9YetAnother', 1],
+            ],
+          },
+        },
+      ],
+    });
+
+    render(<RecoverAccountConfirmationPage code="5bc350832943043e8a82" />);
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('alice')).toBeInTheDocument();
+    });
+
+    await submitForm();
+
+    await waitFor(() => {
+      expect(screen.getByText('oldPasswordNotInHistory')).toBeInTheDocument();
+    });
+    expect(mockConfirmAccountRecovery).not.toHaveBeenCalled();
+    expect(mockBroadcastRecoverAccountTx).not.toHaveBeenCalled();
+  });
+
+  // ---- B-6: new-password strength validation (legacy 32-char rule) ----
+
+  it('blocks a too-short new password before any derivation or server call', async () => {
+    mockVerifyRecoveryCode.mockResolvedValue({
+      status: 'ok',
+      account_name: 'alice',
+      record_status: 'confirmed',
+    });
+
+    render(<RecoverAccountConfirmationPage code="5bc350832943043e8a82" />);
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('alice')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText('oldPassword'), {
+      target: { value: OLD_PWD },
+    });
+    fireEvent.change(screen.getByLabelText('newPassword'), {
+      target: { value: 'short' },
+    });
+
+    // Live feedback: the localized min-length error is visible…
+    expect(screen.getByText('newPasswordTooShort')).toBeInTheDocument();
+    // …and the submit button is disabled, so nothing runs.
+    const submit = screen.getByRole('button', { name: 'submit' });
+    expect(submit).toBeDisabled();
+
+    expect(mockDerivePrivateKeyFromPassword).not.toHaveBeenCalled();
+    expect(mockConfirmAccountRecovery).not.toHaveBeenCalled();
+    expect(mockSignRecoverAccount).not.toHaveBeenCalled();
+    expect(mockGetOwnerHistory).not.toHaveBeenCalled();
+  });
+
+  it('submit guard blocks a programmatic submit with a too-short new password', async () => {
+    // The on-submit guard is the safety net behind the disabled button
+    // (e.g. a paste event racing the state update).
+    mockVerifyRecoveryCode.mockResolvedValue({
+      status: 'ok',
+      account_name: 'alice',
+      record_status: 'confirmed',
+    });
+
+    const { container } = render(<RecoverAccountConfirmationPage code="5bc350832943043e8a82" />);
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('alice')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText('oldPassword'), {
+      target: { value: OLD_PWD },
+    });
+    fireEvent.change(screen.getByLabelText('newPassword'), {
+      target: { value: 'x'.repeat(31) },
+    });
+    // Disable the live validation error's effect on the button by firing a
+    // raw submit event on the form element.
+    fireEvent.submit(container.querySelector('form')!);
+
+    expect(screen.getByText('newPasswordTooShort')).toBeInTheDocument();
+    expect(mockDerivePrivateKeyFromPassword).not.toHaveBeenCalled();
+    expect(mockConfirmAccountRecovery).not.toHaveBeenCalled();
+  });
+
+  it('confirm error with record_status=expired renders localized expired copy', async () => {
+    mockVerifyRecoveryCode.mockResolvedValue({
+      status: 'ok',
+      account_name: 'alice',
+      record_status: 'confirmed',
+    });
+    mockConfirmAccountRecovery.mockResolvedValue({
+      status: 'error',
+      error: 'This recovery link has expired. Please submit a new recovery request.',
+      record_status: 'expired',
+    });
+
+    render(<RecoverAccountConfirmationPage code="5bc350832943043e8a82" />);
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('alice')).toBeInTheDocument();
+    });
+
+    await submitForm();
+
+    await waitFor(() => {
+      expect(screen.getByText('statusExpired')).toBeInTheDocument();
+    });
+    expect(mockBroadcastRecoverAccountTx).not.toHaveBeenCalled();
   });
 });

@@ -492,6 +492,7 @@
       "checkingOwner": "Verifying old owner key…",
       "submittingRecovery": "Submitting recovery…",
       "oldPasswordNotInHistory": "This password does not match any recent owner key for this account.",
+      "newPasswordTooShort": "New password must be at least {amount} characters.",
       "submit": "Recover account",
       "successMessage": "Your account has been successfully recovered. You can now log in with your new password.",
       "goToLogin": "Go to login",

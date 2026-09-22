@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
+import { ownerHistoryContainsKey } from '@/lib/steem/owner-history';
 import type { OwnerHistoryEntry } from '@/lib/steem/types';
 
 const emailRegex =
@@ -100,7 +101,10 @@ export function RecoverAccountStep1Page() {
     const pub = passwordToOwnerPubKey(name, passwordOrKey);
     const ownerHistoryRes = await apiClient.getOwnerHistory(name);
     const history: OwnerHistoryEntry[] = ownerHistoryRes.history ?? [];
-    return history.some((row) => row.previous_owner_authority?.key_auths?.[0]?.[0] === pub);
+    // Match against the FULL key set of every previous owner authority —
+    // the relay server does the same; checking only the first key would
+    // wrongly reject multi-key owner authorities.
+    return ownerHistoryContainsKey(history, pub);
   };
 
   const onBeginRecovery = async (e: FormEvent) => {

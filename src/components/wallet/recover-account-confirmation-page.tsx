@@ -8,7 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
+import { ownerHistoryContainsKey } from '@/lib/steem/owner-history';
 import { userActionRecord } from '@/lib/analytics/overseer';
+
+// wallet-legacy enforced new-password strength via PasswordInput's
+// validatePassword (src/app/components/elements/PasswordInput.jsx): a new
+// password must be at least 32 characters ("password_must_be_characters_or_more",
+// amount: 32; the same bound is used by KeyEdit.js). The recovery flow
+// derives the new owner key from this password, so a short one weakens the
+// recovered account's owner authority — reject it before any key derivation.
+const NEW_PASSWORD_MIN_LENGTH = 32;
 
 function passwordToOwnerPubKey(username: string, password: string): string {
   const raw = password.trim();
@@ -142,16 +151,24 @@ export function RecoverAccountConfirmationPage({ code }: { code: string }) {
 
     setSubmitError(null);
     setBroadcastError(null);
+
+    // Block weak new passwords BEFORE any derivation or server calls
+    // (legacy PasswordInput rule: >= 32 characters).
+    if (newPwd.length < NEW_PASSWORD_MIN_LENGTH) {
+      setNewPasswordError(t('newPasswordTooShort', { amount: NEW_PASSWORD_MIN_LENGTH }));
+      return;
+    }
+
     setProgress(t('checkingOwner'));
 
     try {
-      // Verify old owner key is in recent owner history
+      // Verify old owner key is in recent owner history — against the FULL
+      // key set of every previous owner authority (same semantics as the
+      // relay server), so multi-key owner accounts are not wrongly rejected.
       const oldOwnerPub = passwordToOwnerPubKey(name, oldPwd);
       const ownerHistoryRes = await apiClient.getOwnerHistory(name);
       const history = ownerHistoryRes.history ?? [];
-      const oldOwnerMatch = history.some(
-        (row) => row.previous_owner_authority?.key_auths?.[0]?.[0] === oldOwnerPub
-      );
+      const oldOwnerMatch = ownerHistoryContainsKey(history, oldOwnerPub);
 
       if (!oldOwnerMatch) {
         setOldPasswordError(t('oldPasswordNotInHistory'));
@@ -182,7 +199,15 @@ export function RecoverAccountConfirmationPage({ code }: { code: string }) {
         });
 
         if (res.status !== 'ok') {
-          setSubmitError(res.error || t('unknownError'));
+          // Machine-readable record_status (e.g. 'expired', 'processing')
+          // maps to the same localized copy the verify states use.
+          setSubmitError(
+            res.record_status === 'expired'
+              ? t('statusExpired')
+              : res.record_status === 'processing'
+                ? t('statusInProgress')
+                : res.error || t('unknownError')
+          );
           return;
         }
 
@@ -326,8 +351,16 @@ export function RecoverAccountConfirmationPage({ code }: { code: string }) {
               type="password"
               value={newPassword}
               onChange={(e) => {
-                setNewPassword(e.target.value);
-                setNewPasswordError(null);
+                const v = e.target.value;
+                setNewPassword(v);
+                // Live strength feedback (legacy PasswordInput behavior):
+                // only flag a partially typed password, never an empty one.
+                const trimmed = v.trim();
+                setNewPasswordError(
+                  trimmed.length > 0 && trimmed.length < NEW_PASSWORD_MIN_LENGTH
+                    ? t('newPasswordTooShort', { amount: NEW_PASSWORD_MIN_LENGTH })
+                    : null
+                );
               }}
               autoComplete="off"
               disabled={!!progress}

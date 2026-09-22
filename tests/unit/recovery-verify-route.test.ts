@@ -8,11 +8,16 @@ vi.mock('@/lib/middleware', () => ({
 
 // Mock the Drizzle db module
 const mockFindFirst = vi.fn();
+let mockUpdateFn: ReturnType<typeof vi.fn>;
+let lastUpdateChains: { set: ReturnType<typeof vi.fn>; where: ReturnType<typeof vi.fn> }[] = [];
 const mockDb = {
   query: {
     arecs: {
       findFirst: mockFindFirst,
     },
+  },
+  get update() {
+    return mockUpdateFn;
   },
 };
 const mockGetDb = vi.fn().mockReturnValue(mockDb);
@@ -20,6 +25,25 @@ const mockGetDb = vi.fn().mockReturnValue(mockDb);
 vi.mock('@/lib/db', () => ({
   getDb: () => vi.mocked(mockGetDb)(),
 }));
+
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
+
+/** Queue one drizzle update result per expected update call, in order. */
+function setupUpdateMocks(...results: unknown[]) {
+  lastUpdateChains = results.map((result) => {
+    const chain: { set: ReturnType<typeof vi.fn>; where: ReturnType<typeof vi.fn> } = {
+      set: vi.fn(),
+      where: vi.fn().mockResolvedValue(result ?? undefined),
+    };
+    chain.set.mockReturnValue({ where: chain.where });
+    return chain;
+  });
+  mockUpdateFn = vi.fn();
+  for (const chain of lastUpdateChains) {
+    mockUpdateFn.mockReturnValueOnce({ set: chain.set });
+  }
+}
 
 function makeRequest(code: string): Request {
   return new Request(`http://localhost/api/recovery/verify/${code}`);
@@ -207,5 +231,150 @@ describe('GET /api/recovery/verify/[code]', () => {
 
     expect(data.status).toBe('error');
     expect(res.status).toBe(500);
+  });
+
+  // ---- B-4: lazy code-TTL enforcement (24h) ----
+
+  it('confirmed record confirmed 25h ago → 400 expired + terminal status persisted', async () => {
+    setupUpdateMocks([{ affectedRows: 1 }, []]);
+    mockFindFirst.mockResolvedValueOnce({
+      id: 7,
+      accountName: 'grace',
+      status: 'confirmed',
+      updatedAt: new Date(Date.now() - 25 * HOUR),
+    });
+
+    const res = await (GET as unknown as GETWithParams)(
+      makeRequest(VALID_CODE),
+      { params: Promise.resolve({ code: VALID_CODE }) }
+    );
+    const data = await res.json();
+
+    expect(data.status).toBe('error');
+    expect(data.record_status).toBe('expired');
+    expect(data.error).toContain('expired');
+    expect(res.status).toBe(400);
+    expect(mockUpdateFn).toHaveBeenCalledTimes(1);
+    expect(lastUpdateChains[0]!.set).toHaveBeenCalledWith({ status: 'expired' });
+  });
+
+  it('processing record stuck 25h (crashed long ago) → 400 expired, not reclaimed', async () => {
+    setupUpdateMocks([{ affectedRows: 1 }, []]);
+    mockFindFirst.mockResolvedValueOnce({
+      id: 8,
+      accountName: 'heidi',
+      status: 'processing',
+      updatedAt: new Date(Date.now() - 25 * HOUR),
+    });
+
+    const res = await (GET as unknown as GETWithParams)(
+      makeRequest(VALID_CODE),
+      { params: Promise.resolve({ code: VALID_CODE }) }
+    );
+    const data = await res.json();
+
+    expect(data.record_status).toBe('expired');
+    expect(res.status).toBe(400);
+    expect(lastUpdateChains[0]!.set).toHaveBeenCalledWith({ status: 'expired' });
+  });
+
+  it('confirmed record within the TTL (1h ago) → 200 ok (no lifecycle writes)', async () => {
+    setupUpdateMocks();
+    mockFindFirst.mockResolvedValueOnce({
+      id: 9,
+      accountName: 'ivan',
+      status: 'confirmed',
+      updatedAt: new Date(Date.now() - HOUR),
+    });
+
+    const res = await (GET as unknown as GETWithParams)(
+      makeRequest(VALID_CODE),
+      { params: Promise.resolve({ code: VALID_CODE }) }
+    );
+    const data = await res.json();
+
+    expect(data.status).toBe('ok');
+    expect(data.record_status).toBe('confirmed');
+    expect(res.status).toBe(200);
+    expect(mockUpdateFn).not.toHaveBeenCalled();
+  });
+
+  it('lazy-expire write failure does not change the expired answer', async () => {
+    // The expired verdict is derived from timestamps, not the write.
+    const chain: { set: ReturnType<typeof vi.fn>; where: ReturnType<typeof vi.fn> } = {
+      set: vi.fn(),
+      where: vi.fn().mockRejectedValue(new Error('Connection lost')),
+    };
+    chain.set.mockReturnValue({ where: chain.where });
+    mockUpdateFn = vi.fn().mockReturnValue({ set: chain.set });
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      mockFindFirst.mockResolvedValueOnce({
+        id: 10,
+        accountName: 'judy',
+        status: 'confirmed',
+        updatedAt: new Date(Date.now() - 25 * HOUR),
+      });
+
+      const res = await (GET as unknown as GETWithParams)(
+        makeRequest(VALID_CODE),
+        { params: Promise.resolve({ code: VALID_CODE }) }
+      );
+      const data = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(data.record_status).toBe('expired');
+    } finally {
+      err.mockRestore();
+    }
+  });
+
+  // ---- B-4: stuck-processing self-heal (10-minute bound) ----
+
+  it('processing record stuck 15 min → reclaimed to confirmed → 200 ok confirmed', async () => {
+    setupUpdateMocks([{ affectedRows: 1 }, []]);
+    mockFindFirst.mockResolvedValueOnce({
+      id: 11,
+      accountName: 'kate',
+      status: 'processing',
+      updatedAt: new Date(Date.now() - 15 * MINUTE),
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const res = await (GET as unknown as GETWithParams)(
+        makeRequest(VALID_CODE),
+        { params: Promise.resolve({ code: VALID_CODE }) }
+      );
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.status).toBe('ok');
+      expect(data.account_name).toBe('kate');
+      expect(data.record_status).toBe('confirmed');
+      expect(lastUpdateChains[0]!.set).toHaveBeenCalledWith({ status: 'confirmed' });
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('lost the reclaim race → falls through to the processing response', async () => {
+    setupUpdateMocks([{ affectedRows: 0 }, []]);
+    mockFindFirst.mockResolvedValueOnce({
+      id: 12,
+      accountName: 'liam',
+      status: 'processing',
+      updatedAt: new Date(Date.now() - 15 * MINUTE),
+    });
+
+    const res = await (GET as unknown as GETWithParams)(
+      makeRequest(VALID_CODE),
+      { params: Promise.resolve({ code: VALID_CODE }) }
+    );
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.record_status).toBe('processing');
+    expect(data.error).toContain('currently being processed');
   });
 });

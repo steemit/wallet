@@ -121,13 +121,29 @@ a link like `https://steemitwallet.com/account_recovery_confirmation/{code}`.
   `processing` → "currently being processed, try again in a few minutes",
   `expired` → "link has expired", `consumed` → "already used to complete the
   account recovery".
+- **Lazy lifecycle enforcement** (both idempotent, rate-limit-bounded):
+  a `confirmed`/`processing` record whose last state change
+  (`updated_at`) is older than the **24h code TTL** is reported as
+  `record_status: 'expired'` and CAS-transitioned to the terminal `expired`
+  status; a `processing` record older than the **10-minute stuck threshold**
+  is a crashed confirm claim and is CAS-reclaimed back to `confirmed`, so a
+  dead request cannot permanently block the recovery (see
+  `src/lib/recovery/lifecycle.ts` for the rationale behind both values).
+  The confirm route enforces the same TTL/stuck rules (its claim CAS is
+  TTL-bounded; a missed claim is diagnosed with the same helpers) and
+  returns machine-readable `record_status` values for `expired`/`processing`
+  errors so the frontend renders localized copy.
 
 ### 2b. Submit recovery
 
 **API:** `POST /api/recovery/confirm` (CSRF protected)
 
 1. Frontend validates the old password against on-chain owner history **locally**
-   (key never leaves the browser).
+   (key never leaves the browser) — matching the **full key set** of every
+   previous owner authority (multi-key owner accounts are not wrongly
+   rejected), mirroring the server-side check. The new password must be at
+   least **32 characters** (wallet-legacy `PasswordInput` rule) — weak
+   passwords are rejected before any key derivation.
 2. Frontend sends `code`, `account_name`, `old_owner_key` (pub), `new_owner_key` (pub),
    and `new_owner_authority` to the server.
 3. Server CAS-claims the record (`confirmed → processing`, conditional UPDATE
@@ -191,7 +207,7 @@ the login form shows an "account recovered" notice for that `msg` value
 | `id` | INT AUTO_INCREMENT PK | Row ID |
 | `user_id` | INT NULL | Legacy user FK |
 | `uid` | VARCHAR(64) NULL | Session UID |
-| `contact_email` | VARCHAR(255) | User's email |
+| `contact_email` | VARCHAR(256) | User's email (length enforced ≤256 by the request route) |
 | `account_name` | VARCHAR(255) | Steem account name |
 | `owner_key` | VARCHAR(255) | Current owner public key (submitted at step 1) |
 | `old_owner_key` | TEXT NULL | Old owner public key (filled at step 2) |
@@ -216,8 +232,17 @@ open → confirmed → processing → closed → consumed
 - `open`: User submitted step 1, awaiting admin review.
 - `confirmed`: Admin approved, `validation_code` generated, email sent.
 - `processing`: Confirm CAS claim. On kingdom/RPC failure the record is rolled
-  back to `confirmed` so the user can retry.
-- `expired`: Code expired (timeout, not currently enforced automatically).
+  back to `confirmed` so the user can retry. A claim stuck in `processing`
+  for more than **10 minutes** (longer than any live confirm — one conveyor
+  call) is treated as a crashed claim: verify/confirm CAS-reclaim it back to
+  `confirmed` (bounded self-heal; a live claim is never reclaimed).
+- `expired`: Code expired — enforced with a **24h TTL** measured from the
+  record's last state change (`updated_at`): verify/confirm lazily
+  transition stale `confirmed`/`processing` records to this terminal status
+  and reject them, and the confirm claim CAS is TTL-bounded so stale codes
+  cannot be claimed. wallet-legacy had no expiry at all; 24h was chosen
+  because the code is emailed and the approve→confirm flow is a same-day
+  action.
 - `closed`: Confirm succeeded (`request_account_recovery` is on-chain). The
   `validation_code` is now single-use. This row authorizes one
   `recover_account` broadcast via `/api/broadcast/recover-account`. While it

@@ -44,6 +44,11 @@ set new password, derive keys, confirm, then broadcast `recover_account`.
    the *normalized* transaction digest, matching what will be broadcast).
 6. **CAS discipline**: every status transition is a conditional UPDATE (`WHERE status='<expected>'`)
    counting affected rows; `processing` claims must roll back to `confirmed` on failure paths.
+   The same discipline governs the lifecycle helpers (`src/lib/recovery/lifecycle.ts`): lazy
+   expiry (`confirmed|processing` older than 24h → terminal `expired`) and the bounded
+   stuck-claim reclaim (`processing` older than 10 min → `confirmed`) are both
+   timestamp-conditional CAS updates — a live claim or a concurrent transition is never
+   clobbered.
 7. Rate limits: request 5/300s/IP, confirm 5/300s/IP, recover-account 3/60s/IP. Forensic IP
    self-check (`INFRA_IP`) compares the client IP against infra ranges and alerts on drift.
 
@@ -84,18 +89,37 @@ Fixed 2026-09-22 (`fix/recovery-critical`):
 
 Still open:
 
-- Frontend owner-history proof only checks `key_auths[0][0]` while the server checks the full key
-  set — multi-key owners are wrongly rejected in the UI.
-- `newPasswordError` state is never set: zero password strength/length validation before key
-  derivation. Legacy enforced strength.
-- No `expired` enforcement, no failure-count cap on code attempts (rate limit only), no
-  un-sticking path for crashed `processing` rows.
-- `contact_email` has no length bound vs `varchar(256)` — strict-mode MySQL turns >256 into 500.
 - Schema ↔ `drizzle/0000_*.sql` are internally consistent, but differ from the legacy authority
   in three recorded ways (`uid` width, missing `user_id` index, extra `memo_key` column) — if the
   production DB was built by legacy migrations, `drizzle-kit push` will produce unexpected diffs.
-  `docs/DATABASE.md` marks this migration "✅" without noting them.
-- `INFRA_IP` regex misses IPv4-mapped IPv6 (`::ffff:10.0.0.1`) — alerting gap only.
+  The drift is now documented in `docs/DATABASE.md` ("Differences from legacy schema");
+  aligning the schema/migration remains a production-data decision.
+
+Fixed 2026-09-22 (`fix/recovery-hardening`):
+
+- **Code TTL (24h) + stuck-`processing` self-heal (10 min)** — see
+  `src/lib/recovery/lifecycle.ts`. The confirm claim CAS is TTL-bounded;
+  verify/confirm lazily transition stale `confirmed`/`processing` records to
+  the terminal `expired` status (wallet-legacy had no expiry — the 24h value
+  is our choice, documented in the module header) and CAS-reclaim crashed
+  `processing` claims back to `confirmed` so one dead request cannot brick a
+  recovery. Both transitions read affected rows via `mysqlAffectedRows`.
+  Deliberately NOT added: a failed-attempt counter on confirm — legacy has
+  none, the code is 80 bits of entropy, confirm already requires the
+  old-owner-key match, and the IP rate limit (5/300s) bounds guessing.
+- **Frontend owner-history proof now checks the FULL key set**
+  (`src/lib/steem/owner-history.ts`, used by both recovery pages) — same
+  semantics as the server; multi-key owner accounts are no longer wrongly
+  rejected in the UI. (Login's first-key-only comparison is a separate
+  known limitation, unchanged here.)
+- **New-password validation**: ≥ 32 characters (the wallet-legacy
+  `PasswordInput.jsx` rule), enforced live and pre-derivation on the
+  confirmation page (`newPasswordError` is now a real state).
+- **`contact_email` length cap** (≤ 256, the column width) → clean 400
+  instead of a strict-mode MySQL 500.
+- **`INFRA_IP` self-check covers IPv4-mapped IPv6** (`::ffff:a.b.c.d` —
+  the embedded IPv4 is tested against the infra ranges) via
+  `src/lib/middleware/infra-ip.ts`; still warn-only.
 
 ## How to work in this module
 

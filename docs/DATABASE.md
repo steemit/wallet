@@ -148,7 +148,7 @@ Tables ported from wallet-legacy:
 
 | Legacy Table | Legacy Model | Drizzle Schema | Status |
 |--------------|--------------|----------------|--------|
-| `arecs` | `AccountRecoveryRequest` | `src/lib/db/schema/index.ts` | ✅ Migrated |
+| `arecs` | `AccountRecoveryRequest` | `src/lib/db/schema/index.ts` | ✅ Migrated (with known drift, see below) |
 | `users` | `User` | — | ⏳ Pending |
 | `accounts` | `Account` | — | ⏳ Pending |
 | `identities` | `Identity` | — | ⏳ Pending |
@@ -156,6 +156,32 @@ Tables ported from wallet-legacy:
 Schema sources:
 - `~/workspace/wallet-legacy/src/db/migrations/` (Sequelize migrations)
 - `~/workspace/wallet-legacy/src/db/models/` (Sequelize model definitions)
+
+### Differences from legacy schema (`arecs`)
+
+The drizzle schema and `drizzle/0000_polite_warhawk.sql` are internally
+consistent, but they differ from the legacy authority
+(`wallet-legacy/src/db/migrations/20160715233035-account-recovery-request.js`)
+in three recorded ways:
+
+1. **`uid` width**: drizzle declares `varchar(64)`; the legacy migration
+   created `STRING(32)`. If production tables were built by legacy
+   migrations, the column is 32 chars wide there.
+2. **`user_id` index**: the legacy migration creates an index on `user_id`
+   (`addIndex('arecs', ['user_id'])`); the drizzle migration does not
+   (it indexes `uid`, `account_name`, `contact_email`, `validation_code`).
+3. **`memo_key` column**: the drizzle migration includes `memo_key`
+   (`text NULL`); the legacy migration does not create it.
+
+Operational implication: if the production database reuses tables built by
+the legacy Sequelize migrations, running `drizzle-kit push` against it will
+produce unexpected diffs (column width change, index drop/add, column add)
+beyond whatever change was intended. **Verify the live production schema
+(`SHOW CREATE TABLE arecs`) and decide each diff explicitly before any
+push** — aligning the schema or migration is a production-data decision and
+is deliberately not done in code. The same verification applies to
+`contact_email`: drizzle and the new migration declare `varchar(256)`, which
+matches the legacy migration's `STRING(256)`.
 
 ---
 
