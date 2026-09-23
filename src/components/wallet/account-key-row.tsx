@@ -123,7 +123,7 @@ export function AccountKeyRow({
       </div>
 
       <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{tAuth('login')}</DialogTitle>
             <DialogDescription>{t('revealLoginHint')}</DialogDescription>

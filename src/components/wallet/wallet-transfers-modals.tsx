@@ -101,7 +101,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
+        className="max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg"
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
         {needsWalletReauth && (

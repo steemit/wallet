@@ -302,7 +302,7 @@ export function WitnessVoteForm() {
           {t('witnessVoting')}
         </h2>
         <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogContent className="max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>{tAuth('login')}</DialogTitle>
             </DialogHeader>

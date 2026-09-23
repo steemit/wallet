@@ -100,4 +100,27 @@ test.describe('Wallet main flows', () => {
       page.locator('main p[role="alert"]', { hasText: 'Failed to fetch' })
     ).toBeVisible({ timeout: 15_000 });
   });
+
+  test('header login dialog declares overflow-x hidden', async ({ page }) => {
+    // Password managers (Bitwarden & co.) inject an absolutely positioned
+    // overlay next to the private key field. With `overflow-y: auto` alone the
+    // box computes `overflow-x: auto` as well (CSS overflow spec: a visible
+    // axis paired with a scrollable one becomes auto), so that injection
+    // briefly painted a horizontal scrollbar inside the login dialog. Whether
+    // a scrollbar takes layout space is platform dependent (overlay vs classic
+    // scrollbars), so assert the declared value instead of a pixel amount.
+    await page.route('**/api/query/**', (route) => route.abort());
+
+    await page.goto('/@alice/transfers');
+
+    await page
+      .locator('header')
+      .getByRole('button', { name: /^(login|登录|iniciar sesión)$/i })
+      .click();
+
+    const dialog = page.locator('[data-slot="dialog-content"]').first();
+    await expect(dialog).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('#password')).toBeVisible();
+    await expect(dialog).toHaveCSS('overflow-x', 'hidden');
+  });
 });
