@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { setCSRFToken, rateLimit, rateLimitByUser, rateLimitConfigFromEnv } from '@/lib/middleware';
 import { getRedis, redisKey } from '@/lib/cache/redis';
+import { isValidSteemUsernameFormat } from '@/lib/steem/username';
 
 const CHALLENGE_TTL = 300; // 5 minutes
 
@@ -32,8 +33,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Validate username format
-    if (!/^[a-z0-9.-]+$/.test(username) || username.length < 3 || username.length > 16) {
+    // Validate username format — shared login-flow contract (N1, 2026-09-23
+    // audit): the login route applies the identical check, so a name rejected
+    // here can never have a challenge stored elsewhere.
+    if (!isValidSteemUsernameFormat(username)) {
       return NextResponse.json(
         { error: 'Invalid username format' },
         { status: 400 }
