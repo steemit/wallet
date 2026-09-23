@@ -573,6 +573,28 @@ describe('POST /api/recovery/confirm', () => {
     expect(mockUpdateFn).toHaveBeenCalledTimes(1);
   });
 
+  it('N2: diagnosis findFirst pins code + account_name in its WHERE', async () => {
+    // `validation_code` is a NON-unique index (codes are written by external
+    // admin tooling), so the diagnosis read must be scoped to the same account
+    // the claim CAS used — otherwise, with two rows sharing a code, the
+    // returned record_status could describe another account's row. Every
+    // state TRANSITION below is name-scoped; this pins that the READ is too.
+    setupUpdateMocks(mysqlUpdateResult(0));
+    mockFindFirst.mockResolvedValueOnce({ id: 1, status: 'expired', updatedAt: new Date() });
+
+    const req = makeRequest(validPayload);
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+
+    expect(mockFindFirst).toHaveBeenCalledWith({
+      where: and(
+        eq(arecs.validationCode, VALID_CODE),
+        eq(arecs.accountName, 'alice')
+      ),
+      columns: { id: true, status: true, updatedAt: true },
+    });
+  });
+
   it('claim miss on a fresh confirmed record (race) → generic 400, row untouched', async () => {
     setupUpdateMocks(mysqlUpdateResult(0));
     mockFindFirst.mockResolvedValueOnce({
