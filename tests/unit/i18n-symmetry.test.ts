@@ -1,29 +1,30 @@
 /**
  * i18n locale symmetry guard (finding G-8 / Theme I).
  *
- * en/zh/es message files must define identical key sets with non-empty
+ * en/zh/es/ko message files must define identical key sets with non-empty
  * string values. The repo has no other automated check: es.json shipped
  * missing keys whose `t()` call sites lacked a `defaultMessage` fallback,
  * rendering raw dotted keys to Spanish users, and dead keys accumulated in
- * all three locales at once (so a plain en-vs-es diff never flagged them).
+ * all locales at once (so a plain en-vs-es diff never flagged them).
  *
  * This test fails on:
  *  - any key present in one locale but missing from another (reports the
  *    exact missing keys per locale pair),
  *  - any non-string or empty/whitespace-only value.
  *
- * Removing a key legitimately? Remove it from ALL THREE files in the same
- * commit. Adding one? Add it to all three (or at minimum en + one more, run
- * this test, and let it list exactly what the other locale still needs).
+ * Removing a key legitimately? Remove it from ALL locale files in the same
+ * commit. Adding one? Add it to all of them (or at minimum en + one more, run
+ * this test, and let it list exactly what the other locales still need).
  */
 import { describe, it, expect } from 'vitest';
 import en from '@/i18n/messages/en.json';
 import zh from '@/i18n/messages/zh.json';
 import es from '@/i18n/messages/es.json';
+import ko from '@/i18n/messages/ko.json';
 
 type Messages = Record<string, unknown>;
 
-const locales: Record<string, Messages> = { en, zh, es };
+const locales: Record<string, Messages> = { en, zh, es, ko };
 
 /** Flatten nested message objects into dotted key -> leaf value. */
 function flatten(obj: Messages, prefix = ''): Record<string, unknown> {
@@ -54,8 +55,8 @@ function diffKeys(reference: string, target: string): { missing: string[]; extra
 }
 
 describe('i18n message symmetry', () => {
-  it('en, zh, es define identical key sets', () => {
-    for (const target of ['zh', 'es']) {
+  it('all locales define identical key sets', () => {
+    for (const target of ['zh', 'es', 'ko']) {
       const { missing, extra } = diffKeys('en', target);
       if (missing.length > 0 || extra.length > 0) {
         const detail = [
@@ -70,7 +71,7 @@ describe('i18n message symmetry', () => {
           .join('; ');
         throw new Error(
           `${target}.json key set diverges from en.json — ${detail}. ` +
-            'Keep all three locales symmetric in the same commit ' +
+            'Keep all locales symmetric in the same commit ' +
             '(see tests/unit/i18n-symmetry.test.ts).'
         );
       }

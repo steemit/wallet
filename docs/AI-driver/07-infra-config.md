@@ -20,7 +20,7 @@ Runs on every non-API path (matcher excludes `api`, `_next`, `_vercel`, `favicon
    rewrite response.
 5. Rolling CSRF cookie on every document response (Web Crypto HMAC, byte-identical to
    `csrf.ts`; see 02-auth).
-6. Hand-off to next-intl middleware (`localePrefix: 'never'`, locales en/zh/es).
+6. Hand-off to next-intl middleware (`localePrefix: 'never'`, locales en/zh/es/ko).
 
 When modifying CSP: remember `img-src https:` is intentionally wide (on-chain profile images),
 `connect-src` covers GA only, and any new external origin needs both
