@@ -18,6 +18,7 @@ const localeNames: Record<string, string> = {
   en: 'English',
   zh: '中文',
   es: 'Español',
+  ko: '한국어',
 };
 
 export function LanguageSwitcher({ onLocaleSelected }: { onLocaleSelected?: () => void }) {

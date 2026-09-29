@@ -60,7 +60,7 @@ src/lib/db/                      drizzle pool singleton + schema (arecs only)
 src/lib/store/                   Redux: auth slice (only live slice)
 src/hooks/                       data-fetching hooks (the real client data layer)
 src/lib/wallet/                  wallet domain logic + (historically misplaced) history hooks
-src/i18n/                        next-intl, locales en/zh/es, localePrefix 'never'
+src/i18n/                        next-intl, locales en/zh/es/ko, localePrefix 'never'
 ```
 
 ## Upstream interaction model

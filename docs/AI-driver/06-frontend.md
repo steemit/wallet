@@ -110,7 +110,7 @@ the cleanup reads a ref, and clear/reset state synchronously on identity change.
   when the cause is a session/permission mismatch (the normalized-username bug above produces
   silently-dead forms otherwise).
 - i18n: `t('key', { defaultMessage })` — **always** provide `defaultMessage` (es.json is missing
-  10 keys; two of them render raw keys today). Keep en/zh/es in sync; a key diff script is cheap.
+  10 keys; two of them render raw keys today). Keep en/zh/es/ko in sync; a key diff script is cheap.
 - History/activity: op-type copy lives in `WALLET_OP_TYPES` + `recent-activity.tsx`; new op types
   need entries there, plus `normalize-history.ts` mapping.
 - Wallet modals are opened via search params (`wallet-modal-search-params.ts`) — follow that
