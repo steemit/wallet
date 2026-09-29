@@ -13,14 +13,20 @@ let db: DrizzleDb | null = null;
 let pool: mysql.Pool | null = null;
 let dbUnavailable = false;
 
+// DATABASE_URL is canonical; SDC_DATABASE_URL is the legacy wallet variable,
+// kept as a fallback so deployments that only have the legacy secret keep working.
+export function resolveDatabaseUrl(): string | undefined {
+  return process.env.DATABASE_URL || process.env.SDC_DATABASE_URL || undefined;
+}
+
 export function getDb() {
   if (db) return db;
 
-  const url = process.env.DATABASE_URL;
+  const url = resolveDatabaseUrl();
   if (!url) {
     if (!dbUnavailable) {
       dbUnavailable = true;
-      console.warn('DATABASE_URL not set; database features disabled');
+      console.warn('DATABASE_URL / SDC_DATABASE_URL not set; database features disabled');
     }
     return null;
   }
