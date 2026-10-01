@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
@@ -45,6 +45,18 @@ export const metadata: Metadata = {
       { url: '/favicons/apple-touch-icon.png', sizes: '180x180' },
     ],
   },
+};
+
+// Mobile soft keyboards must shrink the layout viewport, not merely overlay it.
+// All wallet forms (transfer / power up / power down / delegate / convert …)
+// are viewport-centered Radix dialogs (`fixed top-1/2 -translate-y-1/2`); with
+// the default `resizes-visual` behavior the keyboard overlays the viewport
+// while `top-1/2` still resolves against the full 100vh, so everything below
+// the dialog's vertical midpoint (amount input, action buttons) sat under the
+// keyboard with no way to scroll to it. `resizes-content` makes 100vh track
+// the visible viewport, so the dialogs re-center into the visible area.
+export const viewport: Viewport = {
+  interactiveWidget: 'resizes-content',
 };
 
 export default async function LocaleLayout({
