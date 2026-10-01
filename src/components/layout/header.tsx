@@ -26,7 +26,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Menu, Wallet, Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
+import { Menu, Wallet, Settings, LogOut, Sun, Moon, Monitor, LogIn } from 'lucide-react';
 
 interface HeaderProps {
   onOpenSidePanel?: () => void;
@@ -83,21 +83,34 @@ export function Header({ onOpenSidePanel }: HeaderProps) {
 
         <div className="ml-auto flex h-16 items-center gap-2 md:gap-4">
           {!isAuthenticated && (
-            <div className="hidden items-center gap-4 md:flex">
+            <>
+              {/* Mobile: compact login-only entry; md+: full login + sign up pair. */}
               <Button
                 type="button"
                 variant="ghost"
-                className="text-base font-medium"
+                size="icon"
                 onClick={() => setLoginOpen(true)}
+                aria-label={t('login')}
+                className="md:hidden"
               >
-                {t('login')}
+                <LogIn />
               </Button>
-              <Button asChild>
-                <a href={signupUrl} target="_blank" rel="noopener noreferrer">
-                  {t('signUp')}
-                </a>
-              </Button>
-            </div>
+              <div className="hidden items-center gap-4 md:flex">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-base font-medium"
+                  onClick={() => setLoginOpen(true)}
+                >
+                  {t('login')}
+                </Button>
+                <Button asChild>
+                  <a href={signupUrl} target="_blank" rel="noopener noreferrer">
+                    {t('signUp')}
+                  </a>
+                </Button>
+              </div>
+            </>
           )}
 
           {isAuthenticated && username && (
