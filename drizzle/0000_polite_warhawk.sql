@@ -7,7 +7,6 @@ CREATE TABLE `arecs` (
 	`owner_key` text,
 	`old_owner_key` text,
 	`new_owner_key` text,
-	`memo_key` text,
 	`provider` varchar(64),
 	`email_confirmation_code` varchar(64),
 	`validation_code` varchar(64),

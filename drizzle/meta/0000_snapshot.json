@@ -63,13 +63,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "memo_key": {
-          "name": "memo_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "provider": {
           "name": "provider",
           "type": "varchar(64)",

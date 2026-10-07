@@ -212,7 +212,6 @@ the login form shows an "account recovered" notice for that `msg` value
 | `owner_key` | VARCHAR(255) | Current owner public key (submitted at step 1) |
 | `old_owner_key` | TEXT NULL | Old owner public key (filled at step 2) |
 | `new_owner_key` | TEXT NULL | New owner public key (filled at step 2) |
-| `memo_key` | TEXT NULL | Memo key |
 | `provider` | VARCHAR(32) | Auth provider (e.g. `email`) |
 | `remote_ip` | VARCHAR(64) | Client IP |
 | `status` | varchar(32): open, confirmed, processing, expired, closed, consumed | Request lifecycle |
