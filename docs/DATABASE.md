@@ -171,8 +171,13 @@ in three recorded ways. Resolution of each:
 2. **`user_id` index**: the legacy migration creates an index on `user_id`
    (`addIndex('arecs', ['user_id'])`); the drizzle migration does not
    (it indexes `uid`, `account_name`, `contact_email`, `validation_code`).
-   *Still open — reads key on `account_name`/`contact_email`/
-   `validation_code`, which both table builds index.*
+   *Still open — no wallet code queries by `user_id`. Reads key on
+   `account_name`/`contact_email` (indexed in both builds) and on
+   `validation_code` (indexed only in the drizzle build — the legacy
+   production table has no `validation_code` index, so the code lookups
+   (verify/confirm routes) are table scans there; acceptable at `arecs`
+   volumes, add `idx_arecs_validation_code` before any future volume
+   growth).*
 3. **`memo_key` column**: the drizzle migration included `memo_key`
    (`text NULL`); the legacy migration does not create it. **Resolved
    2026-10-07 by removing `memoKey` from the drizzle schema** (and the

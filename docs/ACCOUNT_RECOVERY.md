@@ -218,8 +218,8 @@ the login form shows an "account recovered" notice for that `msg` value
 | `email_confirmation_code` | VARCHAR(255) NULL | Email verification code |
 | `validation_code` | VARCHAR(255) NULL | 20-hex-char code in the recovery email link |
 | `request_submitted_at` | DATETIME NULL | When step 2 was completed |
-| `created_at` | DATETIME DEFAULT CURRENT_TIMESTAMP | Row creation time |
-| `updated_at` | DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | Last update time |
+| `created_at` | DATETIME NOT NULL | Row creation time (set explicitly on INSERT; a DB-level default exists only on drizzle-built tables — the legacy production table has none, see `docs/DATABASE.md`) |
+| `updated_at` | DATETIME NOT NULL | Last update time (bumped on every drizzle UPDATE via `$onUpdate`; `ON UPDATE CURRENT_TIMESTAMP` exists only on drizzle-built tables) |
 
 ### Status lifecycle
 
