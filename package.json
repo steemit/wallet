@@ -30,7 +30,7 @@
     "@opentelemetry/sdk-trace-node": "^2.10.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "@reduxjs/toolkit": "^2.11.2",
-    "@steemit/steem-js": "^1.2.0",
+    "@steemit/steem-js": "^1.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",

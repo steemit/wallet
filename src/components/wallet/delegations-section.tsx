@@ -230,7 +230,12 @@ function OutgoingDelegationsTable({
       setRevokeTarget(null);
       onRevoked();
     } catch (err) {
-      setRevokeError((err as Error).message);
+      // Align with delegate-form: the raw library/transport error is English
+      // and meaningless to the user (e.g. the old "Operation type
+      // delegate_vesting_shares serialization not fully implemented"). Keep the
+      // full error in the console for diagnosis, show localized copy here.
+      console.error('Revoke delegation error:', err);
+      setRevokeError(t('revokeFailed'));
     } finally {
       setRevoking(false);
     }
