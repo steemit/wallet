@@ -18,7 +18,6 @@ export const arecs = mysqlTable(
     ownerKey: text('owner_key'),
     oldOwnerKey: text('old_owner_key'),
     newOwnerKey: text('new_owner_key'),
-    memoKey: text('memo_key'),
     provider: varchar('provider', { length: 64 }),
     emailConfirmationCode: varchar('email_confirmation_code', { length: 64 }),
     validationCode: varchar('validation_code', { length: 64 }),

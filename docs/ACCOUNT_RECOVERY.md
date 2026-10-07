@@ -212,15 +212,14 @@ the login form shows an "account recovered" notice for that `msg` value
 | `owner_key` | VARCHAR(255) | Current owner public key (submitted at step 1) |
 | `old_owner_key` | TEXT NULL | Old owner public key (filled at step 2) |
 | `new_owner_key` | TEXT NULL | New owner public key (filled at step 2) |
-| `memo_key` | TEXT NULL | Memo key |
 | `provider` | VARCHAR(32) | Auth provider (e.g. `email`) |
 | `remote_ip` | VARCHAR(64) | Client IP |
 | `status` | varchar(32): open, confirmed, processing, expired, closed, consumed | Request lifecycle |
 | `email_confirmation_code` | VARCHAR(255) NULL | Email verification code |
 | `validation_code` | VARCHAR(255) NULL | 20-hex-char code in the recovery email link |
 | `request_submitted_at` | DATETIME NULL | When step 2 was completed |
-| `created_at` | DATETIME DEFAULT CURRENT_TIMESTAMP | Row creation time |
-| `updated_at` | DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | Last update time |
+| `created_at` | DATETIME NOT NULL | Row creation time (set explicitly on INSERT; a DB-level default exists only on drizzle-built tables — the legacy production table has none, see `docs/DATABASE.md`) |
+| `updated_at` | DATETIME NOT NULL | Last update time (bumped on every drizzle UPDATE via `$onUpdate`; `ON UPDATE CURRENT_TIMESTAMP` exists only on drizzle-built tables) |
 
 ### Status lifecycle
 

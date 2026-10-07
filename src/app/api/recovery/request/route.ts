@@ -111,7 +111,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert new recovery request
+    // Insert new recovery request. createdAt/updatedAt are set explicitly:
+    // drizzle otherwise emits `default` for them, which fails on a table
+    // without DB-level DEFAULTs (the legacy Sequelize migration declares
+    // created_at/updated_at NOT NULL but lets the ORM supply values).
+    const now = new Date();
     await db.insert(arecs).values({
       uid: null, // not available without login session
       contactEmail,
@@ -120,6 +124,8 @@ export async function POST(request: NextRequest) {
       provider: 'email',
       remoteIp,
       status: 'open',
+      createdAt: now,
+      updatedAt: now,
     });
 
     console.info('Recovery request created:', {
