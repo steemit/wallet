@@ -6,6 +6,7 @@ import { steem } from '@steemit/steem-js';
 
 import { formatSteemIsoTimestamp } from '@/lib/steem/chain-time';
 import { sameSteemAccount } from '@/lib/steem/username';
+import { formatSteemAssetString } from '@/lib/steem/parse-asset';
 
 import type { OverseerCustomPayload } from '@/lib/analytics/overseer-payload';
 import {
@@ -602,6 +603,9 @@ export class SteemService {
 
   /**
    * Get expiring vesting delegation objects (database_api.find_vesting_delegation_expirations).
+   * database_api returns `vesting_shares` as an NAI asset object (unlike
+   * condenser_api's string form); rows are normalized to the legacy string
+   * form before leaving this method.
    */
   static async getExpiringVestingDelegations(
     account: string
@@ -611,18 +615,23 @@ export class SteemService {
       const api = steem.api as unknown as {
         callAsync: (method: string, params: unknown) => Promise<unknown>;
       };
+      type RawExpiringDelegation = Omit<ExpiringVestingDelegation, 'vesting_shares'> & {
+        vesting_shares: unknown;
+      };
       const result = (await api.callAsync(
         'database_api.find_vesting_delegation_expirations',
         { account }
-      )) as { delegations?: ExpiringVestingDelegation[] } | null;
+      )) as { delegations?: RawExpiringDelegation[] } | null;
       if (!result || !Array.isArray(result.delegations)) return [];
-      return result.delegations.map((d) => ({
-        id: d.id,
-        delegator: d.delegator,
-        delegatee: d.delegatee,
-        vesting_shares: d.vesting_shares,
-        expiration: d.expiration,
-      }));
+      return result.delegations.map(
+        (d): ExpiringVestingDelegation => ({
+          id: d.id,
+          delegator: d.delegator,
+          delegatee: d.delegatee,
+          vesting_shares: formatSteemAssetString(d.vesting_shares, 'VESTS'),
+          expiration: d.expiration,
+        })
+      );
     }).catch((error) => {
       console.error('Error fetching expiring vesting delegations:', error);
       throw new Error(

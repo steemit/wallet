@@ -591,15 +591,29 @@ describe('SteemService.getVestingDelegations', () => {
 });
 
 describe('SteemService.getExpiringVestingDelegations', () => {
-  it('maps delegation fields from database_api response', async () => {
+  it('maps delegation fields and normalizes NAI assets from database_api response', async () => {
+    // database_api returns vesting_shares as an NAI asset object; the route
+    // contract (and condenser_api's string form) must be preserved.
     api.callAsync.mockResolvedValueOnce({
       delegations: [
-        { id: 1, delegator: 'alice', delegatee: 'bob', vesting_shares: '500.000000 VESTS', expiration: '2024-06-01T00:00:00' },
+        {
+          id: 17865423,
+          delegator: 'alice',
+          delegatee: 'bob',
+          vesting_shares: { amount: '5971304284', nai: '@@000000037', precision: 6 },
+          expiration: '2026-10-13T04:16:12',
+        },
       ],
     });
     const result = await SteemService.getExpiringVestingDelegations('alice');
     expect(result).toEqual([
-      { id: 1, delegator: 'alice', delegatee: 'bob', vesting_shares: '500.000000 VESTS', expiration: '2024-06-01T00:00:00' },
+      {
+        id: 17865423,
+        delegator: 'alice',
+        delegatee: 'bob',
+        vesting_shares: '5971.304284 VESTS',
+        expiration: '2026-10-13T04:16:12',
+      },
     ]);
     expect(api.callAsync).toHaveBeenCalledWith(
       'database_api.find_vesting_delegation_expirations',

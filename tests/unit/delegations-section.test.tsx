@@ -262,6 +262,30 @@ describe('DelegationsSection table', () => {
     expect(screen.getAllByTitle('2026-03-01T00:00:00').length).toBeGreaterThan(0);
   });
 
+  it('renders the expiring tab even if a row arrives as a NAI asset object', () => {
+    // Regression (MAIN-62): before the server normalized database_api's NAI
+    // assets, vesting_shares reached this component as an object and
+    // parseAssetAmount threw mid-render, blanking the whole page. Cached
+    // responses could still carry the old shape past the deploy.
+    hooks.expiring = {
+      delegations: [
+        {
+          ...expiringDelegation(3, 'frank'),
+          vesting_shares: { amount: '5971304284', nai: '@@000000037', precision: 6 } as never,
+        },
+      ],
+      loading: false,
+      error: null,
+    };
+    renderSection();
+
+    fireEvent.click(screen.getByRole('button', { name: 'expiringDelegations' }));
+
+    expect(screen.getAllByTitle('2026-03-01T00:00:00').length).toBeGreaterThan(0);
+    // The row normalizes to a string and renders rather than throwing.
+    expect(screen.getAllByText('5971.304284 VESTS').length).toBeGreaterThan(0);
+  });
+
   it('reports an empty expiring list when the tab has nothing to show', () => {
     renderSection();
 
