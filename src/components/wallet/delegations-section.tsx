@@ -10,7 +10,8 @@ import {
   STEEM_POWER_TICKER,
 } from '@/lib/wallet/vest-steem';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
-import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
+import { formatTimeAgo, formatTimeUntil } from '@/lib/wallet/format-time-ago';
+import { formatSteemAssetString } from '@/lib/steem/parse-asset';
 import { useLocale } from 'next-intl';
 import type { GlobalPropsData } from '@/lib/wallet/wallet-balance-types';
 import type { VestingDelegation, ExpiringVestingDelegation } from '@/lib/steem/types';
@@ -474,12 +475,28 @@ function ExpiringDelegationsTable({
   const t = useTranslations('wallet');
   const locale = useLocale();
 
+  // Belt-and-braces against cached rows still carrying database_api's NAI
+  // asset objects after the server-side normalization deploy (client LRU +
+  // CDN can serve the old shape for a window). One pass up front keeps the
+  // sort/render paths free of per-row shape checks.
+  const rows = useMemo(
+    () =>
+      delegations.map((d) => ({
+        ...d,
+        vesting_shares:
+          typeof d.vesting_shares === 'string'
+            ? d.vesting_shares
+            : formatSteemAssetString(d.vesting_shares, 'VESTS'),
+      })),
+    [delegations]
+  );
+
   const [sortField, setSortField] = useState<'expiration' | 'amount'>('expiration');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [page, setPage] = useState(1);
 
   const sorted = useMemo(() => {
-    const copy = [...delegations];
+    const copy = [...rows];
     const dir = sortDir === 'asc' ? 1 : -1;
     copy.sort((a, b) => {
       if (sortField === 'expiration') {
@@ -490,7 +507,7 @@ function ExpiringDelegationsTable({
       );
     });
     return copy;
-  }, [delegations, sortField, sortDir]);
+  }, [rows, sortField, sortDir]);
 
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
   const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -554,7 +571,7 @@ function ExpiringDelegationsTable({
                   onClick={() => copyToClipboard(item.expiration)}
                   title={item.expiration}
                 >
-                  {formatTimeAgo(item.expiration, locale)}
+                  {formatTimeUntil(item.expiration, locale)}
                 </TableCell>
                 <TableCell
                   className="cursor-pointer text-right"
@@ -593,7 +610,7 @@ function ExpiringDelegationsTable({
               onClick={() => copyToClipboard(item.expiration)}
               title={item.expiration}
             >
-              {formatTimeAgo(item.expiration, locale)}
+              {formatTimeUntil(item.expiration, locale)}
             </div>
             <div className="text-right">
               <div
