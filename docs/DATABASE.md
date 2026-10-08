@@ -209,8 +209,11 @@ injects `updated_at` into every UPDATE, and UPDATE never names absent
 columns). The lifecycle TTL/self-heal logic additionally relies on the
 `updated_at` column having `ON UPDATE CURRENT_TIMESTAMP` on the live
 table — as declared in `drizzle/0000_polite_warhawk.sql`; the legacy
-migration did **not** declare it, so verify with `SHOW CREATE TABLE
-arecs` before trusting expiry behavior in production.
+migration did **not** declare it. Migration
+`drizzle/0001_arecs_updated_at_on_update.sql` closes this gap: it was
+applied to production manually on 2026-10-08 (MAIN-57 follow-up) and is
+committed as a migration so dev environments and future rebuilds
+converge to the same state (drizzle's journal skips it once applied).
 
 ---
 
