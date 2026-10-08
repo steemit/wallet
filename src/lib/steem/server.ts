@@ -697,9 +697,14 @@ export class SteemService {
     if (!username || !wif) {
       return 'Recovery service not configured (CONVEYOR_USERNAME / CONVEYOR_POSTING_WIF missing)';
     }
-    // Steem WIFs are base58 strings starting with '5' (51 chars for mainnet).
-    // Validate format only — never log the value itself.
-    if (!/^5[HJ][1-9A-HJ-NP-Za-km-z]{49}$/.test(wif)) {
+    // Real WIF validation: base58 decode + double-SHA256 checksum via the
+    // steem-js auth helpers. A shape-only regex (e.g. /^5[HJ]…/) silently
+    // rejects valid WIFs whose second character is 'K' (~39% of random
+    // Steem private keys: 5J 51% / 5K 39% / 5H 10%), which in production
+    // blocked every recovery confirm with "Recovery service unavailable"
+    // (2026-10-08, MAIN-60). isWif verifies version byte, 32-byte key and
+    // checksum — it never logs the value itself.
+    if (!steem.auth.isWif(wif)) {
       return 'CONVEYOR_POSTING_WIF is not a valid Steem private key format';
     }
     return null;
