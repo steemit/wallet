@@ -1,0 +1,18 @@
+-- Align the legacy-built `arecs` table with the drizzle schema baseline
+-- (drizzle/0000_polite_warhawk.sql: `updated_at datetime NOT NULL DEFAULT
+-- CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`).
+--
+-- Production's `arecs` table was created by the legacy Sequelize migration
+-- (wallet-legacy 20160715233035-account-recovery-request.js), which declared
+-- created_at/updated_at NOT NULL *without* DB-level defaults — Sequelize
+-- supplied the values client-side. The recovery lifecycle
+-- (src/lib/recovery/lifecycle.ts) depends on updated_at being bumped by
+-- every UPDATE: the 24h code TTL and the 10-minute stuck-claim self-heal
+-- both read updated_at as their inactivity timer. On a table without
+-- ON UPDATE CURRENT_TIMESTAMP those timers never re-arm.
+--
+-- Applied manually to production on 2026-10-08 (MAIN-57 follow-up); this
+-- migration makes the change reproducible for dev environments and any
+-- future rebuild. drizzle's journal records this migration as applied
+-- after the first successful run, so production will not re-execute it.
+ALTER TABLE `arecs` MODIFY `updated_at` datetime NOT NULL ON UPDATE CURRENT_TIMESTAMP;
