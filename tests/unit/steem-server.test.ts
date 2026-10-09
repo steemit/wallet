@@ -599,7 +599,6 @@ describe('SteemService.getExpiringVestingDelegations', () => {
         {
           id: 17865423,
           delegator: 'alice',
-          delegatee: 'bob',
           vesting_shares: { amount: '5971304284', nai: '@@000000037', precision: 6 },
           expiration: '2026-10-13T04:16:12',
         },
@@ -610,7 +609,6 @@ describe('SteemService.getExpiringVestingDelegations', () => {
       {
         id: 17865423,
         delegator: 'alice',
-        delegatee: 'bob',
         vesting_shares: '5971.304284 VESTS',
         expiration: '2026-10-13T04:16:12',
       },

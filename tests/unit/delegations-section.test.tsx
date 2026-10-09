@@ -82,11 +82,10 @@ function delegation(
   };
 }
 
-function expiringDelegation(id: number, delegatee: string): ExpiringVestingDelegation {
+function expiringDelegation(id: number): ExpiringVestingDelegation {
   return {
     id,
     delegator: 'alice',
-    delegatee,
     vesting_shares: '50.000000 VESTS',
     expiration: '2026-03-01T00:00:00',
   };
@@ -244,7 +243,7 @@ describe('DelegationsSection table', () => {
 
   it('switches to the expiring delegations tab, sorts and renders its rows', () => {
     hooks.expiring = {
-      delegations: [expiringDelegation(1, 'dave'), expiringDelegation(2, 'erin')],
+      delegations: [expiringDelegation(1), expiringDelegation(2)],
       loading: false,
       error: null,
     };
@@ -270,7 +269,7 @@ describe('DelegationsSection table', () => {
     hooks.expiring = {
       delegations: [
         {
-          ...expiringDelegation(3, 'frank'),
+          ...expiringDelegation(3),
           vesting_shares: { amount: '5971304284', nai: '@@000000037', precision: 6 } as never,
         },
       ],

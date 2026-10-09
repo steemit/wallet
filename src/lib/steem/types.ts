@@ -123,10 +123,18 @@ export interface VestingDelegation {
   min_delegation_time: string;
 }
 
+/**
+ * A `delegation_expiration_object` as returned by
+ * `database_api.find_vesting_delegation_expirations`.
+ *
+ * Revoking a delegation (`delegate_vesting_shares` with 0 VESTS) deletes the
+ * `vesting_delegation_object` and creates this expiration record, which keeps
+ * only the delegator, the amount returning and the completion time — the
+ * delegatee association is gone on chain, so there is nothing more to show.
+ */
 export interface ExpiringVestingDelegation {
   id: number;
   delegator: string;
-  delegatee: string;
   vesting_shares: string;
   expiration: string;
 }

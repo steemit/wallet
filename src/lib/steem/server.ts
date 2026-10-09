@@ -627,7 +627,6 @@ export class SteemService {
         (d): ExpiringVestingDelegation => ({
           id: d.id,
           delegator: d.delegator,
-          delegatee: d.delegatee,
           vesting_shares: formatSteemAssetString(d.vesting_shares, 'VESTS'),
           expiration: d.expiration,
         })
