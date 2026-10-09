@@ -7,11 +7,13 @@ import { unixSecToSteemIsoTimestamp } from '@/lib/steem/chain-time';
 import type {
   Operation,
   SignedTransaction,
-  SteemAccount,
   GlobalProperties,
   BroadcastResult,
+  OwnerHistoryEntry,
 } from './types';
 import { buildAccountCreateOperation } from '@/lib/wallet/community';
+import { fetchAccounts, type AccountsResponse } from '@/lib/steem/accounts-client';
+import { noteResponseDegraded } from '@/lib/cache/degradation-state';
 
 export type TransactionHeaderFields = {
   ref_block_num: number;
@@ -21,6 +23,7 @@ export type TransactionHeaderFields = {
 
 async function fetchTransactionHeader(): Promise<TransactionHeaderFields> {
   const response = await fetch('/api/query/transaction-header');
+  noteResponseDegraded(response);
   const data = (await response.json()) as {
     success?: boolean;
     ref_block_num?: unknown;
@@ -223,31 +226,6 @@ export class SteemSigner {
   }
 
   /**
-   * Sign a vote operation
-   */
-  static async signVote(
-    voter: string,
-    author: string,
-    permlink: string,
-    weight: number,
-    postingKey: string
-  ): Promise<SignedTransaction> {
-    const operations: Operation[] = [
-      [
-        'vote',
-        {
-          voter,
-          author,
-          permlink,
-          weight,
-        },
-      ],
-    ];
-
-    return await this.signTransaction(operations, [postingKey]);
-  }
-
-  /**
    * Sign a witness vote operation
    */
   static async signWitnessVote(
@@ -401,6 +379,73 @@ export class SteemSigner {
     return await this.signTransaction(operations, [activeKey]);
   }
 
+  /**
+   * Claim pending rewards (claim_reward_balance, posting authority).
+   * Legacy parity (wallet-legacy UserWallet.jsx claimRewards): always claims
+   * the FULL pending amounts for all three token types, exactly as the
+   * account reports them (zero-valued strings included — the chain accepts).
+   */
+  static async signClaimRewardBalance(
+    account: string,
+    rewardSteem: string,
+    rewardSbd: string,
+    rewardVests: string,
+    postingKey: string
+  ): Promise<SignedTransaction> {
+    const operations: Operation[] = [
+      [
+        'claim_reward_balance',
+        {
+          account,
+          reward_steem: rewardSteem,
+          reward_sbd: rewardSbd,
+          reward_vests: rewardVests,
+        },
+      ],
+    ];
+    return await this.signTransaction(operations, [postingKey]);
+  }
+
+  /**
+   * Sign a change_recovery_account operation. Requires the OWNER key —
+   * the chain enforces owner authority for this operation.
+   */
+  static async signChangeRecoveryAccount(
+    accountToRecover: string,
+    newRecoveryAccount: string,
+    ownerKey: string
+  ): Promise<SignedTransaction> {
+    const operations: Operation[] = [
+      [
+        'change_recovery_account',
+        {
+          account_to_recover: accountToRecover,
+          new_recovery_account: newRecoveryAccount,
+          extensions: [],
+        },
+      ],
+    ];
+    return await this.signTransaction(operations, [ownerKey]);
+  }
+
+  /** Sign a cancel_transfer_from_savings operation (active authority). */
+  static async signCancelTransferFromSavings(
+    from: string,
+    requestId: number,
+    activeKey: string
+  ): Promise<SignedTransaction> {
+    const operations: Operation[] = [
+      [
+        'cancel_transfer_from_savings',
+        {
+          from,
+          request_id: requestId,
+        },
+      ],
+    ];
+    return await this.signTransaction(operations, [activeKey]);
+  }
+
   static async signLimitOrderCreate(
     owner: string,
     amountToSell: string,
@@ -476,6 +521,64 @@ export class SteemSigner {
   }
 
   /**
+   * Sign a recover_account operation (client-side).
+   * Derives owner keys from passwords and signs with the OLD owner private key.
+   * The signed transaction must then be broadcast via apiClient.broadcastRecoverAccountTx().
+   *
+   * Prerequisite: The admin must have already broadcast `request_account_recovery`
+   * on-chain (via Conveyor / turtle) so that the new_owner_authority is set.
+   */
+  static async signRecoverAccount(
+    accountToRecover: string,
+    oldPassword: string,
+    newPassword: string
+  ): Promise<{ signedTx: SignedTransaction; oldOwnerPub: string; newOwnerPub: string }> {
+    // Derive WIF private keys — handle both passwords and raw WIF keys
+    const oldOwnerPriv = SteemSigner.isValidPrivateKey(oldPassword)
+      ? oldPassword
+      : steem.auth.toWif(accountToRecover, oldPassword, 'owner');
+    const newOwnerPriv = SteemSigner.isValidPrivateKey(newPassword)
+      ? newPassword
+      : steem.auth.toWif(accountToRecover, newPassword, 'owner');
+
+    // Derive public keys for the authority objects
+    const oldOwnerPub = steem.auth.getPublicKey(oldOwnerPriv);
+    const newOwnerPub = steem.auth.getPublicKey(newOwnerPriv);
+
+    const recentOwnerAuthority = {
+      weight_threshold: 1,
+      account_auths: [] as [string, number][],
+      key_auths: [[oldOwnerPub, 1]] as [string, number][],
+    };
+    const newOwnerAuthority = {
+      weight_threshold: 1,
+      account_auths: [] as [string, number][],
+      key_auths: [[newOwnerPub, 1]] as [string, number][],
+    };
+
+    const operation: Operation = [
+      'recover_account',
+      {
+        account_to_recover: accountToRecover,
+        new_owner_authority: newOwnerAuthority,
+        recent_owner_authority: recentOwnerAuthority,
+      },
+    ];
+
+    // recover_account replaces the owner authority, so the chain requires
+    // BOTH authority signatures on the transaction (new owner + recent/old
+    // owner). Signing with the old owner key alone is rejected by steemd
+    // with `tx_missing_other_auth: missing required other authority`
+    // (observed in production 2026-10-08). wallet-legacy signs with
+    // [oldOwnerPrivate, newOwnerPrivate] (TransactionSaga.js recoverAccount).
+    const signedTx = await this.signTransaction([operation], [
+      oldOwnerPriv,
+      newOwnerPriv,
+    ]);
+    return { signedTx, oldOwnerPub, newOwnerPub };
+  }
+
+  /**
    * Get public key from private key
    */
   static privateKeyToPublicKey(privateKey: string): string {
@@ -508,11 +611,15 @@ export class SteemSigner {
   }
 
   /**
-   * Generate a random challenge string for login verification
+   * Generate a random challenge string for login verification.
+   * Uses the Web Crypto API for cryptographically strong entropy rather than
+   * Math.random() (which is not unpredictable and must not gate auth).
    */
   static generateChallenge(): string {
     const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 15);
+    const buf = new Uint8Array(16);
+    crypto.getRandomValues(buf);
+    const random = Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
     return `${timestamp}-${random}`;
   }
 
@@ -568,7 +675,12 @@ export const apiClient = {
    * Get login challenge
    */
   async getChallenge(username: string): Promise<{ challenge: string }> {
-    const response = await fetch(`/api/auth/challenge?username=${encodeURIComponent(username)}`);
+    // no-store: a challenge served from a browser/intermediary cache would be
+    // signed here but verified server-side against a different stored value.
+    // Mirrors the route's Cache-Control: no-store response header.
+    const response = await fetch(`/api/auth/challenge?username=${encodeURIComponent(username)}`, {
+      cache: 'no-store',
+    });
     if (!response.ok) {
       throw new Error('Failed to get challenge');
     }
@@ -654,27 +766,12 @@ export const apiClient = {
   },
 
   /**
-   * Broadcast a signed vote
-   */
-  async broadcastVote(
-    signedTx: SignedTransaction,
-    username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
-    const response = await fetch('/api/broadcast/vote', {
-      method: 'POST',
-      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ signedTx, username }),
-    });
-    return response.json();
-  },
-
-  /**
    * Broadcast a signed witness vote
    */
   async broadcastWitnessVote(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/witness-vote', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
@@ -686,7 +783,7 @@ export const apiClient = {
   async broadcastProposalVote(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/proposal-vote', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
@@ -698,7 +795,7 @@ export const apiClient = {
   async broadcastProposalCreate(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/proposal-create', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
@@ -710,7 +807,7 @@ export const apiClient = {
   async broadcastProposalRemove(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/proposal-remove', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
@@ -735,17 +832,15 @@ export const apiClient = {
   },
 
   /**
-   * Get account information
+   * Get account information. Delegates to the shared fetchAccounts path
+   * (lib/steem/accounts-client): one URL builder, one cache policy, in-flight
+   * dedup. Names are normalized and encoded there.
    */
   async getAccounts(
     usernames: string[],
     options?: { fresh?: boolean }
-  ): Promise<{ accounts: SteemAccount[]; error?: string }> {
-    const url = `/api/query/accounts?names=${usernames.join(',')}`;
-    const response = options?.fresh
-      ? await fetch(url, { cache: 'no-store' })
-      : await fetch(url);
-    return response.json();
+  ): Promise<AccountsResponse> {
+    return fetchAccounts(usernames, options);
   },
 
   /**
@@ -767,6 +862,84 @@ export const apiClient = {
     if (typeof from === 'number') params.set('from', String(from));
     if (ops && ops.length > 0) params.set('ops', ops.join(','));
     const response = await fetch(`/api/query/history?${params.toString()}`);
+    noteResponseDegraded(response);
+    return response.json();
+  },
+  async getOwnerHistory(
+    username: string
+  ): Promise<{ success?: boolean; history?: OwnerHistoryEntry[]; error?: string }> {
+    const response = await fetch(`/api/query/owner-history?username=${encodeURIComponent(username)}`);
+    noteResponseDegraded(response);
+    return response.json();
+  },
+
+  async initiateAccountRecoveryWithEmail(payload: {
+    contact_email: string;
+    account_name: string;
+    owner_key: string;
+  }): Promise<{ status: 'ok' | 'duplicate' | 'error'; error?: string }> {
+    const response = await fetch('/api/recovery/request', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+
+  /**
+   * Verify a recovery confirmation code.
+   *
+   * `record_status` is the arecs row state: 'confirmed' (normal step-2 flow)
+   * or 'closed' (confirm already done on-chain — only the final
+   * recover_account broadcast may be retried). Error responses carry a
+   * machine-readable `record_status` (open/processing/expired/consumed)
+   * the UI maps to localized copy.
+   */
+  async verifyRecoveryCode(
+    code: string
+  ): Promise<{
+    status: 'ok' | 'error';
+    account_name?: string;
+    record_status?: string;
+    error?: string;
+  }> {
+    const response = await fetch(`/api/recovery/verify/${encodeURIComponent(code)}`);
+    return response.json();
+  },
+
+  /**
+   * Confirm account recovery (step 2 — submit new owner keys)
+   */
+  async confirmAccountRecovery(payload: {
+    code: string;
+    account_name: string;
+    old_owner_key: string;
+    new_owner_key: string;
+    new_owner_authority: {
+      weight_threshold: number;
+      account_auths: [string, number][];
+      key_auths: [string, number][];
+    };
+  }): Promise<{ status: 'ok' | 'error'; error?: string; record_status?: string }> {
+    const response = await fetch('/api/recovery/confirm', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+
+  /**
+   * Broadcast a signed recover_account transaction via server relay
+   */
+  async broadcastRecoverAccountTx(
+    signedTx: unknown
+  ): Promise<{ success: boolean; error?: string }> {
+    const response = await fetch('/api/broadcast/recover-account', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx }),
+    });
     return response.json();
   },
 
@@ -775,6 +948,7 @@ export const apiClient = {
    */
   async getWitnesses(limit: number = 100): Promise<{ witnesses: unknown[]; error?: string }> {
     const response = await fetch(`/api/query/witnesses?limit=${limit}`);
+    noteResponseDegraded(response);
     return response.json();
   },
 
@@ -783,6 +957,7 @@ export const apiClient = {
    */
   async getGlobalProps(): Promise<{ props: GlobalProperties; error?: string }> {
     const response = await fetch('/api/query/global-props');
+    noteResponseDegraded(response);
     return response.json();
   },
 
@@ -799,6 +974,7 @@ export const apiClient = {
     const response = await fetch(
       `/api/query/withdraw-routes?username=${encodeURIComponent(username)}`
     );
+    noteResponseDegraded(response);
     return response.json();
   },
 
@@ -812,6 +988,7 @@ export const apiClient = {
     error?: string;
   }> {
     const response = await fetch('/api/query/median-history-price');
+    noteResponseDegraded(response);
     return response.json();
   },
 
@@ -832,6 +1009,42 @@ export const apiClient = {
     username: string
   ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/convert', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
+    return response.json();
+  },
+
+  async broadcastChangeRecoveryAccount(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+    const response = await fetch('/api/broadcast/change-recovery-account', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
+    return response.json();
+  },
+
+  async broadcastCancelTransferFromSavings(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+    const response = await fetch('/api/broadcast/cancel-transfer-from-savings', {
+      method: 'POST',
+      headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ signedTx, username }),
+    });
+    return response.json();
+  },
+
+  async broadcastClaimRewardBalance(
+    signedTx: SignedTransaction,
+    username: string
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
+    const response = await fetch('/api/broadcast/claim-reward-balance', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ signedTx, username }),
@@ -907,13 +1120,14 @@ export const apiClient = {
     if (params?.since) qs.set('since', params.since);
     const suffix = qs.toString() ? `?${qs.toString()}` : '';
     const response = await fetch(`/api/query/market${suffix}`);
+    noteResponseDegraded(response);
     return response.json();
   },
 
   async broadcastLimitOrderCreate(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/limit-order-create', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),
@@ -925,7 +1139,7 @@ export const apiClient = {
   async broadcastLimitOrderCancel(
     signedTx: SignedTransaction,
     username: string
-  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string; details?: string }> {
+  ): Promise<{ success: boolean; result?: BroadcastResult; error?: string }> {
     const response = await fetch('/api/broadcast/limit-order-cancel', {
       method: 'POST',
       headers: withCSRFHeader({ 'Content-Type': 'application/json' }),

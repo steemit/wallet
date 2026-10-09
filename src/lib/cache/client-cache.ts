@@ -49,7 +49,9 @@ class ClientCache {
 
   invalidate(prefix: string): void {
     for (const key of this.store.keys()) {
-      if (key.includes(prefix)) {
+      // Use startsWith (prefix match), not includes (substring match), so
+      // invalidate('price') does not also evict 'wallet-prices' etc.
+      if (key.startsWith(prefix)) {
         this.store.delete(key);
         this.removeFromOrder(key);
       }

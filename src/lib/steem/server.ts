@@ -1,10 +1,14 @@
 // Server-side Steem service
 // All communication with Steem nodes happens here
 
+import { randomBytes } from 'crypto';
 import { steem } from '@steemit/steem-js';
 
 import { formatSteemIsoTimestamp } from '@/lib/steem/chain-time';
+import { sameSteemAccount } from '@/lib/steem/username';
+import { formatSteemAssetString } from '@/lib/steem/parse-asset';
 
+import type { OverseerCustomPayload } from '@/lib/analytics/overseer-payload';
 import {
   ORDERBOOK_LIMIT,
   RECENT_TRADES_LIMIT,
@@ -33,6 +37,7 @@ import type {
   ProposalOrderBy,
   ProposalOrderDirection,
   ProposalStatus,
+  OwnerHistoryEntry,
 } from './types';
 
 // Steem configuration from environment; support multiple URLs for failover
@@ -42,6 +47,7 @@ const STEEM_RPC_URLS = (process.env.STEEM_RPC_URL || 'https://api.steemit.com')
   .filter(Boolean);
 
 let currentUrlIndex = 0;
+let overseerWarned = false;
 function getCurrentRpcUrl(): string {
   return STEEM_RPC_URLS[currentUrlIndex % STEEM_RPC_URLS.length] ?? STEEM_RPC_URLS[0]!;
 }
@@ -83,10 +89,58 @@ export class SteemService {
     return withFailover(async () => {
       ensureConfigured();
       const accounts = await steem.api.getAccountsAsync(usernames);
-      return accounts as SteemAccount[];
+      const result = accounts as SteemAccount[];
+      // Legacy parity (SagaShared.getAccount): attach any pending
+      // change_recovery_account request for single-account lookups so the
+      // wallet UI can warn the owner.
+      if (usernames.length === 1 && result.length > 0) {
+        const first = result[0];
+        const username = usernames[0];
+        if (first && username) {
+          try {
+            const api = steem.api as unknown as {
+              callAsync: (method: string, params: unknown) => Promise<unknown>;
+            };
+            const recoveryData = (await api.callAsync(
+              'database_api.find_change_recovery_account_requests',
+              { accounts: [username] }
+            )) as {
+              requests?: {
+                account_to_recover: string;
+                recovery_account: string;
+                effective_on: string;
+              }[];
+            };
+            const request = recoveryData?.requests?.[0];
+            // Chain fields are canonical lowercase; the requested name may not be.
+            if (request && sameSteemAccount(request.account_to_recover, username)) {
+              first.account_recovery = request;
+            }
+          } catch (err) {
+            console.warn('Error fetching change recovery account request:', err);
+          }
+        }
+      }
+      return result;
     }).catch((error) => {
       console.error('Error fetching accounts:', error);
       throw new Error(`Failed to fetch accounts: ${(error as Error).message}`);
+    });
+  }
+
+  /**
+   * Get owner key change history (condenser_api.get_owner_history).
+   */
+  static async getOwnerHistory(account: string): Promise<OwnerHistoryEntry[]> {
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        getOwnerHistoryAsync: (name: string) => Promise<OwnerHistoryEntry[]>;
+      };
+      return (await api.getOwnerHistoryAsync(account)) ?? [];
+    }).catch((error) => {
+      console.error('Error fetching owner history:', error);
+      throw new Error(`Failed to fetch owner history: ${(error as Error).message}`);
     });
   }
 
@@ -274,20 +328,6 @@ export class SteemService {
   }
 
   /**
-   * Get feed history (price)
-   */
-  static async getFeedHistory(): Promise<unknown> {
-    return withFailover(async () => {
-      ensureConfigured();
-      const api = steem.api as unknown as { getFeedHistoryAsync: () => Promise<unknown> };
-      return await api.getFeedHistoryAsync();
-    }).catch((error) => {
-      console.error('Error fetching feed history:', error);
-      throw new Error(`Failed to fetch feed history: ${(error as Error).message}`);
-    });
-  }
-
-  /**
    * STEEM/SBD USD prices for wallet estimated account value (matches wallet-legacy TransactionSaga).
    */
   static async getWalletPrices(): Promise<{ steemPrice: number; sbdPrice: number }> {
@@ -362,6 +402,8 @@ export class SteemService {
 
   /**
    * Pending savings withdrawals, open orders, and SBD conversions for estimate extras.
+   * Also returns the detailed rows so the wallet UI can render legacy-parity
+   * indicators (pending conversions list, savings withdrawal history).
    */
   static async getWalletEstimateExtras(
     username: string,
@@ -372,13 +414,43 @@ export class SteemService {
     conversionTotalSbd: number;
     steemOrders: number;
     sbdOrders: number;
+    conversions: { requestid: number; amountSbd: number; finishTime: string }[];
+    savingsWithdrawals: {
+      id: number;
+      requestId: number;
+      from: string;
+      to: string;
+      amount: string;
+      memo: string;
+      complete: string;
+    }[];
   }> {
     const assetPrecision = 1000;
     return withFailover(async () => {
       ensureConfigured();
       const api = steem.api as unknown as {
-        getSavingsWithdrawToAsync: (account: string) => Promise<{ amount: string }[]>;
-        getSavingsWithdrawFromAsync: (account: string) => Promise<{ amount: string }[]>;
+        getSavingsWithdrawToAsync: (account: string) => Promise<
+          {
+            id: number;
+            request_id: number;
+            from: string;
+            to: string;
+            amount: string;
+            memo: string;
+            complete: string;
+          }[]
+        >;
+        getSavingsWithdrawFromAsync: (account: string) => Promise<
+          {
+            id: number;
+            request_id: number;
+            from: string;
+            to: string;
+            amount: string;
+            memo: string;
+            complete: string;
+          }[]
+        >;
         getOpenOrdersAsync: (owner: string) => Promise<
           { for_sale: number; sell_price: { base: string } }[]
         >;
@@ -390,7 +462,7 @@ export class SteemService {
         api.getSavingsWithdrawFromAsync(username),
       ]);
 
-      const withdrawMap = new Map<string, { amount: string }>();
+      const withdrawMap = new Map<string, (typeof toWithdraws)[number]>();
       for (const w of [...toWithdraws, ...fromWithdraws]) {
         const id = (w as { id?: number }).id;
         if (id !== undefined) withdrawMap.set(String(id), w);
@@ -398,14 +470,33 @@ export class SteemService {
 
       let savingsPendingSteem = 0;
       let savingsPendingSbd = 0;
+      const savingsWithdrawals: {
+        id: number;
+        requestId: number;
+        from: string;
+        to: string;
+        amount: string;
+        memo: string;
+        complete: string;
+      }[] = [];
       for (const withdraw of withdrawMap.values()) {
         const [amountStr, asset] = withdraw.amount.split(' ');
         const amount = parseFloat(amountStr || '0');
         if (asset === 'STEEM') savingsPendingSteem += amount;
         else if (asset === 'SBD') savingsPendingSbd += amount;
+        savingsWithdrawals.push({
+          id: withdraw.id,
+          requestId: withdraw.request_id,
+          from: withdraw.from,
+          to: withdraw.to,
+          amount: withdraw.amount,
+          memo: withdraw.memo ?? '',
+          complete: withdraw.complete,
+        });
       }
 
       let conversionTotalSbd = 0;
+      const conversions: { requestid: number; amountSbd: number; finishTime: string }[] = [];
       const now = Date.now();
       try {
         const conversionResult = (await api.callAsync(
@@ -413,6 +504,7 @@ export class SteemService {
           { account: username }
         )) as {
           requests?: {
+            requestid: number;
             conversion_date: string;
             amount: { amount: string; precision: number };
           }[];
@@ -424,7 +516,14 @@ export class SteemService {
           if (finishTime < now) continue;
           const amount =
             parseFloat(request.amount.amount) / 10 ** request.amount.precision;
-          if (!Number.isNaN(amount)) conversionTotalSbd += amount;
+          if (!Number.isNaN(amount)) {
+            conversionTotalSbd += amount;
+            conversions.push({
+              requestid: request.requestid,
+              amountSbd: amount,
+              finishTime: new Date(finishTime).toISOString(),
+            });
+          }
         }
       } catch (err) {
         console.warn('find_sbd_conversion_requests failed:', err);
@@ -455,6 +554,8 @@ export class SteemService {
         conversionTotalSbd,
         steemOrders,
         sbdOrders,
+        conversions,
+        savingsWithdrawals,
       };
     }).catch((error) => {
       console.error('Error fetching wallet estimate extras:', error);
@@ -502,6 +603,9 @@ export class SteemService {
 
   /**
    * Get expiring vesting delegation objects (database_api.find_vesting_delegation_expirations).
+   * database_api returns `vesting_shares` as an NAI asset object (unlike
+   * condenser_api's string form); rows are normalized to the legacy string
+   * form before leaving this method.
    */
   static async getExpiringVestingDelegations(
     account: string
@@ -511,24 +615,107 @@ export class SteemService {
       const api = steem.api as unknown as {
         callAsync: (method: string, params: unknown) => Promise<unknown>;
       };
+      type RawExpiringDelegation = Omit<ExpiringVestingDelegation, 'vesting_shares'> & {
+        vesting_shares: unknown;
+      };
       const result = (await api.callAsync(
         'database_api.find_vesting_delegation_expirations',
         { account }
-      )) as { delegations?: ExpiringVestingDelegation[] } | null;
+      )) as { delegations?: RawExpiringDelegation[] } | null;
       if (!result || !Array.isArray(result.delegations)) return [];
-      return result.delegations.map((d) => ({
-        id: d.id,
-        delegator: d.delegator,
-        delegatee: d.delegatee,
-        vesting_shares: d.vesting_shares,
-        expiration: d.expiration,
-      }));
+      return result.delegations.map(
+        (d): ExpiringVestingDelegation => ({
+          id: d.id,
+          delegator: d.delegator,
+          vesting_shares: formatSteemAssetString(d.vesting_shares, 'VESTS'),
+          expiration: d.expiration,
+        })
+      );
     }).catch((error) => {
       console.error('Error fetching expiring vesting delegations:', error);
       throw new Error(
         `Failed to fetch expiring vesting delegations: ${(error as Error).message}`
       );
     });
+  }
+
+  /**
+   * Request account recovery via Conveyor (kingdom.recovery_account).
+   * Broadcasts a `request_account_recovery` operation signed by the
+   * recovery account's posting key.  This must happen **before** the
+   * client submits the `recover_account` operation.
+   *
+   * Requires CONVEYOR_USERNAME and CONVEYOR_POSTING_WIF env vars.
+   */
+  static async requestAccountRecovery(payload: {
+    account_to_recover: string;
+    new_owner_authority: {
+      weight_threshold: number;
+      account_auths: [string, number][];
+      key_auths: [string, number][];
+    };
+  }): Promise<void> {
+    const conveyorUsername = process.env.CONVEYOR_USERNAME;
+    const conveyorWif = process.env.CONVEYOR_POSTING_WIF;
+
+    if (!conveyorUsername || !conveyorWif) {
+      throw new Error(
+        'CONVEYOR_USERNAME / CONVEYOR_POSTING_WIF not configured'
+      );
+    }
+
+    return withFailover(async () => {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        signedCallAsync?: (
+          method: string,
+          params: unknown[],
+          account: string,
+          key: string
+        ) => Promise<unknown>;
+      };
+      if (typeof api.signedCallAsync !== 'function') {
+        throw new Error('steem.api.signedCallAsync is not available');
+      }
+      await api.signedCallAsync(
+        'kingdom.recovery_account',
+        payload as unknown as unknown[],
+        conveyorUsername,
+        conveyorWif
+      );
+    }) as Promise<void>;
+  }
+
+  /**
+   * Validate the CONVEYOR recovery-signing configuration (high-value secret).
+   *
+   * CONVEYOR_POSTING_WIF signs on-chain `request_account_recovery`, so a
+   * compromise grants the recovery account's posting authority and enables
+   * abuse of the account-recovery workflow. This must be treated as a
+   * high-value secret: restrict deploy access, rotate on suspected compromise,
+   * and (ideally) move signing behind an external signer / HSM.
+   *
+   * Returns an error string when misconfigured (missing vars, or the WIF does
+   * not look like a valid Steem private key), or null when OK. Safe to call at
+   * any time; used as a preflight by recovery/confirm before broadcasting.
+   */
+  static validateConveyorConfig(): string | null {
+    const username = process.env.CONVEYOR_USERNAME;
+    const wif = process.env.CONVEYOR_POSTING_WIF;
+    if (!username || !wif) {
+      return 'Recovery service not configured (CONVEYOR_USERNAME / CONVEYOR_POSTING_WIF missing)';
+    }
+    // Real WIF validation: base58 decode + double-SHA256 checksum via the
+    // steem-js auth helpers. A shape-only regex (e.g. /^5[HJ]…/) silently
+    // rejects valid WIFs whose second character is 'K' (~39% of random
+    // Steem private keys: 5J 51% / 5K 39% / 5H 10%), which in production
+    // blocked every recovery confirm with "Recovery service unavailable"
+    // (2026-10-08, MAIN-60). isWif verifies version byte, 32-byte key and
+    // checksum — it never logs the value itself.
+    if (!steem.auth.isWif(wif)) {
+      return 'CONVEYOR_POSTING_WIF is not a valid Steem private key format';
+    }
+    return null;
   }
 
   /**
@@ -562,10 +749,66 @@ export class SteemService {
   }
 
   /**
-   * Verify a signature (server-side validation)
-   * Note: This doesn't re-sign, just validates the signature format
+   * Validate the structural shape of a signed transaction for the recovery
+   * broadcast path, which — unlike the pure relay routes — performs real
+   * server-side crypto verification (see the recovery exception in
+   * AGENTS.md's relay architecture section).
+   *
+   * F12 (2026-08-04 audit, re-verified 2026-09-04): `verifyTransaction` runs
+   * synchronous secp256k1 public-key recovery for EVERY signature in the
+   * attacker-controlled `signatures` array. Without an upper bound a single
+   * small request could force thousands of sync ECDSA ops and block the
+   * Node event loop. The relay routes are exempt (they never verify
+   * signatures — the chain does), but the recovery exception zone is NOT.
+   *
+   * Bounds chosen far above anything a legitimate transaction produces:
+   * a multi-sig recovery realistically carries 1-3 signatures; Steem
+   * transactions carry at most a handful of operations.
    */
-  static async verifySignature(signedTx: SignedTransaction): Promise<boolean> {
+  static validateRecoveryTransactionShape(signedTx: SignedTransaction): boolean {
+    const MAX_SIGNATURES = 4;
+    const MAX_OPERATIONS = 10;
+    // secp256k1 recoverable signatures serialize as 65 bytes → 130 hex chars
+    // (optionally UPPERCASE). Fixed-length check keeps malformed input from
+    // reaching Signature.fromBuffer inside verifyTransaction.
+    const SIGNATURE_HEX = /^[0-9a-f]{130}$/i;
+
+    try {
+      const signatures = signedTx.signatures;
+      if (
+        !Array.isArray(signatures) ||
+        signatures.length === 0 ||
+        signatures.length > MAX_SIGNATURES
+      ) {
+        return false;
+      }
+      if (!signatures.every((sig) => typeof sig === 'string' && SIGNATURE_HEX.test(sig))) {
+        return false;
+      }
+      const operations = signedTx.operations;
+      if (
+        !Array.isArray(operations) ||
+        operations.length === 0 ||
+        operations.length > MAX_OPERATIONS
+      ) {
+        return false;
+      }
+      return this.validateTransactionShape(signedTx);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Validate the structural shape of a signed transaction.
+   *
+   * This checks only that the transaction has the fields a validly-signed
+   * transaction requires (signatures present, finite ref_block_num /
+   * ref_block_prefix, non-empty expiration, non-empty operations). It does
+   * NOT perform cryptographic signature verification — the relay deliberately
+   * does not verify transaction contents; the Steem chain is the authority.
+   */
+  static validateTransactionShape(signedTx: SignedTransaction): boolean {
     try {
       // Basic validation
       if (!signedTx.signatures || signedTx.signatures.length === 0) {
@@ -591,8 +834,6 @@ export class SteemService {
         return false;
       }
 
-      // The actual signature verification would happen during broadcast
-      // If the signature is invalid, the network will reject it
       return true;
     } catch {
       return false;
@@ -650,7 +891,9 @@ export class SteemService {
    */
   static generateChallenge(username: string): string {
     const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 15);
+    // Use a cryptographically strong random rather than Math.random so the
+    // challenge cannot be predicted (it gates login signature verification).
+    const random = randomBytes(16).toString('hex');
     return `login-${username}-${timestamp}-${random}`;
   }
 
@@ -807,6 +1050,38 @@ export class SteemService {
       console.error('Error fetching proposal votes by proposal:', error);
       throw new Error(`Failed to fetch proposal votes: ${(error as Error).message}`);
     });
+  }
+
+  /**
+   * Relay an overseer.collect custom event through the Steem RPC (jussi).
+   * Fire-and-forget from callers: never throws, logs at most once per process
+   * so a missing overseer upstream cannot flood logs or fail user flows.
+   *
+   * Deliberately NOT wrapped in withFailover: analytics must never rotate the
+   * shared failover index (it would move real chain traffic to a different
+   * RPC just because the overseer namespace is down) nor retry every
+   * configured URL per event (a warn per URL per event). One attempt against
+   * the current RPC, then give up.
+   */
+  static async collectOverseer(payload: OverseerCustomPayload): Promise<void> {
+    try {
+      ensureConfigured();
+      const api = steem.api as unknown as {
+        callAsync?: (method: string, params: unknown) => Promise<unknown>;
+      };
+      if (typeof api.callAsync !== 'function') {
+        throw new Error('Steem API callAsync is not available');
+      }
+      await api.callAsync('overseer.collect', ['custom', payload]);
+    } catch (err) {
+      if (!overseerWarned) {
+        overseerWarned = true;
+        console.warn(
+          'overseer.collect failed; further errors suppressed:',
+          err instanceof Error ? err.message : err
+        );
+      }
+    }
   }
 
   static async listProposalVotesByVoter(voter: string): Promise<

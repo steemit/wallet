@@ -40,8 +40,6 @@ describe('devStateSanitizer', () => {
       isAuthenticated: true,
       publicKey: null,
     },
-    wallet: {},
-    ui: {},
   };
 
   it('redacts non-null key fields', () => {
@@ -77,7 +75,7 @@ describe('devActionSanitizer', () => {
   });
 
   it('passes through unrelated actions unchanged', () => {
-    const action = { type: 'wallet/setSomething', payload: { value: 42 } };
+    const action = { type: 'auth/someUnrelatedAction', payload: { value: 42 } };
     expect(devActionSanitizer(action)).toBe(action);
   });
 });

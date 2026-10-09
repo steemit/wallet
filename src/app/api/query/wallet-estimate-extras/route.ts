@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { hashedCacheKey, normalizeAccountForCache } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,7 +12,8 @@ export async function GET(request: NextRequest) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const username = request.nextUrl.searchParams.get('username')?.trim().toLowerCase();
+    const rawUsername = request.nextUrl.searchParams.get('username');
+    const username = rawUsername ? normalizeAccountForCache(rawUsername) : undefined;
     if (!username) {
       return NextResponse.json({ error: 'username is required' }, { status: 400 });
     }
@@ -19,34 +21,31 @@ export async function GET(request: NextRequest) {
     const includeOpenOrders =
       request.nextUrl.searchParams.get('includeOpenOrders') === 'true';
 
-    try {
-      const result = await withCache(
-        `cache:query:wallet-estimate-extras:${username}:${includeOpenOrders}`,
-        60,
-        600,
-        () => SteemService.getWalletEstimateExtras(username, { includeOpenOrders })
-      );
+    const result = await withCache(
+      hashedCacheKey('cache:query:wallet-estimate-extras', username, includeOpenOrders),
+      60,
+      600,
+      () => SteemService.getWalletEstimateExtras(username, { includeOpenOrders })
+    );
 
-      const response = NextResponse.json({
-        success: true,
-        ...result.data,
-        ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
-      });
-      response.headers.set('Cache-Control', 'public, s-maxage=60');
-      if (result.degraded) response.headers.set('X-Degraded', 'true');
-      return response;
-    } catch (error) {
-      console.error('wallet-estimate-extras query error:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch wallet estimate extras', degraded: true },
-        { status: 503 }
-      );
-    }
+    const response = NextResponse.json({
+      success: true,
+      ...result.data,
+      ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
+    });
+    // The body contains this user's savings withdrawals (with memos), open
+    // orders and conversions — use private caching to prevent cross-user CDN
+    // poisoning.
+    response.headers.set('Cache-Control', 'private, max-age=60');
+    if (result.degraded) response.headers.set('X-Degraded', 'true');
+    return response;
   } catch (error) {
+    // Unified upstream-failure protocol (§3.6): 503 + degraded body. A single
+    // catch — no inner catch whose 503 could be shadowed by an outer 500.
     console.error('wallet-estimate-extras query error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch wallet estimate extras', details: (error as Error).message },
-      { status: 500 }
+      { error: 'Failed to fetch wallet estimate extras', degraded: true },
+      { status: 503 }
     );
   }
 }

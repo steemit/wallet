@@ -6,6 +6,16 @@ const config = {
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.{ts,tsx}'],
+    // next-intl's ESM build imports 'next/server' extensionless, which the
+    // Node ESM loader cannot resolve (next ships no package.json `exports`
+    // map). Inlining routes the module through Vite's resolver, letting the
+    // proxy tests exercise the REAL next-intl middleware instead of a mock
+    // double (tests/unit/proxy-csp.test.ts).
+    server: {
+      deps: {
+        inline: ['next-intl'],
+      },
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -25,7 +35,6 @@ const config = {
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      'mixpanel-browser': path.resolve(__dirname, './tests/mocks/mixpanel-browser.ts'),
       '@steemit/steem-js': path.resolve(__dirname, './tests/mocks/steem-js.ts'),
     },
   },

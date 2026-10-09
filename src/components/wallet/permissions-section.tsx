@@ -11,6 +11,7 @@ import {
   type AuthRoleKeys,
 } from '@/lib/wallet/account-keys';
 import type { SteemAccount } from '@/lib/steem/types';
+import { sameSteemAccount } from '@/lib/steem/username';
 import { AccountKeyRow } from '@/components/wallet/account-key-row';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -105,8 +106,7 @@ export function PermissionsSection({
   const [wifVisible, setWifVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<KeyTabId>('posting');
 
-  const sessionMatchesAccount =
-    isMyAccount && roleKeys.username?.toLowerCase() === username.toLowerCase();
+  const sessionMatchesAccount = isMyAccount && sameSteemAccount(roleKeys.username, username);
 
   const effectiveRoleKeys: AuthRoleKeys = sessionMatchesAccount
     ? {

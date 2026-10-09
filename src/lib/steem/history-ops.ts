@@ -12,12 +12,15 @@ export const WALLET_OP_TYPES = [
   'transfer_to_vesting',
   'transfer_to_savings',
   'transfer_from_savings',
+  'cancel_transfer_from_savings',
   'withdraw_vesting',
   'fill_vesting_withdraw',
   'claim_reward_balance',
   'delegate_vesting_shares',
   'return_vesting_delegation',
   'interest',
+  'fill_convert_request',
+  'fill_order',
 ] as const;
 
 export type WalletOpType = (typeof WALLET_OP_TYPES)[number];

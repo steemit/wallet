@@ -11,7 +11,6 @@ export interface AuthState {
   privateKey: string | null; // Primary key used for signing (typically active)
   publicKey: string | null;
   isAuthenticated: boolean;
-  challenge: string | null;
 }
 
 const initialState: AuthState = {
@@ -23,7 +22,6 @@ const initialState: AuthState = {
   privateKey: null,
   publicKey: null,
   isAuthenticated: false,
-  challenge: null,
 };
 
 const authSlice = createSlice({
@@ -73,12 +71,6 @@ const authSlice = createSlice({
       state.publicKey = publicKey;
       state.isAuthenticated = true;
     },
-    setChallenge: (state, action: PayloadAction<string>) => {
-      state.challenge = action.payload;
-    },
-    clearChallenge: (state) => {
-      state.challenge = null;
-    },
     logout: (state) => {
       state.username = null;
       state.ownerKey = null;
@@ -88,11 +80,9 @@ const authSlice = createSlice({
       state.privateKey = null;
       state.publicKey = null;
       state.isAuthenticated = false;
-      state.challenge = null;
     },
   },
 });
 
-export const { setCredentials, setChallenge, clearChallenge, logout } =
-  authSlice.actions;
+export const { setCredentials, logout } = authSlice.actions;
 export default authSlice.reducer;

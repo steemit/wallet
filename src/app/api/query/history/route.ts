@@ -2,12 +2,15 @@
 // Get account transaction history with optional server-side op-type filtering.
 //
 // Without `ops`: returns raw Steem history (legacy path, backward compatible).
-// With `ops`:    server fetches batches internally until `limit` matching ops are
-//                found, normalizes them, and returns { history, nextFrom, exhausted }.
+// With `ops`:    fetches ONE batch (up to BATCH_SIZE entries) per request, keeps
+//                up to `limit` matching ops, and returns { history, nextFrom,
+//                exhausted }; the client drives pagination by passing nextFrom
+//                back as `from` on the next request.
 import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { getRedis, redisKey } from '@/lib/cache/redis';
+import { hashedCacheKey, normalizeAccountForCache } from '@/lib/cache/cache-key';
 import { isSteemKnownDown } from '@/lib/cache/health-monitor';
 import { normalizeSteemHistoryList, type SteemHistoryItem } from '@/lib/wallet/normalize-history';
 import { WALLET_OP_TYPES } from '@/lib/steem/history-ops';
@@ -15,6 +18,11 @@ import { WALLET_OP_TYPES } from '@/lib/steem/history-ops';
 const FALLBACK_TTL = 300; // 5 minutes
 const ALLOWED_OPS = new Set<string>(WALLET_OP_TYPES);
 const BATCH_SIZE = 100; // Steem API hard cap — one batch per request
+
+// Per-account rows (memos included) — private per the user-scoped rule, and
+// no-store because this route keeps no fresh server-side cache (§3.5 fallback
+// only), so there is no freshness window to advertise to any cache.
+const HISTORY_CACHE_CONTROL = 'private, no-store';
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,7 +46,10 @@ export async function GET(request: NextRequest) {
     if (!username) {
       return NextResponse.json({ error: 'Missing username parameter' }, { status: 400 });
     }
-    if (limit < 1 || limit > 100) {
+    // One account = one cache key / one upstream call, whatever case or '@'
+    // spelling the client sent.
+    const account = normalizeAccountForCache(username);
+    if (!Number.isFinite(limit) || limit < 1 || limit > 100) {
       return NextResponse.json({ error: 'Limit must be between 1 and 100' }, { status: 400 });
     }
     if (fromParam !== null && (!Number.isFinite(from) || from < -1)) {
@@ -53,29 +64,32 @@ export async function GET(request: NextRequest) {
 
     // ── Filtered path ────────────────────────────────────────────────────────
     if (requestedOps) {
-      return handleFilteredRequest(username, from, requestedOps);
+      // `return await` (not `return`): without the await, a rejection from
+      // handleFilteredRequest would bypass this try/catch entirely and escape
+      // as an unhandled rejection instead of the unified 503 protocol.
+      return await handleFilteredRequest(account, from, requestedOps, limit);
     }
 
     // ── Legacy path (no ops param) ───────────────────────────────────────────
     if (await isSteemKnownDown()) {
-      const fallback = await getLegacyFallback(username);
+      const fallback = await getLegacyFallback(account);
       if (fallback) return legacyDegradedResponse(fallback);
     }
 
     try {
-      const history = await SteemService.getAccountHistory(username, limit, from);
-      if (from === -1) await saveLegacyFallback(username, history);
-      return NextResponse.json({ success: true, history });
+      const history = await SteemService.getAccountHistory(account, limit, from);
+      if (from === -1) await saveLegacyFallback(account, history);
+      return historyResponse({ success: true, history });
     } catch (error) {
-      const fallback = await getLegacyFallback(username);
+      const fallback = await getLegacyFallback(account);
       if (fallback) return legacyDegradedResponse(fallback);
       throw error;
     }
   } catch (error) {
     console.error('Error fetching history:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch history', details: (error as Error).message },
-      { status: 500 }
+      { error: 'Failed to fetch history', degraded: true },
+      { status: 503 }
     );
   }
 }
@@ -85,21 +99,25 @@ export async function GET(request: NextRequest) {
 async function handleFilteredRequest(
   username: string,
   from: number,
-  requestedOps: string[]
+  requestedOps: string[],
+  limit: number
 ): Promise<NextResponse> {
   const opsKey = [...requestedOps].sort().join('+');
-  const cacheKey = redisKey(`cache:query:history-filtered:${username}:${opsKey}`);
+  const cacheKey = redisKey(hashedCacheKey('cache:query:history-filtered', username, opsKey));
 
   if (await isSteemKnownDown()) {
     const fallback = await getFilteredFallback(cacheKey);
     if (fallback) return filteredDegradedResponse(fallback);
-    return NextResponse.json({ error: 'Steem node unavailable and no cached data' }, { status: 503 });
+    return NextResponse.json(
+      { error: 'Steem node unavailable and no cached data', degraded: true },
+      { status: 503 }
+    );
   }
 
   try {
-    const { history, nextFrom, exhausted } = await fetchFiltered(username, from, requestedOps);
+    const { history, nextFrom, exhausted } = await fetchFiltered(username, from, requestedOps, limit);
     if (from === -1) await saveFilteredFallback(cacheKey, { history, nextFrom, exhausted });
-    return NextResponse.json({ success: true, history, nextFrom, exhausted });
+    return historyResponse({ success: true, history, nextFrom, exhausted });
   } catch (error) {
     const fallback = await getFilteredFallback(cacheKey);
     if (fallback) return filteredDegradedResponse(fallback);
@@ -116,7 +134,8 @@ interface FilteredResult {
 async function fetchFiltered(
   username: string,
   from: number,
-  requestedOps: string[]
+  requestedOps: string[],
+  limit: number
 ): Promise<FilteredResult> {
   const opSet = new Set(requestedOps);
   // One Steem RPC call per HTTP request — client controls the outer loop.
@@ -128,33 +147,57 @@ async function fetchFiltered(
 
   const matching = normalized.filter((item) => opSet.has(item.op[0]));
 
-  // Advance cursor using oldest index in the WHOLE batch (not just matching),
-  // so non-matching ops near the bottom don't stall progress.
-  let oldestInBatch: number | undefined;
-  for (const item of normalized) {
-    if (typeof item.index === 'number') {
-      if (oldestInBatch === undefined || item.index < oldestInBatch) {
-        oldestInBatch = item.index;
+  // `limit` caps the matching items returned per request (it is validated
+  // above and must not be silently ignored). Truncation keeps the NEWEST
+  // `limit` matches; the cursor then resumes below the oldest RETURNED item
+  // so the matches dropped by the truncation are picked up by the next page
+  // instead of being skipped forever.
+  const truncated = matching.length > limit;
+  const history = truncated ? matching.slice(0, limit) : matching;
+
+  const oldestIndex = (items: SteemHistoryItem[]): number | undefined => {
+    let oldest: number | undefined;
+    for (const item of items) {
+      if (typeof item.index === 'number') {
+        if (oldest === undefined || item.index < oldest) oldest = item.index;
       }
     }
-  }
+    return oldest;
+  };
 
-  const exhausted = normalized.length === 0 || oldestInBatch === undefined || oldestInBatch <= 0;
-  const nextFrom = exhausted ? null : oldestInBatch! - 1;
+  // Advance the cursor using the oldest index in the WHOLE batch (not just
+  // matching), so non-matching ops near the bottom don't stall progress —
+  // unless we truncated, where the cursor must stop at the oldest RETURNED
+  // match to avoid skipping the truncated remainder.
+  const oldestInBatch = oldestIndex(normalized);
+  const oldestReturned = truncated ? oldestIndex(history) : undefined;
+  const resumeFrom = truncated ? (oldestReturned ?? oldestInBatch) : oldestInBatch;
 
-  return { history: matching, nextFrom, exhausted };
+  const exhausted =
+    !truncated && (normalized.length === 0 || oldestInBatch === undefined || oldestInBatch <= 0);
+  const nextFrom = exhausted || resumeFrom === undefined ? null : resumeFrom - 1;
+
+  return { history, nextFrom, exhausted };
 }
 
 // ── Cache helpers ─────────────────────────────────────────────────────────────
 
+// Every 200 body this route returns is user-scoped (raw account history);
+// stamp the private/no-store header uniformly on fresh and degraded paths.
+function historyResponse(body: Record<string, unknown>): NextResponse {
+  const response = NextResponse.json(body);
+  response.headers.set('Cache-Control', HISTORY_CACHE_CONTROL);
+  return response;
+}
+
 function legacyDegradedResponse(history: unknown[]) {
-  const response = NextResponse.json({ success: true, history, degraded: true });
+  const response = historyResponse({ success: true, history, degraded: true });
   response.headers.set('X-Degraded', 'true');
   return response;
 }
 
 function filteredDegradedResponse(data: FilteredResult) {
-  const response = NextResponse.json({ success: true, ...data, degraded: true });
+  const response = historyResponse({ success: true, ...data, degraded: true });
   response.headers.set('X-Degraded', 'true');
   return response;
 }
@@ -163,7 +206,7 @@ async function getLegacyFallback(username: string): Promise<unknown[] | null> {
   const redis = getRedis();
   if (!redis) return null;
   try {
-    const raw = await redis.get(redisKey(`cache:query:history-fallback:${username}`));
+    const raw = await redis.get(redisKey(hashedCacheKey('cache:query:history-fallback', username)));
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -175,7 +218,7 @@ async function saveLegacyFallback(username: string, history: unknown): Promise<v
   if (!redis) return;
   try {
     await redis.set(
-      redisKey(`cache:query:history-fallback:${username}`),
+      redisKey(hashedCacheKey('cache:query:history-fallback', username)),
       JSON.stringify(history),
       'EX',
       FALLBACK_TTL

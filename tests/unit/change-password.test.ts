@@ -61,6 +61,10 @@ const baseAccount = {
   average_bandwidth: 0,
   lifetime_bandwidth: 0,
   vesting_balance: '0.000000 VESTS',
+  reward_steem_balance: '0.000 STEEM',
+  reward_sbd_balance: '0.000 SBD',
+  reward_vesting_steem: '0.000 STEEM',
+  reward_vesting_balance: '0.000000 VESTS',
   reputation: 0,
   witness_votes: [],
 } as SteemAccount;

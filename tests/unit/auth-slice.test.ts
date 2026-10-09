@@ -5,8 +5,6 @@
 import { describe, it, expect } from 'vitest';
 import authReducer, {
   setCredentials,
-  setChallenge,
-  clearChallenge,
   logout,
   type AuthState,
 } from '@/lib/store/slices/auth';
@@ -21,7 +19,6 @@ describe('Auth Slice', () => {
     privateKey: null,
     publicKey: null,
     isAuthenticated: false,
-    challenge: null,
   };
 
   describe('Initial State', () => {
@@ -57,7 +54,6 @@ describe('Auth Slice', () => {
         privateKey: 'oldkey',
         publicKey: 'oldpub',
         isAuthenticated: true,
-        challenge: 'oldchallenge',
       };
 
       const action = setCredentials({
@@ -76,66 +72,6 @@ describe('Auth Slice', () => {
     });
   });
 
-  describe('setChallenge', () => {
-    it('should set the challenge string', () => {
-      const challenge = 'login-testuser-12345-abcde';
-      const action = setChallenge(challenge);
-
-      const state = authReducer(initialState, action);
-
-      expect(state.challenge).toBe(challenge);
-    });
-
-    it('should overwrite existing challenge', () => {
-      const stateWithChallenge: AuthState = {
-        ...initialState,
-        challenge: 'old-challenge',
-      };
-
-      const newChallenge = 'new-challenge';
-      const action = setChallenge(newChallenge);
-
-      const state = authReducer(stateWithChallenge, action);
-
-      expect(state.challenge).toBe(newChallenge);
-    });
-  });
-
-  describe('clearChallenge', () => {
-    it('should clear the challenge string', () => {
-      const stateWithChallenge: AuthState = {
-        ...initialState,
-        challenge: 'some-challenge',
-      };
-
-      const action = clearChallenge();
-      const state = authReducer(stateWithChallenge, action);
-
-      expect(state.challenge).toBeNull();
-    });
-
-    it('should not affect other state properties', () => {
-      const stateWithChallenge: AuthState = {
-        username: 'testuser',
-        ownerKey: 'owner',
-        activeKey: 'active',
-        postingKey: 'posting',
-        memoKey: 'memo',
-        privateKey: 'testkey',
-        publicKey: 'testpub',
-        isAuthenticated: true,
-        challenge: 'some-challenge',
-      };
-
-      const action = clearChallenge();
-      const state = authReducer(stateWithChallenge, action);
-
-      expect(state.challenge).toBeNull();
-      expect(state.username).toBe('testuser');
-      expect(state.isAuthenticated).toBe(true);
-    });
-  });
-
   describe('logout', () => {
     it('should clear all auth state', () => {
       const loggedInState: AuthState = {
@@ -147,7 +83,6 @@ describe('Auth Slice', () => {
         privateKey: 'testkey',
         publicKey: 'testpub',
         isAuthenticated: true,
-        challenge: 'some-challenge',
       };
 
       const action = logout();
@@ -157,7 +92,6 @@ describe('Auth Slice', () => {
       expect(state.privateKey).toBeNull();
       expect(state.publicKey).toBeNull();
       expect(state.isAuthenticated).toBe(false);
-      expect(state.challenge).toBeNull();
     });
 
     it('should handle logout when already logged out', () => {
@@ -170,26 +104,17 @@ describe('Auth Slice', () => {
 
   describe('State Transitions', () => {
     it('should handle login flow', () => {
-      // Set challenge first
-      let state = authReducer(initialState, setChallenge('challenge-123'));
-
-      expect(state.challenge).toBe('challenge-123');
-      expect(state.isAuthenticated).toBe(false);
-
-      // Then set credentials
-      state = authReducer(state, setCredentials({
-        username: 'testuser',
-        privateKey: 'privatekey',
-        publicKey: 'publickey',
-      }));
+      // Set credentials
+      const state = authReducer(
+        initialState,
+        setCredentials({
+          username: 'testuser',
+          privateKey: 'privatekey',
+          publicKey: 'publickey',
+        })
+      );
 
       expect(state.username).toBe('testuser');
-      expect(state.isAuthenticated).toBe(true);
-
-      // Clear challenge after use
-      state = authReducer(state, clearChallenge());
-
-      expect(state.challenge).toBeNull();
       expect(state.isAuthenticated).toBe(true);
     });
 
@@ -204,7 +129,6 @@ describe('Auth Slice', () => {
         privateKey: 'privatekey',
         publicKey: 'publickey',
         isAuthenticated: true,
-        challenge: 'challenge-123',
       };
 
       // Logout

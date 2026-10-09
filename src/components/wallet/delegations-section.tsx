@@ -7,9 +7,11 @@ import { SteemSigner, apiClient } from '@/lib/steem/client';
 import { useVestingDelegations, useExpiringVestingDelegations } from '@/hooks/use-delegations';
 import {
   formatSteemPowerFromVestsString,
+  STEEM_POWER_TICKER,
 } from '@/lib/wallet/vest-steem';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
-import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
+import { formatTimeAgo, formatTimeUntil } from '@/lib/wallet/format-time-ago';
+import { formatSteemAssetString } from '@/lib/steem/parse-asset';
 import { useLocale } from 'next-intl';
 import type { GlobalPropsData } from '@/lib/wallet/wallet-balance-types';
 import type { VestingDelegation, ExpiringVestingDelegation } from '@/lib/steem/types';
@@ -40,7 +42,13 @@ type SortField = 'delegatee' | 'date' | 'amount';
 type SortDir = 'asc' | 'desc';
 const PAGE_SIZE = 20;
 
-function formatVestsDisplay(vestsAsset: string): string {
+function formatSpDisplay(
+  vestsAsset: string,
+  globalProps: GlobalPropsData | null
+): string {
+  if (globalProps) {
+    return `${formatSteemPowerFromVestsString(vestsAsset, globalProps)} ${STEEM_POWER_TICKER}`;
+  }
   const n = parseAssetAmount(vestsAsset);
   return `${n.toLocaleString('en-US', { maximumFractionDigits: 6 })} VESTS`;
 }
@@ -223,7 +231,12 @@ function OutgoingDelegationsTable({
       setRevokeTarget(null);
       onRevoked();
     } catch (err) {
-      setRevokeError((err as Error).message);
+      // Align with delegate-form: the raw library/transport error is English
+      // and meaningless to the user (e.g. the old "Operation type
+      // delegate_vesting_shares serialization not fully implemented"). Keep the
+      // full error in the console for diagnosis, show localized copy here.
+      console.error('Revoke delegation error:', err);
+      setRevokeError(t('revokeFailed'));
     } finally {
       setRevoking(false);
     }
@@ -323,7 +336,7 @@ function OutgoingDelegationsTable({
                         : item.vesting_shares
                     )
                   }
-                  title={formatVestsDisplay(item.vesting_shares)}
+                  title={formatSpDisplay(item.vesting_shares, globalProps)}
                 >
                   {globalPropsLoading ? (
                     <Skeleton className="ml-auto h-4 w-20" />
@@ -394,9 +407,6 @@ function OutgoingDelegationsTable({
                 : globalProps
                   ? `${formatSteemPowerFromVestsString(item.vesting_shares, globalProps)} SP`
                   : item.vesting_shares}
-              <span className="ml-1 text-xs text-muted-foreground">
-                ({formatVestsDisplay(item.vesting_shares)})
-              </span>
             </div>
           </div>
         ))}
@@ -465,12 +475,28 @@ function ExpiringDelegationsTable({
   const t = useTranslations('wallet');
   const locale = useLocale();
 
+  // Belt-and-braces against cached rows still carrying database_api's NAI
+  // asset objects after the server-side normalization deploy (client LRU +
+  // CDN can serve the old shape for a window). One pass up front keeps the
+  // sort/render paths free of per-row shape checks.
+  const rows = useMemo(
+    () =>
+      delegations.map((d) => ({
+        ...d,
+        vesting_shares:
+          typeof d.vesting_shares === 'string'
+            ? d.vesting_shares
+            : formatSteemAssetString(d.vesting_shares, 'VESTS'),
+      })),
+    [delegations]
+  );
+
   const [sortField, setSortField] = useState<'expiration' | 'amount'>('expiration');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [page, setPage] = useState(1);
 
   const sorted = useMemo(() => {
-    const copy = [...delegations];
+    const copy = [...rows];
     const dir = sortDir === 'asc' ? 1 : -1;
     copy.sort((a, b) => {
       if (sortField === 'expiration') {
@@ -481,7 +507,7 @@ function ExpiringDelegationsTable({
       );
     });
     return copy;
-  }, [delegations, sortField, sortDir]);
+  }, [rows, sortField, sortDir]);
 
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
   const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -545,7 +571,7 @@ function ExpiringDelegationsTable({
                   onClick={() => copyToClipboard(item.expiration)}
                   title={item.expiration}
                 >
-                  {formatTimeAgo(item.expiration, locale)}
+                  {formatTimeUntil(item.expiration, locale)}
                 </TableCell>
                 <TableCell
                   className="cursor-pointer text-right"
@@ -556,7 +582,7 @@ function ExpiringDelegationsTable({
                         : item.vesting_shares
                     )
                   }
-                  title={formatVestsDisplay(item.vesting_shares)}
+                  title={formatSpDisplay(item.vesting_shares, globalProps)}
                 >
                   {globalPropsLoading ? (
                     <Skeleton className="ml-auto h-4 w-20" />
@@ -584,7 +610,7 @@ function ExpiringDelegationsTable({
               onClick={() => copyToClipboard(item.expiration)}
               title={item.expiration}
             >
-              {formatTimeAgo(item.expiration, locale)}
+              {formatTimeUntil(item.expiration, locale)}
             </div>
             <div className="text-right">
               <div
@@ -603,9 +629,6 @@ function ExpiringDelegationsTable({
                     ? `${formatSteemPowerFromVestsString(item.vesting_shares, globalProps)} SP`
                     : item.vesting_shares}
               </div>
-              <span className="text-xs text-muted-foreground">
-                {formatVestsDisplay(item.vesting_shares)}
-              </span>
             </div>
           </div>
         ))}

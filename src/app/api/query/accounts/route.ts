@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { hashedCacheKey, normalizeAccountForCache } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +25,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const usernames = namesParam.split(',').map((s) => s.trim()).filter(Boolean);
+    // Normalize every name (trim + strip '@' + lowercase): the same account
+    // list must map to one cache key and one upstream call whatever casing
+    // the client sent.
+    const usernames = namesParam.split(',').map((s) => normalizeAccountForCache(s)).filter(Boolean);
 
     if (usernames.length === 0) {
       return NextResponse.json(
@@ -40,7 +44,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const cacheKey = `cache:query:accounts:${namesParam.length > 200 ? namesParam.substring(0, 200) : namesParam}`;
+    // hashedCacheKey: the full normalized list is one SHA-256 component —
+    // same helper as every other query route (no truncated-digest or
+    // plaintext interpolation variants).
+    const cacheKey = hashedCacheKey('cache:query:accounts', usernames.join(','));
     const result = await withCache(cacheKey, 10, 300, () =>
       SteemService.getAccounts(usernames)
     );

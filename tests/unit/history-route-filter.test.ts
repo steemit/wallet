@@ -1,9 +1,11 @@
 /**
  * Server-side history filtering route tests.
  *
- * Verifies the batching algorithm in /api/query/history when an `ops` param is
- * provided: cursor advancement, MAX_BATCHES cap, exhaustion detection, cache key
- * isolation, and 400 validation for unknown op types.
+ * Verifies the single-batch filtered path in /api/query/history when an `ops`
+ * param is provided: `limit` capping with cursor preservation (truncated
+ * matches are resumed by the next page, never skipped), cursor advancement
+ * from the whole batch, exhaustion detection, and 400 validation for unknown
+ * op types.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
@@ -175,5 +177,109 @@ describe('GET /api/query/history — filtered path', () => {
     // Legacy path does not add nextFrom or exhausted to the response.
     expect(body.nextFrom).toBeUndefined();
     expect(body.exhausted).toBeUndefined();
+  });
+});
+
+describe('GET /api/query/history — filtered path honors `limit`', () => {
+  beforeEach(() => {
+    mockGetAccountHistory.mockReset();
+  });
+
+  /** Transfers at indices [high..low], newest first (real API order). */
+  function makeDescendingTransfers(high: number, count: number) {
+    return Array.from({ length: count }, (_, i) => [
+      high - i,
+      {
+        op: ['transfer', {}] as [string, unknown],
+        timestamp: '2026-05-01T10:00:00',
+        block: 1000000,
+        trx_id: `trx-${high - i}`,
+      },
+    ]);
+  }
+
+  it('caps matching items at limit and resumes below the oldest RETURNED match', async () => {
+    // 30 matching transfers (indices 99..70), limit=10 → return the newest 10
+    // (99..90); nextFrom must be 89 (below the oldest RETURNED match), not 69
+    // (below the whole batch) — otherwise the 20 truncated matches are lost.
+    mockGetAccountHistory.mockResolvedValueOnce(makeDescendingTransfers(99, 30));
+
+    const req = makeRequest({ username: 'alice', limit: '10', ops: 'transfer' });
+    const res = await GET(req);
+    const body = await res.json();
+
+    expect(body.success).toBe(true);
+    expect(body.history).toHaveLength(10);
+    // Newest first: the returned items are indices 99..90.
+    expect(body.history[0].index).toBe(99);
+    expect(body.history[9].index).toBe(90);
+    expect(body.nextFrom).toBe(89);
+    expect(body.exhausted).toBe(false);
+  });
+
+  it('the next page from the truncated cursor returns the dropped matches', async () => {
+    // Page 1: 30 transfers at 99..70 with limit 10 → nextFrom 89.
+    mockGetAccountHistory.mockResolvedValueOnce(makeDescendingTransfers(99, 30));
+    const page1 = await GET(makeRequest({ username: 'alice', limit: '10', ops: 'transfer' }));
+    const body1 = await page1.json();
+    expect(body1.nextFrom).toBe(89);
+
+    // Page 2 (from=89): the upstream returns the 20 remaining matches.
+    mockGetAccountHistory.mockResolvedValueOnce(makeDescendingTransfers(89, 20));
+    const page2 = await GET(
+      makeRequest({ username: 'alice', limit: '10', ops: 'transfer', from: '89' })
+    );
+    const body2 = await page2.json();
+
+    expect(body2.history).toHaveLength(10);
+    expect(body2.history[0].index).toBe(89);
+    expect(body2.history[9].index).toBe(80);
+    expect(body2.nextFrom).toBe(79);
+    // The cursor fetched exactly [from, ...] — no overlap with page 1.
+    const page2Call = mockGetAccountHistory.mock.calls[1] as [string, number, number];
+    expect(page2Call[2]).toBe(89);
+  });
+
+  it('a truncated batch at history start is NOT exhausted — the remainder is still pageble', async () => {
+    // Batch reaches index 0 but truncation dropped 20 matches; they must stay
+    // reachable via nextFrom even though the batch hit the start of history.
+    mockGetAccountHistory.mockResolvedValueOnce(makeDescendingTransfers(29, 30));
+
+    const req = makeRequest({ username: 'alice', limit: '10', ops: 'transfer' });
+    const res = await GET(req);
+    const body = await res.json();
+
+    expect(body.history).toHaveLength(10);
+    expect(body.exhausted).toBe(false);
+    expect(body.nextFrom).toBe(19);
+
+    // Final page from 19 returns the last 20 matches down to index 0.
+    mockGetAccountHistory.mockResolvedValueOnce(makeDescendingTransfers(19, 20));
+    const res2 = await GET(
+      makeRequest({ username: 'alice', limit: '10', ops: 'transfer', from: '19' })
+    );
+    const body2 = await res2.json();
+    expect(body2.history).toHaveLength(10);
+    expect(body2.history[0].index).toBe(19);
+    expect(body2.nextFrom).toBe(9);
+    expect(body2.exhausted).toBe(false);
+  });
+
+  it('a batch fully returned within limit keeps the whole-batch cursor (no truncation)', async () => {
+    // 5 matches < limit → no truncation; cursor uses the oldest index of the
+    // WHOLE batch (including non-matching ops near the bottom).
+    const batch = [
+      ...makeTuples(2, 3, 'vote'),
+      ...makeTuples(5, 5, 'transfer'),
+    ];
+    mockGetAccountHistory.mockResolvedValue(batch);
+
+    const req = makeRequest({ username: 'alice', limit: '10', ops: 'transfer' });
+    const res = await GET(req);
+    const body = await res.json();
+
+    expect(body.history).toHaveLength(5);
+    expect(body.nextFrom).toBe(1); // oldest in whole batch = 2 → nextFrom = 1
+    expect(body.exhausted).toBe(false);
   });
 });

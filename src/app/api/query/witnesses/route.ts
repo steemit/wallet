@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { hashedCacheKey } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,41 +19,38 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit');
     const limit = limitParam ? parseInt(limitParam, 10) : 100;
 
-    if (limit < 1 || limit > 500) {
+    if (!Number.isFinite(limit) || limit < 1 || limit > 500) {
       return NextResponse.json(
         { error: 'Limit must be between 1 and 500' },
         { status: 400 }
       );
     }
 
-    try {
-      const result = await withCache(
-        `cache:query:witnesses:${limit}`,
-        600,
-        1800,
-        () => SteemService.getWitnessesByVote(limit)
-      );
+    // hashedCacheKey: the limit is a full SHA-256 component like every other
+    // query route — one key-construction style, no plaintext interpolation
+    // (even for trusted integers).
+    const result = await withCache(
+      hashedCacheKey('cache:query:witnesses', limit),
+      600,
+      1800,
+      () => SteemService.getWitnessesByVote(limit)
+    );
 
-      const response = NextResponse.json({
-        success: true,
-        witnesses: result.data,
-        ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
-      });
-      response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1800');
-      if (result.degraded) response.headers.set('X-Degraded', 'true');
-      return response;
-    } catch (error) {
-      console.error('Error fetching witnesses:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch witnesses', degraded: true },
-        { status: 503 }
-      );
-    }
+    const response = NextResponse.json({
+      success: true,
+      witnesses: result.data,
+      ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
+    });
+    response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1800');
+    if (result.degraded) response.headers.set('X-Degraded', 'true');
+    return response;
   } catch (error) {
+    // Unified upstream-failure protocol (§3.6): 503 + degraded body. A single
+    // catch — no inner catch whose 503 could be shadowed by an outer 500.
     console.error('Error fetching witnesses:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch witnesses', details: (error as Error).message },
-      { status: 500 }
+      { error: 'Failed to fetch witnesses', degraded: true },
+      { status: 503 }
     );
   }
 }

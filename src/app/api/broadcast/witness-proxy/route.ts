@@ -5,6 +5,7 @@ import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,24 +25,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing signed transaction or username' }, { status: 400 });
     }
 
-    const isValid = await SteemService.verifySignature(signedTx);
-    if (!isValid) {
+    // Pure relay: no content verification — the chain validates signatures/authorities.
+    // Shape check only rejects obvious garbage before spending an upstream RPC call.
+    if (!SteemService.validateTransactionShape(signedTx)) {
       return NextResponse.json({ error: 'Invalid transaction format' }, { status: 400 });
     }
 
+
     const result = await SteemService.broadcastTransaction(signedTx);
 
-    await cacheDeleteByPrefix('cache:query:accounts');
-    await cacheDeleteByPrefix(`cache:query:wallet-estimate-extras:${username}`);
-    await cacheDeleteByPrefix(`cache:query:withdraw-routes:${username}`);
+    logBroadcastSuccess('witness-proxy', signedTx, username, result);
 
-    const response = NextResponse.json({ success: true, result });
-    response.headers.set('X-Cache-Invalidate', username);
-    return response;
+    // Proxy changes re-rank the witness list (600s TTL cache) and the
+    // account's witness voting state.
+    await cacheDeleteByPrefix('cache:query:accounts');
+    await cacheDeleteByPrefix('cache:query:witnesses');
+
+    return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast witness proxy error:', error);
+    logBroadcastFailure('witness-proxy', error);
     return NextResponse.json(
-      { error: 'Failed to broadcast transaction', details: (error as Error).message },
+      { error: 'Failed to broadcast transaction' },
       { status: 500 }
     );
   }

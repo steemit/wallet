@@ -3,13 +3,14 @@ import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
     const csrfError = await verifyCSRF(request);
     if (csrfError) return csrfError;
 
-    const rateLimitError = await rateLimit(request, 'broadcast', { maxRequests: 5, windowSeconds: 60 });
+    const rateLimitError = await rateLimit(request, 'broadcast', { maxRequests: 10, windowSeconds: 60 });
     if (rateLimitError) return rateLimitError;
 
     const body = await request.json();
@@ -19,20 +20,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing signed transaction or username' }, { status: 400 });
     }
 
-    const isValid = await SteemService.verifySignature(signedTx);
-    if (!isValid) {
+    // Pure relay: no content verification — the chain validates signatures/authorities.
+    // Shape check only rejects obvious garbage before spending an upstream RPC call.
+    if (!SteemService.validateTransactionShape(signedTx)) {
       return NextResponse.json({ error: 'Invalid transaction format' }, { status: 400 });
     }
 
+
     const result = await SteemService.broadcastTransaction(signedTx);
+
+    logBroadcastSuccess('proposal-create', signedTx, username, result);
 
     await cacheDeleteByPrefix('cache:query:proposals');
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast proposal create error:', error);
+    logBroadcastFailure('proposal-create', error);
     return NextResponse.json(
-      { error: 'Failed to broadcast transaction', details: (error as Error).message },
+      { error: 'Failed to broadcast transaction' },
       { status: 500 }
     );
   }

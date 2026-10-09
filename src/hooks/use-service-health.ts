@@ -1,29 +1,62 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { isDegraded, subscribeToDegradation } from '@/lib/cache/degradation-state';
 
 export type ServiceHealthStatus = 'healthy' | 'degraded' | 'outage' | 'unknown';
 
 const POLL_INTERVAL = 60_000;
 
+/**
+ * Consecutive failed polls required before declaring an outage. A single
+ * dropped request (client offline blip, ELB hiccup, laptop sleep) must not
+ * flash a full-outage banner at every user; two in a row (>= 60s apart at
+ * the default interval) is a real signal. Recovery stays immediate: any
+ * successful poll with a recognized status clears the counter and the
+ * outage in one step.
+ */
+const OUTAGE_FAILURE_THRESHOLD = 2;
+
 export function useServiceHealth() {
   const [status, setStatus] = useState<ServiceHealthStatus>('unknown');
+  // Per-response signal: cachedFetch writes the X-Degraded header of every
+  // network response into degradation-state. Subscribing here lets the
+  // banner react to a degraded query response within its normal render
+  // cycle instead of waiting up to POLL_INTERVAL for the next poll.
+  const [responseDegraded, setResponseDegraded] = useState(() => isDegraded());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const consecutiveFailuresRef = useRef(0);
 
   const check = useCallback(async () => {
     try {
       const res = await fetch('/api/health');
       const data = (await res.json()) as { status?: string };
       if (data.status === 'healthy') {
+        consecutiveFailuresRef.current = 0;
         setStatus('healthy');
       } else if (data.status === 'degraded') {
+        consecutiveFailuresRef.current = 0;
         setStatus('degraded');
       } else {
-        setStatus('outage');
+        // Unrecognized body (proxy error page etc.) — treat like a failure.
+        consecutiveFailuresRef.current += 1;
+        if (consecutiveFailuresRef.current >= OUTAGE_FAILURE_THRESHOLD) {
+          setStatus('outage');
+        }
+        // Below the threshold the last known status stays; a user who has
+        // never seen a successful poll stays on 'unknown' (no banner).
       }
     } catch {
-      setStatus('outage');
+      consecutiveFailuresRef.current += 1;
+      if (consecutiveFailuresRef.current >= OUTAGE_FAILURE_THRESHOLD) {
+        setStatus('outage');
+      }
     }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToDegradation(setResponseDegraded);
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -53,5 +86,15 @@ export function useServiceHealth() {
     };
   }, [check]);
 
+  // Merge the two signals with explicit precedence:
+  // - outage (poll could not reach /api/health at all) is the strongest signal;
+  // - otherwise ANY recently observed degraded response shows 'degraded', even
+  //   when the last poll said healthy — the poll is the 60s backstop for pages
+  //   with no queries, the per-response flag is the fast path;
+  // - recovery requires BOTH signals healthy: cachedFetch resets the flag on
+  //   the next non-degraded response, and the poll must say healthy too.
+  if (responseDegraded) {
+    return status === 'outage' ? 'outage' : 'degraded';
+  }
   return status;
 }

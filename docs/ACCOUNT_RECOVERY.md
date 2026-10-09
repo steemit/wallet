@@ -1,0 +1,310 @@
+# Account Recovery
+
+Complete account recovery flow for steemitwallet.com, spanning three services:
+**wallet** (Next.js), **turtle** (Go admin backend), and **kingdom** (on-chain operation service via jussi).
+
+---
+
+## Overview
+
+Account recovery allows a user whose owner key was compromised to regain control
+of their account. It is a two-step process defined by the Steem blockchain:
+
+1. **`request_account_recovery`** — Broadcast by the recovery account (e.g. @steem),
+   sets a new owner authority on-chain.
+2. **`recover_account`** — Broadcast by the user, signed with their old owner key,
+   proves they owned the previous authority.
+
+Between these two on-chain ops, the user must demonstrate ownership of the old key
+and choose a new password. The entire flow ensures **private keys never leave the
+user's browser**.
+
+---
+
+## Architecture
+
+```
+User Browser          Wallet (Next.js)         turtle            kingdom
+    │                      │                     │                  │
+    │  Step 1: Submit      │                     │                  │
+    │  recovery request    │                     │                  │
+    │─────────────────────>│                     │                  │
+    │                      │  Insert arecs       │                  │
+    │                      │  (status=open)      │                  │
+    │                      │                     │                  │
+    │                      │  turtle admin       │                  │
+    │                      │  reviews &          │                  │
+    │                      │  approves:          │                  │
+    │                      │  status=confirmed,  │                  │
+    │                      │  validation_code    │                  │
+    │                      │  set, email sent    │                  │
+    │                      │                     │                  │
+    │  Step 2: Click       │                     │                  │
+    │  email link          │                     │                  │
+    │─────────────────────>│                     │                  │
+    │                      │                     │                  │
+    │  Verify code         │                     │                  │
+    │─────────────────────>│                     │                  │
+    │<─account_name────────│                     │                  │
+    │                      │                     │                  │
+    │  Submit old+new pwd  │                     │                  │
+    │  (CSRF protected)    │                     │                  │
+    │─────────────────────>│                     │                  │
+    │                      │                     │                  │
+    │                      │  kingdom.recovery_  │                  │
+    │                      │  account (via jussi)│                  │
+    │                      │─────────────────────────────────────────>│
+    │                      │                     │   request_account │
+    │                      │                     │   _recovery on-chain
+    │                      │<─────────────────────────────────────────│
+    │                      │                     │                  │
+    │                      │  Update arecs       │                  │
+    │                      │  status=closed      │                  │
+    │                      │                     │                  │
+    │<─────ok──────────────│                     │                  │
+    │                      │                     │                  │
+    │  Sign recover_account│                     │                  │
+    │  locally (old key)   │                     │                  │
+    │                      │                     │                  │
+    │  Broadcast signed tx │                     │                  │
+    │─────────────────────>│                     │                  │
+    │                      │  Relay to           │                  │
+    │                      │  steemd via         │                  │
+    │                      │  condenser_api      │                  │
+    │                      │  .broadcast_        │                  │
+    │                      │  transaction        │                  │
+    │                      │  Update arecs       │                  │
+    │                      │  status=consumed    │                  │
+    │<─────success─────────│                     │                  │
+```
+
+---
+
+## Step 1: User submits recovery request
+
+**Frontend:** `src/components/wallet/recover-account-step-1-page.tsx`
+**API:** `POST /api/recovery/request`
+
+1. User enters account name, recent owner password/key, and email.
+2. Frontend derives the owner public key from the password **locally** and checks
+   it against the on-chain owner history (`apiClient.getOwnerHistory`).
+3. If the key matches a recent owner authority, the frontend submits the request
+   to `POST /api/recovery/request` with CSRF protection.
+4. Server inserts an `arecs` row with `status='open'`.
+
+At this point the request waits for a turtle admin to approve it (set `status='confirmed'`
+and generate a `validation_code`). The admin also sends a recovery email containing
+a link like `https://steemitwallet.com/account_recovery_confirmation/{code}`.
+
+---
+
+## Step 2: User confirms recovery
+
+**Frontend:** `src/components/wallet/recover-account-confirmation-page.tsx`
+**Page route:** `/[locale]/account_recovery_confirmation/[code]`
+
+### 2a. Verify code
+
+**API:** `GET /api/recovery/verify/[code]`
+
+- Looks up `arecs` by `validation_code`.
+- Response is state-accurate: the `record_status` field carries the arecs row
+  state so the frontend can render the right mode/copy without parsing prose.
+- `status: 'confirmed'` → 200 `{ status: 'ok', account_name, record_status: 'confirmed' }`
+  (admin approved; render the full step-2 form).
+- `status: 'closed'` → 200 `{ status: 'ok', account_name, record_status: 'closed' }`
+  (confirm already succeeded on-chain; only the final `recover_account`
+  broadcast may still be pending — the page enters **retry-broadcast mode**,
+  see 2c).
+- Every other state → 400 `{ status: 'error', error, record_status }` with
+  state-accurate copy: `open` → "has not been approved yet",
+  `processing` → "currently being processed, try again in a few minutes",
+  `expired` → "link has expired", `consumed` → "already used to complete the
+  account recovery".
+- **Lazy lifecycle enforcement** (both idempotent, rate-limit-bounded):
+  a `confirmed`/`processing` record whose last state change
+  (`updated_at`) is older than the **24h code TTL** is reported as
+  `record_status: 'expired'` and CAS-transitioned to the terminal `expired`
+  status; a `processing` record older than the **10-minute stuck threshold**
+  is a crashed confirm claim and is CAS-reclaimed back to `confirmed`, so a
+  dead request cannot permanently block the recovery (see
+  `src/lib/recovery/lifecycle.ts` for the rationale behind both values).
+  The confirm route enforces the same TTL/stuck rules (its claim CAS is
+  TTL-bounded; a missed claim is diagnosed with the same helpers) and
+  returns machine-readable `record_status` values for `expired`/`processing`
+  errors so the frontend renders localized copy.
+
+### 2b. Submit recovery
+
+**API:** `POST /api/recovery/confirm` (CSRF protected)
+
+1. Frontend validates the old password against on-chain owner history **locally**
+   (key never leaves the browser) — matching the **full key set** of every
+   previous owner authority (multi-key owner accounts are not wrongly
+   rejected), mirroring the server-side check. The new password must be at
+   least **32 characters** (wallet-legacy `PasswordInput` rule) — weak
+   passwords are rejected before any key derivation.
+2. Frontend sends `code`, `account_name`, `old_owner_key` (pub), `new_owner_key` (pub),
+   and `new_owner_authority` to the server.
+3. Server CAS-claims the record (`confirmed → processing`, conditional UPDATE
+   counting affected rows via the drizzle mysql2 tuple shape
+   `result[0].affectedRows`), cross-checks `old_owner_key` against the record,
+   then calls `SteemService.requestAccountRecovery()` which invokes
+   `kingdom.recovery_account` via `steem.api.signedCallAsync`. This uses
+   `CONVEYOR_USERNAME` / `CONVEYOR_POSTING_WIF` credentials to sign the JSON-RPC
+   request. Kingdom then broadcasts `request_account_recovery` on-chain.
+   Failure paths roll the claim back to `confirmed` so the user can retry.
+4. Server updates `arecs` → `status='closed'`, records `old_owner_key`, `new_owner_key`,
+   `request_submitted_at`.
+
+### 2c. Broadcast recover_account (client-side signing)
+
+**API:** `POST /api/broadcast/recover-account`
+
+1. Frontend calls `SteemSigner.signRecoverAccount(account, oldPassword, newPassword)`
+   **locally**. This derives the old and new owner private keys from the passwords,
+   constructs a `recover_account` operation, and signs it with the old owner key.
+2. The signed transaction is sent to the server relay endpoint.
+3. Server validates the transaction format (op must be `recover_account`), proves
+   the signature against the real on-chain owner-key history, cross-checks the
+   `new_owner_key` against the closed arecs record, then broadcasts via
+   `condenser_api.broadcast_transaction`.
+4. On broadcast success the server consumes the row (`status='consumed'`).
+   Consume is best-effort: a DB error after a successful relay still returns
+   200, because the on-chain `recover_account` already took effect.
+
+**Broadcast failure is a visible, retryable state.** If step 2c fails (relay
+error or a thrown signing/broadcast error), the confirmation page shows an
+explicit error panel — it never pretends the recovery succeeded. The user can:
+
+- click **Retry final step** on the same page (re-signs and re-broadcasts; the
+  confirm step is NOT re-run), or
+- reopen the recovery link later: `verify/[code]` reports `record_status:
+  'closed'` and the page enters **retry-broadcast mode**, asking for the same
+  old/new passwords and going straight to the broadcast (confirm is skipped —
+  its CAS only accepts `status='confirmed'` and would reject the closed
+  record). Server-side integrity is unchanged: the broadcast route still
+  requires the owner-history signature proof, the closed-record lookup, and
+  the `new_owner_key` binding, so a retry can never change the recovery
+  outcome — only complete or fail the already-approved one.
+
+The `recovery_account` overseer analytics event distinguishes outcomes: the
+default (success) payload keeps the legacy shape `{ username }`; a failed
+final broadcast is reported with `status: 'broadcast_failed'`.
+
+### After recovery
+
+The success panel links to `/login?account=<account>&msg=accountrecovered`;
+the login form shows an "account recovered" notice for that `msg` value
+(same pattern as `msg=passwordupdated` after a password change).
+
+---
+
+## Database: `arecs` table
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INT AUTO_INCREMENT PK | Row ID |
+| `user_id` | INT NULL | Legacy user FK |
+| `uid` | VARCHAR(64) NULL | Session UID |
+| `contact_email` | VARCHAR(256) | User's email (length enforced ≤256 by the request route) |
+| `account_name` | VARCHAR(255) | Steem account name |
+| `owner_key` | VARCHAR(255) | Current owner public key (submitted at step 1) |
+| `old_owner_key` | TEXT NULL | Old owner public key (filled at step 2) |
+| `new_owner_key` | TEXT NULL | New owner public key (filled at step 2) |
+| `provider` | VARCHAR(32) | Auth provider (e.g. `email`) |
+| `remote_ip` | VARCHAR(64) | Client IP |
+| `status` | varchar(32): open, confirmed, processing, expired, closed, consumed | Request lifecycle |
+| `email_confirmation_code` | VARCHAR(255) NULL | Email verification code |
+| `validation_code` | VARCHAR(255) NULL | 20-hex-char code in the recovery email link |
+| `request_submitted_at` | DATETIME NULL | When step 2 was completed |
+| `created_at` | DATETIME NOT NULL | Row creation time (set explicitly on INSERT; a DB-level default exists only on drizzle-built tables — the legacy production table has none, see `docs/DATABASE.md`) |
+| `updated_at` | DATETIME NOT NULL | Last update time (bumped on every drizzle UPDATE via `$onUpdate`; `ON UPDATE CURRENT_TIMESTAMP` exists only on drizzle-built tables) |
+
+### Status lifecycle
+
+```
+open → confirmed → processing → closed → consumed
+              ↘ expired
+```
+
+- `open`: User submitted step 1, awaiting admin review.
+- `confirmed`: Admin approved, `validation_code` generated, email sent.
+- `processing`: Confirm CAS claim. On kingdom/RPC failure the record is rolled
+  back to `confirmed` so the user can retry. A claim stuck in `processing`
+  for more than **10 minutes** (longer than any live confirm — one conveyor
+  call) is treated as a crashed claim: verify/confirm CAS-reclaim it back to
+  `confirmed` (bounded self-heal; a live claim is never reclaimed).
+- `expired`: Code expired — enforced with a **24h TTL** measured from the
+  record's last state change (`updated_at`): verify/confirm lazily
+  transition stale `confirmed`/`processing` records to this terminal status
+  and reject them, and the confirm claim CAS is TTL-bounded so stale codes
+  cannot be claimed. wallet-legacy had no expiry at all; 24h was chosen
+  because the code is emailed and the approve→confirm flow is a same-day
+  action.
+- `closed`: Confirm succeeded (`request_account_recovery` is on-chain). The
+  `validation_code` is now single-use. This row authorizes one
+  `recover_account` broadcast via `/api/broadcast/recover-account`. While it
+  remains `closed` (broadcast failed or not yet retried), the step-2 page
+  re-enters retry-broadcast mode via `verify/[code]`.
+- `consumed`: `recover_account` broadcast succeeded. The row can no longer
+  authorize another relay. Terminal state.
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | MySQL connection URI for Drizzle ORM |
+| `CONVEYOR_USERNAME` | Yes (prod) | Account name used to sign `kingdom.recovery_account` JSON-RPC call |
+| `CONVEYOR_POSTING_WIF` | Yes (prod) | Posting WIF of the conveyor account |
+| `STEEM_RPC_URL` | Yes | Steem RPC endpoint (jussi), routes `kingdom.*` namespace to kingdom service |
+
+---
+
+## API Endpoints
+
+| Method | Path | Purpose | Auth |
+|--------|------|---------|------|
+| POST | `/api/recovery/request` | Submit step 1 recovery request | CSRF |
+| GET | `/api/recovery/verify/[code]` | Validate code, return account name | None |
+| POST | `/api/recovery/confirm` | Step 2: call kingdom + close arecs | CSRF |
+| POST | `/api/broadcast/recover-account` | Relay signed `recover_account` tx | CSRF |
+
+---
+
+## Key Files
+
+| File | Description |
+|------|-------------|
+| `src/app/api/recovery/request/route.ts` | Step 1 API |
+| `src/app/api/recovery/verify/[code]/route.ts` | Code verification API |
+| `src/app/api/recovery/confirm/route.ts` | Step 2 API (kingdom + DB update) |
+| `src/app/api/broadcast/recover-account/route.ts` | Transaction relay |
+| `src/components/wallet/recover-account-step-1-page.tsx` | Step 1 frontend |
+| `src/components/wallet/recover-account-confirmation-page.tsx` | Step 2 frontend |
+| `src/app/[locale]/account_recovery_confirmation/[code]/page.tsx` | Step 2 page route |
+| `src/lib/steem/server.ts` | `SteemService.requestAccountRecovery()` |
+| `src/lib/steem/client.ts` | `SteemSigner.signRecoverAccount()`, `apiClient.*` |
+| `src/lib/db/schema/index.ts` | Drizzle schema for `arecs` |
+| `drizzle/0000_polite_warhawk.sql` | Migration SQL |
+| `tests/unit/recovery-request-route.test.ts` | Step 1 tests |
+| `tests/unit/recovery-verify-route.test.ts` | Verify route tests |
+| `tests/unit/recovery-confirm-route.test.ts` | Confirm route tests |
+
+---
+
+## Security Considerations
+
+1. **Private keys never leave the browser.** All key derivation (`steem.auth.toWif`)
+   and transaction signing (`SteemSigner.signTransaction`) happen client-side.
+2. **CSRF protection** on all POST endpoints (`verifyCSRF` middleware).
+3. **Rate limiting** on all recovery endpoints to prevent abuse.
+4. **Code validation** — 20-hex-char format enforced server-side.
+5. **Owner key format validation** — strict base58 regex `^STM[1-9A-HJ-NP-Za-km-z]{50}$` (excludes 0/O/I/l).
+6. **Single-use codes** — `status` changes to `closed` after successful confirm
+   (step 2b), then to `consumed` after a successful `recover_account` broadcast
+   (step 2c), preventing replay.
+7. **Account name verification** — Server checks that the account name from the
+   arecs record matches the submitted one.

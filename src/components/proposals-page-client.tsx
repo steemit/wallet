@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { apiClient, SteemSigner } from '@/lib/steem/client';
 import type { Proposal, ProposalOrderBy, ProposalStatus } from '@/lib/steem/types';
 import { parseSteemAsset } from '@/lib/steem/parse-asset';
+import { sameSteemAccount } from '@/lib/steem/username';
 import {
   abbreviateNumber,
   filterProposalsBySearch,
@@ -122,7 +123,7 @@ function ProposalRow({
 
   const approveNext = !proposal.upVoted;
   const voteLabel = proposal.upVoted ? t('unvote') : t('vote');
-  const isCreator = currentUsername === proposal.creator;
+  const isCreator = sameSteemAccount(currentUsername, proposal.creator);
 
   const lifecycleLabel =
     lifecycle === 'finished'
@@ -264,6 +265,7 @@ export function ProposalsPageClient() {
     setDirection,
     loadMore,
     refresh,
+    setProposalVotedLocally,
     limit,
   } = useProposals(username);
 
@@ -282,6 +284,12 @@ export function ProposalsPageClient() {
     }
 
     setVotingId(proposalId);
+    // Optimistic flip (K-3): the proposals route serves username'd responses
+    // with `private, max-age=15`, so even the post-vote refresh could echo
+    // the pre-vote upVoted for up to 15s — the local flip is what the user
+    // sees immediately; roll back on any failure below.
+    setProposalVotedLocally(proposalId, approve);
+    const rollback = () => setProposalVotedLocally(proposalId, !approve);
     try {
       const signedTx = await SteemSigner.signUpdateProposalVotes(
         username,
@@ -291,12 +299,16 @@ export function ProposalsPageClient() {
       );
       const res = await apiClient.broadcastProposalVote(signedTx, username);
       if (!res.success) {
-        toast.error(res.error ?? res.details ?? t('voteFailed'));
+        rollback();
+        toast.error(res.error ?? t('voteFailed'));
         return;
       }
       toast.success(approve ? t('voteSuccess') : t('unvoteSuccess'));
-      await Promise.all([refresh(), refreshMeta()]);
+      // noStore: skip the 15s HTTP cache so the refresh confirms the vote
+      // instead of re-serving the pre-vote flag.
+      await Promise.all([refresh({ noStore: true }), refreshMeta()]);
     } catch (err) {
+      rollback();
       toast.error(err instanceof Error ? err.message : t('voteFailed'));
     } finally {
       setVotingId(null);
@@ -443,7 +455,7 @@ export function ProposalsPageClient() {
       </div>
 
       <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{tAuth('login')}</DialogTitle>
             <DialogDescription className="sr-only">{tAuth('login')}</DialogDescription>

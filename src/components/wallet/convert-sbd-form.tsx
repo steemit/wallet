@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { sameSteemAccount } from '@/lib/steem/username';
 
 export type ConvertSbdFormVariant = 'dialog' | 'page';
 
@@ -105,7 +106,7 @@ export function ConvertSbdForm({
   const canSubmit =
     isMyAccount &&
     !!loggedIn &&
-    loggedIn === accountUsername &&
+    sameSteemAccount(loggedIn, accountUsername) &&
     !!signingKey &&
     amountNum > 0 &&
     amountNum <= sbdMax + 1e-9 &&
@@ -115,7 +116,7 @@ export function ConvertSbdForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!signingKey || !loggedIn || loggedIn !== accountUsername) {
+    if (!signingKey || !loggedIn || !sameSteemAccount(loggedIn, accountUsername)) {
       setError(t('mustBeAccountOwner'));
       return;
     }

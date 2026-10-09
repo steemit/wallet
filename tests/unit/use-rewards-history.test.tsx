@@ -7,7 +7,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useRewardsHistory } from '@/lib/wallet/use-rewards-history';
+import { useRewardsHistory } from '@/hooks/use-rewards-history';
+import { clientCache } from '@/lib/cache/client-cache';
 import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
 
 vi.mock('@/lib/steem/client', () => ({
@@ -43,6 +44,9 @@ function serverPage(
 describe('useRewardsHistory', () => {
   beforeEach(() => {
     mockGetHistory.mockReset();
+    // Unmount persistence (G-5 fix) now actually writes the L1 cache, so
+    // entries must not leak from one test's unmounted hook into the next.
+    clientCache.clear();
   });
 
   it('does not fetch until enabled', async () => {
@@ -179,5 +183,34 @@ describe('useRewardsHistory', () => {
     expect(lastCall[3]).toEqual(['curation_reward']);
     expect(result.current.history).toHaveLength(5);
     expect(result.current.exhausted).toBe(false);
+  });
+
+  it('loadMore resolves true only when a batch was applied (pager contract)', async () => {
+    mockGetHistory.mockResolvedValueOnce(
+      serverPage(makeItems(10, 'curation_reward', 990), 989, false)
+    );
+    const { result } = renderHook(() => useRewardsHistory('alice', 'curation_reward'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // Failure: resolves false, sets error, data unchanged.
+    mockGetHistory.mockResolvedValueOnce({ history: [], error: 'gateway 504' });
+    let applied: boolean | undefined;
+    await act(async () => {
+      applied = await result.current.loadMore();
+    });
+    expect(applied).toBe(false);
+    expect(result.current.error).toBe('gateway 504');
+    expect(result.current.history).toHaveLength(10);
+
+    // Retry succeeds: resolves true.
+    mockGetHistory.mockResolvedValueOnce(
+      serverPage(makeItems(5, 'curation_reward', 900), 899, false)
+    );
+    await act(async () => {
+      applied = await result.current.loadMore();
+    });
+    expect(applied).toBe(true);
+    expect(result.current.error).toBeNull();
+    expect(result.current.history).toHaveLength(15);
   });
 });

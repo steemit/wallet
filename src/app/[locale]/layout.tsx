@@ -1,11 +1,16 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import { Providers } from '../providers';
 import { AppLayout } from '@/components/layout/app-layout';
+import { GoogleAnalytics } from '@/components/analytics/google-analytics';
+import { GoogleAnalyticsPageviews } from '@/components/analytics/google-analytics-pageviews';
+import { getGaMeasurementId } from '@/lib/analytics/ga-id';
+import { THEME_INIT_SCRIPT } from '@/lib/theme-init';
 import '../globals.css';
 
 const geistSans = Geist({
@@ -18,9 +23,17 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+// All routes render per-request (condenser #4012 parity): runtime env like
+// GOOGLE_ANALYTICS_ID must never be baked into prerendered HTML. Pages are
+// already dynamic because of the CSP-nonce headers() call below; this export
+// makes the invariant explicit and independent of that mechanism. No
+// generateStaticParams here on purpose — with force-dynamic it would be a
+// no-op (it is only meaningful for statically prerendered routes).
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
-  title: 'Steem Wallet',
-  description: 'Modern Steem blockchain wallet',
+  title: 'Steemit Wallet',
+  description: 'Steemit Wallet is an online wallet for managing Steem accounts.',
   icons: {
     icon: [
       { url: '/favicon.ico' },
@@ -34,9 +47,17 @@ export const metadata: Metadata = {
   },
 };
 
-export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale }));
-}
+// Mobile soft keyboards must shrink the layout viewport, not merely overlay it.
+// All wallet forms (transfer / power up / power down / delegate / convert …)
+// are viewport-centered Radix dialogs (`fixed top-1/2 -translate-y-1/2`); with
+// the default `resizes-visual` behavior the keyboard overlays the viewport
+// while `top-1/2` still resolves against the full 100vh, so everything below
+// the dialog's vertical midpoint (amount input, action buttons) sat under the
+// keyboard with no way to scroll to it. `resizes-content` makes 100vh track
+// the visible viewport, so the dialogs re-center into the visible area.
+export const viewport: Viewport = {
+  interactiveWidget: 'resizes-content',
+};
 
 export default async function LocaleLayout({
   children,
@@ -55,12 +76,33 @@ export default async function LocaleLayout({
   // Providing all messages to the client
   // side is the easiest way to get started
   const messages = await getMessages();
+  const gaId = getGaMeasurementId();
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
     <html lang={locale}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* Theme applied during HTML parsing, before the first paint —
+            dark-theme users would otherwise get a white flash on every full
+            page load (lib/theme.ts only touches the DOM after hydration).
+            Classic blocking inline script as the first child of <body>; runs
+            before any body content is painted. It carries the CSP nonce
+            (proxy.ts mints one per request) — without it 'strict-dynamic'
+            would block the script and the FOUC would return. Like the GA
+            scripts below it must stay in its own fragment with no 'use
+            client' siblings so React emits it in the SSR HTML. */}
+        <script
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+          {...(nonce ? { nonce } : {})}
+        />
+        {/* GA scripts must stay in a fragment free of 'use client' elements —
+            a client sibling inside the SAME fragment makes React defer the
+            scripts to hydration instead of emitting them in the SSR HTML.
+            Hence two separate conditionals, not one shared fragment. */}
+        {gaId ? <GoogleAnalytics measurementId={gaId} {...(nonce ? { nonce } : {})} /> : null}
+        {gaId ? <GoogleAnalyticsPageviews measurementId={gaId} /> : null}
         <Providers>
           <NextIntlClientProvider messages={messages}>
             <AppLayout>{children}</AppLayout>

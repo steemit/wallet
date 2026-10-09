@@ -7,8 +7,8 @@ import { usePathname, useRouter } from '@/i18n/routing';
 import { useAuth, useActiveSigningKey } from '@/hooks/use-auth';
 import {
   canManageBalanceForPageUrl,
-  normalizeSteemUsername,
 } from '@/lib/auth/browser-storage';
+import { normalizeSteemUsername, sameSteemAccount } from '@/lib/steem/username';
 import { LoginForm } from '@/components/auth/login-form';
 import {
   WALLET_ACTION_QUERY,
@@ -28,6 +28,8 @@ import {
 } from '@/components/ui/dialog';
 import { TransferForm } from '@/components/wallet/transfer-form';
 import { PowerDownForm } from '@/components/wallet/power-down-form';
+import { CancelPowerDownHandler } from '@/components/wallet/cancel-power-down-handler';
+import { PowerUpForm } from '@/components/wallet/power-up-form';
 import { DelegateForm } from '@/components/wallet/delegate-form';
 import { WithdrawRoutesForm } from '@/components/wallet/withdraw-routes-form';
 import { ConvertSbdForm } from '@/components/wallet/convert-sbd-form';
@@ -46,8 +48,9 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
   const searchParams = useSearchParams();
 
   const rawUsername = params?.username as string | undefined;
-  const accountUsername = rawUsername ? decodeURIComponent(rawUsername).replace(/^@/, '') : '';
-  const isMyAccount = !!isAuthenticated && !!loggedInUser && loggedInUser === accountUsername;
+  // Normalize the URL account to the chain-canonical form (see @/lib/steem/username).
+  const accountUsername = rawUsername ? normalizeSteemUsername(decodeURIComponent(rawUsername)) : '';
+  const isMyAccount = !!isAuthenticated && sameSteemAccount(loggedInUser, accountUsername);
 
   const canManageBalance = canManageBalanceForPageUrl({
     urlUsername: accountUsername,
@@ -55,10 +58,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
     isAuthenticated,
   });
 
-  const sessionMatchesPage =
-    !isAuthenticated ||
-    (!!loggedInUser &&
-      normalizeSteemUsername(loggedInUser) === normalizeSteemUsername(accountUsername));
+  const sessionMatchesPage = !isAuthenticated || sameSteemAccount(loggedInUser, accountUsername);
 
   const walletAction = parseWalletModalAction(searchParams.get(WALLET_ACTION_QUERY));
   const asset = parseWalletAsset(searchParams.get(WALLET_ASSET_QUERY));
@@ -76,18 +76,21 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
     clearWalletQuery();
   }, [onWalletDataChanged, clearWalletQuery]);
 
-  const open = walletAction !== null;
+  const isPowerUpLegacyUrl =
+    walletAction === 'transfer' && transferType === 'power_up';
+  const showPowerUp = walletAction === 'powerUp' || isPowerUpLegacyUrl;
+  const open = walletAction !== null || isPowerUpLegacyUrl;
 
   const handleOpenChange = (next: boolean) => {
     if (!next) clearWalletQuery();
   };
 
   useEffect(() => {
-    if (walletAction === null || !accountUsername) return;
+    if ((walletAction === null && !isPowerUpLegacyUrl) || !accountUsername) return;
     if (!canManageBalance) {
       clearWalletQuery();
     }
-  }, [walletAction, accountUsername, canManageBalance, clearWalletQuery]);
+  }, [walletAction, isPowerUpLegacyUrl, accountUsername, canManageBalance, clearWalletQuery]);
 
   const needsWalletReauth =
     open &&
@@ -98,7 +101,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
+        className="max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg"
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
         {needsWalletReauth && (
@@ -113,10 +116,11 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
               onLoginSuccess={() => {
                 /* Redux updates; modal re-renders into the wallet form */
               }}
+              requiredAuthTypes={['active']}
             />
           </>
         )}
-        {!needsWalletReauth && walletAction === 'transfer' && (
+        {!needsWalletReauth && walletAction === 'transfer' && !isPowerUpLegacyUrl && (
           <>
             <DialogHeader className="sr-only">
               <DialogTitle>Transfer</DialogTitle>
@@ -132,6 +136,19 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
             />
           </>
         )}
+        {!needsWalletReauth && showPowerUp && (
+          <>
+            <DialogHeader className="sr-only">
+              <DialogTitle>Power up</DialogTitle>
+              <DialogDescription>{t('powerUp')}</DialogDescription>
+            </DialogHeader>
+            <PowerUpForm
+              variant="dialog"
+              onSuccess={handleSuccess}
+              onCancel={clearWalletQuery}
+            />
+          </>
+        )}
         {!needsWalletReauth && walletAction === 'powerDown' && (
           <>
             <DialogHeader className="sr-only">
@@ -139,6 +156,15 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
               <DialogDescription>{t('powerDown')}</DialogDescription>
             </DialogHeader>
             <PowerDownForm variant="dialog" onSuccess={handleSuccess} />
+          </>
+        )}
+        {!needsWalletReauth && walletAction === 'cancelPowerDown' && (
+          <>
+            <DialogHeader className="sr-only">
+              <DialogTitle>Cancel power down</DialogTitle>
+              <DialogDescription>{t('cancelPowerDown')}</DialogDescription>
+            </DialogHeader>
+            <CancelPowerDownHandler onSuccess={handleSuccess} onCancel={clearWalletQuery} />
           </>
         )}
         {!needsWalletReauth && walletAction === 'delegate' && (

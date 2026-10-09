@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { hashedCacheKey, normalizeAccountForCache } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,39 +13,36 @@ export async function GET(request: NextRequest) {
     });
     if (rateLimitError) return rateLimitError;
 
-    const username = request.nextUrl.searchParams.get('username')?.trim().replace(/^@/, '');
+    const rawUsername = request.nextUrl.searchParams.get('username');
+    const username = rawUsername ? normalizeAccountForCache(rawUsername) : undefined;
     if (!username) {
       return NextResponse.json({ error: 'Missing username' }, { status: 400 });
     }
 
-    try {
-      const result = await withCache(
-        `cache:query:withdraw-routes:${username}`,
-        60,
-        600,
-        () => SteemService.getWithdrawRoutesOutgoing(username)
-      );
+    const result = await withCache(
+      hashedCacheKey('cache:query:withdraw-routes', username),
+      60,
+      600,
+      () => SteemService.getWithdrawRoutesOutgoing(username)
+    );
 
-      const response = NextResponse.json({
-        success: true,
-        routes: result.data,
-        ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
-      });
-      response.headers.set('Cache-Control', 'public, s-maxage=60');
-      if (result.degraded) response.headers.set('X-Degraded', 'true');
-      return response;
-    } catch (error) {
-      console.error('withdraw-routes query error:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch withdraw routes', degraded: true },
-        { status: 503 }
-      );
-    }
+    const response = NextResponse.json({
+      success: true,
+      routes: result.data,
+      ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
+    });
+    // Per-user routing data — private caching prevents cross-user CDN
+    // poisoning.
+    response.headers.set('Cache-Control', 'private, max-age=60');
+    if (result.degraded) response.headers.set('X-Degraded', 'true');
+    return response;
   } catch (error) {
+    // Unified upstream-failure protocol (§3.6): 503 + degraded body. A single
+    // catch — no inner catch whose 503 could be shadowed by an outer 500.
     console.error('withdraw-routes query error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch withdraw routes', details: (error as Error).message },
-      { status: 500 }
+      { error: 'Failed to fetch withdraw routes', degraded: true },
+      { status: 503 }
     );
   }
 }

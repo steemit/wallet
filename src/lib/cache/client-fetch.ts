@@ -24,6 +24,11 @@ export interface CachedFetchResult<T> {
  * - Fresh cache → return immediately
  * - Stale cache → return immediately + background refresh
  * - No cache → fetch, cache, return
+ *
+ * Every network response's X-Degraded header is written into the shared
+ * degradation-state store (setDegraded). useServiceHealth subscribes to that
+ * store, so a degraded response shows the banner without waiting for the
+ * 60s /api/health poll; a later healthy response clears it again.
  */
 export async function cachedFetch<T>(
   url: string,
@@ -31,7 +36,10 @@ export async function cachedFetch<T>(
 ): Promise<CachedFetchResult<T>> {
   if (opts.noStore) {
     const res = await fetch(url, { cache: 'no-store' });
-    return { data: await res.json(), stale: false };
+    const data = (await res.json()) as T;
+    const isDegraded = res.headers.get('X-Degraded') === 'true';
+    setDegraded(isDegraded);
+    return { data, stale: false, degraded: isDegraded || undefined };
   }
 
   const cached = clientCache.get<T>(url);
@@ -49,9 +57,12 @@ export async function cachedFetch<T>(
   const res = await fetch(url);
   const data = (await res.json()) as T;
   const isDegraded = res.headers.get('X-Degraded') === 'true';
-  handleCacheInvalidation(res);
   setDegraded(isDegraded);
-  clientCache.set(url, data, opts.staleMs, opts.maxAgeMs);
+  // Only cache successful responses — never cache errors (4xx/5xx) or the user
+  // gets stuck on a stale error page even after the backend recovers.
+  if (res.ok) {
+    clientCache.set(url, data, opts.staleMs, opts.maxAgeMs);
+  }
   return { data, stale: false, degraded: isDegraded || undefined };
 }
 
@@ -60,14 +71,12 @@ function backgroundRefresh(url: string, opts: CachedFetchOptions): void {
     .then(async (res) => {
       const data = await res.json();
       const isDegraded = res.headers.get('X-Degraded') === 'true';
-      handleCacheInvalidation(res);
       setDegraded(isDegraded);
-      clientCache.set(url, data, opts.staleMs, opts.maxAgeMs);
+      // Only refresh-cache on success — a transient error must not replace
+      // good cached data with an error body.
+      if (res.ok) {
+        clientCache.set(url, data, opts.staleMs, opts.maxAgeMs);
+      }
     })
     .catch(() => {});
-}
-
-function handleCacheInvalidation(res: Response): void {
-  const prefix = res.headers.get('X-Cache-Invalidate');
-  if (prefix) clientCache.invalidate(prefix);
 }

@@ -2,7 +2,7 @@
  * Server-side Steem service unit tests.
  *
  * Three categories of behavior matter here:
- *   1. Pure helpers (generateChallenge, getKeyType, verifySignature shape check) —
+ *   1. Pure helpers (generateChallenge, getKeyType, shape check) —
  *      no I/O, easy boundary tests.
  *   2. Calculation-heavy methods (getWalletPrices, getWalletEstimateExtras) —
  *      assert the math on top of mocked node responses, since this is where
@@ -78,7 +78,7 @@ describe('SteemService.getKeyType', () => {
   });
 });
 
-describe('SteemService.verifySignature (shape check only)', () => {
+describe('SteemService.validateTransactionShape (shape check only)', () => {
   const validTx: SignedTransaction = {
     ref_block_num: 1,
     ref_block_prefix: 1,
@@ -89,7 +89,7 @@ describe('SteemService.verifySignature (shape check only)', () => {
   };
 
   it('accepts a tx with signatures + required fields + at least one op', async () => {
-    expect(await SteemService.verifySignature(validTx)).toBe(true);
+    expect(SteemService.validateTransactionShape(validTx)).toBe(true);
   });
 
   it('accepts ref_block_num === 0 and ref_block_prefix === 0 (valid on-chain refs)', async () => {
@@ -98,7 +98,7 @@ describe('SteemService.verifySignature (shape check only)', () => {
       ref_block_num: 0,
       ref_block_prefix: 0,
     };
-    expect(await SteemService.verifySignature(tx)).toBe(true);
+    expect(SteemService.validateTransactionShape(tx)).toBe(true);
   });
 
   it.each<{ label: string; tx: SignedTransaction }>([
@@ -108,7 +108,7 @@ describe('SteemService.verifySignature (shape check only)', () => {
     { label: 'ref_block_num NaN',  tx: { ...validTx, ref_block_num: NaN } },
     { label: 'missing ref prefix', tx: { ...validTx, ref_block_prefix: NaN } },
   ])('rejects: $label', async ({ tx }) => {
-    expect(await SteemService.verifySignature(tx)).toBe(false);
+    expect(SteemService.validateTransactionShape(tx)).toBe(false);
   });
 });
 
@@ -162,7 +162,7 @@ describe('SteemService.prepareTransactionHeader', () => {
 
 describe('SteemService.getAccounts', () => {
   it('configures the RPC URL and returns the node response', async () => {
-    api.getAccountsAsync.mockResolvedValueOnce([{ name: 'alice' }]);
+    api.getAccountsAsync.mockResolvedValueOnce([{ name: 'alice' }] as never);
     const result = await SteemService.getAccounts(['alice']);
     expect(result).toEqual([{ name: 'alice' }]);
     expect(api.setOptions).toHaveBeenCalledWith({ url: 'https://api.steemit.com' });
@@ -197,6 +197,88 @@ describe('SteemService.broadcastTransaction', () => {
     await expect(SteemService.broadcastTransaction(validTx)).rejects.toThrow(
       'Failed to broadcast: bad',
     );
+  });
+});
+
+describe('SteemService.collectOverseer', () => {
+  it('calls overseer.collect with the custom payload tuple', async () => {
+    api.callAsync.mockResolvedValueOnce(null);
+    await SteemService.collectOverseer({
+      measurement: 'route',
+      tags: { app: 'wallet', tag: 'market' },
+      fields: { trackingId: 'aa' },
+    });
+    expect(api.callAsync).toHaveBeenCalledWith('overseer.collect', [
+      'custom',
+      {
+        measurement: 'route',
+        tags: { app: 'wallet', tag: 'market' },
+        fields: { trackingId: 'aa' },
+      },
+    ]);
+  });
+
+  it('does not throw when the RPC rejects (analytics must never fail the caller)', async () => {
+    api.callAsync.mockRejectedValueOnce(new Error('unknown method'));
+    await expect(
+      SteemService.collectOverseer({
+        measurement: 'user_login',
+        tags: { entry: 'wallet' },
+        fields: { username: 'alice' },
+      })
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe('collectOverseer (no failover — analytics must not disturb chain traffic)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('makes exactly one attempt and never rotates to another URL on failure', async () => {
+    vi.resetModules();
+    vi.stubEnv('STEEM_RPC_URL', 'https://node-a,https://node-b');
+    const { SteemService: Service } = await import('@/lib/steem/server');
+    const { steem: mockedSteem } = await import('@steemit/steem-js');
+
+    vi.mocked(mockedSteem.api.callAsync).mockRejectedValue(new Error('overseer down'));
+
+    await Service.collectOverseer({
+      measurement: 'route',
+      tags: { app: 'wallet', tag: 'market' },
+      fields: { trackingId: 'aa' },
+    });
+
+    expect(mockedSteem.api.callAsync).toHaveBeenCalledTimes(1);
+    const urls = vi
+      .mocked(mockedSteem.api.setOptions)
+      .mock.calls.map((c) => (c[0] as { url: string }).url);
+    // Only the current RPC may be configured — a dead overseer namespace must
+    // not move the shared failover index (and with it, real chain traffic).
+    expect(urls).toEqual(['https://node-a']);
+  });
+
+  it('warns once per process, then stays silent for later failed events', async () => {
+    vi.resetModules();
+    vi.stubEnv('STEEM_RPC_URL', 'https://node-a');
+    const { SteemService: Service } = await import('@/lib/steem/server');
+    const { steem: mockedSteem } = await import('@steemit/steem-js');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    vi.mocked(mockedSteem.api.callAsync).mockRejectedValue(new Error('overseer down'));
+    const payload = {
+      measurement: 'route',
+      tags: { app: 'wallet', tag: 'index' },
+      fields: { trackingId: 'bb' },
+    };
+    await Service.collectOverseer(payload);
+    await Service.collectOverseer(payload);
+    await Service.collectOverseer(payload);
+
+    const overseerWarns = warn.mock.calls.filter((c) =>
+      String(c[0]).includes('overseer.collect failed')
+    );
+    expect(overseerWarns).toHaveLength(1);
   });
 });
 
@@ -402,7 +484,7 @@ describe('withFailover (multi-URL)', () => {
 
     vi.mocked(mockedSteem.api.getAccountsAsync)
       .mockRejectedValueOnce(new Error('A down'))
-      .mockResolvedValueOnce([{ name: 'alice' }]);
+      .mockResolvedValueOnce([{ name: 'alice' }] as never);
 
     const result = await Service.getAccounts(['alice']);
     expect(result).toEqual([{ name: 'alice' }]);
@@ -509,15 +591,27 @@ describe('SteemService.getVestingDelegations', () => {
 });
 
 describe('SteemService.getExpiringVestingDelegations', () => {
-  it('maps delegation fields from database_api response', async () => {
+  it('maps delegation fields and normalizes NAI assets from database_api response', async () => {
+    // database_api returns vesting_shares as an NAI asset object; the route
+    // contract (and condenser_api's string form) must be preserved.
     api.callAsync.mockResolvedValueOnce({
       delegations: [
-        { id: 1, delegator: 'alice', delegatee: 'bob', vesting_shares: '500.000000 VESTS', expiration: '2024-06-01T00:00:00' },
+        {
+          id: 17865423,
+          delegator: 'alice',
+          vesting_shares: { amount: '5971304284', nai: '@@000000037', precision: 6 },
+          expiration: '2026-10-13T04:16:12',
+        },
       ],
     });
     const result = await SteemService.getExpiringVestingDelegations('alice');
     expect(result).toEqual([
-      { id: 1, delegator: 'alice', delegatee: 'bob', vesting_shares: '500.000000 VESTS', expiration: '2024-06-01T00:00:00' },
+      {
+        id: 17865423,
+        delegator: 'alice',
+        vesting_shares: '5971.304284 VESTS',
+        expiration: '2026-10-13T04:16:12',
+      },
     ]);
     expect(api.callAsync).toHaveBeenCalledWith(
       'database_api.find_vesting_delegation_expirations',

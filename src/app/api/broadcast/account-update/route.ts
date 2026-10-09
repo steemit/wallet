@@ -7,6 +7,7 @@ import { validateAccountUpdateSignedTx } from '@/lib/steem/validate-account-upda
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { cacheDeleteByPrefix } from '@/lib/cache/redis';
 import type { SignedTransaction } from '@/lib/steem/types';
+import { logBroadcastFailure, logBroadcastSuccess } from '@/lib/steem/broadcast-audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     if (csrfError) return csrfError;
 
     const rateLimitError = await rateLimit(request, 'broadcast', {
-      maxRequests: 5,
+      maxRequests: 10,
       windowSeconds: 60,
     });
     if (rateLimitError) return rateLimitError;
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValid = await SteemService.verifySignature(signedTx);
+    const isValid = SteemService.validateTransactionShape(signedTx);
     if (!isValid) {
       return NextResponse.json({ error: 'Invalid transaction format' }, { status: 400 });
     }
@@ -50,20 +51,16 @@ export async function POST(request: NextRequest) {
 
     const result = await SteemService.broadcastTransaction(txForBroadcast);
 
-    await cacheDeleteByPrefix('cache:query:accounts');
-    await cacheDeleteByPrefix(`cache:query:wallet-estimate-extras:${username}`);
+    logBroadcastSuccess('account-update', txForBroadcast, username, result);
 
-    const response = NextResponse.json({ success: true, result });
-    response.headers.set('X-Cache-Invalidate', username);
-    return response;
+    // account_update only changes account data (keys/metadata), not wallet extras.
+    await cacheDeleteByPrefix('cache:query:accounts');
+
+    return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Broadcast account-update error:', error);
-    const message = error instanceof Error ? error.message : String(error);
+    logBroadcastFailure('account-update', error);
     return NextResponse.json(
-      {
-        error: 'Failed to broadcast transaction',
-        details: message,
-      },
+      { error: 'Failed to broadcast transaction' },
       { status: 500 }
     );
   }

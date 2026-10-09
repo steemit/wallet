@@ -16,4 +16,5 @@ export const SIDE_PANEL_INTERNAL = {
   about: '/about',
   privacy: '/privacy',
   terms: '/tos',
+  support: '/support',
 } as const;

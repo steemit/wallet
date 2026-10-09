@@ -10,7 +10,7 @@ const realSteemJsPath = path.resolve(
 const realSteemJs = await import(pathToFileURL(realSteemJsPath).href);
 const realAuth = realSteemJs.steem.auth;
 
-// Mock for @steemit/steem-js (1.0.x); client uses named import: import { steem } from '@steemit/steem-js'
+// Mock for @steemit/steem-js (^1.2.0); client uses named import: import { steem } from '@steemit/steem-js'
 const auth = {
   normalizeOperationForBroadcast: realAuth.normalizeOperationForBroadcast,
   normalizeTransactionForBroadcast: realAuth.normalizeTransactionForBroadcast,
@@ -18,6 +18,10 @@ const auth = {
   sanitizeAccountUpdatePayload: realAuth.sanitizeAccountUpdatePayload,
   resolveAuthorityForSerialize: realAuth.resolveAuthorityForSerialize,
   normalizeAuthoritySource: realAuth.normalizeAuthoritySource,
+  // Real crypto classes: transfer-validation derives the memo public key from
+  // the master-password seed (legacy PrivateKey.fromSeed path).
+  PrivateKey: realAuth.PrivateKey,
+  PublicKey: realAuth.PublicKey,
   signTransaction: vi.fn(() => ({ signatures: ['SIG'], operations: [] })),
   sign: vi.fn(() => 'signed'),
   getPublicKey: vi.fn((wif: string) => (wif ? 'STM' + wif.slice(-8) : 'STM')),
@@ -31,6 +35,11 @@ const auth = {
   // verifySignature is used by SteemService.verifyChallengeSignature; default no-op (undefined)
   // so individual tests can override via mockReturnValue/mockImplementation.
   verifySignature: vi.fn(),
+  // verifyTransaction (v1.0.20+): real crypto signature verification. Proxy to
+  // the real implementation so tests exercise actual sign/verify round-trips.
+  verifyTransaction: realAuth.verifyTransaction,
+  // serializeTransaction (v1.0.20+): real binary serializer, proxied for tests.
+  serializeTransaction: realAuth.serializeTransaction,
 };
 
 export const steem = {

@@ -23,6 +23,7 @@ import {
   Vote,
   FileText,
   BookOpen,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SIDE_PANEL_EXTERNAL, SIDE_PANEL_INTERNAL } from '@/lib/navigation/side-panel-links';
@@ -87,6 +88,7 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
     { href: SIDE_PANEL_INTERNAL.about, label: t('navAbout') },
     { href: SIDE_PANEL_INTERNAL.privacy, label: t('navPrivacyPolicy') },
     { href: SIDE_PANEL_INTERNAL.terms, label: t('navTermsOfService') },
+    { href: SIDE_PANEL_INTERNAL.support, label: t('navSupport') },
   ] as const;
 
   return (
@@ -124,6 +126,14 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
                 <ExternalLinkIcon aria-hidden />
                 {t('blog')}
               </a>
+              <Link
+                href={`/@${username}/settings`}
+                onClick={close}
+                className={getNavItemClassName(`/@${username}/settings`)}
+              >
+                <Settings />
+                {t('navChangeAccountPassword')}
+              </Link>
               <Separator className="my-2" />
             </>
           )}

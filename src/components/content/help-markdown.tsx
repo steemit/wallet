@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { cn } from '@/lib/utils';
 
 interface HelpMarkdownProps {
@@ -11,6 +12,21 @@ interface HelpMarkdownProps {
 export function normalizeHelpMarkdown(content: string): string {
   return content.replace(/^<span id="disable_router_nav_history_direction_check"><\/span>\s*/i, '');
 }
+
+// Sanitize schema: allow the formatting tags used by legacy help content
+// (FAQ/TOS) while stripping scripts, event handlers, and other XSS vectors.
+// Inline HTML is still parsed (rehype-raw) then sanitized (defense in depth).
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    // Permit class on elements (Tailwind styling) and the legacy span id marker.
+    '*': [...(defaultSchema.attributes?.['*'] ?? []), 'class'],
+    a: [...(defaultSchema.attributes?.a ?? []), 'name'],
+    span: [...(defaultSchema.attributes?.span ?? []), 'id'],
+  },
+  tagNames: [...(defaultSchema.tagNames ?? []), 'span'],
+};
 
 /** Renders legacy wallet help markdown (FAQ, Terms of Service). */
 export function HelpMarkdown({ content, className }: HelpMarkdownProps) {
@@ -33,7 +49,12 @@ export function HelpMarkdown({ content, className }: HelpMarkdownProps) {
         className
       )}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        // Parse inline HTML (legacy content uses it), then strip dangerous
+        // elements/attributes. Order matters: raw before sanitize.
+        rehypePlugins={[[rehypeRaw], [rehypeSanitize, { schema: sanitizeSchema }]]}
+      >
         {normalized}
       </ReactMarkdown>
     </article>

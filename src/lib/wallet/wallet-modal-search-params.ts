@@ -15,7 +15,9 @@ export const WALLET_QUERY_KEYS = [
 
 export type WalletModalAction =
   | 'transfer'
+  | 'powerUp'
   | 'powerDown'
+  | 'cancelPowerDown'
   | 'delegate'
   | 'advanced'
   | 'convert';
@@ -31,7 +33,9 @@ export function parseWalletModalAction(raw: string | null): WalletModalAction | 
   if (!raw) return null;
   if (
     raw === 'transfer' ||
+    raw === 'powerUp' ||
     raw === 'powerDown' ||
+    raw === 'cancelPowerDown' ||
     raw === 'delegate' ||
     raw === 'advanced' ||
     raw === 'convert'

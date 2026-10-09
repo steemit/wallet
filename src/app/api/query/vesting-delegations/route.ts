@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SteemService } from '@/lib/steem/server';
 import { rateLimit } from '@/lib/middleware';
 import { withCache } from '@/lib/cache/server-cache';
+import { hashedCacheKey, normalizeAccountForCache } from '@/lib/cache/cache-key';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,13 +14,14 @@ export async function GET(request: NextRequest) {
     if (rateLimitError) return rateLimitError;
 
     const { searchParams } = new URL(request.url);
-    const account = searchParams.get('account')?.trim();
+    const rawAccount = searchParams.get('account');
+    const account = rawAccount ? normalizeAccountForCache(rawAccount) : undefined;
 
     if (!account) {
       return NextResponse.json({ error: 'Missing account parameter' }, { status: 400 });
     }
 
-    const cacheKey = `cache:query:vesting-delegations:${account}`;
+    const cacheKey = hashedCacheKey('cache:query:vesting-delegations', account);
     const result = await withCache(cacheKey, 15, 120, () =>
       SteemService.getVestingDelegations(account)
     );
@@ -29,14 +31,16 @@ export async function GET(request: NextRequest) {
       delegations: result.data,
       ...(result.degraded && { degraded: true, staleAge: result.staleAge }),
     });
-    response.headers.set('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=60');
+    // Per-account delegation rows — private caching prevents cross-user CDN
+    // poisoning (same pattern as the other user-scoped query routes).
+    response.headers.set('Cache-Control', 'private, max-age=15');
     if (result.degraded) response.headers.set('X-Degraded', 'true');
     return response;
   } catch (error) {
     console.error('Error fetching vesting delegations:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch vesting delegations' },
-      { status: 500 }
+      { error: 'Failed to fetch vesting delegations', degraded: true },
+      { status: 503 }
     );
   }
 }

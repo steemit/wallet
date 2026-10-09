@@ -2,13 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { clientCache } from '@/lib/cache/client-cache';
 import { cachedFetch } from '@/lib/cache/client-fetch';
+import { setDegraded, subscribeToDegradation } from '@/lib/cache/degradation-state';
 
 // Mock global fetch
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-function jsonResponse(data: unknown, headers: Record<string, string> = {}): Response {
+function jsonResponse(data: unknown, headers: Record<string, string> = {}, ok = true): Response {
   return {
+    ok,
     json: () => Promise.resolve(data),
     headers: new Headers(headers),
   } as unknown as Response;
@@ -18,6 +20,7 @@ describe('cachedFetch', () => {
   beforeEach(() => {
     clientCache.clear();
     mockFetch.mockReset();
+    setDegraded(false);
     vi.useFakeTimers();
   });
 
@@ -123,18 +126,77 @@ describe('cachedFetch', () => {
     expect(result.degraded).toBe(true);
   });
 
-  it('invalidates cache on X-Cache-Invalidate header', async () => {
+  it('notifies degradation subscribers when a response carries X-Degraded', async () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeToDegradation(listener);
     mockFetch.mockResolvedValueOnce(
-      jsonResponse({ value: 1 }, { 'X-Cache-Invalidate': 'alice' })
+      jsonResponse({ value: 1 }, { 'X-Degraded': 'true' })
     );
 
-    clientCache.set('user:alice:balance', 100, 60_000, 120_000);
-    clientCache.set('user:bob:balance', 200, 60_000, 120_000);
+    await cachedFetch('/api/degraded-subscriber-test', {
+      staleMs: 10_000,
+      maxAgeMs: 30_000,
+    });
 
-    await cachedFetch('/api/test', { staleMs: 10_000, maxAgeMs: 30_000 });
+    expect(listener).toHaveBeenCalledWith(true);
+    unsubscribe();
+    setDegraded(false);
+  });
 
-    // alice entries should be invalidated
-    expect(clientCache.get('user:alice:balance')).toBeNull();
-    expect(clientCache.get('user:bob:balance')).not.toBeNull();
+  it('notifies subscribers of recovery when a later response is healthy', async () => {
+    setDegraded(true);
+    const listener = vi.fn();
+    const unsubscribe = subscribeToDegradation(listener);
+    mockFetch.mockResolvedValueOnce(jsonResponse({ value: 1 }));
+
+    await cachedFetch('/api/healthy-subscriber-test', {
+      staleMs: 10_000,
+      maxAgeMs: 30_000,
+    });
+
+    expect(listener).toHaveBeenCalledWith(false);
+    expect(listener).not.toHaveBeenCalledWith(true);
+    unsubscribe();
+  });
+
+  it('reads X-Degraded on noStore fetches too', async () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeToDegradation(listener);
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ value: 1 }, { 'X-Degraded': 'true' })
+    );
+
+    const result = await cachedFetch('/api/nostore-degraded-test', {
+      staleMs: 10_000,
+      maxAgeMs: 30_000,
+      noStore: true,
+    });
+
+    expect(result.degraded).toBe(true);
+    expect(listener).toHaveBeenCalledWith(true);
+    unsubscribe();
+    setDegraded(false);
+  });
+
+  it('background refresh notifies subscribers with the fresh degradation state', async () => {
+    // Seed the cache with a healthy response.
+    mockFetch.mockResolvedValueOnce(jsonResponse({ value: 1 }));
+    await cachedFetch('/api/bg-degraded-test', { staleMs: 5_000, maxAgeMs: 20_000 });
+
+    vi.advanceTimersByTime(6_000);
+
+    const listener = vi.fn();
+    const unsubscribe = subscribeToDegradation(listener);
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ value: 2 }, { 'X-Degraded': 'true' })
+    );
+
+    // Stale hit returns immediately; the refresh runs in the background.
+    await cachedFetch('/api/bg-degraded-test', { staleMs: 5_000, maxAgeMs: 20_000 });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(listener).toHaveBeenCalledWith(true);
+    unsubscribe();
+    setDegraded(false);
   });
 });

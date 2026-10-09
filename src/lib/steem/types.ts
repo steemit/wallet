@@ -43,13 +43,28 @@ export interface SteemAccount {
   voting_power: number;
   last_post: string;
   last_root_post: string;
-  last_bandwidth_update: string;
-  average_bandwidth: number;
-  lifetime_bandwidth: number;
   vesting_balance: string;
+  /** Pending (unclaimed) rewards; consumed by the rewards UI and the claim_reward_balance op. */
+  reward_steem_balance: string;
+  reward_sbd_balance: string;
+  /** STEEM-denominated value of the pending vesting reward. */
+  reward_vesting_steem: string;
+  /** VESTS-denominated counterpart of reward_vesting_steem; the claim_reward_balance op payload. */
+  reward_vesting_balance: string;
   reputation: number;
   witness_votes: string[];
   proxy?: string;
+  /** Current recovery account (from the account object). */
+  recovery_account?: string;
+  /**
+   * Pending change_recovery_account request attached by getAccounts for
+   * single-account lookups (legacy SagaShared parity).
+   */
+  account_recovery?: {
+    account_to_recover: string;
+    recovery_account: string;
+    effective_on: string;
+  } | null;
 }
 
 export interface SignedTransaction {
@@ -62,6 +77,12 @@ export interface SignedTransaction {
 }
 
 export type Operation = [string, Record<string, unknown>];
+
+export interface OwnerHistoryEntry {
+  previous_owner_authority?: {
+    key_auths?: [string, number][];
+  };
+}
 
 export interface BroadcastResult {
   id: string;
@@ -102,10 +123,18 @@ export interface VestingDelegation {
   min_delegation_time: string;
 }
 
+/**
+ * A `delegation_expiration_object` as returned by
+ * `database_api.find_vesting_delegation_expirations`.
+ *
+ * Revoking a delegation (`delegate_vesting_shares` with 0 VESTS) deletes the
+ * `vesting_delegation_object` and creates this expiration record, which keeps
+ * only the delegator, the amount returning and the completion time — the
+ * delegatee association is gone on chain, so there is nothing more to show.
+ */
 export interface ExpiringVestingDelegation {
   id: number;
   delegator: string;
-  delegatee: string;
   vesting_shares: string;
   expiration: string;
 }

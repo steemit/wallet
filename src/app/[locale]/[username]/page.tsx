@@ -1,12 +1,16 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/routing';
+import { invalidateWalletCache } from '@/lib/cache/client-invalidate';
 import { RecentActivityLazy } from '@/components/wallet/client-wrappers';
 import { BalanceRows } from '@/components/wallet/balance-rows';
 import { ClaimRewardsBanner } from '@/components/wallet/claim-rewards-banner';
+import { RecoveryWarningBanner } from '@/components/wallet/recovery-warning-banner';
+import { SavingsWithdrawHistory } from '@/components/wallet/savings-withdraw-history';
+import { AdvancedRoutesNotice } from '@/components/wallet/advanced-routes-notice';
 import { useSteemWalletBalances } from '@/hooks/use-steem-wallet-balances';
 import { UserProfileBanner } from '@/components/layout/user-profile-banner';
 import { AccountWalletNav } from '@/components/layout/account-wallet-nav';
@@ -20,6 +24,8 @@ import {
 } from '@/components/wallet/client-wrappers';
 import { normalizeProfile } from '@/lib/steem/normalize-profile';
 import { canManageBalanceForPageUrl } from '@/lib/auth/browser-storage';
+import { normalizeSteemUsername, sameSteemAccount } from '@/lib/steem/username';
+import { fetchAccounts } from '@/lib/steem/accounts-client';
 
 type BannerProfileFields = {
   displayName?: string;
@@ -55,10 +61,14 @@ export default function WalletPage() {
   const pathname = usePathname();
 
   const rawUsername = params?.username as string | undefined;
-  
-  // Parse username from params (e.g. "@ety001" -> "ety001")
-  const urlUsername = rawUsername ? decodeURIComponent(rawUsername).replace(/^@/, '') : '';
-  const isMyAccount = !!isAuthenticated && !!loggedInUser && loggedInUser === urlUsername;
+
+  // Parse username from params (e.g. "@Alice" -> "alice"). Normalize to the
+  // chain-canonical form so every downstream comparison, cache key, and API
+  // URL sees ONE identity whatever case the visitor's URL used.
+  const urlUsername = rawUsername ? normalizeSteemUsername(decodeURIComponent(rawUsername)) : '';
+  // Compare normalized: the session user may be cased differently from the URL
+  // (login as "alice", visit /@Alice) — raw === would fork the UI state.
+  const isMyAccount = !!isAuthenticated && sameSteemAccount(loggedInUser, urlUsername);
   const showBalanceActions = canManageBalanceForPageUrl({
     urlUsername,
     loggedInUser,
@@ -66,6 +76,15 @@ export default function WalletPage() {
   });
 
   const [walletRefreshNonce, setWalletRefreshNonce] = useState(0);
+
+  // Broadcast success path: drop this account's browser L1 entries FIRST —
+  // cachedFetch would otherwise serve its fresh window without a request and
+  // the nonce-triggered refetch would re-render pre-broadcast balances —
+  // then bump the nonce so the subscribed hooks refetch from the network.
+  const handleWalletDataChanged = useCallback(() => {
+    if (urlUsername) invalidateWalletCache(urlUsername);
+    setWalletRefreshNonce((n) => n + 1);
+  }, [urlUsername]);
 
   const { balance, globalProps, loading: balanceLoading } = useSteemWalletBalances(
     urlUsername,
@@ -79,19 +98,10 @@ export default function WalletPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(
-          `/api/query/accounts?names=${encodeURIComponent(urlUsername)}`,
-          { cache: 'no-store' }
-        );
-        const data = (await res.json()) as {
-          success?: boolean;
-          accounts?: Array<{
-            name?: string;
-            created?: string;
-            json_metadata?: string;
-            posting_json_metadata?: string;
-          }>;
-        };
+        // Shared accounts fetch path (lib/steem/accounts-client): shares one
+        // in-flight request + L1 entry with the balances hook and recovery
+        // banner instead of issuing a second raw fetch on the same mount.
+        const data = await fetchAccounts([urlUsername]);
         if (cancelled || !data.success) {
           if (!cancelled) setBannerProfile({});
           return;
@@ -113,8 +123,11 @@ export default function WalletPage() {
     };
   }, [urlUsername]);
 
-  // Align with wallet-legacy: user homepage /@username has no content, redirect to /@username/transfers
-  const isUserHome = pathname === `/@${urlUsername}` || pathname === `/@${urlUsername}/`;
+  // Align with wallet-legacy: user homepage /@username has no content, redirect to /@username/transfers.
+  // Compare case-insensitively: urlUsername is normalized but the URL path may
+  // keep the visitor's original casing (/@Alice vs /@alice).
+  const pathLower = pathname.toLowerCase();
+  const isUserHome = pathLower === `/@${urlUsername}` || pathLower === `/@${urlUsername}/`;
 
   useEffect(() => {
     if (!urlUsername) {
@@ -152,15 +165,31 @@ export default function WalletPage() {
         {...(bannerProfile ?? {})}
       />
 
-      <AccountWalletNav accountname={urlUsername} />
+      <AccountWalletNav accountname={urlUsername} isMyAccount={isMyAccount} />
 
       {/* Wallet content: keep top padding tight under AccountWalletNav */}
       <div className="mx-auto max-w-6xl space-y-3 px-4 pt-3 pb-6">
         {isTransfersPath && (
           <ClaimRewardsBanner
+            username={urlUsername}
             balance={balance}
             isMyAccount={isMyAccount}
             loading={balanceLoading}
+            onClaimed={handleWalletDataChanged}
+          />
+        )}
+        {isTransfersPath && (
+          <RecoveryWarningBanner
+            username={urlUsername}
+            isMyAccount={isMyAccount}
+            onChanged={handleWalletDataChanged}
+          />
+        )}
+        {isTransfersPath && (
+          <AdvancedRoutesNotice
+            username={urlUsername}
+            isMyAccount={isMyAccount}
+            refreshNonce={walletRefreshNonce}
           />
         )}
 
@@ -173,6 +202,12 @@ export default function WalletPage() {
               loading={balanceLoading}
               showBalanceActions={showBalanceActions}
             />
+            {isMyAccount && (
+              <SavingsWithdrawHistory
+                username={urlUsername}
+                onChanged={handleWalletDataChanged}
+              />
+            )}
             <RecentActivityLazy username={urlUsername} refreshNonce={walletRefreshNonce} globalProps={globalProps} />
           </>
         )}
@@ -222,9 +257,7 @@ export default function WalletPage() {
 
       <Suspense fallback={null}>
         {isTransfersPath && (
-          <WalletTransfersModals
-            onWalletDataChanged={() => setWalletRefreshNonce((n) => n + 1)}
-          />
+          <WalletTransfersModals onWalletDataChanged={handleWalletDataChanged} />
         )}
       </Suspense>
     </div>

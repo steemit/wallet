@@ -20,6 +20,8 @@ const externalNavLinkClassName =
 export interface AccountWalletNavProps {
   accountname: string;
   socialUrl?: string;
+  /** Own-account pages expose the settings entry (legacy WalletSubMenu tabs). */
+  isMyAccount?: boolean;
 }
 
 /**
@@ -28,6 +30,7 @@ export interface AccountWalletNavProps {
 export function AccountWalletNav({
   accountname,
   socialUrl = 'https://steemit.com',
+  isMyAccount = false,
 }: AccountWalletNavProps) {
   const t = useTranslations('wallet');
   const pathname = usePathname();
@@ -92,6 +95,16 @@ export function AccountWalletNav({
                 {t('delegations')}
               </Link>
             </li>
+            {isMyAccount && (
+              <li>
+                <Link
+                  href={`/@${accountname}/settings`}
+                  className={cn(isPathActive('/settings') ? navActive : navInactive)}
+                >
+                  {t('settings')}
+                </Link>
+              </li>
+            )}
           </ul>
 
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 sm:pl-4">

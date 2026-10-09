@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   DropdownMenu,
@@ -7,6 +8,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Tooltip,
   TooltipContent,
@@ -26,6 +33,12 @@ import {
   WalletBalanceRowShell,
 } from '@/components/wallet/wallet-balance-row-layout';
 import { useWalletEstimatedValue } from '@/hooks/use-wallet-estimated-value';
+import { getCurrentSteemPowerApr } from '@/lib/wallet/sp-apr';
+import { formatTimeUntil } from '@/lib/wallet/format-time-ago';
+import {
+  formatDelegatedSteemPowerDisplay,
+  netDelegatedSteemPower,
+} from '@/lib/wallet/vest-steem';
 import type { GlobalPropsData, WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 
 function numberWithCommas(x: string): string {
@@ -53,14 +66,19 @@ export function BalanceRows({
 }) {
   const t = useTranslations('wallet');
 
-  const { display: estimatedValueDisplay, loading: estimatedValueLoading } =
-    useWalletEstimatedValue({
-      username,
-      balance,
-      globalProps,
-      includeOpenOrders: showBalanceActions,
-      enabled: !loading && !!balance && !!globalProps,
-    });
+  const {
+    display: estimatedValueDisplay,
+    loading: estimatedValueLoading,
+    details: extrasDetails,
+  } = useWalletEstimatedValue({
+    username,
+    balance,
+    globalProps,
+    includeOpenOrders: showBalanceActions,
+    enabled: !loading && !!balance && !!globalProps,
+  });
+
+  const [showAllConversions, setShowAllConversions] = useState(false);
 
   const formatBalance = (value: string | undefined) => {
     if (!value) return '0.000';
@@ -86,19 +104,25 @@ export function BalanceRows({
   };
 
   const getDelegatedSP = () => {
-    if (!balance?.delegated_vesting_shares || !globalProps) return { display: '0.000', raw: 0 };
-    const delegatedAmount = parseFloat(balance.delegated_vesting_shares.split(' ')[0] || '0') || 0;
-    const totalVestingShares = parseFloat(globalProps.total_vesting_shares?.split(' ')[0] || '1') || 1;
-    const totalVestingFund = parseFloat(globalProps.total_vesting_fund_steem?.split(' ')[0] || '0') || 0;
-    const sp = (delegatedAmount / totalVestingShares) * totalVestingFund;
+    if (!balance || !globalProps) return { display: '0.000', raw: 0 };
+    // Legacy `delegatedSteem` (wallet-legacy StateFunctions.js:63-78): the
+    // shown number is the NET of delegated out minus received.
+    const sp = netDelegatedSteemPower(balance, globalProps);
     return {
-      display: (sp < 0 ? '+' : '') + numberWithCommas(Math.abs(sp).toFixed(3)),
+      // Legacy sign convention (UserWallet.jsx:659-661): net received shows
+      // "+X", net delegated out shows "-X".
+      display: formatDelegatedSteemPowerDisplay(sp),
       raw: sp,
     };
   };
 
   const isPoweringDown = balance && parseFloat(balance.vesting_withdraw_rate?.split(' ')[0] || '0') > 0;
   const powerDownRate = balance ? calculateSP(balance.vesting_withdraw_rate) : '0';
+
+  const spApr = globalProps ? getCurrentSteemPowerApr(globalProps) : null;
+  const steemOrders = showBalanceActions ? (extrasDetails?.steemOrders ?? 0) : 0;
+  const sbdOrders = showBalanceActions ? (extrasDetails?.sbdOrders ?? 0) : 0;
+  const conversions = extrasDetails?.conversions ?? [];
 
   if (loading) {
     return (
@@ -166,14 +190,26 @@ export function BalanceRows({
                   },
                   {
                     label: 'Power Up',
-                    walletAction: 'transfer',
-                    asset: 'STEEM',
-                    type: 'power_up',
+                    walletAction: 'powerUp',
                   },
                   { label: 'Trade', external: true, href: 'https://www.poloniex.com/zh-CN/trade/STEEM_USDT?type=spot' },
                   { label: 'Market', link: '/market' },
                 ]}
               />
+              {steemOrders > 0 && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  <Link href="/market">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help">
+                          (+{numberWithCommas(steemOrders.toFixed(3))} STEEM)
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('openOrders')}</TooltipContent>
+                    </Tooltip>
+                  </Link>
+                </div>
+              )}
             </div>
           }
         />
@@ -188,10 +224,17 @@ export function BalanceRows({
               <div className="secondary">
                 Influence tokens which give you more control over post payouts and allow you to earn on curation rewards.
                 {hasDelegation && (
-                  <span className="block mt-1">Part of your STEEM POWER is currently delegated.</span>
+                  <span className="block mt-1">
+                    {t('delegatedPowerWarning', { username })}
+                  </span>
                 )}
                 {!hasDelegation && (
-                  <span className="block mt-1">Your STEEM POWER is not currently delegated.</span>
+                  <span className="block mt-1">{t('powerNotDelegated')}</span>
+                )}
+                {spApr !== null && spApr > 0 && (
+                  <span className="block mt-1">
+                    {t('steemPowerApr', { value: spApr.toFixed(2) })}
+                  </span>
                 )}
               </div>
             </>
@@ -205,6 +248,9 @@ export function BalanceRows({
                 items={[
                   { label: 'Delegate', walletAction: 'delegate' },
                   { label: 'Power Down', walletAction: 'powerDown' },
+                  ...(isPoweringDown
+                    ? [{ label: 'Cancel Power Down', walletAction: 'cancelPowerDown' as const }]
+                    : []),
                   { label: 'Advanced Routes', walletAction: 'advanced' },
                 ]}
               />
@@ -215,7 +261,7 @@ export function BalanceRows({
                       <span className="cursor-help">({delegatedSP.display} STEEM)</span>
                     </TooltipTrigger>
                     <TooltipContent>
-                      STEEM POWER delegated to/from this account
+                      {t('delegatedPowerTooltip')}
                     </TooltipContent>
                   </Tooltip>
                 </div>
@@ -254,6 +300,68 @@ export function BalanceRows({
                   },
                 ]}
               />
+              {sbdOrders > 0 && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  <Link href="/market">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help">
+                          (+${numberWithCommas(sbdOrders.toFixed(3))})
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('openOrders')}</TooltipContent>
+                    </Tooltip>
+                  </Link>
+                </div>
+              )}
+              {conversions.slice(0, 5).map((conv) => (
+                <div key={conv.requestid} className="text-sm text-muted-foreground mt-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help">
+                        (+{t('inConversion', {
+                          amount: '$' + numberWithCommas(conv.amountSbd.toFixed(3)),
+                        })})
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t('conversionCompleteTip', {
+                        date: new Date(conv.finishTime).toLocaleString(),
+                      })}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              ))}
+              {conversions.length > 5 && (
+                <>
+                  <button
+                    type="button"
+                    className="text-primary mt-2 cursor-pointer text-sm hover:underline"
+                    onClick={() => setShowAllConversions(true)}
+                  >
+                    {t('viewAllPendingConversions', { count: conversions.length })}
+                  </button>
+                  <Dialog open={showAllConversions} onOpenChange={setShowAllConversions}>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>{t('pendingConversionsTitle')}</DialogTitle>
+                      </DialogHeader>
+                      <ul className="max-h-[60vh] space-y-2 overflow-y-auto text-sm">
+                        {conversions.map((conv) => (
+                          <li key={conv.requestid} className="flex justify-between gap-4">
+                            <span>${numberWithCommas(conv.amountSbd.toFixed(3))}</span>
+                            <span className="text-muted-foreground">
+                              {t('conversionCompleteTip', {
+                                date: new Date(conv.finishTime).toLocaleString(),
+                              })}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
             </div>
           }
         />
@@ -331,10 +439,10 @@ export function BalanceRows({
             The next power down is scheduled to happen{' '}
             <span className="font-medium">
               {balance?.next_vesting_withdrawal
-                ? new Date(balance.next_vesting_withdrawal).toLocaleDateString()
+                ? formatTimeUntil(balance.next_vesting_withdrawal)
                 : '---'}
             </span>{' '}
-            (~{powerDownRate} STEEM).
+            (~{powerDownRate} SP).
           </div>
         </WalletBalanceRowShell>
       )}

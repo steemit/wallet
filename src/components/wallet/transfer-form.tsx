@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
@@ -16,10 +16,23 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { fetchAccounts } from '@/lib/steem/accounts-client';
+import { normalizeSteemUsername } from '@/lib/steem/username';
+import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
+import {
+  validateAccountName,
+  validateMemoField,
+  parseTransferAmountInput,
+  isVerifiedExchange,
+  isBadActor,
+  findSimilarExchange,
+} from '@/lib/wallet/transfer-validation';
 import {
   transfersPathForUsername,
   type WalletTransferType,
 } from '@/lib/wallet/wallet-modal-search-params';
+import { userActionRecord } from '@/lib/analytics/overseer';
 
 export type TransferFormVariant = 'page' | 'dialog';
 
@@ -27,10 +40,17 @@ export interface TransferFormProps {
   variant?: TransferFormVariant;
   /** Initial asset from URL / balance row (STEEM, SBD, or VESTS for power-up entry). */
   initialAsset?: 'STEEM' | 'SBD' | 'VESTS';
-  /** transfer = to another account; savings / savings_withdraw / power_up = self operations. */
+  /** transfer = to another account; savings / savings_withdraw = self operations. */
   initialTransferType?: WalletTransferType;
   onSuccess?: () => void;
   onCancel?: () => void;
+}
+
+interface SenderBalances {
+  steem: number;
+  sbd: number;
+  savingsSteem: number;
+  savingsSbd: number;
 }
 
 export function TransferForm({
@@ -51,7 +71,21 @@ export function TransferForm({
   const [asset, setAsset] = useState<'STEEM' | 'SBD'>(initialAsset === 'SBD' ? 'SBD' : 'STEEM');
   const [formData, setFormData] = useState({ to: '', amount: '', memo: '' });
   const [error, setError] = useState<string>('');
+  const [toError, setToError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [senderBalances, setSenderBalances] = useState<SenderBalances | null>(null);
+  /** Sender's on-chain memo_key (from the same accounts fetch as balances);
+   * powers the legacy memo master-password leak check. */
+  const [senderMemoKey, setSenderMemoKey] = useState<string | null>(null);
+  /** Legacy exchange warnings: verified exchange / similar name / bad actor. */
+  const [exchangeKind, setExchangeKind] = useState<
+    'verified' | 'suspicious' | 'badactor' | null
+  >(null);
+  const [similarExchange, setSimilarExchange] = useState<{
+    exchange: string;
+    similarity: number;
+  } | null>(null);
+  const [warningsAcknowledged, setWarningsAcknowledged] = useState(false);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => {
@@ -61,14 +95,145 @@ export function TransferForm({
     return () => cancelAnimationFrame(id);
   }, [initialAsset, initialTransferType]);
 
+  // Load the sender's balances for available-balance display and the
+  // insufficient-funds check (legacy Transfer.jsx insufficientFunds).
+  useEffect(() => {
+    if (!username) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchAccounts([username]);
+        if (cancelled || !data.success) return;
+        const acc = data.accounts?.[0];
+        if (!acc) return;
+        setSenderBalances({
+          steem: parseAssetAmount(acc.balance ?? '0'),
+          sbd: parseAssetAmount(acc.sbd_balance ?? '0'),
+          savingsSteem: parseAssetAmount(acc.savings_balance ?? '0'),
+          savingsSbd: parseAssetAmount(acc.savings_sbd_balance ?? '0'),
+        });
+        setSenderMemoKey(acc.memo_key ?? null);
+      } catch {
+        /* balance hints are best-effort */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [username]);
+
+  // Live recipient validation (legacy Transfer.jsx): name format (derived
+  // synchronously), existence + exchange/bad-actor warnings (async, debounced).
+  // Only for direct transfers to other accounts.
+  const toFormatError = useMemo(() => {
+    if (transferType !== 'transfer') return '';
+    const target = formData.to.trim().replace(/^@/, '').toLowerCase();
+    if (!target) return '';
+    const code = validateAccountName(target, true);
+    return code ? t(`errors.${code}`) : '';
+  }, [formData.to, transferType, t]);
+
+  useEffect(() => {
+    if (transferType !== 'transfer') return;
+    let active = true;
+    const timer = setTimeout(() => {
+      const target = formData.to.trim().replace(/^@/, '').toLowerCase();
+      if (!target || validateAccountName(target, true)) {
+        setToError('');
+        setExchangeKind(null);
+        setSimilarExchange(null);
+        setWarningsAcknowledged(false);
+        return;
+      }
+      void (async () => {
+        try {
+          const data = await fetchAccounts([target]);
+          if (!active) return;
+          const exists = data.success && !!data.accounts?.[0];
+          if (!exists) {
+            setToError(t('errors.account_not_found'));
+            setExchangeKind(null);
+            setSimilarExchange(null);
+            return;
+          }
+          setToError('');
+          if (isVerifiedExchange(target)) {
+            setExchangeKind('verified');
+            setSimilarExchange(null);
+          } else if (isBadActor(target)) {
+            setExchangeKind('badactor');
+            setSimilarExchange(null);
+          } else {
+            const similar = findSimilarExchange(target);
+            if (similar) {
+              setExchangeKind('suspicious');
+              setSimilarExchange(similar);
+            } else {
+              setExchangeKind(null);
+              setSimilarExchange(null);
+            }
+          }
+        } catch {
+          /* existence check is best-effort */
+        }
+      })();
+    }, 400);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [formData.to, transferType, t]);
+
+  // Live memo key-leak check (legacy validate_memo_field): WIF patterns plus
+  // the master-password derivation against the sender's memo_key. The seed
+  // uses the normalized username (master-password derivations are lowercase).
+  const memoError = useMemo(() => {
+    const leak = formData.memo
+      ? validateMemoField(
+          formData.memo,
+          username ? normalizeSteemUsername(username) : undefined,
+          senderMemoKey ?? undefined
+        )
+      : null;
+    return leak ? t(`errors.${leak}`) : '';
+  }, [formData.memo, username, senderMemoKey, t]);
+
+  const availableForSelection = useMemo(() => {
+    if (!senderBalances) return null;
+    if (transferType === 'savings_withdraw') {
+      return asset === 'SBD' ? senderBalances.savingsSbd : senderBalances.savingsSteem;
+    }
+    return asset === 'SBD' ? senderBalances.sbd : senderBalances.steem;
+  }, [senderBalances, transferType, asset]);
+
+  const amountExceedsBalance = useMemo(() => {
+    if (availableForSelection === null) return false;
+    const value = parseFloat(formData.amount);
+    if (!Number.isFinite(value) || value <= 0) return false;
+    // Compare at the 3-decimal precision that will actually be broadcast:
+    // toFixed(3) happens at submit time, so comparing the raw value here
+    // could pass an amount (e.g. 99.9996 vs 99.9996 balance) that rounds up
+    // (100.000) and then fails on-chain for exceeding the balance.
+    const normalized = parseFloat(value.toFixed(3));
+    return normalized > availableForSelection;
+  }, [availableForSelection, formData.amount]);
+
+  /** Legacy: verified exchanges require a memo on direct transfers. */
+  const exchangeMemoMissing =
+    transferType === 'transfer' &&
+    exchangeKind === 'verified' &&
+    !formData.memo.trim();
+
+  const submitBlockedByWarnings =
+    transferType === 'transfer' && exchangeKind !== null && !warningsAcknowledged;
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setError('');
   };
 
-  const amountSuffix =
-    transferType === 'power_up' ? 'STEEM' : asset === 'SBD' ? 'SBD' : 'STEEM';
+  const amountSuffix = asset === 'SBD' ? 'SBD' : 'STEEM';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,15 +247,66 @@ export function TransferForm({
     }
 
     try {
-      const amountMatch = formData.amount.match(/^([\d.]+)\s*$/);
-      if (!amountMatch || !amountMatch[1]) {
-        setError('Please enter a valid amount');
+      // Strict syntax + explicit 3-decimal rejection (power-up parity);
+      // the balance check below then compares at the same 3-decimal
+      // precision the broadcast will use.
+      const parsed = parseTransferAmountInput(formData.amount);
+      if (!parsed.ok) {
+        setError(t(`errors.${parsed.issue}`));
         setIsLoading(false);
         return;
       }
-      const amountValue = parseFloat(amountMatch[1]);
-      if (amountValue <= 0 || isNaN(amountValue)) {
-        setError('Amount must be greater than 0');
+      const amountValue = parsed.value;
+      if (amountExceedsBalance) {
+        setError(t('errors.insufficient_funds'));
+        setIsLoading(false);
+        return;
+      }
+
+      if (transferType === 'transfer') {
+        const target = formData.to.trim().replace(/^@/, '').toLowerCase();
+        if (!target) {
+          setError('Please enter a recipient username');
+          setIsLoading(false);
+          return;
+        }
+        const nameError = validateAccountName(target, true);
+        if (nameError) {
+          setError(t(`errors.${nameError}`));
+          setIsLoading(false);
+          return;
+        }
+        if (toError) {
+          setError(toError);
+          setIsLoading(false);
+          return;
+        }
+        if (toFormatError) {
+          setError(toFormatError);
+          setIsLoading(false);
+          return;
+        }
+        if (exchangeMemoMissing) {
+          setError(t('errors.verified_exchange_no_memo'));
+          setIsLoading(false);
+          return;
+        }
+        if (submitBlockedByWarnings) {
+          setError(t('errors.acknowledge_warnings'));
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      const memoLeak = formData.memo
+        ? validateMemoField(
+            formData.memo,
+            username ? normalizeSteemUsername(username) : undefined,
+            senderMemoKey ?? undefined
+          )
+        : null;
+      if (memoLeak) {
+        setError(t(`errors.${memoLeak}`));
         setIsLoading(false);
         return;
       }
@@ -99,14 +315,9 @@ export function TransferForm({
       let signedTx: SignedTransaction;
 
       if (transferType === 'transfer') {
-        if (!formData.to.trim()) {
-          setError('Please enter a recipient username');
-          setIsLoading(false);
-          return;
-        }
         signedTx = await SteemSigner.signTransfer(
           username,
-          formData.to.trim(),
+          formData.to.trim().replace(/^@/, '').toLowerCase(),
           amountStr,
           formData.memo,
           signingKey
@@ -129,13 +340,6 @@ export function TransferForm({
           requestId,
           signingKey
         );
-      } else if (transferType === 'power_up') {
-        signedTx = await SteemSigner.signTransferToVesting(
-          username,
-          username,
-          amountStr,
-          signingKey
-        );
       } else {
         setError('Unsupported operation');
         setIsLoading(false);
@@ -150,6 +354,23 @@ export function TransferForm({
         return;
       }
 
+      const recipient =
+        transferType === 'transfer'
+          ? formData.to.trim().replace(/^@/, '').toLowerCase()
+          : username;
+      const overseerAction =
+        transferType === 'transfer'
+          ? 'transfer'
+          : transferType === 'savings'
+            ? 'transfer_to_savings'
+            : 'transfer_from_savings';
+      userActionRecord(overseerAction, {
+        transferCoin: amountSuffix,
+        amount: amountValue,
+        from: username,
+        to: recipient,
+      });
+
       setIsLoading(false);
       startTransition(() => {
         if (onSuccess) {
@@ -159,7 +380,7 @@ export function TransferForm({
         }
       });
     } catch (err) {
-      console.error('Transfer error:', err);
+      if (process.env.NODE_ENV !== 'production') console.error('Transfer error:', err);
       setError('Failed to process transfer');
       setIsLoading(false);
     }
@@ -180,9 +401,7 @@ export function TransferForm({
       ? 'Transfer to savings'
       : transferType === 'savings_withdraw'
         ? 'Withdraw from savings'
-        : transferType === 'power_up'
-          ? 'Power up'
-          : t('title');
+        : t('title');
 
   const formBody = (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -218,7 +437,55 @@ export function TransferForm({
             placeholder="Enter recipient username"
             disabled={isLoading || isPending}
           />
+          {(toFormatError || toError) && (
+            <p className="text-destructive text-sm">{toFormatError || toError}</p>
+          )}
         </div>
+      )}
+
+      {transferType === 'transfer' && exchangeKind === 'verified' && (
+        <div className="border-destructive/40 bg-destructive/10 rounded-md border p-4">
+          <p className="text-destructive text-sm font-semibold">{t('exchangeAlertTitle')}</p>
+          <ul className="text-destructive mt-2 list-disc space-y-1 pl-5 text-sm">
+            <li>{t('exchangeAlertMemo')}</li>
+            <li>{t('exchangeAlertSuspended')}</li>
+            <li>{t('exchangeAlertAsset', { asset: amountSuffix })}</li>
+          </ul>
+        </div>
+      )}
+
+      {transferType === 'transfer' && exchangeKind === 'suspicious' && similarExchange && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/40">
+          <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+            {t('similarAccountTitle')}
+          </p>
+          <p className="mt-1 text-sm text-amber-900 dark:text-amber-200">
+            {t('similarAccountWarning', {
+              accountName: similarExchange.exchange,
+              similarity: similarExchange.similarity,
+            })}
+          </p>
+        </div>
+      )}
+
+      {transferType === 'transfer' && exchangeKind === 'badactor' && (
+        <div className="border-destructive/40 bg-destructive/10 rounded-md border p-4">
+          <p className="text-destructive text-sm">{t('exchangeMisspelling')}</p>
+        </div>
+      )}
+
+      {transferType === 'transfer' && exchangeKind !== null && (
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={warningsAcknowledged}
+            onCheckedChange={(checked) => setWarningsAcknowledged(checked === true)}
+          />
+          <span>{t('acknowledgeWarnings')}</span>
+        </label>
+      )}
+
+      {transferType === 'transfer' && exchangeMemoMissing && (
+        <p className="text-destructive text-sm">{t('errors.verified_exchange_no_memo')}</p>
       )}
 
       <div className="flex flex-col gap-2">
@@ -238,6 +505,26 @@ export function TransferForm({
           disabled={isLoading || isPending}
         />
         <p className="text-muted-foreground text-sm">Amount in {amountSuffix}</p>
+        {availableForSelection !== null && (
+          <button
+            type="button"
+            className="text-primary cursor-pointer self-start text-sm hover:underline"
+            onClick={() =>
+              setFormData((prev) => ({
+                ...prev,
+                amount: availableForSelection.toFixed(3),
+              }))
+            }
+          >
+            {t('availableBalance', {
+              amount: availableForSelection.toFixed(3),
+              asset: amountSuffix,
+            })}
+          </button>
+        )}
+        {amountExceedsBalance && (
+          <p className="text-destructive text-sm">{t('errors.insufficient_funds')}</p>
+        )}
       </div>
 
       {showMemo && (
@@ -255,6 +542,7 @@ export function TransferForm({
             maxLength={2048}
             disabled={isLoading || isPending}
           />
+          {memoError && <p className="text-destructive text-sm">{memoError}</p>}
         </div>
       )}
 
@@ -267,7 +555,14 @@ export function TransferForm({
       <ModalFormActions className="pt-4">
         <Button
           type="submit"
-          disabled={isLoading || isPending}
+          disabled={
+            isLoading ||
+            isPending ||
+            !!toError ||
+            !!toFormatError ||
+            !!memoError ||
+            submitBlockedByWarnings
+          }
           className={modalFormActionButtonClassName}
         >
           {isLoading || isPending ? tCommon('loading') : t('transferButton')}

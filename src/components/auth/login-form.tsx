@@ -12,6 +12,7 @@ import {
   REMEMBERED_POSTING_KEY_KEY,
   REMEMBERED_USERNAME_KEY,
 } from '@/lib/auth/browser-storage';
+import { sameSteemAccount } from '@/lib/steem/username';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { transfersPathForUsername } from '@/lib/wallet/wallet-modal-search-params';
+import type { AccountAuthType } from '@/lib/wallet/account-keys';
 
 interface LoginFormData {
   username: string;
@@ -39,11 +41,26 @@ export interface LoginFormProps {
   onLoginSuccess?: () => void;
   /** Show “remember user on this device” (default: true when username is editable). */
   showRememberUser?: boolean;
+  /**
+   * Authorities the caller needs beyond "being logged in" (e.g. ['active'] for
+   * balance actions, [authType] for key reveal). When set, a login that resolves
+   * keys NOT covering every listed authority is rejected with an explicit error
+   * instead of silently succeeding and leaving the caller's gate in place —
+   * previously a posting-only login in the transfer re-auth dialog looped with
+   * no feedback at all. Authority hierarchy: owner signs active/posting ops,
+   * active signs posting ops; memo is independent.
+   */
+  requiredAuthTypes?: AccountAuthType[];
 }
 
 export function LoginForm(props: LoginFormProps = {}) {
-  const { embedded = false, fixedUsername, onLoginSuccess, showRememberUser: showRememberUserProp } =
-    props;
+  const {
+    embedded = false,
+    fixedUsername,
+    onLoginSuccess,
+    showRememberUser: showRememberUserProp,
+    requiredAuthTypes,
+  } = props;
   const showRememberUser = showRememberUserProp ?? !fixedUsername;
   const t = useTranslations('auth');
   const tCommon = useTranslations('common');
@@ -66,13 +83,18 @@ export function LoginForm(props: LoginFormProps = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberUser, setRememberUser] = useState(false);
 
-  const passwordUpdatedNotice = useMemo(() => {
-    if (searchParams.get('msg') !== 'passwordupdated') return null;
+  // Post-authentication notices from query params (redirects from password
+  // change / account recovery flows): msg=passwordupdated|accountrecovered.
+  const authNotice = useMemo(() => {
+    const msg = searchParams.get('msg');
+    if (msg !== 'passwordupdated' && msg !== 'accountrecovered') return null;
     const displayName = accountFromQuery
       ? normalizeSteemUsername(accountFromQuery)
       : formData.username;
     if (!displayName) return null;
-    return t('passwordUpdateSuccess', { username: displayName });
+    return msg === 'passwordupdated'
+      ? t('passwordUpdateSuccess', { username: displayName })
+      : t('accountRecoverySuccess', { username: displayName });
   }, [accountFromQuery, formData.username, t]);
 
   useEffect(() => {
@@ -214,17 +236,43 @@ export function LoginForm(props: LoginFormProps = {}) {
         return;
       }
 
+      // When the caller needs specific authorities (re-auth dialogs), a key set
+      // that does not cover them must fail LOUDLY: silently storing the session
+      // would leave the caller's gate in place and the dialog looping with no
+      // feedback (posting-only login in the transfer re-auth dialog).
+      if (requiredAuthTypes && requiredAuthTypes.length > 0) {
+        const covers = (needed: AccountAuthType): boolean => {
+          switch (needed) {
+            case 'owner':
+              return !!ownerKey;
+            case 'active':
+              return !!activeKey || !!ownerKey;
+            case 'posting':
+              return !!postingKey || !!activeKey || !!ownerKey;
+            case 'memo':
+              return !!memoKey;
+          }
+        };
+        const missing = requiredAuthTypes.filter((needed) => !covers(needed));
+        if (missing.length > 0) {
+          setError(t('insufficientAuthority'));
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Restore posting key from device storage when signing in with a key that is not posting
       // (e.g. active WIF) but a posting key was saved earlier for claim-reward signing.
       if (!postingKey && rememberUser && accountPostingKey) {
         try {
           const savedPosting = localStorage.getItem(REMEMBERED_POSTING_KEY_KEY);
           const savedUser = localStorage.getItem(REMEMBERED_USERNAME_KEY);
-          if (
-            savedPosting &&
-            savedUser === username &&
-            SteemSigner.verifyPrivateKey(savedPosting, accountPostingKey)
-          ) {
+      if (
+        savedPosting &&
+        // localStorage value may predate normalization — compare canonically.
+        sameSteemAccount(savedUser, username) &&
+        SteemSigner.verifyPrivateKey(savedPosting, accountPostingKey)
+      ) {
             postingKey = savedPosting;
           }
         } catch {
@@ -272,7 +320,11 @@ export function LoginForm(props: LoginFormProps = {}) {
           } else {
             localStorage.removeItem(REMEMBERED_POSTING_KEY_KEY);
           }
-        } else {
+        } else if (showRememberUser) {
+          // The user was offered the choice and declined it — clear device data.
+          // (When the checkbox is hidden, e.g. embedded re-auth dialogs with a
+          // fixed username, remembered data must be left untouched: a re-auth
+          // is not a decision to forget the device.)
           localStorage.removeItem(REMEMBERED_USERNAME_KEY);
           localStorage.removeItem(REMEMBERED_POSTING_KEY_KEY);
         }
@@ -289,7 +341,7 @@ export function LoginForm(props: LoginFormProps = {}) {
         });
       }
     } catch (err) {
-      console.error('Login error:', err);
+      if (process.env.NODE_ENV !== 'production') console.error('Login error:', err);
       setError(tCommon('error'));
       setIsLoading(false);
     }
@@ -307,13 +359,13 @@ export function LoginForm(props: LoginFormProps = {}) {
         }
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          {passwordUpdatedNotice && (
+          {authNotice && (
             <div
               className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-4"
               role="status"
             >
               <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
-                {passwordUpdatedNotice}
+                {authNotice}
               </p>
             </div>
           )}

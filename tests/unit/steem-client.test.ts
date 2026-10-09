@@ -40,6 +40,7 @@ beforeEach(() => {
     if (url.includes('/api/query/transaction-header')) {
       return Promise.resolve({
         ok: true,
+        headers: new Headers(),
         json: async () => ({
           success: true,
           ref_block_num: 99,
@@ -48,8 +49,10 @@ beforeEach(() => {
         }),
       });
     }
+    // headers: real fetch paths read X-Degraded off every response.
     return Promise.resolve({
       ok: true,
+      headers: new Headers(),
       json: async () => ({ success: true }),
     });
   });
@@ -133,20 +136,35 @@ describe('SteemSigner.signXxx — produces the expected operations payload', () 
       keys: ['5Jactive'],
     },
     {
-      name: 'signVote (uses posting key)',
-      call: () => SteemSigner.signVote('voter', 'author', 'permlink', 10000, '5Jposting'),
-      operations: [
-        ['vote', { voter: 'voter', author: 'author', permlink: 'permlink', weight: 10000 }],
-      ],
-      keys: ['5Jposting'],
-    },
-    {
       name: 'signWitnessVote',
       call: () => SteemSigner.signWitnessVote('alice', 'witness1', true, '5Jactive'),
       operations: [
         ['account_witness_vote', { account: 'alice', witness: 'witness1', approve: true }],
       ],
       keys: ['5Jactive'],
+    },
+    {
+      name: 'signClaimRewardBalance (full pending amounts, posting key)',
+      call: () =>
+        SteemSigner.signClaimRewardBalance(
+          'alice',
+          '0.000 STEEM',
+          '1.500 SBD',
+          '123.456789 VESTS',
+          '5Jposting'
+        ),
+      operations: [
+        [
+          'claim_reward_balance',
+          {
+            account: 'alice',
+            reward_steem: '0.000 STEEM',
+            reward_sbd: '1.500 SBD',
+            reward_vests: '123.456789 VESTS',
+          },
+        ],
+      ],
+      keys: ['5Jposting'],
     },
     {
       name: 'signSetWithdrawVestingRoute',
@@ -288,6 +306,7 @@ describe('apiClient.getChallenge', () => {
     const result = await apiClient.getChallenge('alice/bob');
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/auth/challenge?username=alice%2Fbob',
+      { cache: 'no-store' },
     );
     expect(result).toEqual({ challenge: 'login-test-123' });
   });
@@ -347,11 +366,6 @@ describe('apiClient broadcasts — every method posts the signed tx to its endpo
       call: () => apiClient.broadcastDelegate(mockTx, 'alice'),
     },
     {
-      name: 'broadcastVote',
-      endpoint: '/api/broadcast/vote',
-      call: () => apiClient.broadcastVote(mockTx, 'alice'),
-    },
-    {
       name: 'broadcastWitnessVote',
       endpoint: '/api/broadcast/witness-vote',
       call: () => apiClient.broadcastWitnessVote(mockTx, 'alice'),
@@ -390,6 +404,11 @@ describe('apiClient broadcasts — every method posts the signed tx to its endpo
       name: 'broadcastLimitOrderCancel',
       endpoint: '/api/broadcast/limit-order-cancel',
       call: () => apiClient.broadcastLimitOrderCancel(mockTx, 'alice'),
+    },
+    {
+      name: 'broadcastClaimRewardBalance',
+      endpoint: '/api/broadcast/claim-reward-balance',
+      call: () => apiClient.broadcastClaimRewardBalance(mockTx, 'alice'),
     },
   ])('$name → POST $endpoint with CSRF + signedTx', async ({ endpoint, call }) => {
     await call();

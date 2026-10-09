@@ -8,7 +8,13 @@ const AUTHORITY_ROLES: Exclude<PasswordAuthRole, 'memo'>[] = ['owner', 'active',
 
 /** Generate a random master password prefixed with P (legacy wallet-legacy parity). */
 export function generateNewMasterPassword(): string {
-  const entropy = `${Date.now()}-${Math.random()}-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : ''}`;
+  // Use cryptographically strong entropy only — fail-closed if crypto is
+  // unavailable (do NOT fall back to Math.random, which is predictable).
+  const c = typeof globalThis !== 'undefined' && (globalThis as { crypto?: Crypto }).crypto;
+  if (!c || typeof c.randomUUID !== 'function') {
+    throw new Error('secure entropy source unavailable');
+  }
+  const entropy = `${Date.now()}-${c.randomUUID()}`;
   return `P${steem.auth.getPrivateKey(entropy)}`;
 }
 

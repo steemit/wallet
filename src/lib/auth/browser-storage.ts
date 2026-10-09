@@ -1,16 +1,45 @@
 /**
  * Local persistence for login convenience (username / posting key on device only).
  * Never sent to the server.
+ *
+ * SECURITY RISK: when the user opts into "remember me", the posting private key
+ * is written to `localStorage` and restored at the NEXT login when signing in
+ * with an active/owner key (see login-form), so posting-authority actions —
+ * claim_reward_balance via the wallet's "Redeem Rewards" button on
+ * /@user/transfers — keep working in that session. `localStorage` is readable
+ * by any JavaScript running in this origin, so XSS or device access exposes a
+ * limited signing capability (posting authority only — not active/owner).
+ *
+ * RISK ACCEPTANCE (architecture owner ruling, 2026-08-16):
+ *   This exposure is ACCEPTED as-is. Rationale:
+ *   - The primary vector (XSS) is mitigated by the strict CSP (script-src
+ *     'self' + SRI, no unsafe-inline — see next.config.ts); no XSS sink is
+ *     known to exist in this codebase.
+ *   - Posting authority cannot transfer funds; worst case is reputation/abuse
+ *     (impersonation posts, votes), not loss of funds.
+ *   - Residual vectors (malicious browser extensions, shared devices) cannot
+ *     be eliminated by application code in any web wallet.
+ *   - The convenience (one-click claim-rewards after WIF login) is deemed
+ *     worth the residual risk for now.
+ *
+ * FUTURE PATH: if users would accept a PIN prompt, migrate to WebCrypto
+ * PBKDF2 + AES-GCM encryption of the posting key (PIN-derived key). Do NOT
+ * implement silently-gated encryption — the value comes only from a real
+ * per-session user secret. Until then, keep this as plaintext + opt-in.
+ *
+ * Do NOT store active/owner keys in localStorage under any scheme.
  */
+import { normalizeSteemUsername } from '@/lib/steem/username';
+
 export const REMEMBERED_USERNAME_KEY = 'wallet:rememberedUsername';
 export const REMEMBERED_POSTING_KEY_KEY = 'wallet:rememberedPostingKey';
 
-/** Normalize Steem account names for comparisons (matches LoginForm handling). */
-export function normalizeSteemUsername(raw: string): string {
-  return raw.trim().toLowerCase().replace(/^@+/, '');
-}
+/**
+ * Canonical account-name normalization (shared with server code).
+ * Re-exported here for the existing client import sites.
+ */
+export { normalizeSteemUsername };
 
-/** Read remembered username from localStorage (client only). */
 /** Remove saved posting key (e.g. after password rotation invalidates the old key). */
 export function clearRememberedPostingKey(): void {
   if (typeof window === 'undefined') return;
@@ -37,6 +66,7 @@ export function clearRememberedDeviceAuth(): void {
   clearRememberedPostingKey();
 }
 
+/** Read the device-remembered username (normalized), or null when none is stored. */
 export function getRememberedDeviceUsername(): string | null {
   if (typeof window === 'undefined') return null;
   try {

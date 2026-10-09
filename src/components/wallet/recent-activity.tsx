@@ -2,13 +2,14 @@
 
 import { useTranslations } from 'next-intl';
 import { useLazyEnabled } from '@/hooks/use-lazy-enabled';
-import { useActivityHistory } from '@/lib/wallet/use-activity-history';
-import { useRewardsHistoryPager } from '@/lib/wallet/use-rewards-history-pager';
+import { useActivityHistory } from '@/hooks/use-activity-history';
+import { useRewardsHistoryPager } from '@/hooks/use-rewards-history-pager';
 import type { SteemHistoryItem } from '@/lib/wallet/normalize-history';
 import { formatTimeAgo } from '@/lib/wallet/format-time-ago';
 import { formatSteemPowerFromVestsString } from '@/lib/wallet/vest-steem';
 import { parseAssetAmount } from '@/lib/wallet/parse-asset-amount';
 import type { GlobalPropsData } from '@/lib/wallet/wallet-balance-types';
+import { normalizeSteemUsername } from '@/lib/steem/username';
 import { RewardsHistoryPager } from '@/components/wallet/rewards-history-pager';
 import {
   Table,
@@ -23,12 +24,22 @@ function asStr(val: unknown): string | undefined {
   return typeof val === 'string' ? val : undefined;
 }
 
-function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?: GlobalPropsData | null) {
+/**
+ * Compare a chain op account field against the page-context account.
+ * Op fields arrive chain-canonical lowercase while the page context may carry
+ * the visitor's URL casing (/@Alice) — both sides are normalized.
+ */
+function matchesContext(field: unknown, normalizedContext: string): boolean {
+  return typeof field === 'string' && normalizeSteemUsername(field) === normalizedContext;
+}
+
+export function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?: GlobalPropsData | null) {
   const [type, data] = item.op;
+  const ctx = normalizeSteemUsername(context);
 
   switch (type) {
     case 'transfer': {
-      const isReceive = data.to === context;
+      const isReceive = matchesContext(data.to, ctx);
       return {
         description: isReceive
           ? `Received ${data.amount} from ${data.from}`
@@ -47,6 +58,13 @@ function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?
       };
     case 'withdraw_vesting': {
       const vestStr = asStr(data.vesting_shares);
+      if (vestStr === '0.000000 VESTS') {
+        return {
+          description: 'Stop power down',
+          memo: '',
+          time: formatTimeAgo(item.timestamp),
+        };
+      }
       const sp = globalProps && vestStr
         ? `${formatSteemPowerFromVestsString(vestStr, globalProps)} SP`
         : vestStr ?? '';
@@ -93,13 +111,43 @@ function formatTransferRow(item: SteemHistoryItem, context: string, globalProps?
         memo: typeof data.memo === 'string' ? data.memo : '',
         time: formatTimeAgo(item.timestamp),
       };
+    case 'cancel_transfer_from_savings':
+      return {
+        description: `Cancel transfer from savings (request ${String(data.request_id ?? '')})`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    case 'interest':
+      return {
+        description: `Receive interest of ${asStr(data.interest) ?? ''}`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    case 'fill_convert_request':
+      return {
+        description: `Fill convert request: ${asStr(data.amount_in) ?? ''} for ${asStr(data.amount_out) ?? ''}`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    case 'fill_order': {
+      const openPays = asStr(data.open_pays) ?? '';
+      const currentPays = asStr(data.current_pays) ?? '';
+      return {
+        description:
+          matchesContext(data.open_owner, ctx)
+            ? `Paid ${openPays} for ${currentPays}`
+            : `Paid ${currentPays} for ${openPays}`,
+        memo: '',
+        time: formatTimeAgo(item.timestamp),
+      };
+    }
     case 'delegate_vesting_shares': {
       const vestStr = asStr(data.vesting_shares);
       const sp = globalProps && vestStr
         ? `${formatSteemPowerFromVestsString(vestStr, globalProps)} SP`
         : vestStr ?? '';
       return {
-        description: data.delegator === context
+        description: matchesContext(data.delegator, ctx)
           ? `Delegated ${sp} to ${data.delegatee}`
           : `Received delegation of ${sp} from ${data.delegator}`,
         memo: '',

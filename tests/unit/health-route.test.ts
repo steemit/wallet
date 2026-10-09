@@ -78,6 +78,16 @@ describe('GET /api/health', () => {
     expect(body.checks.steem.error).toBe('Connection refused');
   });
 
+  it('returns degraded when probe throws', async () => {
+    mockGetSteemHealthStale.mockResolvedValue(null);
+    mockCheckSteemNodeHealth.mockRejectedValue(new Error('probe boom'));
+
+    const res = await GET();
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.checks.steem.error).toBe('probe boom');
+  });
+
   it('serves stale cache when probe lock is held', async () => {
     mockGetSteemHealthStale.mockResolvedValue({
       healthy: false,

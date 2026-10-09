@@ -76,8 +76,11 @@ export function useVestingDelegations(username: string) {
           delegations?: VestingDelegation[];
           error?: string;
         }>(`/api/query/vesting-delegations?account=${encodeURIComponent(username)}`, {
+          // Explicit refetch: bypass the cache entirely (staleMs/maxAgeMs of 0
+          // would still write already-expired entries into the LRU).
           staleMs: 0,
           maxAgeMs: 0,
+          noStore: true,
         });
         if (requestId !== requestIdRef.current) return;
         const data = result.data;

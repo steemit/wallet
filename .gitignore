@@ -49,3 +49,6 @@ next-env.d.ts
 # AI
 .claude
 .cursor
+# Local AI-workflow scratch space (documented in AGENTS.md as local-only).
+.multica/
+.zcode/

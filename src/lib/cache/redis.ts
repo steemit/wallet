@@ -5,6 +5,10 @@ import Redis from 'ioredis';
 
 let redis: Redis | null = null;
 let redisUnavailable = false;
+// Cooldown (ms) before a new connection attempt after a close. Prevents a
+// reconnect-on-every-request thundering herd when Redis is flapping.
+let reconnectAvailableAt = 0;
+const RECONNECT_COOLDOWN_MS = 2000;
 
 const KEY_PREFIX = process.env.REDIS_KEY_PREFIX || 'wallet';
 
@@ -15,6 +19,10 @@ export function redisKey(key: string): string {
 export function getRedis(): Redis | null {
   if (redis) return redis;
   if (redisUnavailable) return null;
+
+  // Gate reconnection after a recent close to avoid a retry storm.
+  const now = Date.now();
+  if (now < reconnectAvailableAt) return null;
 
   const url = process.env.REDIS_URL;
   if (!url) {
@@ -40,6 +48,8 @@ export function getRedis(): Redis | null {
     redis.on('close', () => {
       redis = null;
       redisUnavailable = false;
+      // Enforce a short cooldown before the next getRedis() may reconnect.
+      reconnectAvailableAt = Date.now() + RECONNECT_COOLDOWN_MS;
     });
 
     return redis;
