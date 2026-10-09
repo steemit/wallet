@@ -565,7 +565,16 @@ export class SteemSigner {
       },
     ];
 
-    const signedTx = await this.signTransaction([operation], [oldOwnerPriv]);
+    // recover_account replaces the owner authority, so the chain requires
+    // BOTH authority signatures on the transaction (new owner + recent/old
+    // owner). Signing with the old owner key alone is rejected by steemd
+    // with `tx_missing_other_auth: missing required other authority`
+    // (observed in production 2026-10-08). wallet-legacy signs with
+    // [oldOwnerPrivate, newOwnerPrivate] (TransactionSaga.js recoverAccount).
+    const signedTx = await this.signTransaction([operation], [
+      oldOwnerPriv,
+      newOwnerPriv,
+    ]);
     return { signedTx, oldOwnerPub, newOwnerPub };
   }
 

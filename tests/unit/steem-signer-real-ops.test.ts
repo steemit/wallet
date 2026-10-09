@@ -86,6 +86,13 @@ type SignerCase = {
   operationType: string;
   /** Public key matching the WIF the method signs with. */
   publicKey: string;
+  /**
+   * Every public key whose signature the transaction must carry. Defaults to
+   * [publicKey]; recover_account must carry BOTH the recent (old) owner and
+   * the new owner signature or steemd rejects it with
+   * `tx_missing_other_auth: missing required other authority`.
+   */
+  publicKeys?: string[];
   sign: () => Promise<SignedTransaction>;
 };
 
@@ -263,6 +270,13 @@ const cases: SignerCase[] = [
     method: 'signRecoverAccount',
     operationType: 'recover_account',
     publicKey: oldOwnerPublicKey,
+    // steemd's recover_account evaluator requires signatures from BOTH the
+    // recent (old) owner authority and the new owner authority; the new owner
+    // key does not exist on chain yet, so both must be derived and applied.
+    publicKeys: [
+      oldOwnerPublicKey,
+      realAuth.getPublicKey(realAuth.toWif(ACCOUNT, NEW_PASSWORD, 'owner')),
+    ],
     sign: async () =>
       (await SteemSigner.signRecoverAccount(ACCOUNT, OLD_PASSWORD, NEW_PASSWORD)).signedTx,
   },
@@ -305,14 +319,15 @@ afterEach(() => {
 describe('SteemSigner operations sign through the real @steemit/steem-js', () => {
   it.each(cases)(
     '$method -> $operationType is serialized, signed and verifies',
-    async ({ sign, operationType, publicKey }) => {
+    async ({ sign, operationType, publicKey, publicKeys }) => {
       const signed = await sign();
 
       // The library returns the operations it serialized; a wrong op shape here
       // means the wallet built something other than what it claims.
       expect(signed.operations[0]?.[0]).toBe(operationType);
 
-      expect(signed.signatures).toHaveLength(1);
+      const requiredKeys = publicKeys ?? [publicKey];
+      expect(signed.signatures).toHaveLength(requiredKeys.length);
       const [signature] = signed.signatures;
       // Encoding-agnostic (the library emits the raw signature in the form its
       // bundle normalizes to); the real proof is the crypto round-trip below.
@@ -320,8 +335,12 @@ describe('SteemSigner operations sign through the real @steemit/steem-js', () =>
 
       // Real crypto round-trip over the real serializer: this is what a node
       // does before accepting the transaction, so a byte-level mistake in the
-      // library's serializer fails here too.
-      expect(realAuth.verifyTransaction(signed, publicKey)).toBe(true);
+      // library's serializer fails here too. Every required authority must
+      // have a matching signature — a missing one is exactly the production
+      // `missing required other authority` rejection.
+      for (const key of requiredKeys) {
+        expect(realAuth.verifyTransaction(signed, key)).toBe(true);
+      }
     }
   );
 
