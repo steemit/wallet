@@ -520,7 +520,6 @@
     "to": "到",
     "amount": "金额",
     "memo": "备注（可选）",
-    "transferButton": "转账",
     "continueButton": "继续",
     "confirmDescription": "发送前请核对交易详情。",
     "confirmFrom": "从",

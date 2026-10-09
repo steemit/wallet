@@ -520,7 +520,6 @@
     "to": "받는 사람",
     "amount": "수량",
     "memo": "메모 (선택)",
-    "transferButton": "전송",
     "continueButton": "계속",
     "confirmDescription": "보내기 전에 거래 내역을 확인하세요.",
     "confirmFrom": "보내는 사람",

@@ -520,7 +520,6 @@
     "to": "To",
     "amount": "Amount",
     "memo": "Memo (optional)",
-    "transferButton": "Transfer",
     "continueButton": "Continue",
     "confirmDescription": "Please review the transaction details before sending.",
     "confirmFrom": "From",

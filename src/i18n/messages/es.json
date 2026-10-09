@@ -520,7 +520,6 @@
     "to": "Para",
     "amount": "Monto",
     "memo": "Memo (opcional)",
-    "transferButton": "Transferir",
     "continueButton": "Continuar",
     "confirmDescription": "Revise los detalles de la transacción antes de enviar.",
     "confirmFrom": "De",

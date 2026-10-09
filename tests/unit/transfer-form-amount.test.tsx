@@ -149,6 +149,8 @@ describe('TransferForm — amount validation parity (G-14)', () => {
     // First click opens the pre-broadcast review; nothing is signed yet.
     fireEvent.click(screen.getByRole('button', { name: 'continueButton' }));
     expect(await screen.findByText('confirmDescription')).toBeInTheDocument();
+    // Empty memo renders as an explicit "—" row, not a missing field.
+    expect(screen.getByText('—')).toBeInTheDocument();
     expect(mocks.signToSavings).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'confirmButton' }));
@@ -230,6 +232,7 @@ describe('TransferForm — amount validation parity (G-14)', () => {
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'continueButton' }));
     await screen.findByText('confirmDescription');
+    expect(screen.getByText('deposit-123')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'confirmButton' }));
 
@@ -242,5 +245,46 @@ describe('TransferForm — amount validation parity (G-14)', () => {
         '5J-test-active'
       );
     });
+  });
+
+  it('confirm signs the reviewed snapshot even if form state moves on afterwards', async () => {
+    mocks.signToSavings.mockResolvedValue({ id: 'tx' });
+    mocks.broadcast.mockResolvedValue({ success: true });
+    mockFetchAccounts.mockResolvedValue(balancesApiResponse('5.000 STEEM'));
+    const view = render(
+      <Provider store={makeStore('alice')}>
+        <TransferForm variant="page" initialTransferType="savings" />
+      </Provider>
+    );
+    await screen.findByText('availableBalance');
+    await setAmount('1.001');
+    fireEvent.click(screen.getByRole('button', { name: 'continueButton' }));
+    expect(await screen.findByText('confirmDescription')).toBeInTheDocument();
+
+    // The props-driven initial type changes while the review is open (the
+    // URL-driven wallet modal can do this). Confirm must still sign the
+    // reviewed savings transfer, not whatever the form re-rendered into.
+    view.rerender(
+      <Provider store={makeStore('alice')}>
+        <TransferForm variant="page" initialTransferType="transfer" />
+      </Provider>
+    );
+    // The "to" field only exists in transfer mode: its appearance proves the
+    // form state has actually flipped before confirm is clicked.
+    await screen.findByLabelText('to');
+
+    fireEvent.click(screen.getByRole('button', { name: 'confirmButton' }));
+
+    await waitFor(() => {
+      expect(mocks.signToSavings).toHaveBeenCalledWith(
+        'alice',
+        'alice',
+        '1.001 STEEM',
+        '',
+        '5J-test-active'
+      );
+    });
+    expect(mocks.signTransfer).not.toHaveBeenCalled();
+    expect(mocks.broadcast).toHaveBeenCalledTimes(1);
   });
 });

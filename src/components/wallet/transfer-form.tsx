@@ -61,8 +61,12 @@ interface SenderBalances {
   savingsSbd: number;
 }
 
-/** Snapshot of a validated transfer, shown for review before broadcasting. */
+/** Snapshot of a validated transfer, shown for review before broadcasting.
+ * Confirm signs strictly from this snapshot, so what the review shows cannot
+ * drift from what gets signed if form state changes while it is open. */
 interface TransferDraft {
+  transferType: WalletTransferType;
+  transferCoin: 'STEEM' | 'SBD';
   amountStr: string;
   amountValue: number;
   recipient: string;
@@ -332,6 +336,8 @@ export function TransferForm({
     // Validation passed: show the pre-broadcast review instead of signing.
     const amountStr = `${amountValue.toFixed(3)} ${amountSuffix}`;
     setDraft({
+      transferType,
+      transferCoin: amountSuffix,
       amountStr,
       amountValue,
       recipient,
@@ -351,7 +357,7 @@ export function TransferForm({
     try {
       let signedTx: SignedTransaction;
 
-      if (transferType === 'transfer') {
+      if (draft.transferType === 'transfer') {
         signedTx = await SteemSigner.signTransfer(
           username,
           draft.recipient,
@@ -359,7 +365,7 @@ export function TransferForm({
           draft.memo,
           signingKey
         );
-      } else if (transferType === 'savings') {
+      } else if (draft.transferType === 'savings') {
         signedTx = await SteemSigner.signTransferToSavings(
           username,
           username,
@@ -367,7 +373,7 @@ export function TransferForm({
           draft.memo,
           signingKey
         );
-      } else if (transferType === 'savings_withdraw') {
+      } else if (draft.transferType === 'savings_withdraw') {
         const requestId = Date.now() >>> 0;
         signedTx = await SteemSigner.signTransferFromSavings(
           username,
@@ -391,15 +397,16 @@ export function TransferForm({
         return;
       }
 
-      const recipient = transferType === 'transfer' ? draft.recipient : username;
+      const recipient =
+        draft.transferType === 'transfer' ? draft.recipient : username;
       const overseerAction =
-        transferType === 'transfer'
+        draft.transferType === 'transfer'
           ? 'transfer'
-          : transferType === 'savings'
+          : draft.transferType === 'savings'
             ? 'transfer_to_savings'
             : 'transfer_from_savings';
       userActionRecord(overseerAction, {
-        transferCoin: amountSuffix,
+        transferCoin: draft.transferCoin,
         amount: draft.amountValue,
         from: username,
         to: recipient,
@@ -632,7 +639,9 @@ export function TransferForm({
           <PreviewRow label={t('confirmFrom')} value={username ?? ''} />
           <PreviewRow label={t('confirmTo')} value={draft?.recipient ?? ''} />
           <PreviewRow label={t('confirmAmount')} value={draft?.amountStr ?? ''} />
-          {draft?.memo ? <PreviewRow label={t('confirmMemo')} value={draft.memo} /> : null}
+          {/* Always render the memo row so an empty memo is an explicit "—" the
+              user confirms, rather than an absent field. */}
+          <PreviewRow label={t('confirmMemo')} value={draft?.memo || '—'} />
           {error && (
             <div className="border-destructive/20 bg-destructive/10 rounded-md border p-4">
               <p className="text-destructive text-sm font-medium">{error}</p>
