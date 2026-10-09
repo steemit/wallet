@@ -16,6 +16,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { fetchAccounts } from '@/lib/steem/accounts-client';
 import { normalizeSteemUsername } from '@/lib/steem/username';
@@ -53,6 +61,24 @@ interface SenderBalances {
   savingsSbd: number;
 }
 
+/** Snapshot of a validated transfer, shown for review before broadcasting. */
+interface TransferDraft {
+  amountStr: string;
+  amountValue: number;
+  recipient: string;
+  memo: string;
+}
+
+/** A single label/value row in the pre-broadcast review dialog. */
+function PreviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
+      <span className="text-muted-foreground text-sm">{label}</span>
+      <span className="text-sm font-medium break-all text-right">{value}</span>
+    </div>
+  );
+}
+
 export function TransferForm({
   variant = 'page',
   initialAsset = 'STEEM',
@@ -86,6 +112,8 @@ export function TransferForm({
     similarity: number;
   } | null>(null);
   const [warningsAcknowledged, setWarningsAcknowledged] = useState(false);
+  const [draft, setDraft] = useState<TransferDraft | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => {
@@ -235,99 +263,108 @@ export function TransferForm({
 
   const amountSuffix = asset === 'SBD' ? 'SBD' : 'STEEM';
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
 
     if (!username || !signingKey) {
       setError('Not authenticated');
-      setIsLoading(false);
       return;
     }
 
+    // Strict syntax + explicit 3-decimal rejection (power-up parity);
+    // the balance check below then compares at the same 3-decimal
+    // precision the broadcast will use.
+    const parsed = parseTransferAmountInput(formData.amount);
+    if (!parsed.ok) {
+      setError(t(`errors.${parsed.issue}`));
+      return;
+    }
+    const amountValue = parsed.value;
+    if (amountExceedsBalance) {
+      setError(t('errors.insufficient_funds'));
+      return;
+    }
+
+    let recipient = username;
+    if (transferType === 'transfer') {
+      const target = formData.to.trim().replace(/^@/, '').toLowerCase();
+      if (!target) {
+        setError('Please enter a recipient username');
+        return;
+      }
+      const nameError = validateAccountName(target, true);
+      if (nameError) {
+        setError(t(`errors.${nameError}`));
+        return;
+      }
+      if (toError) {
+        setError(toError);
+        return;
+      }
+      if (toFormatError) {
+        setError(toFormatError);
+        return;
+      }
+      if (exchangeMemoMissing) {
+        setError(t('errors.verified_exchange_no_memo'));
+        return;
+      }
+      if (submitBlockedByWarnings) {
+        setError(t('errors.acknowledge_warnings'));
+        return;
+      }
+      recipient = target;
+    }
+
+    const memoLeak = formData.memo
+      ? validateMemoField(
+          formData.memo,
+          username ? normalizeSteemUsername(username) : undefined,
+          senderMemoKey ?? undefined
+        )
+      : null;
+    if (memoLeak) {
+      setError(t(`errors.${memoLeak}`));
+      return;
+    }
+
+    // Validation passed: show the pre-broadcast review instead of signing.
+    const amountStr = `${amountValue.toFixed(3)} ${amountSuffix}`;
+    setDraft({
+      amountStr,
+      amountValue,
+      recipient,
+      memo: formData.memo,
+    });
+    setPreviewOpen(true);
+  };
+
+  const handleConfirm = async () => {
+    if (!username || !signingKey || !draft) {
+      setError('Not authenticated');
+      return;
+    }
+    setError('');
+    setIsLoading(true);
+
     try {
-      // Strict syntax + explicit 3-decimal rejection (power-up parity);
-      // the balance check below then compares at the same 3-decimal
-      // precision the broadcast will use.
-      const parsed = parseTransferAmountInput(formData.amount);
-      if (!parsed.ok) {
-        setError(t(`errors.${parsed.issue}`));
-        setIsLoading(false);
-        return;
-      }
-      const amountValue = parsed.value;
-      if (amountExceedsBalance) {
-        setError(t('errors.insufficient_funds'));
-        setIsLoading(false);
-        return;
-      }
-
-      if (transferType === 'transfer') {
-        const target = formData.to.trim().replace(/^@/, '').toLowerCase();
-        if (!target) {
-          setError('Please enter a recipient username');
-          setIsLoading(false);
-          return;
-        }
-        const nameError = validateAccountName(target, true);
-        if (nameError) {
-          setError(t(`errors.${nameError}`));
-          setIsLoading(false);
-          return;
-        }
-        if (toError) {
-          setError(toError);
-          setIsLoading(false);
-          return;
-        }
-        if (toFormatError) {
-          setError(toFormatError);
-          setIsLoading(false);
-          return;
-        }
-        if (exchangeMemoMissing) {
-          setError(t('errors.verified_exchange_no_memo'));
-          setIsLoading(false);
-          return;
-        }
-        if (submitBlockedByWarnings) {
-          setError(t('errors.acknowledge_warnings'));
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      const memoLeak = formData.memo
-        ? validateMemoField(
-            formData.memo,
-            username ? normalizeSteemUsername(username) : undefined,
-            senderMemoKey ?? undefined
-          )
-        : null;
-      if (memoLeak) {
-        setError(t(`errors.${memoLeak}`));
-        setIsLoading(false);
-        return;
-      }
-
-      const amountStr = `${amountValue.toFixed(3)} ${amountSuffix}`;
       let signedTx: SignedTransaction;
 
       if (transferType === 'transfer') {
         signedTx = await SteemSigner.signTransfer(
           username,
-          formData.to.trim().replace(/^@/, '').toLowerCase(),
-          amountStr,
-          formData.memo,
+          draft.recipient,
+          draft.amountStr,
+          draft.memo,
           signingKey
         );
       } else if (transferType === 'savings') {
         signedTx = await SteemSigner.signTransferToSavings(
           username,
           username,
-          amountStr,
-          formData.memo,
+          draft.amountStr,
+          draft.memo,
           signingKey
         );
       } else if (transferType === 'savings_withdraw') {
@@ -335,8 +372,8 @@ export function TransferForm({
         signedTx = await SteemSigner.signTransferFromSavings(
           username,
           username,
-          amountStr,
-          formData.memo,
+          draft.amountStr,
+          draft.memo,
           requestId,
           signingKey
         );
@@ -354,10 +391,7 @@ export function TransferForm({
         return;
       }
 
-      const recipient =
-        transferType === 'transfer'
-          ? formData.to.trim().replace(/^@/, '').toLowerCase()
-          : username;
+      const recipient = transferType === 'transfer' ? draft.recipient : username;
       const overseerAction =
         transferType === 'transfer'
           ? 'transfer'
@@ -366,12 +400,14 @@ export function TransferForm({
             : 'transfer_from_savings';
       userActionRecord(overseerAction, {
         transferCoin: amountSuffix,
-        amount: amountValue,
+        amount: draft.amountValue,
         from: username,
         to: recipient,
       });
 
       setIsLoading(false);
+      setPreviewOpen(false);
+      setDraft(null);
       startTransition(() => {
         if (onSuccess) {
           onSuccess();
@@ -565,7 +601,7 @@ export function TransferForm({
           }
           className={modalFormActionButtonClassName}
         >
-          {isLoading || isPending ? tCommon('loading') : t('transferButton')}
+          {isLoading || isPending ? tCommon('loading') : t('continueButton')}
         </Button>
         <Button
           type="button"
@@ -580,11 +616,58 @@ export function TransferForm({
     </form>
   );
 
+  const confirmDialog = (
+    <Dialog
+      open={previewOpen}
+      onOpenChange={(next) => {
+        if (!isLoading) setPreviewOpen(next);
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{titleKey}</DialogTitle>
+          <DialogDescription>{t('confirmDescription')}</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3 py-2">
+          <PreviewRow label={t('confirmFrom')} value={username ?? ''} />
+          <PreviewRow label={t('confirmTo')} value={draft?.recipient ?? ''} />
+          <PreviewRow label={t('confirmAmount')} value={draft?.amountStr ?? ''} />
+          {draft?.memo ? <PreviewRow label={t('confirmMemo')} value={draft.memo} /> : null}
+          {error && (
+            <div className="border-destructive/20 bg-destructive/10 rounded-md border p-4">
+              <p className="text-destructive text-sm font-medium">{error}</p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setPreviewOpen(false)}
+            disabled={isLoading}
+            className={modalFormActionButtonClassName}
+          >
+            {t('backButton')}
+          </Button>
+          <Button
+            type="button"
+            onClick={handleConfirm}
+            disabled={isLoading || isPending}
+            className={modalFormActionButtonClassName}
+          >
+            {isLoading || isPending ? tCommon('loading') : t('confirmButton')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (variant === 'dialog') {
     return (
       <div className="px-1 py-1">
         <h2 className="mb-4 text-lg font-semibold">{titleKey}</h2>
         {formBody}
+        {confirmDialog}
       </div>
     );
   }
@@ -597,6 +680,7 @@ export function TransferForm({
         </CardHeader>
         <CardContent>{formBody}</CardContent>
       </Card>
+      {confirmDialog}
     </div>
   );
 }
