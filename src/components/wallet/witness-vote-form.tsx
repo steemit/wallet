@@ -7,6 +7,7 @@ import type { RootState } from '@/lib/store';
 import { useActiveSigningKey, useAuth } from '@/hooks/use-auth';
 import { useAccountData } from '@/hooks/use-account-data';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
+import type { SigningKey } from '@/lib/steem/signing-key';
 import type { Witness } from '@/lib/steem/types';
 import { LoginForm } from '@/components/auth/login-form';
 import { DISABLED_SIGNING_KEY } from '@/lib/steem/constants';
@@ -43,7 +44,7 @@ export function WitnessVoteForm() {
   const username = useSelector((state: RootState) => state.auth.username);
   const signingKey = useActiveSigningKey();
   const [isPending] = useTransition();
-  const signingKeyRef = useRef<string | null>(null);
+  const signingKeyRef = useRef<SigningKey | null>(null);
   useEffect(() => {
     signingKeyRef.current = signingKey ?? null;
   }, [signingKey]);

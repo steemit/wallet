@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '@/lib/store';
-import { setCredentials } from '@/lib/store/slices/auth';
+import { setCredentials, setKeychainCredentials } from '@/lib/store/slices/auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
+import { isKeychainInstalled, keychainSignBuffer } from '@/lib/steem/keychain';
 import {
   normalizeSteemUsername,
   REMEMBERED_POSTING_KEY_KEY,
@@ -82,6 +83,16 @@ export function LoginForm(props: LoginFormProps = {}) {
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [rememberUser, setRememberUser] = useState(false);
+  // Checked client-side only (no window.steem_keychain on the server) to
+  // avoid an SSR/hydration mismatch — the button simply doesn't render on
+  // the server pass and appears once this effect runs.
+  const [keychainAvailable, setKeychainAvailable] = useState(false);
+
+  useEffect(() => {
+    // Async to avoid cascading renders flagged by react-hooks/set-state-in-effect
+    // (same pattern as witness-vote-form.tsx's login-dialog close).
+    queueMicrotask(() => setKeychainAvailable(isKeychainInstalled()));
+  }, []);
 
   // Post-authentication notices from query params (redirects from password
   // change / account recovery flows): msg=passwordupdated|accountrecovered.
@@ -347,6 +358,76 @@ export function LoginForm(props: LoginFormProps = {}) {
     }
   };
 
+  /**
+   * Keychain login: the extension signs the server-issued challenge with
+   * the account's Posting key and never exposes it to the page.
+   * `/api/auth/login` is signature/pubkey-agnostic (02-auth.md) — the exact
+   * same route and apiClient.login call as a raw-key login verifies it.
+   *
+   * requiredAuthTypes gating: Keychain can't know in advance which keys the
+   * extension holds, so a successful Keychain login optimistically covers
+   * posting/active (the per-action Keychain call surfaces its own error if
+   * the assumption is wrong) but never owner — owner-gated re-auth dialogs
+   * still fail loudly here, same as a posting/active-only key login today.
+   */
+  const handleKeychainLogin = async () => {
+    setError('');
+
+    const username = fixedUsername
+      ? normalizeSteemUsername(fixedUsername)
+      : normalizeSteemUsername(formData.username);
+
+    if (!username) {
+      setError(t('requiredFields'));
+      return;
+    }
+
+    if (requiredAuthTypes?.includes('owner') || requiredAuthTypes?.includes('memo')) {
+      setError(t('insufficientAuthority'));
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { challenge } = await apiClient.getChallenge(username);
+      const { publicKey, signature } = await keychainSignBuffer(username, challenge, 'Posting');
+      const response = await apiClient.login(username, signature, publicKey);
+
+      if (!response.success) {
+        setError(response.error || t('loginError'));
+        setIsLoading(false);
+        return;
+      }
+
+      dispatch(setKeychainCredentials({ username, publicKey }));
+
+      try {
+        if (rememberUser) {
+          localStorage.setItem(REMEMBERED_USERNAME_KEY, username);
+          // No raw key to remember for a Keychain session.
+          localStorage.removeItem(REMEMBERED_POSTING_KEY_KEY);
+        } else if (showRememberUser) {
+          localStorage.removeItem(REMEMBERED_USERNAME_KEY);
+          localStorage.removeItem(REMEMBERED_POSTING_KEY_KEY);
+        }
+      } catch {
+        // ignore
+      }
+
+      setIsLoading(false);
+      if (embedded) {
+        onLoginSuccess?.();
+      } else {
+        startTransition(() => {
+          router.push(transfersPathForUsername(username));
+        });
+      }
+    } catch (err) {
+      setIsLoading(false);
+      setError(err instanceof Error ? err.message : tCommon('error'));
+    }
+  };
+
   const usernameInputId = embedded ? 'wallet-reauth-username' : 'username';
 
   return (
@@ -457,6 +538,37 @@ export function LoginForm(props: LoginFormProps = {}) {
           >
             {isLoading || isPending ? tCommon('loading') : t('loginButton')}
           </Button>
+
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            {t('orDivider')}
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          {keychainAvailable ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isLoading || isPending}
+              className="h-11 w-full text-base"
+              size="lg"
+              onClick={handleKeychainLogin}
+            >
+              {isLoading || isPending ? tCommon('loading') : t('loginWithKeychain')}
+            </Button>
+          ) : (
+            <p className="text-center text-xs text-muted-foreground">
+              {t('keychainNotInstalled')}{' '}
+              <a
+                href="https://steemkeychain.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-primary hover:underline"
+              >
+                {t('keychainInstallLink')}
+              </a>
+            </p>
+          )}
         </form>
       </div>
     </div>

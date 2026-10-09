@@ -1,0 +1,86 @@
+# ==========================================
+# Steem Wallet — LOCAL DEVELOPMENT stack.
+#
+# NOT production and NOT read by tests/unit/infra-single-source.test.ts
+# (that guard only reads docker/docker-compose.yml by exact path) — this
+# file is free to diverge, it exists purely to make local testing easy.
+#
+# Brings up Redis + MySQL + the app itself (via docker/Dockerfile.dev,
+# `next dev` with hot reload) so the full stack — including Steem Keychain
+# login/signing (docs/AI-driver/02-auth.md) and account recovery — can be
+# exercised locally without installing Redis/MySQL by hand.
+#
+# Usage:
+#   docker compose -f docker/docker-compose.dev.yml up
+#
+# First run only, once `mysql` reports healthy, apply the schema from the
+# host (drizzle-kit has no npm script — this is the project's normal
+# workflow, see docs/DATABASE.md; not automated here on purpose):
+#   DATABASE_URL=mysql://root:wallet_dev_pw@127.0.0.1:3306/wallet_dev \
+#     pnpm exec drizzle-kit push
+#
+# Then open http://localhost:3000. Private-key login, signing and broadcast
+# all work exactly as before. Install the Steem Keychain browser extension
+# to exercise the new "Login with Keychain" button and Keychain-signed
+# transactions.
+# ==========================================
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: wallet_dev_pw
+      MYSQL_DATABASE: wallet_dev
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pwallet_dev_pw"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - wallet_dev_mysql:/var/lib/mysql
+
+  wallet:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    ports:
+      - "3000:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=development
+      - STEEM_RPC_URL=https://api.steemit.com
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=mysql://root:wallet_dev_pw@mysql:3306/wallet_dev
+      # Dev-only fixed secret so CSRF tokens survive a container restart —
+      # never reuse this in production (see .env.example / CSRF_SECRET).
+      - CSRF_SECRET=local-dev-csrf-secret-change-if-you-care
+      # No reverse proxy in front of this stack.
+      - TRUST_PROXY_COUNT=0
+    volumes:
+      # Bind-mount the repo for hot reload; the two named volumes below are
+      # listed AFTER it so they shadow their sub-paths instead of being
+      # hidden by the bind mount (standard Compose mount-ordering trick).
+      - ..:/app
+      - wallet_dev_node_modules:/app/node_modules
+      - wallet_dev_next_cache:/app/.next
+
+volumes:
+  wallet_dev_mysql:
+  wallet_dev_node_modules:
+  wallet_dev_next_cache:
