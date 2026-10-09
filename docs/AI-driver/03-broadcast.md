@@ -103,6 +103,20 @@ component, call `invalidateWalletCache` for the acting user before triggering
 any refetch — `cachedFetch` otherwise serves its fresh window with no request
 and the UI keeps pre-broadcast data (see 06-frontend.md).
 
+### Known trade-off: `username` is not bound to the transaction (N3, 2026-09-23 audit)
+
+The relay never verifies that `body.username` names an authority of `signedTx` —
+binding the two would be content validation, which the 2026-08-15 relay ruling
+forbids. Consequence: any caller holding *some* validly signed transaction
+(e.g. a self-signed `custom_json`) can supply an arbitrary `username` and
+trigger that account's user-scoped Redis cache eviction (plus a matching audit
+line). The effect is bounded extra upstream RPC — invalidation only deletes
+keys, so there is no poisoning and no data exposure — and it is capped at the
+route's 10/min/IP rate limit. This is an accepted consequence of the relay
+architecture (2026-09-23 incremental audit, finding N3): do NOT "fix" it by
+binding `username` to the operation contents or by re-introducing per-route
+op checks.
+
 ## Route inventory & status (2026-09-22)
 
 Working & consumed: transfer, convert, delegate, power-down, custom-json, limit-order-create,
