@@ -33,6 +33,7 @@ export function GoogleAnalytics({
         async
         src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
         {...scriptProps}
+        suppressHydrationWarning
       />
       <script
         dangerouslySetInnerHTML={{
@@ -45,6 +46,9 @@ gtag('config', '${measurementId}', {
 });`,
         }}
         {...scriptProps}
+        // Same per-request-nonce dev-mode hydration artifact as the theme
+        // init script in layout.tsx — see its comment for why this is safe.
+        suppressHydrationWarning
       />
     </>
   );

@@ -13,13 +13,20 @@
 # Usage:
 #   docker compose -f docker/docker-compose.dev.yml up
 #
+# Host ports default to 3030 (app), 3307 (MySQL), 6379 (Redis) — chosen to
+# avoid colliding with other projects' containers (a plain "3000"/"3306" is
+# a very common default). Override with WALLET_DEV_PORT /
+# WALLET_DEV_MYSQL_PORT / WALLET_DEV_REDIS_PORT if these also collide for
+# you. Containers talk to each other by service name regardless (mysql:3306,
+# redis:6379), so only the HOST side of the mapping ever needs to change.
+#
 # First run only, once `mysql` reports healthy, apply the schema from the
 # host (drizzle-kit has no npm script — this is the project's normal
 # workflow, see docs/DATABASE.md; not automated here on purpose):
-#   DATABASE_URL=mysql://root:wallet_dev_pw@127.0.0.1:3306/wallet_dev \
+#   DATABASE_URL=mysql://root:wallet_dev_pw@127.0.0.1:3307/wallet_dev \
 #     pnpm exec drizzle-kit push
 #
-# Then open http://localhost:3000. Private-key login, signing and broadcast
+# Then open http://localhost:3030. Private-key login, signing and broadcast
 # all work exactly as before. Install the Steem Keychain browser extension
 # to exercise the new "Login with Keychain" button and Keychain-signed
 # transactions.
@@ -29,7 +36,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${WALLET_DEV_REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -42,7 +49,7 @@ services:
       MYSQL_ROOT_PASSWORD: wallet_dev_pw
       MYSQL_DATABASE: wallet_dev
     ports:
-      - "3306:3306"
+      - "${WALLET_DEV_MYSQL_PORT:-3307}:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pwallet_dev_pw"]
       interval: 5s
@@ -56,7 +63,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.dev
     ports:
-      - "3000:3000"
+      - "${WALLET_DEV_PORT:-3030}:3000"
     depends_on:
       redis:
         condition: service_healthy

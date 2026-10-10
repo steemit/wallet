@@ -2,11 +2,13 @@
  * LoginForm — Steem Keychain login path.
  *
  * Private-key login is unchanged and covered by login-form-reauth.test.tsx;
- * this file covers the additive Keychain branch: the button only appears
- * once `window.steem_keychain` is detected, a successful Keychain login
- * reuses the existing `/api/auth/login` contract (same apiClient.login call
- * a raw-key login makes) and dispatches setKeychainCredentials, and an
- * owner-authority requirement is rejected without ever calling Keychain.
+ * this file covers the additive Keychain branch: a tick-box (only rendered
+ * once `window.steem_keychain` is detected) that hides the private-key
+ * field and routes the SAME submit button through the extension instead. A
+ * successful Keychain login reuses the existing `/api/auth/login` contract
+ * (same apiClient.login call a raw-key login makes) and dispatches
+ * setKeychainCredentials; an owner-authority requirement is rejected
+ * without ever calling Keychain.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -79,6 +81,12 @@ function renderForm(props: Parameters<typeof LoginForm>[0]) {
   return { store, ...utils };
 }
 
+/** Tick the Keychain checkbox and submit via the single shared submit button. */
+async function loginWithKeychain() {
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'loginWithKeychain' }));
+  fireEvent.click(screen.getByRole('button', { name: 'loginButton' }));
+}
+
 describe('LoginForm — Steem Keychain', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -91,18 +99,35 @@ describe('LoginForm — Steem Keychain', () => {
     });
   });
 
-  it('shows the Keychain button once the extension is detected', async () => {
+  it('shows the Keychain tick-box once the extension is detected', async () => {
     renderForm({ embedded: true, fixedUsername: 'testuser001' });
-    expect(await screen.findByRole('button', { name: 'loginWithKeychain' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('checkbox', { name: 'loginWithKeychain' })
+    ).toBeInTheDocument();
   });
 
-  it('hides the Keychain button and shows the install hint when not installed', async () => {
+  it('hides the Keychain tick-box and shows the install hint when not installed', async () => {
     keychainInstalled = false;
     renderForm({ embedded: true, fixedUsername: 'testuser001' });
     await waitFor(() =>
       expect(screen.getByText('keychainNotInstalled')).toBeInTheDocument()
     );
-    expect(screen.queryByRole('button', { name: 'loginWithKeychain' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('checkbox', { name: 'loginWithKeychain' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides the private-key field once the Keychain box is ticked, and restores it when unticked', async () => {
+    renderForm({ embedded: true, fixedUsername: 'testuser001' });
+
+    expect(screen.getByLabelText('privateKey')).toBeInTheDocument();
+
+    const box = await screen.findByRole('checkbox', { name: 'loginWithKeychain' });
+    fireEvent.click(box);
+    expect(screen.queryByLabelText('privateKey')).not.toBeInTheDocument();
+
+    fireEvent.click(box);
+    expect(screen.getByLabelText('privateKey')).toBeInTheDocument();
   });
 
   it('signs the challenge via Keychain and logs in through the existing auth route', async () => {
@@ -113,7 +138,7 @@ describe('LoginForm — Steem Keychain', () => {
       onLoginSuccess,
     });
 
-    fireEvent.click(await screen.findByRole('button', { name: 'loginWithKeychain' }));
+    await loginWithKeychain();
 
     await waitFor(() => expect(onLoginSuccess).toHaveBeenCalled());
     expect(mockGetChallenge).toHaveBeenCalledWith('testuser001');
@@ -139,7 +164,7 @@ describe('LoginForm — Steem Keychain', () => {
     mockLogin.mockResolvedValue({ success: false, error: 'account not found' });
     const { store } = renderForm({ embedded: true, fixedUsername: 'testuser001' });
 
-    fireEvent.click(await screen.findByRole('button', { name: 'loginWithKeychain' }));
+    await loginWithKeychain();
 
     await waitFor(() => expect(screen.getByText('account not found')).toBeInTheDocument());
     expect(store.getState().auth.isAuthenticated).toBe(false);
@@ -149,7 +174,7 @@ describe('LoginForm — Steem Keychain', () => {
     mockKeychainSignBuffer.mockRejectedValue(new Error('Request was cancelled'));
     renderForm({ embedded: true, fixedUsername: 'testuser001' });
 
-    fireEvent.click(await screen.findByRole('button', { name: 'loginWithKeychain' }));
+    await loginWithKeychain();
 
     await waitFor(() => expect(screen.getByText('Request was cancelled')).toBeInTheDocument());
     expect(mockLogin).not.toHaveBeenCalled();
@@ -162,7 +187,7 @@ describe('LoginForm — Steem Keychain', () => {
       requiredAuthTypes: ['owner'],
     });
 
-    fireEvent.click(await screen.findByRole('button', { name: 'loginWithKeychain' }));
+    await loginWithKeychain();
 
     await waitFor(() => expect(screen.getByText('insufficientAuthority')).toBeInTheDocument());
     expect(mockKeychainSignBuffer).not.toHaveBeenCalled();

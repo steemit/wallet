@@ -84,9 +84,12 @@ export function LoginForm(props: LoginFormProps = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberUser, setRememberUser] = useState(false);
   // Checked client-side only (no window.steem_keychain on the server) to
-  // avoid an SSR/hydration mismatch — the button simply doesn't render on
+  // avoid an SSR/hydration mismatch — the toggle simply doesn't render on
   // the server pass and appears once this effect runs.
   const [keychainAvailable, setKeychainAvailable] = useState(false);
+  // Tick-box mode: when on, the private-key field is hidden and submit signs
+  // through the Steem Keychain extension instead of a local WIF.
+  const [useKeychain, setUseKeychain] = useState(false);
 
   useEffect(() => {
     // Async to avoid cascading renders flagged by react-hooks/set-state-in-effect
@@ -130,8 +133,7 @@ export function LoginForm(props: LoginFormProps = {}) {
     setError('');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePrivateKeyLogin = async () => {
     setError('');
     setIsLoading(true);
 
@@ -358,6 +360,15 @@ export function LoginForm(props: LoginFormProps = {}) {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (useKeychain) {
+      await handleKeychainLogin();
+    } else {
+      await handlePrivateKeyLogin();
+    }
+  };
+
   /**
    * Keychain login: the extension signs the server-issued challenge with
    * the account's Posting key and never exposes it to the page.
@@ -475,25 +486,69 @@ export function LoginForm(props: LoginFormProps = {}) {
             </div>
           </div>
 
-          {/* Private Key Input */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password" className="text-sm font-semibold text-foreground">
-              {t('privateKey')}
-            </Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              placeholder={t('secretPlaceholder')}
-              disabled={isLoading || isPending}
-            />
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {t('secretHelper')}
+          {/* Steem Keychain toggle: ticking it hides the private-key field
+              below and routes submit through the browser extension instead
+              (see handleKeychainLogin). Only rendered once the extension is
+              actually detected — ticking a box that can't do anything would
+              be worse than not offering it. */}
+          {keychainAvailable && (
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id={embedded ? 'dialog-useKeychain' : 'useKeychain'}
+                checked={useKeychain}
+                onCheckedChange={(value) => {
+                  const next = value === true;
+                  setUseKeychain(next);
+                  setError('');
+                  if (next) setFormData((prev) => ({ ...prev, password: '' }));
+                }}
+                disabled={isLoading || isPending}
+                className="peer mt-0.5 border-muted-foreground/50 data-[state=unchecked]:bg-background"
+              />
+              <Label
+                htmlFor={embedded ? 'dialog-useKeychain' : 'useKeychain'}
+                className="cursor-pointer text-sm font-normal leading-snug text-muted-foreground peer-disabled:cursor-not-allowed"
+              >
+                {t('loginWithKeychain')}
+              </Label>
+            </div>
+          )}
+
+          {/* Private Key Input — hidden while the Keychain toggle above is on */}
+          {!useKeychain && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="password" className="text-sm font-semibold text-foreground">
+                {t('privateKey')}
+              </Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                placeholder={t('secretPlaceholder')}
+                disabled={isLoading || isPending}
+              />
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {t('secretHelper')}
+              </p>
+            </div>
+          )}
+
+          {!keychainAvailable && (
+            <p className="text-xs text-muted-foreground">
+              {t('keychainNotInstalled')}{' '}
+              <a
+                href="https://steemkeychain.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-primary hover:underline"
+              >
+                {t('keychainInstallLink')}
+              </a>
             </p>
-          </div>
+          )}
 
           {showRememberUser && (
             <div className="flex items-start gap-3">
@@ -529,7 +584,8 @@ export function LoginForm(props: LoginFormProps = {}) {
             </div>
           )}
 
-          {/* Submit Button */}
+          {/* Submit Button — same button either way; useKeychain decides which
+              flow handleSubmit dispatches to. */}
           <Button
             type="submit"
             disabled={isLoading || isPending}
@@ -538,37 +594,6 @@ export function LoginForm(props: LoginFormProps = {}) {
           >
             {isLoading || isPending ? tCommon('loading') : t('loginButton')}
           </Button>
-
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />
-            {t('orDivider')}
-            <span className="h-px flex-1 bg-border" />
-          </div>
-
-          {keychainAvailable ? (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isLoading || isPending}
-              className="h-11 w-full text-base"
-              size="lg"
-              onClick={handleKeychainLogin}
-            >
-              {isLoading || isPending ? tCommon('loading') : t('loginWithKeychain')}
-            </Button>
-          ) : (
-            <p className="text-center text-xs text-muted-foreground">
-              {t('keychainNotInstalled')}{' '}
-              <a
-                href="https://steemkeychain.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-primary hover:underline"
-              >
-                {t('keychainInstallLink')}
-              </a>
-            </p>
-          )}
         </form>
       </div>
     </div>
