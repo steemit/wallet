@@ -146,7 +146,14 @@ describe('TransferForm — amount validation parity (G-14)', () => {
     await renderSavingsForm('5.000 STEEM');
     await setAmount('1.001');
 
-    fireEvent.click(screen.getByRole('button', { name: 'transferButton' }));
+    // First click opens the pre-broadcast review; nothing is signed yet.
+    fireEvent.click(screen.getByRole('button', { name: 'continueButton' }));
+    expect(await screen.findByText('confirmDescription')).toBeInTheDocument();
+    // Empty memo renders as an explicit "—" row, not a missing field.
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(mocks.signToSavings).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'confirmButton' }));
 
     await waitFor(() => {
       expect(mocks.signToSavings).toHaveBeenCalledWith(
@@ -160,7 +167,7 @@ describe('TransferForm — amount validation parity (G-14)', () => {
     expect(mocks.broadcast).toHaveBeenCalledTimes(1);
   });
 
-  it('direct transfer flow: validates recipient and broadcasts on success', async () => {
+  it('direct transfer flow: validates recipient and broadcasts on confirm', async () => {
     mocks.signTransfer.mockResolvedValue({ id: 'tx' });
     mocks.broadcast.mockResolvedValue({ success: true });
     const onSuccess = vi.fn();
@@ -178,7 +185,14 @@ describe('TransferForm — amount validation parity (G-14)', () => {
 
     fireEvent.change(await screen.findByLabelText('to'), { target: { value: 'bob' } });
     await setAmount('1.5');
-    fireEvent.click(screen.getByRole('button', { name: 'transferButton' }));
+    fireEvent.click(screen.getByRole('button', { name: 'continueButton' }));
+
+    // The review shows the recipient before anything is signed.
+    expect(await screen.findByText('confirmDescription')).toBeInTheDocument();
+    expect(screen.getByText('bob')).toBeInTheDocument();
+    expect(mocks.signTransfer).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'confirmButton' }));
 
     await waitFor(() => {
       expect(mocks.signTransfer).toHaveBeenCalledWith(
@@ -208,15 +222,19 @@ describe('TransferForm — amount validation parity (G-14)', () => {
     await screen.findByText('exchangeAlertTitle');
     await setAmount('1.5');
 
-    // No memo -> verified exchanges require one; submit is refused.
-    fireEvent.click(screen.getByRole('button', { name: 'transferButton' }));
+    // No memo -> verified exchanges require one; the review never opens.
+    fireEvent.click(screen.getByRole('button', { name: 'continueButton' }));
     expect(await screen.findByText('errors.verified_exchange_no_memo')).toBeInTheDocument();
     expect(mocks.signTransfer).not.toHaveBeenCalled();
 
-    // Memo + acknowledging the exchange warnings unblocks the send.
+    // Memo + acknowledging the exchange warnings opens the review, then confirm sends.
     fireEvent.change(screen.getByLabelText('memo'), { target: { value: 'deposit-123' } });
     fireEvent.click(screen.getByRole('checkbox'));
-    fireEvent.click(screen.getByRole('button', { name: 'transferButton' }));
+    fireEvent.click(screen.getByRole('button', { name: 'continueButton' }));
+    await screen.findByText('confirmDescription');
+    expect(screen.getByText('deposit-123')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'confirmButton' }));
 
     await waitFor(() => {
       expect(mocks.signTransfer).toHaveBeenCalledWith(
@@ -227,5 +245,46 @@ describe('TransferForm — amount validation parity (G-14)', () => {
         '5J-test-active'
       );
     });
+  });
+
+  it('confirm signs the reviewed snapshot even if form state moves on afterwards', async () => {
+    mocks.signToSavings.mockResolvedValue({ id: 'tx' });
+    mocks.broadcast.mockResolvedValue({ success: true });
+    mockFetchAccounts.mockResolvedValue(balancesApiResponse('5.000 STEEM'));
+    const view = render(
+      <Provider store={makeStore('alice')}>
+        <TransferForm variant="page" initialTransferType="savings" />
+      </Provider>
+    );
+    await screen.findByText('availableBalance');
+    await setAmount('1.001');
+    fireEvent.click(screen.getByRole('button', { name: 'continueButton' }));
+    expect(await screen.findByText('confirmDescription')).toBeInTheDocument();
+
+    // The props-driven initial type changes while the review is open (the
+    // URL-driven wallet modal can do this). Confirm must still sign the
+    // reviewed savings transfer, not whatever the form re-rendered into.
+    view.rerender(
+      <Provider store={makeStore('alice')}>
+        <TransferForm variant="page" initialTransferType="transfer" />
+      </Provider>
+    );
+    // The "to" field only exists in transfer mode: its appearance proves the
+    // form state has actually flipped before confirm is clicked.
+    await screen.findByLabelText('to');
+
+    fireEvent.click(screen.getByRole('button', { name: 'confirmButton' }));
+
+    await waitFor(() => {
+      expect(mocks.signToSavings).toHaveBeenCalledWith(
+        'alice',
+        'alice',
+        '1.001 STEEM',
+        '',
+        '5J-test-active'
+      );
+    });
+    expect(mocks.signTransfer).not.toHaveBeenCalled();
+    expect(mocks.broadcast).toHaveBeenCalledTimes(1);
   });
 });
