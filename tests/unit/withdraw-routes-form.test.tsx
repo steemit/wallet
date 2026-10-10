@@ -12,6 +12,7 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer, { AuthState } from '@/lib/store/slices/auth';
 import { WithdrawRoutesForm } from '@/components/wallet/withdraw-routes-form';
+import { wifKey } from '@/lib/steem/signing-key';
 
 // jsdom lacks ResizeObserver, required by radix-ui (Checkbox measurement).
 class ResizeObserverStub {
@@ -44,6 +45,7 @@ function makeStore(sessionUser: string): ReturnType<typeof configureStore> {
       privateKey: '5J-test-active-key',
       publicKey: 'STM-test',
       isAuthenticated: true,
+      authMethod: 'key',
     },
   };
   return configureStore({ reducer: { auth: authReducer }, preloadedState: preloaded });
@@ -94,7 +96,7 @@ describe('WithdrawRoutesForm — normalized owner check', () => {
         'bob',
         0,
         false,
-        '5J-test-active-key'
+        wifKey('5J-test-active-key')
       )
     );
   });
@@ -123,7 +125,7 @@ describe('WithdrawRoutesForm — normalized owner check', () => {
         'bob',
         2500,
         false,
-        '5J-test-active-key'
+        wifKey('5J-test-active-key')
       )
     );
   });

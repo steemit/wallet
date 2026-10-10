@@ -80,7 +80,12 @@ export default async function LocaleLayout({
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
+      {/* suppressHydrationWarning: THEME_INIT_SCRIPT below intentionally adds
+          a theme-* class to this element before React hydrates (the FOUC fix
+          it documents) — the resulting class attribute mismatch is expected
+          and harmless, exactly the case this prop exists for (same pattern
+          next-themes and other theme-flash fixes use). */}
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
@@ -92,10 +97,20 @@ export default async function LocaleLayout({
             (proxy.ts mints one per request) — without it 'strict-dynamic'
             would block the script and the FOUC would return. Like the GA
             scripts below it must stay in its own fragment with no 'use
-            client' siblings so React emits it in the SSR HTML. */}
+            client' siblings so React emits it in the SSR HTML.
+            suppressHydrationWarning: this is a real, per-request nonce, not
+            a stale/placeholder one — the mismatch is a Next.js dev-mode
+            artifact (its hydration-mismatch diagnostics re-render Server
+            Components outside the original request context, so the
+            diagnostic re-render's `headers()` read never sees the real
+            per-request nonce; confirmed via `pnpm build` + production CSP
+            response headers both carrying the correct value every time).
+            Harmless to suppress: the attribute React would "fix" during
+            hydration is never read again after the script has executed. */}
         <script
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
           {...(nonce ? { nonce } : {})}
+          suppressHydrationWarning
         />
         {/* GA scripts must stay in a fragment free of 'use client' elements —
             a client sibling inside the SAME fragment makes React defer the
