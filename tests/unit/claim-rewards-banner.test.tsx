@@ -11,8 +11,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer, { AuthState } from '@/lib/store/slices/auth';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { ClaimRewardsBanner } from '@/components/wallet/claim-rewards-banner';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
+import {
+  REMEMBERED_POSTING_KEY_KEY,
+  REMEMBERED_USERNAME_KEY,
+} from '@/lib/auth/browser-storage';
 import type { WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 
 vi.mock('next-intl', () => ({
@@ -22,14 +27,36 @@ vi.mock('next-intl', () => ({
 vi.mock('@/lib/steem/client', () => ({
   SteemSigner: {
     signClaimRewardBalance: vi.fn().mockResolvedValue({ signed: 'tx' }),
+    verifyPrivateKey: vi.fn(),
   },
   apiClient: {
     broadcastClaimRewardBalance: vi.fn().mockResolvedValue({ success: true }),
+    getAccounts: vi.fn(),
   },
 }));
 
 const signClaim = vi.mocked(SteemSigner.signClaimRewardBalance);
 const broadcastClaim = vi.mocked(apiClient.broadcastClaimRewardBalance);
+const getAccountsMock = vi.mocked(apiClient.getAccounts);
+const verifyPrivateKeyMock = vi.mocked(SteemSigner.verifyPrivateKey);
+
+// The re-auth dialog embeds LoginForm, which pulls next-intl's app-router
+// integration; the key-as-string useTranslations mock above already replaces
+// the messages layer, so only the router hooks need stubbing.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/test/transfers',
+}));
+
+// jsdom lacks ResizeObserver, required by radix-ui's Tooltip inside the
+// embedded login form (same stub as login-form-reauth.test.tsx).
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal('ResizeObserver', ResizeObserverStub);
 
 const BALANCE: WalletBalanceData = {
   balance: '10.000 STEEM',
@@ -82,14 +109,16 @@ function renderBanner(
   const onClaimed = vi.fn();
   render(
     <Provider store={makeStore(postingKey)}>
-      <ClaimRewardsBanner
-        username="alice"
-        balance={BALANCE}
-        isMyAccount
-        loading={false}
-        onClaimed={onClaimed}
-        {...props}
-      />
+      <TooltipProvider>
+        <ClaimRewardsBanner
+          username="alice"
+          balance={BALANCE}
+          isMyAccount
+          loading={false}
+          onClaimed={onClaimed}
+          {...props}
+        />
+      </TooltipProvider>
     </Provider>
   );
   return { onClaimed };
@@ -98,6 +127,11 @@ function renderBanner(
 describe('ClaimRewardsBanner', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Node 22's jsdom-less localStorage needs --localstorage-file; use the
+    // explicit window storage or drop entries individually when absent.
+    if (typeof localStorage !== 'undefined') {
+      localStorage.clear();
+    }
     signClaim.mockResolvedValue({ signed: 'tx' } as never);
     broadcastClaim.mockResolvedValue({ success: true });
   });
@@ -159,10 +193,86 @@ describe('ClaimRewardsBanner', () => {
     expect(onClaimed).not.toHaveBeenCalled();
   });
 
-  it('disables the button and explains when the session has no posting key', () => {
+  it('stays clickable without a posting key and opens the posting re-auth dialog (issue #363)', async () => {
     renderBanner({}, null);
     const button = screen.getByRole('button', { name: 'claimRewards' });
-    expect(button).toBeDisabled();
+    // Legacy parity: the button is NEVER disabled for missing keys (#363).
+    expect(button).toBeEnabled();
     expect(screen.getByText('claimNeedPostingKey')).toBeInTheDocument();
+
+    // No remembered key in localStorage -> the posting re-auth dialog opens.
+    fireEvent.click(button);
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    // The embedded login form is locked to the banner's account.
+    expect((screen.getByLabelText('username') as HTMLInputElement).value).toBe('alice');
+  });
+
+  it('restores the device-remembered posting key and claims without re-auth', async () => {
+    // localStorage carries a posting key remembered for this account, and the
+    // chain account confirms it matches the posting authority.
+    window.localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, '5J-remembered-posting');
+    window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'alice');
+    getAccountsMock.mockResolvedValue({
+      success: true,
+      accounts: [
+        {
+          posting: {
+            account_auths: [],
+            key_auths: [['STM-valid-posting-pub', '1']],
+            weight_threshold: 1,
+          },
+        } as never,
+      ],
+    });
+    verifyPrivateKeyMock.mockReturnValue(true);
+
+    renderBanner({}, null);
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+
+    await waitFor(() => expect(signClaim).toHaveBeenCalledTimes(1));
+    expect(signClaim).toHaveBeenCalledWith(
+      'alice',
+      '0.500 STEEM',
+      '0.000 SBD',
+      '9.876543 VESTS',
+      '5J-remembered-posting'
+    );
+    await waitFor(() => expect(broadcastClaim).toHaveBeenCalledTimes(1));
+    // No re-auth dialog in this path.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('ignores a remembered key belonging to a different account', async () => {
+    window.localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, '5J-other-account-key');
+    window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'bob');
+    renderBanner({}, null);
+
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    expect(signClaim).not.toHaveBeenCalled();
+  });
+
+  it('ignores a remembered key that no longer matches the posting authority', async () => {
+    // Key rotation: the stored key fails the chain-authority verification.
+    window.localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, '5J-rotated-away');
+    window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'alice');
+    getAccountsMock.mockResolvedValue({
+      success: true,
+      accounts: [
+        {
+          posting: {
+            account_auths: [],
+            key_auths: [['STM-current-posting-pub', '1']],
+            weight_threshold: 1,
+          },
+        } as never,
+      ],
+    });
+    verifyPrivateKeyMock.mockReturnValue(false);
+
+    renderBanner({}, null);
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    expect(signClaim).not.toHaveBeenCalled();
   });
 });
