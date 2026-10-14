@@ -14,6 +14,8 @@ import type {
 import { buildAccountCreateOperation } from '@/lib/wallet/community';
 import { fetchAccounts, type AccountsResponse } from '@/lib/steem/accounts-client';
 import { noteResponseDegraded } from '@/lib/cache/degradation-state';
+import { keychainSignTx } from '@/lib/steem/keychain';
+import { toSigningKey, type SigningKey } from '@/lib/steem/signing-key';
 
 export type TransactionHeaderFields = {
   ref_block_num: number;
@@ -64,12 +66,15 @@ async function fetchTransactionHeader(): Promise<TransactionHeaderFields> {
  */
 export class SteemSigner {
   /**
-   * Sign a transaction with private keys (client-side only).
-   * Fetches ref block + expiration from the server (same rules as steem-js broadcast prep).
+   * Sign a transaction with private keys (client-side only), OR, when a
+   * single Keychain key is given, hand the unsigned tx to the Steem
+   * Keychain browser extension and return its (already broadcast-ready)
+   * signed result unchanged. Fetches ref block + expiration from the server
+   * (same rules as steem-js broadcast prep) either way.
    */
   static async signTransaction(
     operations: Operation[],
-    privateKeys: string[]
+    keys: (SigningKey | string)[]
   ): Promise<SignedTransaction> {
     const header = await fetchTransactionHeader();
     const tx = {
@@ -77,6 +82,23 @@ export class SteemSigner {
       operations,
       extensions: [] as unknown[],
     };
+
+    const normalized = keys.map(toSigningKey);
+
+    // Keychain never co-signs alongside a second key in this app (every
+    // Keychain-eligible operation needs exactly one authority) — a single
+    // keychain entry is the only case routed to the extension.
+    const soleKey = normalized.length === 1 ? normalized[0]! : null;
+    if (soleKey?.type === 'keychain') {
+      return await keychainSignTx(soleKey.username, tx, soleKey.role);
+    }
+
+    const privateKeys = normalized.map((key) => {
+      if (key.type !== 'wif') {
+        throw new Error('Steem Keychain signing does not support multi-key transactions');
+      }
+      return key.wif;
+    });
 
     const signed = steem.auth.signTransaction(tx, privateKeys);
     return steem.auth.normalizeTransactionForBroadcast(
@@ -92,7 +114,7 @@ export class SteemSigner {
     to: string,
     amount: string,
     memo: string,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -117,7 +139,7 @@ export class SteemSigner {
     to: string,
     amount: string,
     memo: string,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -142,7 +164,7 @@ export class SteemSigner {
     amount: string,
     memo: string,
     requestId: number,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -166,7 +188,7 @@ export class SteemSigner {
     from: string,
     to: string,
     amount: string,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -187,7 +209,7 @@ export class SteemSigner {
   static async signPowerDown(
     account: string,
     vestingShares: string,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -209,7 +231,7 @@ export class SteemSigner {
     delegator: string,
     delegatee: string,
     vestingShares: string,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -232,7 +254,7 @@ export class SteemSigner {
     account: string,
     witness: string,
     approve: boolean,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -252,7 +274,7 @@ export class SteemSigner {
     voter: string,
     proposalIds: number[],
     approve: boolean,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -275,7 +297,7 @@ export class SteemSigner {
     dailyPay: string,
     subject: string,
     permlink: string,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -297,7 +319,7 @@ export class SteemSigner {
   static async signRemoveProposal(
     proposalOwner: string,
     proposalIds: number[],
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -317,7 +339,7 @@ export class SteemSigner {
   static async signWitnessProxy(
     account: string,
     proxy: string,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -341,7 +363,7 @@ export class SteemSigner {
     toAccount: string,
     percent: number,
     autoVest: boolean,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -364,7 +386,7 @@ export class SteemSigner {
     owner: string,
     requestid: number,
     amount: string,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -390,7 +412,7 @@ export class SteemSigner {
     rewardSteem: string,
     rewardSbd: string,
     rewardVests: string,
-    postingKey: string
+    postingKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -432,7 +454,7 @@ export class SteemSigner {
   static async signCancelTransferFromSavings(
     from: string,
     requestId: number,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -452,7 +474,7 @@ export class SteemSigner {
     minToReceive: string,
     orderid: number,
     expiration: number,
-    activeKey: string,
+    activeKey: SigningKey | string,
     fillOrKill = false
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
@@ -475,7 +497,7 @@ export class SteemSigner {
   static async signLimitOrderCancel(
     owner: string,
     orderid: number,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operations: Operation[] = [
       [
@@ -493,7 +515,7 @@ export class SteemSigner {
     creator: string,
     communityOwnerName: string,
     communityOwnerPassword: string,
-    activeKey: string
+    activeKey: SigningKey | string
   ): Promise<SignedTransaction> {
     const operation = buildAccountCreateOperation(
       creator,
@@ -506,9 +528,9 @@ export class SteemSigner {
 
   static async signOperations(
     operations: Operation[],
-    privateKeys: string[]
+    keys: (SigningKey | string)[]
   ): Promise<SignedTransaction> {
-    return await this.signTransaction(operations, privateKeys);
+    return await this.signTransaction(operations, keys);
   }
 
   /** Sign an account_update operation (password / authority rotation). */

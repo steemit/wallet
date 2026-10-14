@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
-import { useAuthRoleKeys } from '@/hooks/use-auth-role-keys';
+import { usePostingSigningKey } from '@/hooks/use-auth';
 import type { WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 import { buildRewardsDisplayStr, hasPendingRewards } from '@/lib/wallet/rewards-display';
 
@@ -23,7 +23,7 @@ export function ClaimRewardsBanner({
   onClaimed?: () => void;
 }) {
   const t = useTranslations('wallet');
-  const { postingKey } = useAuthRoleKeys();
+  const postingKey = usePostingSigningKey();
 
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);

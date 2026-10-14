@@ -99,6 +99,38 @@ route does this; copy that pattern, do not let a parse throw reach the outer cat
   owner > active > posting (memo separate). Modal consumers (change password, recovery) must pass
   the levels they actually need; missing authority fails loudly with `insufficientAuthority`.
 
+## Steem Keychain login (additive, posting/active authority only)
+
+`src/lib/steem/keychain.ts` wraps the `window.steem_keychain` browser
+extension API (`requestSignBuffer`, `requestSignTx`); `src/lib/steem/
+signing-key.ts` defines the `SigningKey` tagged union
+(`{ type: 'wif' }` | `{ type: 'keychain' }`) that `SteemSigner.sign<Op>`
+methods now accept in place of a raw string — `SteemSigner.signTransaction`
+is the single chokepoint that dispatches a lone `{ type: 'keychain' }` key to
+the extension instead of signing locally; everything else about broadcast
+routes is unchanged (the extension already returns a broadcast-ready signed
+tx).
+
+Login: `LoginForm` detects `isKeychainInstalled()` client-side and, on the
+Keychain button, signs the SAME server-issued challenge with
+`keychainSignBuffer(username, challenge, 'Posting')` instead of a locally
+derived WIF, then calls the exact same `apiClient.login` → `/api/auth/login`
+— that route only checks "does this signature verify against this public
+key, and does the key belong to the account", so it needed no changes.
+`dispatch(setKeychainCredentials({ username, publicKey }))` sets
+`auth.authMethod = 'keychain'` and explicitly nulls every role-key field
+(there is no raw key — the extension never exposes one to the page).
+
+Scope boundary: Keychain only ever covers posting/active authority
+(`useActiveSigningKey()` / `usePostingSigningKey()` in `src/hooks/use-auth.ts`
+return a keychain `SigningKey` for a Keychain session). It never claims
+`owner` or `memo`. The three owner-authority flows
+(`account_update`/password change, `change_recovery_account`, account
+recovery) already read a raw owner key from a dedicated secret input rather
+than the session, so a Keychain session hits the exact same "owner key
+required" state a posting/active-only raw-key login already hits today —
+not a new code path, not a regression.
+
 ## Testing notes
 
 - All three auth routes have unit coverage:
