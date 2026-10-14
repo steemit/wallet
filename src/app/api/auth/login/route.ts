@@ -5,6 +5,7 @@ import { SteemService } from '@/lib/steem/server';
 import { verifyCSRF, rateLimit } from '@/lib/middleware';
 import { getRedis, redisKey } from '@/lib/cache/redis';
 import { buildUserLoginPayload } from '@/lib/analytics/overseer-payload';
+import { isValidSteemUsernameFormat } from '@/lib/steem/username';
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,6 +43,17 @@ export async function POST(request: NextRequest) {
     if (!username || !signedChallenge || !publicKey) {
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // N1 (2026-09-23 audit): same format contract as the challenge route —
+    // only names passing it can ever have a challenge stored, so anything
+    // else is a guaranteed miss. Validate before the name reaches the Redis
+    // key composition or the upstream account lookup.
+    if (!isValidSteemUsernameFormat(username)) {
+      return NextResponse.json(
+        { error: 'Invalid username format' },
         { status: 400 }
       );
     }

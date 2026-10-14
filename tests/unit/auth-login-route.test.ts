@@ -167,6 +167,34 @@ describe('POST /api/auth/login', () => {
       }
       expect(mockRedisGet).not.toHaveBeenCalled();
     });
+
+    // N1 (2026-09-23 audit): the login route must enforce the SAME username
+    // format contract as the challenge route — only names passing it can ever
+    // have a challenge stored, so anything else is a guaranteed miss and must
+    // be rejected before composing a Redis key or calling upstream.
+    describe('username format (N1, shared challenge-route contract)', () => {
+      it.each([
+        ['uppercase letters', 'Alice'],
+        ['too short', 'ab'],
+        ['too long (17 chars)', 'a'.repeat(17)],
+        ['whitespace', 'ali ce'],
+        ['shell metacharacters', 'alice;ls'],
+        ['path traversal', '../etc'],
+      ])('returns 400 and never touches Redis/upstream for %s', async (_label, username) => {
+        const res = await POST(makeRequest(validBody({ username })));
+        expect(res.status).toBe(400);
+        const data = await res.json();
+        expect(data.error).toBe('Invalid username format');
+        expect(mockRedisGet).not.toHaveBeenCalled();
+        expect(mockGetAccounts).not.toHaveBeenCalled();
+      });
+
+      it('accepts every shape the challenge route accepts (3-16 chars of [a-z0-9.-])', async () => {
+        const res = await POST(makeRequest(validBody({ username: 'a-b.c1' })));
+        expect(res.status).toBe(200);
+        expect(mockRedisGet).toHaveBeenCalledWith('wallet:auth:challenge:a-b.c1');
+      });
+    });
   });
 
   describe('fail-closed on Redis unavailable', () => {

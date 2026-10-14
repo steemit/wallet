@@ -34,3 +34,16 @@ export function sameSteemAccount(
   if (!a || !b) return false;
   return normalizeSteemUsername(a) === normalizeSteemUsername(b);
 }
+
+/**
+ * Whether `raw` matches the login-flow account-name contract: 3-16 chars of
+ * `[a-z0-9.-]`, lowercase-only. This is the exact check the challenge route
+ * has always applied before minting a Redis challenge key; the login route
+ * must apply the same check (N1, 2026-09-23 audit) so both ends of the
+ * challenge/login pair share one convention — a name failing this check can
+ * never have a challenge stored, so it is a guaranteed miss on login and
+ * must be rejected before touching Redis or the upstream RPC.
+ */
+export function isValidSteemUsernameFormat(raw: string): boolean {
+  return /^[a-z0-9.-]+$/.test(raw) && raw.length >= 3 && raw.length <= 16;
+}
