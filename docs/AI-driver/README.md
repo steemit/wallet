@@ -14,7 +14,7 @@ the hard way.
 | Doc | Covers | Read it before… |
 |-----|--------|-----------------|
 | [01-architecture.md](01-architecture.md) | Relay philosophy, three-layer security model, module map | touching anything server-side |
-| [02-auth.md](02-auth.md) | Challenge-login, CSRF, client auth state, key handling | touching login, auth, or anything that reads private keys |
+| [02-auth.md](02-auth.md) | Challenge-login, CSRF, client auth state, key handling, Steem authority semantics (signing hierarchy) | touching login, auth, key selection for ops, or anything that reads private keys |
 | [03-broadcast.md](03-broadcast.md) | Broadcast relay routes, how to add one | adding/changing any `/api/broadcast/*` route |
 | [04-query-cache.md](04-query-cache.md) | Query routes, `withCache`, cache keys, rate limiting, degradation | adding/changing any `/api/query/*` route or cache behavior |
 | [05-recovery.md](05-recovery.md) | Account recovery state machine, CAS, conveyor/kingdom | touching `/api/recovery/**` or `recover-account` |

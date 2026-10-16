@@ -76,10 +76,17 @@ canonical lowercase.
   reject `countDecimals > 3` rather than `toFixed(3)` after the balance check.
 - Market order ids: `Math.floor(Date.now()/1000)` collides within the same second (second order
   replaces the first). Use a monotonic counter per session if you touch this.
+- Key selection for an op: pick the **lowest authority the chain accepts** for that op, with
+  fallback through the higher ones (posting ops accept posting/active/owner — consensus
+  fallback, see the "Steem authority semantics" section in 02-auth.md; do NOT consult
+  `get_required_signatures`, it is strict per-class and misleads). Reference implementation:
+  `ClaimRewardsBanner.handleClaim` (#378) resolves session posting → device-remembered posting
+  (chain-verified) → session active → session owner → re-auth dialog, and only shows the
+  keyless hint when NO signing key exists.
 
 ## Legacy-parity watchlist (verified drifts from `wallet-legacy`)
 
-These four are real semantic losses found in review; if you own the area, fix with a test:
+These three are real semantic losses found in review; if you own the area, fix with a test:
 1. Delegation display uses only `delegated_vesting_shares`; legacy = net of `received_vesting_shares`
    with the opposite sign — accounts that *receive* delegation show "not delegated" (false).
 2. `validateMemoField` dropped `memo_is_password` (derive memo pubkey from
@@ -87,7 +94,9 @@ These four are real semantic losses found in review; if you own the area, fix wi
    warning is gone.
 3. Open-order rows mix remaining (`for_sale`) with full (`sell_price.quote`) amounts — partially
    filled orders show self-inconsistent columns. Legacy used sell_price for both.
-4. Claim-rewards banner button has no `onClick` (no `claim_reward_balance` path exists at all).
+
+(Item 4 — the missing claim-rewards button — was implemented by #375 and its signing key
+resolution made chain-faithful by #378; see the key-selection rule above.)
 
 **Bonus trap — `use-batch-history` unmount cache write:** its cleanup effect (deps `[cacheKey]`)
 captures the mount-time empty `history`, so the pagination cache is never written; worse, when
