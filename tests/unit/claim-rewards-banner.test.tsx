@@ -86,15 +86,22 @@ const NO_REWARDS: WalletBalanceData = {
   reward_vesting_balance: '0.000000 VESTS',
 };
 
-function makeStore(postingKey: string | null): ReturnType<typeof configureStore> {
+type SessionKeys = {
+  postingKey?: string | null;
+  activeKey?: string | null;
+  ownerKey?: string | null;
+};
+
+function makeStore(keys: SessionKeys) {
+  const { postingKey = null, activeKey = null, ownerKey = null } = keys;
   const preloaded: { auth: AuthState } = {
     auth: {
       username: 'alice',
-      ownerKey: null,
-      activeKey: null,
+      ownerKey,
+      activeKey,
       postingKey,
       memoKey: null,
-      privateKey: postingKey,
+      privateKey: postingKey ?? activeKey ?? ownerKey,
       publicKey: 'STM-test',
       isAuthenticated: true,
     },
@@ -104,11 +111,13 @@ function makeStore(postingKey: string | null): ReturnType<typeof configureStore>
 
 function renderBanner(
   props: Partial<Parameters<typeof ClaimRewardsBanner>[0]> = {},
-  postingKey: string | null = '5J-test-posting-key'
+  keys: SessionKeys | string | null = { postingKey: '5J-test-posting-key' }
 ) {
+  const sessionKeys: SessionKeys =
+    keys === null ? { postingKey: null } : typeof keys === 'string' ? { postingKey: keys } : keys;
   const onClaimed = vi.fn();
   render(
-    <Provider store={makeStore(postingKey)}>
+    <Provider store={makeStore(sessionKeys)}>
       <TooltipProvider>
         <ClaimRewardsBanner
           username="alice"
@@ -145,9 +154,9 @@ describe('ClaimRewardsBanner', () => {
   });
 
   it('renders nothing without pending rewards or for another account', () => {
-    const { container: c1 } = render(<Provider store={makeStore('k')}><ClaimRewardsBanner username="alice" balance={NO_REWARDS} isMyAccount loading={false} /></Provider>);
+    const { container: c1 } = render(<Provider store={makeStore({ postingKey: 'k' })}><ClaimRewardsBanner username="alice" balance={NO_REWARDS} isMyAccount loading={false} /></Provider>);
     expect(c1).toBeEmptyDOMElement();
-    const { container: c2 } = render(<Provider store={makeStore('k')}><ClaimRewardsBanner username="alice" balance={BALANCE} isMyAccount={false} loading={false} /></Provider>);
+    const { container: c2 } = render(<Provider store={makeStore({ postingKey: 'k' })}><ClaimRewardsBanner username="alice" balance={BALANCE} isMyAccount={false} loading={false} /></Provider>);
     expect(c2).toBeEmptyDOMElement();
   });
 
@@ -274,5 +283,120 @@ describe('ClaimRewardsBanner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
     expect(signClaim).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the session active key and claims directly (chain accepts it)', async () => {
+    // Posting-class ops accept posting, active, or owner authority on chain
+    // (steem transaction_util.hpp verify_authority fallback), so an
+    // active-key session signs the claim without any re-auth.
+    renderBanner({}, { activeKey: '5K-active-key' });
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+
+    await waitFor(() => expect(signClaim).toHaveBeenCalledTimes(1));
+    expect(signClaim).toHaveBeenCalledWith(
+      'alice',
+      '0.500 STEEM',
+      '0.000 SBD',
+      '9.876543 VESTS',
+      '5K-active-key'
+    );
+    await waitFor(() => expect(broadcastClaim).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // The keyless hint is hidden: an active key can sign posting operations.
+    expect(screen.queryByText('claimNeedPostingKey')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the session owner key when no active key exists', async () => {
+    renderBanner({}, { ownerKey: '5K-owner-key' });
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+
+    await waitFor(() => expect(signClaim).toHaveBeenCalledTimes(1));
+    expect(signClaim).toHaveBeenCalledWith(
+      'alice',
+      '0.500 STEEM',
+      '0.000 SBD',
+      '9.876543 VESTS',
+      '5K-owner-key'
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('prefers the posting key over the session active and owner keys', async () => {
+    renderBanner({}, {
+      postingKey: '5J-posting-key',
+      activeKey: '5K-active-key',
+      ownerKey: '5K-owner-key',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+
+    await waitFor(() => expect(signClaim).toHaveBeenCalledTimes(1));
+    expect(signClaim).toHaveBeenCalledWith(
+      'alice',
+      '0.500 STEEM',
+      '0.000 SBD',
+      '9.876543 VESTS',
+      '5J-posting-key'
+    );
+  });
+
+  it('prefers the verified remembered posting key over the session active key', async () => {
+    window.localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, '5J-remembered-posting');
+    window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'alice');
+    getAccountsMock.mockResolvedValue({
+      success: true,
+      accounts: [
+        {
+          posting: {
+            account_auths: [],
+            key_auths: [['STM-valid-posting-pub', '1']],
+            weight_threshold: 1,
+          },
+        } as never,
+      ],
+    });
+    verifyPrivateKeyMock.mockReturnValue(true);
+
+    renderBanner({}, { activeKey: '5K-active-key' });
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+
+    await waitFor(() => expect(signClaim).toHaveBeenCalledTimes(1));
+    expect(signClaim).toHaveBeenCalledWith(
+      'alice',
+      '0.500 STEEM',
+      '0.000 SBD',
+      '9.876543 VESTS',
+      '5J-remembered-posting'
+    );
+  });
+
+  it('falls through to the session active key when the remembered posting key fails verification', async () => {
+    window.localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, '5J-rotated-away');
+    window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'alice');
+    getAccountsMock.mockResolvedValue({
+      success: true,
+      accounts: [
+        {
+          posting: {
+            account_auths: [],
+            key_auths: [['STM-current-posting-pub', '1']],
+            weight_threshold: 1,
+          },
+        } as never,
+      ],
+    });
+    verifyPrivateKeyMock.mockReturnValue(false);
+
+    renderBanner({}, { activeKey: '5K-active-key' });
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+
+    await waitFor(() => expect(signClaim).toHaveBeenCalledTimes(1));
+    expect(signClaim).toHaveBeenCalledWith(
+      'alice',
+      '0.500 STEEM',
+      '0.000 SBD',
+      '9.876543 VESTS',
+      '5K-active-key'
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

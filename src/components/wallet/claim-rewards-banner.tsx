@@ -31,8 +31,11 @@ export function ClaimRewardsBanner({
   onClaimed?: () => void;
 }) {
   const t = useTranslations('wallet');
-  const { postingKey } = useAuthRoleKeys();
+  const { postingKey, activeKey, ownerKey } = useAuthRoleKeys();
   const store = useStore<RootState>();
+  // Any of these can sign claim_reward_balance (see the comment above
+  // handleClaim); the hint and its aria link only apply when none exists.
+  const hasSigningKey = !!(postingKey || activeKey || ownerKey);
 
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
@@ -75,13 +78,17 @@ export function ClaimRewardsBanner({
   // was non-zero (a liquid-only claimbox button was a silent no-op); here any
   // pending reward the banner shows can be claimed.
   //
-  // Issue #363: the button is now always clickable (legacy never disabled it
-  // for missing keys). With no session posting key it first tries the
-  // device-remembered posting key, then opens the posting re-auth dialog —
-  // the user signs in with a posting key or master password and the claim
-  // resumes in place. The chain only accepts posting authority here (verified
-  // via database_api.get_required_signatures): an active/owner-only session
-  // cannot claim, so it is routed through the dialog too.
+  // Issue #363: the button is always clickable (legacy never disabled it
+  // for missing keys). Chain semantics for posting-class operations: the
+  // consensus authority check falls back posting -> active -> owner
+  // (steem/protocol transaction_util.hpp verify_authority; claims signed
+  // with active keys are accepted on chain), so ANY session key can sign
+  // the claim. Resolution prefers the least-privileged key first:
+  //   session posting key -> device-remembered posting key (chain-verified)
+  //   -> session active key -> session owner key -> posting re-auth dialog.
+  // The dialog's copy still recommends a posting key or the password
+  // (least-privilege habit for manual input), but an active/owner key
+  // entered there works on chain just the same.
   const handleClaim = async () => {
     // Synchronous in-flight guard: the key-restore await below would otherwise
     // let a fast double-click slip past the async `claiming` state and sign
@@ -95,6 +102,8 @@ export function ClaimRewardsBanner({
       if (!key) {
         key = await tryRestoreRememberedPostingKey();
       }
+      if (!key) key = activeKey;
+      if (!key) key = ownerKey;
       if (!key) {
         setReauthError(null);
         setReauthOpen(true);
@@ -140,11 +149,11 @@ export function ClaimRewardsBanner({
         size="sm"
         onClick={handleClaim}
         disabled={claiming}
-        aria-describedby={postingKey ? undefined : 'claim-needs-key-hint'}
+        aria-describedby={hasSigningKey ? undefined : 'claim-needs-key-hint'}
       >
         {claiming ? t('claiming') : t('claimRewards')}
       </Button>
-      {!postingKey && (
+      {!hasSigningKey && (
         <span id="claim-needs-key-hint" className="text-muted-foreground text-sm">
           {t('claimNeedPostingKey')}
         </span>
@@ -156,13 +165,13 @@ export function ClaimRewardsBanner({
         username={username}
         errorMessage={reauthError}
         onAuthenticated={() => {
-          // LoginForm's authority gate is hierarchical (owner covers active
-          // covers posting), so an active/owner-only login PASSES the
-          // ['posting'] gate — but the chain accepts only posting authority
-          // for claim_reward_balance. The login dispatch has already run, so
-          // check the fresh session: without a posting key, keep the dialog
-          // open with explicit guidance instead of looping silently.
-          if (store.getState().auth.postingKey) {
+          // Post-login gate (defense in depth): the chain accepts posting,
+          // active, or owner authority for claim_reward_balance, so any of
+          // those keys lets the claim proceed. Only a login that carries none
+          // of them (memo-key only, which can sign nothing) keeps the dialog
+          // open with explicit guidance.
+          const { postingKey: p, activeKey: a, ownerKey: o } = store.getState().auth;
+          if (p || a || o) {
             setReauthError(null);
             setReauthOpen(false);
           } else {

@@ -63,6 +63,49 @@ Auth state is client-side only: Redux `auth` slice + optional localStorage.
 - `memo_key` can pass login but yields an empty-permission session (server `validKeys` includes
   it). Unresolved product decision — do not silently extend this pattern to new code.
 
+## Steem authority semantics — signing capability is hierarchical (2026-10-16)
+
+Verified against Steem core v0.23.0
+(`libraries/protocol/include/steem/protocol/transaction_util.hpp`, `sign_state.cpp`) and live
+mainnet blocks. This is consensus truth, not wallet policy — build key-selection logic on it.
+
+- Consensus `verify_authority` falls back **downward**: a posting-class op
+  (`claim_reward_balance`, `vote`, `custom_json`, …) is satisfied by the account's
+  **posting, active, OR owner** authority; an active-class op (`transfer`,
+  `delegate_vesting_shares`, …) by **active or owner**; only owner-class ops
+  (`account_update` carrying owner, `recover_account`) are owner-only. A higher key can always
+  stand in for a lower authority; the reverse cannot.
+- **`database_api.get_required_signatures` is NOT an acceptance oracle.** It computes a strict
+  per-class minimal set (the posting branch checks only the posting authority — see
+  `signed_transaction::get_required_signatures` in `libraries/protocol/transaction.cpp`) and
+  does not model the fallback above. An active key returning `[]` there does **not** mean the
+  chain rejects an active-signed posting op. (This exact misreading drove #375's original
+  design; corrected in #378. On-chain proof that an active-signed claim is accepted: trx
+  `bd7ee5cf649fc33207b13e797b20d759f6cfbaf7`, block 110487842.)
+- **Extra signatures are rejected** (`tx_irrelevant_sig`): the signature set must satisfy the
+  authority and nothing more — never "shotgun-sign" with several keys to be safe.
+- `account_auths` recursion checks the referenced account's **active** authority
+  (`sign_state.cpp`); multi-account authority graphs resolve through it.
+- `memo_key` satisfies no operation authority anywhere — a memo-key-only session can sign
+  nothing.
+
+### Wallet conventions on top of the chain rules
+
+- **Signing capability ≠ key possession.** Reveal/display flows (`account-key-row`) need the
+  actual WIF of that role: an active-key login can *sign* a posting op but cannot *reveal* the
+  posting key. Do not apply the signing hierarchy to display logic — that is the one place
+  where "hierarchy" does not transfer.
+- Least privilege when the client picks a key: prefer the lowest authority the chain accepts
+  for that op. The claim banner (#378) resolves
+  session posting → device-remembered posting (chain-verified) → session active → session owner
+  → re-auth dialog. Re-auth dialog copy keeps asking for the minimal key (posting key /
+  password) as a habit, while accepting higher keys, which the chain honors.
+- `LoginForm.requiredAuthTypes` (#338) models exactly the chain signing hierarchy:
+  `covers('posting') = posting || active || owner`, `covers('active') = active || owner`,
+  `covers('owner') = owner`. `['posting']` therefore rejects only memo-key logins. Do not
+  "tighten" it to posting-only — that rejects sessions the chain itself accepts (#377 was
+  closed unmerged for exactly this reason).
+
 ## CSRF (double-submit)
 
 - Token: `base64url(timestamp).base64url(HMAC-SHA256(CSRF_SECRET, timestamp))`, 24h max age,
@@ -96,8 +139,10 @@ route does this; copy that pattern, do not let a parse throw reach the outer cat
 - Logout (`useAuth().logout`): fires `/api/auth/logout` (CSRF'd no-op on the server) and
   unconditionally clears Redux + both localStorage keys regardless of the HTTP result.
 - Re-auth (#338): `LoginForm` accepts `requiredAuthTypes` and enforces the authority hierarchy
-  owner > active > posting (memo separate). Modal consumers (change password, recovery) must pass
-  the levels they actually need; missing authority fails loudly with `insufficientAuthority`.
+  owner > active > posting (memo separate) — which mirrors the chain's signing fallback, see
+  the "Steem authority semantics" section above. Modal consumers (change password, recovery,
+  claim re-auth) must pass the levels they actually need; missing authority fails loudly with
+  `insufficientAuthority`.
 
 ## Testing notes
 
