@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useStore } from 'react-redux';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
@@ -11,6 +12,7 @@ import {
 } from '@/lib/auth/browser-storage';
 import { sameSteemAccount } from '@/lib/steem/username';
 import { ClaimRewardsReauthDialog } from '@/components/wallet/claim-rewards-reauth-dialog';
+import type { RootState } from '@/lib/store';
 import type { WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 import { buildRewardsDisplayStr, hasPendingRewards } from '@/lib/wallet/rewards-display';
 
@@ -30,11 +32,14 @@ export function ClaimRewardsBanner({
 }) {
   const t = useTranslations('wallet');
   const { postingKey } = useAuthRoleKeys();
+  const store = useStore<RootState>();
 
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [reauthOpen, setReauthOpen] = useState(false);
+  const [reauthError, setReauthError] = useState<string | null>(null);
+  const claimingRef = useRef(false);
 
   if (loading || !isMyAccount || !balance || claimed || !hasPendingRewards(balance)) {
     return null;
@@ -78,42 +83,51 @@ export function ClaimRewardsBanner({
   // via database_api.get_required_signatures): an active/owner-only session
   // cannot claim, so it is routed through the dialog too.
   const handleClaim = async () => {
-    if (claiming || !username) return;
+    // Synchronous in-flight guard: the key-restore await below would otherwise
+    // let a fast double-click slip past the async `claiming` state and sign
+    // twice (the chain rejects the duplicate, but the user sees a spurious
+    // error).
+    if (claimingRef.current || !username) return;
+    claimingRef.current = true;
     setClaimError(null);
-
-    let key = postingKey;
-    if (!key) {
-      key = await tryRestoreRememberedPostingKey();
-    }
-    if (!key) {
-      setReauthOpen(true);
-      return;
-    }
-
-    setClaiming(true);
     try {
-      const signedTx = await SteemSigner.signClaimRewardBalance(
-        username,
-        balance.reward_steem_balance,
-        balance.reward_sbd_balance,
-        balance.reward_vesting_balance,
-        key
-      );
-      const res = await apiClient.broadcastClaimRewardBalance(signedTx, username);
-      if (!res.success) {
-        setClaimError(res.error || t('claimFailed'));
-        setClaiming(false);
+      let key = postingKey;
+      if (!key) {
+        key = await tryRestoreRememberedPostingKey();
+      }
+      if (!key) {
+        setReauthError(null);
+        setReauthOpen(true);
         return;
       }
-      // Optimistic hide: the wallet page invalidates the browser L1 cache and
-      // refetches via onClaimed; if rewards are still pending (e.g. new
-      // curation dripped in), the banner re-appears with fresh amounts.
-      setClaiming(false);
-      setClaimed(true);
-      onClaimed?.();
-    } catch (err) {
-      setClaiming(false);
-      setClaimError(err instanceof Error ? err.message : t('claimFailed'));
+
+      setClaiming(true);
+      try {
+        const signedTx = await SteemSigner.signClaimRewardBalance(
+          username,
+          balance.reward_steem_balance,
+          balance.reward_sbd_balance,
+          balance.reward_vesting_balance,
+          key
+        );
+        const res = await apiClient.broadcastClaimRewardBalance(signedTx, username);
+        if (!res.success) {
+          setClaimError(res.error || t('claimFailed'));
+          setClaiming(false);
+          return;
+        }
+        // Optimistic hide: the wallet page invalidates the browser L1 cache and
+        // refetches via onClaimed; if rewards are still pending (e.g. new
+        // curation dripped in), the banner re-appears with fresh amounts.
+        setClaiming(false);
+        setClaimed(true);
+        onClaimed?.();
+      } catch (err) {
+        setClaiming(false);
+        setClaimError(err instanceof Error ? err.message : t('claimFailed'));
+      }
+    } finally {
+      claimingRef.current = false;
     }
   };
 
@@ -140,11 +154,20 @@ export function ClaimRewardsBanner({
         open={reauthOpen}
         onOpenChange={setReauthOpen}
         username={username}
+        errorMessage={reauthError}
         onAuthenticated={() => {
-          // Redux now holds the posting key (password logins derive all four
-          // role keys; a posting-key login stores it directly). The banner
-          // re-renders keyful; the user clicks Redeem Rewards to claim.
-          setReauthOpen(false);
+          // LoginForm's authority gate is hierarchical (owner covers active
+          // covers posting), so an active/owner-only login PASSES the
+          // ['posting'] gate — but the chain accepts only posting authority
+          // for claim_reward_balance. The login dispatch has already run, so
+          // check the fresh session: without a posting key, keep the dialog
+          // open with explicit guidance instead of looping silently.
+          if (store.getState().auth.postingKey) {
+            setReauthError(null);
+            setReauthOpen(false);
+          } else {
+            setReauthError(t('claimNeedPostingKey'));
+          }
         }}
       />
     </div>
