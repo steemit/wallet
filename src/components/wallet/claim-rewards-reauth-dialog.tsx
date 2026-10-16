@@ -17,13 +17,14 @@ export interface ClaimRewardsReauthDialogProps {
   /** Account whose rewards would be claimed (normalized). */
   username: string;
   /**
-   * Shown above the form — e.g. after a login that still carries no posting
-   * key (active/owner-only), which cannot sign claim_reward_balance.
+   * Shown above the form — e.g. after a memo-only login, which carries no
+   * key able to sign claim_reward_balance.
    */
   errorMessage?: string | null;
   /**
    * Fired after a successful login. The banner checks the refreshed Redux
-   * state for a posting key and decides whether the dialog may close.
+   * state for a signing key (posting/active/owner) and decides whether the
+   * dialog may close.
    */
   onAuthenticated: () => void;
 }
@@ -31,13 +32,14 @@ export interface ClaimRewardsReauthDialogProps {
 /**
  * Posting-authority re-auth for the claim-rewards flow (issue #363).
  *
- * The chain accepts ONLY posting authority for claim_reward_balance (verified
- * via database_api.get_required_signatures), so this dialog demands a posting
- * key or the master password (password logins derive all four role keys, so
- * posting is always covered). LoginForm's `requiredAuthTypes` gate is
- * hierarchical (owner covers active covers posting), so an active/owner-only
- * login is NOT rejected by the form — the banner's `onAuthenticated` gate
- * keeps this dialog open with `errorMessage` in that case.
+ * Chain semantics: posting-class operations such as claim_reward_balance
+ * accept the posting, active, OR owner authority — the consensus authority
+ * check falls back posting -> active -> owner (steem/protocol
+ * transaction_util.hpp verify_authority). This dialog therefore accepts a
+ * posting key, the master password (which derives all four role keys), or an
+ * active/owner key; only a memo key (which signs nothing) is rejected by the
+ * form's requiredAuthTypes gate. The copy still recommends the posting key or
+ * password: least-privilege habit for manual input.
  * "Remember username" is shown so the device-stored posting key can also be
  * (re)saved for future one-click claims.
  */

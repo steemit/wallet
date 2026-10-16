@@ -94,10 +94,10 @@ describe('ClaimRewardsBanner post-login authority gate (issue #363)', () => {
     signClaim.mockResolvedValue({ signed: 'tx' } as never);
   });
 
-  it('keeps the dialog open with explicit guidance when the login carries no posting key', async () => {
-    // An active/owner-only login passes LoginForm's hierarchical authority
-    // gate but cannot sign claim_reward_balance — the banner must not close
-    // the dialog into a silent loop.
+  it('closes the dialog when the login carries an active key (chain accepts it), and the next click claims', async () => {
+    // Posting-class ops accept posting, active, or owner authority on chain,
+    // so an active-only login is a fully capable session for claiming — the
+    // dialog must close and the claim must sign with the active key.
     const { store } = renderBanner(null);
     fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
@@ -109,7 +109,33 @@ describe('ClaimRewardsBanner post-login authority gate (issue #363)', () => {
     });
     fireEvent.click(screen.getByTestId('complete-login'));
 
-    // Dialog stays open, the error names the required keys, nothing signed.
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+    await waitFor(() => expect(signClaim).toHaveBeenCalledTimes(1));
+    expect(signClaim).toHaveBeenCalledWith(
+      'alice',
+      '0.500 STEEM',
+      '0.000 SBD',
+      '9.876543 VESTS',
+      '5K-active-only'
+    );
+  });
+
+  it('keeps the dialog open with explicit guidance when the login carries no signing key at all', async () => {
+    // A memo-key-only login can sign nothing (memo authority satisfies no
+    // operation), so the dialog must stay open with explicit guidance
+    // instead of looping silently.
+    const { store } = renderBanner(null);
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+    act(() => {
+      store.dispatch(setCredentials({ username: 'alice', memoKey: '5J-memo-only' }));
+    });
+    fireEvent.click(screen.getByTestId('complete-login'));
+
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('claimNeedPostingKey');
     expect(signClaim).not.toHaveBeenCalled();
