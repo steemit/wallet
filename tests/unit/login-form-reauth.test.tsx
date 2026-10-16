@@ -6,6 +6,11 @@
  * posting credentials — the login POST succeeds, but the dialog silently stays
  * because the session still has no active/owner key. With requiredAuthTypes the
  * form must now fail loudly instead of looping with no feedback.
+ *
+ * The mirror direction is covered too: 'posting' demands the posting key
+ * itself (posting operations accept posting authority only), so active/owner-
+ * only logins are rejected up front — except when the device-remembered
+ * posting key legitimately completes the key set before the gate runs.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -153,6 +158,97 @@ describe('LoginForm requiredAuthTypes', () => {
     await waitFor(() => {
       expect(onLoginSuccess).toHaveBeenCalled();
     });
+    expect(store.getState().auth.activeKey).toBe('5KActiveWif');
+    expect(screen.queryByText('insufficientAuthority')).not.toBeInTheDocument();
+  });
+
+  it('rejects an active-only login when posting authority is required (loud error, no login attempt)', async () => {
+    // Posting operations (claim_reward_balance, votes) accept posting
+    // authority only: an active key cannot sign them, so passing the
+    // hierarchy shortcut would close the re-auth dialog into a silent loop
+    // (PR #375 audit round 1).
+    const { store } = renderForm({
+      embedded: true,
+      fixedUsername: 'testuser001',
+      requiredAuthTypes: ['posting'],
+    });
+
+    submitSecret('5KActiveWif');
+
+    await waitFor(() => {
+      expect(screen.getByText('insufficientAuthority')).toBeInTheDocument();
+    });
+    expect(store.getState().auth.isAuthenticated).toBe(false);
+    expect(mockLogin).not.toHaveBeenCalled();
+  });
+
+  it('rejects an owner-only login when posting authority is required', async () => {
+    mockPrivateKeyToPublicKey.mockImplementation((wif: string) => {
+      if (wif === '5KOwnerWif') return 'STM8OwnerPub';
+      if (wif === '5KActiveWif') return 'STM4ActivePub';
+      if (wif === '5KPostingWif') return 'STM6PostingPub';
+      throw new Error('unknown wif');
+    });
+
+    const { store } = renderForm({
+      embedded: true,
+      fixedUsername: 'testuser001',
+      requiredAuthTypes: ['posting'],
+    });
+
+    submitSecret('5KOwnerWif');
+
+    await waitFor(() => {
+      expect(screen.getByText('insufficientAuthority')).toBeInTheDocument();
+    });
+    expect(store.getState().auth.isAuthenticated).toBe(false);
+    expect(mockLogin).not.toHaveBeenCalled();
+  });
+
+  it('accepts a posting-key login when posting authority is required', async () => {
+    const onLoginSuccess = vi.fn();
+    const { store } = renderForm({
+      embedded: true,
+      fixedUsername: 'testuser001',
+      requiredAuthTypes: ['posting'],
+      onLoginSuccess,
+    });
+
+    submitSecret('5KPostingWif');
+
+    await waitFor(() => {
+      expect(onLoginSuccess).toHaveBeenCalled();
+    });
+    expect(store.getState().auth.postingKey).toBe('5KPostingWif');
+    expect(screen.queryByText('insufficientAuthority')).not.toBeInTheDocument();
+  });
+
+  it('accepts an active-key login when posting authority is covered by a verified remembered posting key', async () => {
+    // The gate must run AFTER the device restore: an active-key login that
+    // opts in and has a still-valid remembered posting key legitimately
+    // covers posting and must not be rejected.
+    localStorage.setItem('wallet:rememberedUsername', 'testuser001');
+    localStorage.setItem('wallet:rememberedPostingKey', '5KRememberedPosting');
+    mockVerifyPrivateKey.mockImplementation(
+      (wif: string, pub: string) => wif === '5KRememberedPosting' && pub === 'STM6PostingPub'
+    );
+
+    const onLoginSuccess = vi.fn();
+    const { store } = renderForm({
+      embedded: true,
+      fixedUsername: 'testuser001',
+      showRememberUser: true,
+      requiredAuthTypes: ['posting'],
+      onLoginSuccess,
+    });
+
+    fireEvent.click(screen.getByLabelText('rememberUsername'));
+    submitSecret('5KActiveWif');
+
+    await waitFor(() => {
+      expect(onLoginSuccess).toHaveBeenCalled();
+    });
+    expect(store.getState().auth.postingKey).toBe('5KRememberedPosting');
     expect(store.getState().auth.activeKey).toBe('5KActiveWif');
     expect(screen.queryByText('insufficientAuthority')).not.toBeInTheDocument();
   });

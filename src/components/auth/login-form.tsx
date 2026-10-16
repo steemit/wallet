@@ -236,31 +236,6 @@ export function LoginForm(props: LoginFormProps = {}) {
         return;
       }
 
-      // When the caller needs specific authorities (re-auth dialogs), a key set
-      // that does not cover them must fail LOUDLY: silently storing the session
-      // would leave the caller's gate in place and the dialog looping with no
-      // feedback (posting-only login in the transfer re-auth dialog).
-      if (requiredAuthTypes && requiredAuthTypes.length > 0) {
-        const covers = (needed: AccountAuthType): boolean => {
-          switch (needed) {
-            case 'owner':
-              return !!ownerKey;
-            case 'active':
-              return !!activeKey || !!ownerKey;
-            case 'posting':
-              return !!postingKey || !!activeKey || !!ownerKey;
-            case 'memo':
-              return !!memoKey;
-          }
-        };
-        const missing = requiredAuthTypes.filter((needed) => !covers(needed));
-        if (missing.length > 0) {
-          setError(t('insufficientAuthority'));
-          setIsLoading(false);
-          return;
-        }
-      }
-
       // Restore posting key from device storage when signing in with a key that is not posting
       // (e.g. active WIF) but a posting key was saved earlier for claim-reward signing.
       if (!postingKey && rememberUser && accountPostingKey) {
@@ -277,6 +252,40 @@ export function LoginForm(props: LoginFormProps = {}) {
           }
         } catch {
           // ignore
+        }
+      }
+
+      // When the caller needs specific authorities (re-auth dialogs), a key set
+      // that cannot sign them must fail LOUDLY: silently storing the session
+      // would leave the caller's gate in place and the dialog looping with no
+      // feedback (posting-only login in the transfer re-auth dialog). The
+      // check runs after the device restore above, which can legitimately
+      // complete a key set (active-key login + remembered posting key).
+      // 'posting' requires the posting key itself: posting operations
+      // (claim_reward_balance, votes) accept posting authority only — an
+      // active/owner key cannot sign them, and the previous hierarchy shortcut
+      // (owner > active > posting) let such logins pass into a silent re-auth
+      // loop (PR #375 audit). 'active' keeps the historical owner-covers-active
+      // shortcut; owner-only signing of active operations has the same latent
+      // gap and is left to a separate pass.
+      if (requiredAuthTypes && requiredAuthTypes.length > 0) {
+        const covers = (needed: AccountAuthType): boolean => {
+          switch (needed) {
+            case 'owner':
+              return !!ownerKey;
+            case 'active':
+              return !!activeKey || !!ownerKey;
+            case 'posting':
+              return !!postingKey;
+            case 'memo':
+              return !!memoKey;
+          }
+        };
+        const missing = requiredAuthTypes.filter((needed) => !covers(needed));
+        if (missing.length > 0) {
+          setError(t('insufficientAuthority'));
+          setIsLoading(false);
+          return;
         }
       }
 

@@ -156,12 +156,13 @@ export function ClaimRewardsBanner({
         username={username}
         errorMessage={reauthError}
         onAuthenticated={() => {
-          // LoginForm's authority gate is hierarchical (owner covers active
-          // covers posting), so an active/owner-only login PASSES the
-          // ['posting'] gate — but the chain accepts only posting authority
-          // for claim_reward_balance. The login dispatch has already run, so
-          // check the fresh session: without a posting key, keep the dialog
-          // open with explicit guidance instead of looping silently.
+          // Defense in depth: LoginForm's requiredAuthTypes=['posting'] gate
+          // already rejects key sets without a posting key before any login
+          // attempt (posting operations accept posting authority only). This
+          // post-login check guards against future gate changes or login
+          // paths that bypass the form: without a posting key the chain
+          // cannot accept claim_reward_balance, so keep the dialog open with
+          // explicit guidance instead of looping silently.
           if (store.getState().auth.postingKey) {
             setReauthError(null);
             setReauthOpen(false);

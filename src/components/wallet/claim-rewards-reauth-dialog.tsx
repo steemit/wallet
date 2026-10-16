@@ -34,10 +34,11 @@ export interface ClaimRewardsReauthDialogProps {
  * The chain accepts ONLY posting authority for claim_reward_balance (verified
  * via database_api.get_required_signatures), so this dialog demands a posting
  * key or the master password (password logins derive all four role keys, so
- * posting is always covered). LoginForm's `requiredAuthTypes` gate is
- * hierarchical (owner covers active covers posting), so an active/owner-only
- * login is NOT rejected by the form — the banner's `onAuthenticated` gate
- * keeps this dialog open with `errorMessage` in that case.
+ * posting is always covered). LoginForm's requiredAuthTypes gate rejects an
+ * active/owner-only login up front with an explicit error (posting operations
+ * accept posting authority only); the banner's onAuthenticated check is a
+ * second layer that keeps this dialog open with errorMessage should a session
+ * without a posting key still get through.
  * "Remember username" is shown so the device-stored posting key can also be
  * (re)saved for future one-click claims.
  */
