@@ -8,7 +8,10 @@
 # fails if the two drift apart — edit this file, then re-copy.
 # ==========================================
 
-FROM node:22-alpine AS builder
+# Pin the exact Node patch version: the floating `node:22-alpine` tag once
+# resolved to builds affected by CVE-2026-111497 (Brotli decoder OOB write).
+# Bump deliberately when adopting a new Node patch release.
+FROM node:22.23.4-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -48,7 +51,7 @@ RUN pnpm run build
 # ==========================================
 # Production Runtime Stage
 # ==========================================
-FROM node:22-alpine AS runner
+FROM node:22.23.4-alpine AS runner
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init wget
