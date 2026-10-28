@@ -5,6 +5,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer, { AuthState, setCredentials } from '@/lib/store/slices/auth';
 import { ClaimRewardsBanner } from '@/components/wallet/claim-rewards-banner';
 import { SteemSigner } from '@/lib/steem/client';
+import { wifKey } from '@/lib/steem/signing-key';
 import type { WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 
 vi.mock('next-intl', () => ({
@@ -63,6 +64,7 @@ function makeStore(postingKey: string | null) {
       privateKey: postingKey,
       publicKey: 'STM-test',
       isAuthenticated: true,
+      authMethod: 'key',
     },
   };
   return configureStore({ reducer: { auth: authReducer }, preloadedState: preloaded });
@@ -161,7 +163,7 @@ describe('ClaimRewardsBanner post-login authority gate (issue #363)', () => {
       '0.500 STEEM',
       '0.000 SBD',
       '9.876543 VESTS',
-      '5J-fresh-posting'
+      wifKey('5J-fresh-posting')
     );
   });
 

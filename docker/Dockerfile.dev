@@ -1,0 +1,25 @@
+# ==========================================
+# Steem Wallet — LOCAL DEVELOPMENT image.
+#
+# NOT used in production and NOT the canonical build recipe — that is
+# docker/Dockerfile (byte-identical to the root Dockerfile, guarded by
+# tests/unit/infra-single-source.test.ts, which does not look at this file).
+#
+# Installs dependencies once; the actual source comes from the
+# docker-compose.dev.yml bind mount, so edits on the host are picked up by
+# `pnpm dev`'s hot reload without rebuilding this image.
+# ==========================================
+
+FROM node:22-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache libc6-compat python3 make g++
+
+# Pin matches package.json's "packageManager" (see docker/Dockerfile).
+RUN corepack enable && corepack prepare pnpm@10.34.5 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile --prod=false
+
+CMD ["pnpm", "dev"]

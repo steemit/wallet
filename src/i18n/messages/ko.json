@@ -33,7 +33,11 @@
     "keepLoggedIn": "로그인 상태 유지",
     "passwordUpdateSuccess": "{username}의 비밀번호가 성공적으로 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.",
     "insufficientAuthority": "제공한 인증 정보에 이 작업에 필요한 키 권한이 없습니다. 해당 권한의 키(예: active) 또는 마스터 비밀번호로 다시 시도해 주세요.",
-    "accountRecoverySuccess": "계정 {username}이(가) 성공적으로 복구되었습니다. 새 비밀번호로 로그인해 주세요."
+    "accountRecoverySuccess": "계정 {username}이(가) 성공적으로 복구되었습니다. 새 비밀번호로 로그인해 주세요.",
+    "orDivider": "또는",
+    "loginWithKeychain": "Keychain으로 로그인",
+    "keychainNotInstalled": "Steem Keychain 브라우저 확장 프로그램이 없으신가요?",
+    "keychainInstallLink": "설치하기"
   },
   "wallet": {
     "title": "지갑",

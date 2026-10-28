@@ -14,6 +14,7 @@ import authReducer, { AuthState } from '@/lib/store/slices/auth';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ClaimRewardsBanner } from '@/components/wallet/claim-rewards-banner';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
+import { wifKey, keychainKey } from '@/lib/steem/signing-key';
 import {
   REMEMBERED_POSTING_KEY_KEY,
   REMEMBERED_USERNAME_KEY,
@@ -104,6 +105,24 @@ function makeStore(keys: SessionKeys) {
       privateKey: postingKey ?? activeKey ?? ownerKey,
       publicKey: 'STM-test',
       isAuthenticated: true,
+      authMethod: 'key',
+    },
+  };
+  return configureStore({ reducer: { auth: authReducer }, preloadedState: preloaded });
+}
+
+function makeKeychainStore(): ReturnType<typeof configureStore> {
+  const preloaded: { auth: AuthState } = {
+    auth: {
+      username: 'alice',
+      ownerKey: null,
+      activeKey: null,
+      postingKey: null,
+      memoKey: null,
+      privateKey: null,
+      publicKey: 'STM-keychain-test',
+      isAuthenticated: true,
+      authMethod: 'keychain',
     },
   };
   return configureStore({ reducer: { auth: authReducer }, preloadedState: preloaded });
@@ -171,7 +190,7 @@ describe('ClaimRewardsBanner', () => {
       '0.500 STEEM',
       '0.000 SBD',
       '9.876543 VESTS',
-      '5J-test-posting-key'
+      wifKey('5J-test-posting-key')
     );
     expect(broadcastClaim).toHaveBeenCalledWith({ signed: 'tx' }, 'alice');
     // Success path: page hook (L1 invalidation + nonce bump) fires and the
@@ -335,7 +354,7 @@ describe('ClaimRewardsBanner', () => {
       '0.500 STEEM',
       '0.000 SBD',
       '9.876543 VESTS',
-      '5J-posting-key'
+      wifKey('5J-posting-key')
     );
   });
 
@@ -398,5 +417,35 @@ describe('ClaimRewardsBanner', () => {
       '5K-active-key'
     );
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('signs through Keychain when the session is a Keychain login', async () => {
+    const onClaimed = vi.fn();
+    render(
+      <Provider store={makeKeychainStore()}>
+        <ClaimRewardsBanner
+          username="alice"
+          balance={BALANCE}
+          isMyAccount
+          loading={false}
+          onClaimed={onClaimed}
+        />
+      </Provider>
+    );
+
+    // No raw key in the session — the button must still be enabled, routed
+    // through the extension instead of a local WIF.
+    expect(screen.getByRole('button', { name: 'claimRewards' })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+
+    await waitFor(() => expect(broadcastClaim).toHaveBeenCalledTimes(1));
+    expect(signClaim).toHaveBeenCalledWith(
+      'alice',
+      '0.500 STEEM',
+      '0.000 SBD',
+      '9.876543 VESTS',
+      keychainKey('alice', 'Posting')
+    );
   });
 });

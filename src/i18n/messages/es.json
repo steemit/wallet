@@ -33,7 +33,11 @@
     "keepLoggedIn": "Mantener la sesión iniciada",
     "passwordUpdateSuccess": "La contraseña de {username} se actualizó correctamente. Inicie sesión con la nueva contraseña.",
     "insufficientAuthority": "Las credenciales proporcionadas no incluyen la autoridad de clave que requiere esta acción. Prueba con la clave del rol correspondiente (p. ej. activa) o tu contraseña maestra.",
-    "accountRecoverySuccess": "La cuenta {username} fue recuperada exitosamente. Inicie sesión con su nueva contraseña."
+    "accountRecoverySuccess": "La cuenta {username} fue recuperada exitosamente. Inicie sesión con su nueva contraseña.",
+    "orDivider": "o",
+    "loginWithKeychain": "Iniciar sesión con Keychain",
+    "keychainNotInstalled": "¿No tienes la extensión de navegador Steem Keychain?",
+    "keychainInstallLink": "Instalarla"
   },
   "wallet": {
     "title": "Billetera",
