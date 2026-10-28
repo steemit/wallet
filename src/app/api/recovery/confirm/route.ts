@@ -311,8 +311,17 @@ async function diagnoseClaimMiss(
   code: string,
   accountName: string
 ): Promise<{ response?: NextResponse; reclaimed?: boolean }> {
+  // N2 (2026-09-23 audit): `validation_code` is a NON-unique index and codes
+  // are written by external admin tooling, so multiple rows can share one
+  // code. Scope the diagnosis read to the same account the claim CAS used —
+  // every state transition below (expire/reclaim/close) is name-scoped, so
+  // the diagnosis must be too, or its record_status could describe another
+  // account's row.
   const record = await db.query.arecs.findFirst({
-    where: eq(arecs.validationCode, code),
+    where: and(
+      eq(arecs.validationCode, code),
+      eq(arecs.accountName, accountName)
+    ),
     columns: { id: true, status: true, updatedAt: true },
   });
 
