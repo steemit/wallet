@@ -1,8 +1,9 @@
 // Vault type contracts (A0 baseline).
 //
 // Ported verbatim from the vault development kickoff task package §2
-// (2026-10-31). Field names, unions and interface names must stay in sync
-// with that document. `Operation` and `SignedTransaction` are reused from
+// (2026-10-31; outside this repo). In-repo reference: docs/AI-driver/09-vault.md.
+// Field names, unions and interface names must stay in sync with the kickoff
+// document. `Operation` and `SignedTransaction` are reused from
 // `src/lib/steem/types.ts` — do not define a second transaction model here.
 import type { Operation, SignedTransaction } from '@/lib/steem/types';
 

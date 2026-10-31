@@ -21,6 +21,7 @@ the hard way.
 | [06-frontend.md](06-frontend.md) | Hooks, client cache, Redux reality, signing, wallet logic | touching components, hooks, or client data flow |
 | [07-infra-config.md](07-infra-config.md) | proxy.ts, CSP, env vars, Docker, telemetry, i18n | touching middleware, config, deployment |
 | [08-testing.md](08-testing.md) | Vitest/Playwright conventions, mock discipline | writing or modifying any test |
+| [09-vault.md](09-vault.md) | Vault type contracts, envelope validation, Web Crypto whole-envelope encryption | touching `src/lib/vault/**` or vault tests |
 
 ## The five rules that supersede everything else
 
