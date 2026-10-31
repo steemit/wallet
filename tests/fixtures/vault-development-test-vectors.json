@@ -1,0 +1,120 @@
+{
+  "meta": {
+    "warning": "TEST-ONLY DATA. Never use these keys, passwords, or synthetic declaration ids on chain or for funds.",
+    "vaultAad": "steem-wallet.vault.v1",
+    "kdf": {
+      "name": "PBKDF2",
+      "hash": "SHA-256",
+      "iterations": 600000
+    },
+    "cipher": "AES-GCM-256 with a 128-bit tag appended to ciphertext"
+  },
+  "vault": {
+    "password": "demo-password-123456",
+    "salt": "AAECAwQFBgcICQoLDA0ODw",
+    "iv": "EBESExQVFhcYGRob",
+    "payload": {
+      "keys": [
+        {
+          "accountName": "alice",
+          "role": "posting",
+          "privateKey": "5J5Fyoy7FDUn57R7efAL9F7k5h64krJTFEoQJzbBeQqQEhD3jpx"
+        }
+      ]
+    },
+    "payloadText": "{\"keys\":[{\"accountName\":\"alice\",\"role\":\"posting\",\"privateKey\":\"5J5Fyoy7FDUn57R7efAL9F7k5h64krJTFEoQJzbBeQqQEhD3jpx\"}]}",
+    "kekHex": "710b0dc492120ad6996015c45cd4de5594e17afc2bffc8c6410e86f29f73f085",
+    "ciphertext": "Z-a5VsBloswvNs1JynzsD9oiXX2LsmPDLLX1X5BKT-hZkfzU9972X4tJ-vbCT7tekGLczkyNBEXVbPT-4EeW5PPgU8e0ESOmniNNQbHxGhyyxx-bgWGBV3HgduXVOsXcjU6XZ3ACeTXxIqfYMTLbp62a1gXpGc--5CArB5FGIqt5eGW4gPA",
+    "plaintextBytes": 118,
+    "ciphertextBytes": 134,
+    "decryptMatchesPayload": true,
+    "wrongPasswordRejected": true,
+    "tamperRejected": true,
+    "reencryption": {
+      "iv": "GxoZGBcWFRQTEhEQ",
+      "ciphertext": "buWQrvgmSZ7-ZIpPa6Yx4Vv9RAOlwxDlVputYIszoWrNOrh_2xXSNHWrQCkdyFCDkI0OIaPQvolXWgrresgk45_9MTap3WR1oH736giDce0jJC0dO_u0InHQMnGMsMcb1f1pVCnCAT1nzxi2hPY-eChtWEKBQ6O_q-kSApOWXwvkWJtVKSM",
+      "differsFromOriginal": true
+    },
+    "emptyPayload": {
+      "payloadText": "{\"keys\":[]}",
+      "iv": "ICEiIyQlJicoKSor",
+      "ciphertext": "Py98yM4soK-WYPXNLTPFFVQXwgKWTRHrAswR"
+    }
+  },
+  "dappRequest": {
+    "note": "Synthetic parser and signature fixture only; the declaration transaction id is not a live-chain claim.",
+    "declaration": [
+      "custom_json",
+      {
+        "required_auths": [],
+        "required_posting_auths": [
+          "exampledapp"
+        ],
+        "id": "steem_wallet.dapp",
+        "json": "{\"version\":1,\"type\":\"dapp_info\",\"dapp_id\":\"com.example.app\",\"declaration_version\":1,\"name\":\"Example Dapp\",\"description\":\"A short plain-text description\",\"url\":\"https://app.example.com/\",\"callback_url\":\"https://app.example.com/steem/callback\",\"request_signing_key\":\"STM7zHuCU4pfJFasWWtby1zus7oDJKEQNpdnNiVdHizLHF5hVbUAW\",\"supersedes\":null}"
+      }
+    ],
+    "requestPayload": {
+      "purpose": "steem_wallet.create_signing_request.v1",
+      "audience": "https://steemitwallet.com",
+      "request_origin": "https://app.example.com",
+      "nonce": "AAECAwQFBgcICQoLDA0ODw",
+      "created_at": 1761312000,
+      "expires_at": 1761312600,
+      "uri": "web+steem://sign/op/WyJ0cmFuc2ZlciIseyJmcm9tIjoiYWxpY2UiLCJ0byI6ImJvYiIsImFtb3VudCI6IjEuMDAwIFNURUVNIiwibWVtbyI6ImRlbW8ifV0",
+      "dapp_tx_id": "0123456789abcdef0123456789abcdef01234567",
+      "state": "demo-state-001"
+    },
+    "payloadBase64url": "eyJwdXJwb3NlIjoic3RlZW1fd2FsbGV0LmNyZWF0ZV9zaWduaW5nX3JlcXVlc3QudjEiLCJhdWRpZW5jZSI6Imh0dHBzOi8vc3RlZW1pdHdhbGxldC5jb20iLCJyZXF1ZXN0X29yaWdpbiI6Imh0dHBzOi8vYXBwLmV4YW1wbGUuY29tIiwibm9uY2UiOiJBQUVDQXdRRkJnY0lDUW9MREEwT0R3IiwiY3JlYXRlZF9hdCI6MTc2MTMxMjAwMCwiZXhwaXJlc19hdCI6MTc2MTMxMjYwMCwidXJpIjoid2ViK3N0ZWVtOi8vc2lnbi9vcC9XeUowY21GdWMyWmxjaUlzZXlKbWNtOXRJam9pWVd4cFkyVWlMQ0owYnlJNkltSnZZaUlzSW1GdGIzVnVkQ0k2SWpFdU1EQXdJRk5VUlVWTklpd2liV1Z0YnlJNkltUmxiVzhpZlYwIiwiZGFwcF90eF9pZCI6IjAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVmMDEyMzQ1NjciLCJzdGF0ZSI6ImRlbW8tc3RhdGUtMDAxIn0",
+    "signedMessage": "steem_wallet.create_signing_request.v1\neyJwdXJwb3NlIjoic3RlZW1fd2FsbGV0LmNyZWF0ZV9zaWduaW5nX3JlcXVlc3QudjEiLCJhdWRpZW5jZSI6Imh0dHBzOi8vc3RlZW1pdHdhbGxldC5jb20iLCJyZXF1ZXN0X29yaWdpbiI6Imh0dHBzOi8vYXBwLmV4YW1wbGUuY29tIiwibm9uY2UiOiJBQUVDQXdRRkJnY0lDUW9MREEwT0R3IiwiY3JlYXRlZF9hdCI6MTc2MTMxMjAwMCwiZXhwaXJlc19hdCI6MTc2MTMxMjYwMCwidXJpIjoid2ViK3N0ZWVtOi8vc2lnbi9vcC9XeUowY21GdWMyWmxjaUlzZXlKbWNtOXRJam9pWVd4cFkyVWlMQ0owYnlJNkltSnZZaUlzSW1GdGIzVnVkQ0k2SWpFdU1EQXdJRk5VUlVWTklpd2liV1Z0YnlJNkltUmxiVzhpZlYwIiwiZGFwcF90eF9pZCI6IjAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVmMDEyMzQ1NjciLCJzdGF0ZSI6ImRlbW8tc3RhdGUtMDAxIn0",
+    "dappWif": "5JD8wjy6Vw4AAzQZeWKRr1A3Sy2zWLhnkbF99T7VFfFRtEX8E7M",
+    "dappPublicKey": "STM7zHuCU4pfJFasWWtby1zus7oDJKEQNpdnNiVdHizLHF5hVbUAW",
+    "signature": "205a55d737af20c3269e5675b6df10d309c71d3c16713f784b3386876fb74be2f7585d4b21e6f129e14b4047c8b4d310e1a39a5bf8f776d4763cc6138573c8d888",
+    "signatureLength": 130,
+    "requestSignatureValid": true,
+    "expectedOrigin": "https://app.example.com"
+  },
+  "exactTransaction": {
+    "unsignedTx": {
+      "ref_block_num": 12345,
+      "ref_block_prefix": 1234567890,
+      "expiration": "2026-10-31T00:00:00",
+      "operations": [
+        [
+          "transfer",
+          {
+            "from": "alice",
+            "to": "bob",
+            "amount": "1.000 STEEM",
+            "memo": "demo"
+          }
+        ]
+      ],
+      "extensions": []
+    },
+    "serializedHex": "3930d2029649802fe56a010205616c69636503626f62e80300000000000003535445454d00000464656d6f00",
+    "transactionId": "07c1af89bc7bfbbe2b9261e0b6cb3bf231b98c4d",
+    "signedTx": {
+      "ref_block_num": 12345,
+      "ref_block_prefix": 1234567890,
+      "expiration": "2026-10-31T00:00:00",
+      "operations": [
+        [
+          "transfer",
+          {
+            "from": "alice",
+            "to": "bob",
+            "amount": "1.000 STEEM",
+            "memo": "demo"
+          }
+        ]
+      ],
+      "extensions": [],
+      "signatures": [
+        "1f1fdbe1fc5649b7e0c6daa367b90110da4275269b742ee05570cadae24880d6287a5c9df8244fe274bc80dce22ae852aef277404548da51ffef1f0fe56903ba69"
+      ]
+    },
+    "withEmptySignaturesHex": "3930d2029649802fe56a010205616c69636503626f62e80300000000000003535445454d00000464656d6f0000",
+    "withEmptySignaturesTransactionId": "4b34b37515f299094b8e105f937f5b599ea95a1e"
+  }
+}
