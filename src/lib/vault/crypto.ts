@@ -31,9 +31,6 @@ export const VAULT_IV_BYTES = 12;
 /** KEK length in bytes (AES-256 key material). */
 export const VAULT_KEK_BYTES = 32;
 
-/** GCM authentication-tag length in bytes (appended to the ciphertext). */
-export const VAULT_GCM_TAG_BYTES = 16;
-
 /**
  * Additional authenticated data binding every V1 envelope to the Steem
  * Wallet domain. Matches the fixture `meta.vaultAad`; exported so tests and

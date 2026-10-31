@@ -4,8 +4,13 @@
 // fixture strings so their decoded lengths are provable (chars*6/8 bits).
 import { describe, expect, it } from 'vitest';
 import vectors from '../fixtures/vault-development-test-vectors.json';
+import { VAULT_IV_BYTES, VAULT_SALT_BYTES } from '@/lib/vault/crypto';
 import {
+  VAULT_ENVELOPE_CIPHERTEXT_MAX_BYTES,
+  VAULT_ENVELOPE_CIPHERTEXT_MIN_BYTES,
+  VAULT_ENVELOPE_IV_BYTES,
   VAULT_ENVELOPE_NAME_MAX_LENGTH,
+  VAULT_ENVELOPE_SALT_BYTES,
   decodeBase64Url,
   encodeBase64Url,
   validateVaultEnvelope,
@@ -35,13 +40,18 @@ function expectVaultErrorCode(error: unknown, code: string): void {
   expect(error).toMatchObject({ code });
 }
 
-function expectRejectedBy(validate: () => unknown, code: string): void {
+async function expectRejectedBy(validate: () => unknown, code: string): Promise<void> {
+  // Keep the "did not reject" failure OUT of this helper's own try/catch, so
+  // a passing validator reports as a missing rejection instead of surfacing
+  // indirectly as a failed VaultError assertion on the unreachable marker.
+  let result: unknown;
   try {
-    validate();
-    expect.unreachable('expected the validator to reject');
+    result = await validate();
   } catch (error) {
     expectVaultErrorCode(error, code);
+    return;
   }
+  expect.unreachable(`expected the validator to reject with ${code}, got result: ${String(result)}`);
 }
 
 describe('base64url helpers', () => {
@@ -77,6 +87,20 @@ describe('base64url helpers', () => {
     { msg: 'non-string input', value: 42 },
   ])('decode rejects $msg', ({ value }) => {
     expect(() => decodeBase64Url(value as string)).toThrow();
+  });
+});
+
+describe('cross-module constant consistency (envelope.ts vs crypto.ts)', () => {
+  // salt/IV/tag byte lengths are defined in BOTH envelope.ts (validation) and
+  // crypto.ts (generation) and coupled only by comments; these assertions make
+  // any drift between the two modules an immediate test failure.
+  it('envelope field length constants match the crypto profile', () => {
+    expect(VAULT_ENVELOPE_SALT_BYTES).toBe(VAULT_SALT_BYTES);
+    expect(VAULT_ENVELOPE_IV_BYTES).toBe(VAULT_IV_BYTES);
+    // 16 bytes = the GCM 128-bit authentication tag appended to every
+    // ciphertext (Web Crypto's native output format); a bare tag over zero
+    // plaintext bytes is the shortest structurally valid ciphertext.
+    expect(VAULT_ENVELOPE_CIPHERTEXT_MIN_BYTES).toBe(16);
   });
 });
 
@@ -140,8 +164,21 @@ describe('vault envelope validation', () => {
     { msg: 'number envelope', value: 42 },
   ];
 
-  it.each(rejections)('rejects $msg with VAULT_ENVELOPE_INVALID', ({ value }) => {
-    expectRejectedBy(() => validateVaultEnvelope(value), 'VAULT_ENVELOPE_INVALID');
+  it.each(rejections)('rejects $msg with VAULT_ENVELOPE_INVALID', async ({ value }) => {
+    await expectRejectedBy(() => validateVaultEnvelope(value), 'VAULT_ENVELOPE_INVALID');
+  });
+
+  it('rejects a ciphertext above the 1 MiB cap and accepts one exactly at it', async () => {
+    // Oversized by a single byte must reject — no real encryption involved,
+    // the cap guards the decode/allocate step inside validation itself.
+    const oversized = encodeBase64Url(new Uint8Array(VAULT_ENVELOPE_CIPHERTEXT_MAX_BYTES + 1));
+    await expectRejectedBy(
+      () => validateVaultEnvelope({ ...VALID_ENVELOPE, ciphertext: oversized }),
+      'VAULT_ENVELOPE_INVALID',
+    );
+    // Exactly at the cap is structurally valid (validation never decrypts).
+    const atCap = encodeBase64Url(new Uint8Array(VAULT_ENVELOPE_CIPHERTEXT_MAX_BYTES));
+    expect(() => validateVaultEnvelope({ ...VALID_ENVELOPE, ciphertext: atCap })).not.toThrow();
   });
 
   it('rejection messages never echo envelope field values', () => {
@@ -204,12 +241,12 @@ describe('vault payload validation', () => {
     },
   ];
 
-  it.each(rejections)('rejects $msg with VAULT_PAYLOAD_INVALID', ({ value }) => {
-    expectRejectedBy(() => validateVaultPayloadText(value), 'VAULT_PAYLOAD_INVALID');
+  it.each(rejections)('rejects $msg with VAULT_PAYLOAD_INVALID', async ({ value }) => {
+    await expectRejectedBy(() => validateVaultPayloadText(value), 'VAULT_PAYLOAD_INVALID');
   });
 
-  it('rejects non-string payload text input', () => {
-    expectRejectedBy(
+  it('rejects non-string payload text input', async () => {
+    await expectRejectedBy(
       () => validateVaultPayloadText(42 as unknown as string),
       'VAULT_PAYLOAD_INVALID',
     );

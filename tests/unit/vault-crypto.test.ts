@@ -5,8 +5,10 @@
 //
 // Performance: PBKDF2 at 600k iterations costs hundreds of milliseconds per
 // call. Both KEKs (correct + wrong password) are derived ONCE in beforeAll
-// and shared across the describe block; only the focused KEK test pays for
-// one extra derivation. Do not move derivations into individual `it` blocks.
+// and shared across the describe block; two tests pay for extra derivations
+// of their own — the focused KEK vector test and the generators test (which
+// re-derives to prove subtle-only operations keep working). Do not move
+// derivations into any other individual `it` blocks.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import vectors from '../fixtures/vault-development-test-vectors.json';
 import {
@@ -47,7 +49,7 @@ describe('vault crypto — fixed vectors recomputed with Web Crypto', () => {
     const recomputed = await deriveVaultKek(v.password, salt);
     expect(toHex(recomputed)).toBe(v.kekHex);
     expect(recomputed).toHaveLength(VAULT_KEK_BYTES);
-  });
+  }, 20000);
 
   it('1b. derives a different KEK for the wrong password', () => {
     expect(toHex(wrongKek)).not.toBe(v.kekHex);
@@ -159,6 +161,9 @@ describe('vault crypto — fixed vectors recomputed with Web Crypto', () => {
       ],
     });
     const freshIv = generateVaultIv();
+    // The rewrite's freshness guarantee rests on the fresh IV actually
+    // differing from the stored one (astronomically likely — assert it).
+    expect(encodeBase64Url(freshIv)).not.toBe(v.iv);
     const rewritten = encodeBase64Url(await encryptVaultText(kek, freshIv, modifiedPayloadText));
     expect(freshIv).toHaveLength(VAULT_IV_BYTES);
     expect(rewritten).not.toBe(v.ciphertext);
@@ -257,5 +262,5 @@ describe('vault crypto without Web Crypto (fail closed)', () => {
     // Subtle-only operations keep working without getRandomValues.
     const kek = await deriveVaultKek(v.password, decodeBase64Url(v.salt));
     expect(toHex(kek)).toBe(v.kekHex);
-  });
+  }, 20000);
 });

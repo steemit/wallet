@@ -36,6 +36,14 @@ export const VAULT_ENVELOPE_IV_BYTES = 12;
  */
 export const VAULT_ENVELOPE_CIPHERTEXT_MIN_BYTES = 16;
 
+/**
+ * Maximum decoded ciphertext length (1 MiB). Chosen far above the realistic
+ * needs of a multi-account, multi-key vault payload, while defending against
+ * memory amplification: without a cap, validation would decode and allocate
+ * an arbitrarily large attacker-supplied field before any length check runs.
+ */
+export const VAULT_ENVELOPE_CIPHERTEXT_MAX_BYTES = 1 * 1024 * 1024;
+
 /** Upper bound for a user-chosen vault display name. */
 export const VAULT_ENVELOPE_NAME_MAX_LENGTH = 64;
 
@@ -147,7 +155,10 @@ function requireDecodedLength(
     if (minBytes === maxBytes) {
       throw envelopeInvalid(`${field} must decode to exactly ${minBytes} bytes`);
     }
-    throw envelopeInvalid(`${field} must decode to at least ${minBytes} bytes`);
+    if (decoded.length < minBytes) {
+      throw envelopeInvalid(`${field} must decode to at least ${minBytes} bytes`);
+    }
+    throw envelopeInvalid(`${field} must decode to at most ${maxBytes} bytes`);
   }
 }
 
@@ -157,8 +168,9 @@ function requireDecodedLength(
  * Accepts exactly the five V1 fields with: `version === 1` (any other value
  * is an unknown version and rejects rather than attempting a lenient parse),
  * a non-empty `vaultName` within the length cap, a 16-byte `salt`, a 12-byte
- * `iv` and a `ciphertext` of at least 16 bytes (the GCM tag), all as
- * unpadded base64url. Returns a fresh, plain envelope object. Throws
+ * `iv` and a `ciphertext` decoding to between 16 bytes (the GCM tag floor)
+ * and `VAULT_ENVELOPE_CIPHERTEXT_MAX_BYTES`, all as unpadded base64url.
+ * Returns a fresh, plain envelope object. Throws
  * `VaultError('VAULT_ENVELOPE_INVALID')` on any violation — with messages
  * that never contain the field values.
  */
@@ -192,11 +204,14 @@ export function validateVaultEnvelope(envelope: unknown): VaultEnvelopeV1 {
   }
   requireDecodedLength('salt', salt, VAULT_ENVELOPE_SALT_BYTES, VAULT_ENVELOPE_SALT_BYTES);
   requireDecodedLength('iv', iv, VAULT_ENVELOPE_IV_BYTES, VAULT_ENVELOPE_IV_BYTES);
+  // The ciphertext cap bounds only the encrypted layer. The A3 backup import
+  // path must still enforce its own payload-level limits (number of keys,
+  // overall backup size); envelope validation never sees the plaintext.
   requireDecodedLength(
     'ciphertext',
     ciphertext,
     VAULT_ENVELOPE_CIPHERTEXT_MIN_BYTES,
-    Number.POSITIVE_INFINITY,
+    VAULT_ENVELOPE_CIPHERTEXT_MAX_BYTES,
   );
   // Return a fresh plain object: never hand back a caller-controlled
   // prototype/getters under the validated type.
