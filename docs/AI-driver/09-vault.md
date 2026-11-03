@@ -1,11 +1,13 @@
 # 09 — Vault (encrypted multi-account wallet)
 
-> Status date: 2026-11-04, baseline `next@fe3276b8` + A1.1 (PR #382 A0, PR #383 A1,
-> A1.1 shared validation / canonical base64url / resource limits).
+> Status date: 2026-11-04, baseline `next@5dcece14` + A2 (PR #382 A0, PR #383 A1,
+> A1.1 shared validation / canonical base64url / resource limits, PR #386 A2
+> IndexedDB registry + unlock-session service).
 > Covers only what has landed: type contracts, error taxonomy, envelope validation,
-> Web Crypto whole-envelope encryption and the A1.1 shared input validation with
-> resource boundaries. Registry/service/backup/manager (A2–A6) are not
-> implemented yet — this doc grows with each task package. Tracking issue: #381.
+> Web Crypto whole-envelope encryption, shared input validation with resource
+> boundaries, and the registry/service layer. Backup/manager/UI/migration
+> (A3–A6) are not implemented yet — this doc grows with each task package.
+> Tracking issue: #381.
 
 ## Module map
 
@@ -20,6 +22,15 @@ src/lib/vault/crypto.ts    PBKDF2 KEK derivation + AES-GCM whole-envelope encryp
                            + CSPRNG salt/iv generators (A1, PR #383)
 src/lib/vault/validation.ts  Shared vault alias / password / account-name / WIF
                            validation + NFC display values + alias comparison key (A1.1)
+src/lib/vault/registry.ts  IndexedDB layer (A2, PR #386): `steem-wallet-vault` v1 with
+                           `vaults` (keyPath = NFC display name) + `settings` stores;
+                           atomic alias uniqueness inside one readwrite transaction
+                           (comparison key scanned via getAll — never persisted, never
+                           in the AAD); revision/lockEpoch CAS; abort-on-callback-throw
+src/lib/vault/service.ts   Unlock-session service (A2, PR #386): createVaultService()
+                           factory; KEK + payload live ONLY in the instance closure;
+                           per-operation freshness re-read; BroadcastChannel as
+                           acceleration layer only
 tests/fixtures/vault-development-test-vectors.json   fixed test vectors (byte-identical
                            copy of the reviewed source; TEST-ONLY keys/passwords)
 tests/unit/vault-contract.test.ts    fixture parseability + exact value pins
@@ -27,6 +38,13 @@ tests/unit/vault-envelope.test.ts    rejection matrix + canonical/resource cases
 tests/unit/vault-crypto.test.ts      vectors recomputed for real (16 cases)
 tests/unit/vault-validation.test.ts  alias/password/account tables + MOCK-driven WIF
                            branches (A1.1 — mock proves branches only, NOT real checks)
+tests/unit/vault-registry.test.ts    41 cases: atomic uniqueness, NFC/case collisions,
+                           CAS, settings pointer moves, fail-closed storage (A2)
+tests/unit/vault-service.test.ts     13 cases: unlock/lock lifecycle, cross-tab
+                           invalidation (hard line + broadcast), mutate semantics,
+                           shuffle-stable per-case state (A2)
+tests/mocks/fake-indexeddb.ts        hand-written in-memory IndexedDB fake (A2) — see
+                           fidelity notes under Pitfalls
 tests/node/vault-wif-real-check.mjs  plain-`node` real-crypto WIF verification (A1.1;
                            not part of `pnpm test` — run manually when touching WIF logic)
 ```
@@ -102,6 +120,37 @@ and must stay field-compatible with it.
    (NOT `VAULT_ENVELOPE_INVALID`); structural violations keep their own codes.
    Create/import/validate paths all call the same validators — do not re-derive
    bounds at call sites.
+11. **Session identity is `(vaultName, createdAt, revision, lockEpoch)` (A2).**
+   Every session-bound operation re-reads the record and compares ALL FOUR —
+   the `createdAt` binding is what stops remove + same-name-recreate from
+   resetting counters to 0/0 and colliding with a live session (a stale tab
+   would otherwise CAS-overwrite the recreated vault's ciphertext — permanent
+   corruption, found in review). Known residual window: same-millisecond
+   recreate still collides (`Date.now()` granularity); closing it fully needs a
+   random per-record id, deferred to a future `VaultRecordV1` schema version.
+12. **IndexedDB transaction discipline (A2).** Inside a `readwrite` transaction
+   callback, only IDB request promises may be awaited — never a macrotask
+   boundary (real IDB auto-commits and then throws `TransactionInactiveError`;
+   the fake reproduces this). Uniqueness check + write happen in ONE
+   transaction; if the callback throws, the transaction is aborted (no partial
+   writes). The comparison key is scanned via `getAll` — it is never persisted
+   into `VaultRecordV1` and never part of the AAD.
+13. **Cross-tab invalidation is two-layered (A2).** The hard line is the
+   per-operation freshness re-read (invariant 11); `BroadcastChannel`
+   (`VAULT_DB_NAME`) is acceleration only and the code must keep working with
+   it absent. `lock()` clears memory first (`kek.fill(0)` → drop references),
+   then persists `lockEpoch + 1`, then broadcasts — and the broadcast now runs
+   in a `finally`, so a failed persistence still notifies other tabs. `lock()`
+   on a concurrently-removed vault propagates `VAULT_NOT_FOUND` (memory is
+   already cleared) — callers must tolerate that code.
+14. **The post-CAS adopt branch uses the LIVE closure session's KEK (A2)** —
+   never the pre-await snapshot (a destroy + re-unlock interleave could
+   otherwise install a zeroed KEK and corrupt the vault silently; found in
+   review). Pure unlock/lock never touches salt/IV/ciphertext; every payload
+   mutation mints a fresh IV and re-encrypts the whole payload with
+   `revision + 1` via CAS. `mutatePayload(mutator)` hands the mutator a
+   payload copy containing WIFs — mutators are for vault-internal feature code
+   (A3/A4) ONLY; never pass component-level callbacks through.
 
 ## Error taxonomy (17 codes, types.ts order)
 
@@ -155,23 +204,38 @@ goes through i18n) and never echo names, passwords, WIFs, ciphertext or payload.
 - **Duplicated byte constants.** salt/iv/tag sizes are defined on both envelope and
   crypto sides, locked together by consistency assertions in `vault-envelope.test.ts`.
   If you add a third consumer, prefer importing from `crypto.ts` over redefining.
+- **jsdom has no IndexedDB but DOES have Node's BroadcastChannel (A2).** Registry
+  tests therefore run against `tests/mocks/fake-indexeddb.ts` (hand-written, no new
+  dependency); the "no broadcast" path is exercised by explicitly hiding the global.
+  Fake fidelity bounds (documented in its header): no abort rollback (an
+  `abortCount()` hook makes abort calls observable instead), no versionchange/
+  blocked negotiation, FIFO transaction queue. Real-browser semantics were proven
+  separately in review via Playwright + real Chromium/IndexedDB (43/43 incl. real
+  rollback and cross-page BroadcastChannel) — rerun such golden checks when the
+  transaction discipline itself changes, not for every edit.
+- **Concurrent `unlock` calls overwrite, not merge (A2).** The second completion
+  replaces the session; the replaced session's KEK is only GC'd, not `fill(0)`-ed.
+  Single-tab UI never races unlocks — if A4/A5 ever allow concurrent unlock calls,
+  clear the previous session explicitly first.
+- **Vault tests must stay shuffle-stable (A2 standard).** `vault-service.test.ts`
+  rebuilds fake + registry + service in `beforeEach` and shares only `beforeAll`
+  KEKs — that is the pattern to copy for new lifecycle suites.
 
 ## Extension checklist
 
-- **A2 (registry/service)**: consume `crypto.ts` primitives as-is; KEK + payload live
-  only in the service closure; on lock, `fill(0)` the KEK bytes best-effort and drop
-  references (strings/CryptoKey cannot be zeroed — document that honestly). Unlock→
-  no mutation → salt/iv/ciphertext unchanged; any payload mutation → fresh IV +
-  re-encrypt (`vault-crypto.test.ts` case 10 encodes this contract). Alias handling
-  MUST reuse `validateVaultName` + `vaultNameComparisonKey` from `validation.ts`
-  (uniqueness = comparing keys inside the same IndexedDB `readwrite` transaction);
-  never re-implement the name rules or compare raw strings.
+- **A2 has landed** — consume `registry.ts` / `service.ts` as-is; do not bypass them
+  with direct IndexedDB access. Session identity, transaction discipline, cross-tab
+  invalidation and the adopt-branch KEK rule are invariants 11–14 above. The manager
+  (`VaultManager` orchestration incl. `activateVault`) is A4; work-mode UI is A5.
 - **A3 (backup/import)**: backups are the five envelope fields only (revision/
   lockEpoch/timestamps are local runtime state). Independent import MUST mint a new
   salt+iv and parse incoming text through `parseVaultEnvelopeJson` — the raw-JSON,
   ciphertext and payload caps are then enforced by the shared validators before any
   write; never duplicate the bounds at the call site. Password policy applies to the
-  NEW password chosen during independent import / change-password only.
+  NEW password chosen during independent import / change-password only. Import
+  writes go through the registry's atomic-uniqueness transaction; merges dedupe on
+  `(accountName, role, publicKey)` and use `mutatePayload` (fresh IV, CAS) on the
+  unlocked target.
 - **New vault tests**: follow the fixture-recompute discipline; never copy WIFs or
   passwords into `src/`. Anything touching WIF handling needs BOTH layers: mock-driven
   vitest cases plus a rerun of `tests/node/vault-wif-real-check.mjs` recorded in the
