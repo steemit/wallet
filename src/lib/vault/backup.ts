@@ -69,12 +69,16 @@ interface SourceKey {
  * After extracting the envelope the export marker `lastBackupAt` (an existing
  * `VaultRecordV1` field) is updated through the registry's CAS primitive
  * (`swapRecord`), which necessarily bumps `revision` (its contract requires
- * +1 per write) — a side effect that also invalidates other tabs' unlocked
- * sessions for this vault; that is the accepted cost of the only mutating
- * primitive the registry exposes, and the envelope fields themselves stay
- * untouched. A concurrent change of the record between the read and the swap
- * propagates `VAULT_SESSION_STALE` (or `VAULT_NOT_FOUND` after a removal) per
- * the registry contract — the caller re-reads and retries.
+ * +1 per write) — a side effect that invalidates unlocked sessions for this
+ * vault in ANY tab, INCLUDING the caller's own service instance: every
+ * session-bound operation re-compares the revision and therefore rejects with
+ * `VAULT_SESSION_STALE` on the next use. That is the accepted cost of the only
+ * mutating primitive the registry exposes, and the envelope fields themselves
+ * stay untouched. Wiring note for A4/A5: a flow that exports while unlocked
+ * must tolerate re-unlocking afterwards (or lock before exporting). A
+ * concurrent change of the record between the read and the swap propagates
+ * `VAULT_SESSION_STALE` (or `VAULT_NOT_FOUND` after a removal) per the
+ * registry contract — the caller re-reads and retries.
  *
  * Throws `VAULT_NOT_FOUND` when no vault exists under the name. Error messages
  * never echo names or envelope material.
@@ -168,6 +172,10 @@ function sourceDedupeKey(accountName: string, role: VaultKeyRole, publicKey: str
 
 /**
  * Import a backup as a NEW, independent vault (kickoff A3 "independent" mode).
+ *
+ * Input contract: text backups must be parsed through
+ * `parseVaultEnvelopeJson` first (the raw-JSON 1 MiB gate lives in that entry
+ * point); this function takes an already-parsed `VaultEnvelopeV1` object.
  *
  * Single-password contract (A0 `ImportVaultParams`): `params.password` is BOTH
  * the source backup's password (it authenticates the decryption) AND the

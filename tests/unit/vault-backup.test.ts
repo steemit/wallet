@@ -15,15 +15,17 @@
 // in beforeEach (records re-seeded from beforeAll envelope material) and
 // destroys its services — shuffle- and single-test safe (A2 standard).
 //
-// Performance: PBKDF2 600k costs ~0.5-0.8s per derivation. Exactly TWO are
-// paid in beforeAll (the fixture KEK shared by all sealed envelopes + the
-// weak-password KEK); each test then pays only for the derivations its own
-// calls perform. Whole-file budget: 24 derivations (import success 4, the
-// import rollback case 2, eight single-derivation import failure cases, merge
-// success 2, two combined merge-failure tests 3 each) — measured ~16s of test
-// time. Per-test budgets are noted in test headers where > 0. Failure
-// scenarios that share an unlocked target deliberately SHARE the unlock
-// derivation.
+// Performance: PBKDF2 600k costs ~0.5-0.8s per derivation (machine-dependent;
+// this container measures slower than the ~16s the file originally shipped
+// with). Exactly TWO are paid in beforeAll (the fixture KEK shared by all
+// sealed envelopes + the weak-password KEK); each test then pays only for the
+// derivations its own calls perform. Whole-file budget: 34 derivations
+// (beforeAll 2, import success 4, the bad-role end-to-end case 1, the
+// export→import roundtrip 4, the import rollback case 2, the removal-failure
+// rollback case 4, nine single-derivation import failure cases, merge success
+// 2, two combined merge-failure tests 3 each). Per-test budgets are noted in
+// test headers where > 0. Failure scenarios that share an unlocked target
+// deliberately SHARE the unlock derivation.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { steem } from '@steemit/steem-js';
 import vectors from '../fixtures/vault-development-test-vectors.json';
@@ -87,6 +89,7 @@ let sharedKek: Uint8Array<ArrayBuffer>;
 let weakKek: Uint8Array<ArrayBuffer>;
 let weakEnvelope: VaultEnvelopeV1;
 let dupEnvelope: VaultEnvelopeV1;
+let badRoleEnvelope: VaultEnvelopeV1;
 let badWifEnvelope: VaultEnvelopeV1;
 let badAccountEnvelope: VaultEnvelopeV1;
 let keys401Envelope: VaultEnvelopeV1;
@@ -184,6 +187,13 @@ describe('vault backup (A3)', () => {
       ]),
       sharedKek,
       'dup-source',
+    );
+    badRoleEnvelope = await seal(
+      // 'superuser' is outside the fixed role vocabulary — the payload
+      // validator (not the per-entry WIF path) owns this rejection.
+      keysText([entry('alice', 'superuser' as VaultKeyEntry['role'], aliceWif)]),
+      sharedKek,
+      'bad-role-source',
     );
     badWifEnvelope = await seal(
       keysText([entry('alice', 'posting', BAD_WIF)]),
@@ -450,6 +460,21 @@ describe('vault backup (A3)', () => {
       expect(await vaultNames()).toEqual(['demo', 'Target']);
     });
 
+    // 1 derivation: the source envelope is REAL crypto — it validates and
+    // decrypts fine, then the decrypted-payload validator rejects the illegal
+    // role (before any per-entry WIF check, so no steem-js involvement).
+    it('rejects an illegal source role END-TO-END with VAULT_PAYLOAD_INVALID, creating nothing', async () => {
+      const error: unknown = await importVaultBackup(registry, {
+        mode: 'independent',
+        envelope: badRoleEnvelope,
+        password: v.password,
+        vaultName: 'X',
+      }).catch((cause: unknown) => cause);
+      expect(error).toMatchObject({ code: 'VAULT_PAYLOAD_INVALID' });
+      expectClean((error as Error).message);
+      expect(await vaultNames()).toEqual(['demo', 'Target']);
+    }, 20000);
+
     it('rejects raw backup JSON beyond 1 MiB with VAULT_LIMIT_EXCEEDED at the parse gate', async () => {
       // importVaultBackup takes the parsed envelope object (A0 contract); the
       // raw-JSON text gate (A4/A5 callers compose it before this call) is
@@ -592,6 +617,110 @@ describe('vault backup (A3)', () => {
       // name list would contain an empty 'Imported' vault.
       expect(await vaultNames()).toEqual(['demo', 'Target']);
       await expect(registry.getSettings()).resolves.toMatchObject({ activeVaultName: null });
+    }, 30000);
+
+    // 4 derivations: source decrypt + create + the import's in-scope unlock
+    // (the payload write itself fails by INJECTION at the CAS), plus the
+    // residual-vault unlock proof. Best-effort rollback semantics: when the
+    // post-failure removal ALSO fails, the PRIMARY error still wins and the
+    // residual is an unlockable EMPTY vault (the review's Node evidence) —
+    // locked here against drift.
+    it('a removal failure after a failed payload write propagates the PRIMARY error and leaves an unlockable EMPTY vault', async () => {
+      let created: VaultRecordV1 | undefined;
+      const failing: VaultRegistry = {
+        ...registry,
+        createVault: async (params: { vaultName: string; password: string }) => {
+          created = await registry.createVault(params);
+          return created;
+        },
+        // The service's payload-write CAS (mutatePayload step 5) always loses.
+        swapRecord: () =>
+          Promise.reject(
+            new VaultError('VAULT_SESSION_STALE', 'injected concurrent change'),
+          ),
+        // ... and the import's best-effort rollback removal fails too.
+        removeVault: () =>
+          Promise.reject(
+            new VaultError('VAULT_STORAGE_UNAVAILABLE', 'injected removal failure'),
+          ),
+      };
+      const error: unknown = await importVaultBackup(failing, {
+        mode: 'independent',
+        envelope: dupEnvelope,
+        password: v.password,
+        vaultName: 'Imported',
+      }).catch((cause: unknown) => cause);
+      // The mutate failure (not the swallowed removal failure) propagates.
+      expect(error).toMatchObject({ code: 'VAULT_SESSION_STALE' });
+      expectClean((error as Error).message);
+      // The rollback removal failed: the just-created vault is still there,
+      // EXACTLY as created — revision 0, the payload write never landed.
+      if (created === undefined) {
+        throw new Error('createVault was not called');
+      }
+      expect(await registry.getRecord('Imported')).toEqual(created);
+      expect(await registry.getRecord('Imported')).toMatchObject({ revision: 0 });
+      expect(await vaultNames()).toEqual(['demo', 'Imported', 'Target']);
+      // The residual is an UNLOCKABLE EMPTY vault: the same password unlocks
+      // it and zero key entries come back (no imported keys inside).
+      const service = createVaultService(registry);
+      await expect(service.unlock('Imported', v.password)).resolves.toMatchObject({
+        locked: false,
+        vaultName: 'Imported',
+      });
+      await expect(service.getAccounts()).resolves.toEqual([]);
+      service.destroy();
+      await expect(registry.getSettings()).resolves.toMatchObject({ activeVaultName: null });
+    }, 30000);
+  });
+
+  describe('export → import roundtrip', () => {
+    // 4 derivations: the import's source decrypt + create + in-scope unlock,
+    // plus the read-back decryption.
+    it('re-imports an exported backup as a NEW vault whose payload equals the source payload', async () => {
+      const before = await currentRecord('demo');
+      const backup = await exportVaultBackup(registry, 'demo');
+      // The export's CAS marker move (lastBackupAt, revision +1) never
+      // touches the envelope bytes.
+      expect(backup).toEqual({
+        version: 1,
+        vaultName: 'demo',
+        salt: before.salt,
+        iv: before.iv,
+        ciphertext: before.ciphertext,
+      });
+      // Import the EXPORTED envelope under a NEW local name (re-using 'demo'
+      // would collide with the still-existing source vault).
+      const result = await importVaultBackup(registry, {
+        mode: 'independent',
+        envelope: backup,
+        password: v.password,
+        vaultName: 'Roundtrip',
+      });
+      expect(result.vaultName).toBe('Roundtrip');
+      expect(result.revision).toBe(1);
+      expect(result.lastBackupAt).toBeNull();
+      expect(result.salt).not.toBe(backup.salt); // fresh salt/IV, re-encrypted
+      // Read back: decrypt under the new vault's fresh salt with the SAME
+      // password. The import pipeline stores the normalized, deduplicated
+      // source payload — for the fixture payload (a single already-normalized
+      // entry) that is byte-identical to vault A's stored payload.
+      const kek = await deriveVaultKek(v.password, decodeBase64Url(result.salt));
+      const payloadText = await decryptVaultText(
+        kek,
+        decodeBase64Url(result.iv),
+        decodeBase64Url(result.ciphertext),
+      );
+      expect(payloadText).toBe(v.payloadText);
+      // Source vault survives untouched on its envelope fields; nothing
+      // activated; both vaults coexist.
+      const afterDemo = await currentRecord('demo');
+      expect(afterDemo.salt).toBe(before.salt);
+      expect(afterDemo.iv).toBe(before.iv);
+      expect(afterDemo.ciphertext).toBe(before.ciphertext);
+      await expect(registry.getSettings()).resolves.toMatchObject({ activeVaultName: null });
+      expect(await vaultNames()).toEqual(['demo', 'Roundtrip', 'Target']);
+      expectClean(result);
     }, 30000);
   });
 
