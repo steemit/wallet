@@ -1,18 +1,28 @@
-// Vault envelope + payload validation tests (A1). Table-driven; every
+// Vault envelope + payload validation tests (A1 + A1.1). Table-driven; every
 // rejection case asserts both the VaultError type and the exact error code.
 // Base64url strings for off-spec lengths are derived by truncating the
 // fixture strings so their decoded lengths are provable (chars*6/8 bits).
+// A1.1 additions: canonical base64url (trailing-bit aliases), the raw-JSON
+// parse entry point and the payload resource boundaries (keys / accounts /
+// UTF-8 bytes). Oversized-input cases never run real crypto — the caps fire
+// during validation itself.
 import { describe, expect, it } from 'vitest';
 import vectors from '../fixtures/vault-development-test-vectors.json';
 import { VAULT_IV_BYTES, VAULT_SALT_BYTES } from '@/lib/vault/crypto';
 import {
   VAULT_ENVELOPE_CIPHERTEXT_MAX_BYTES,
   VAULT_ENVELOPE_CIPHERTEXT_MIN_BYTES,
+  VAULT_ENVELOPE_CIPHERTEXT_MAX_CHARS,
   VAULT_ENVELOPE_IV_BYTES,
-  VAULT_ENVELOPE_NAME_MAX_LENGTH,
+  VAULT_ENVELOPE_JSON_MAX_BYTES,
+  VAULT_ENVELOPE_NAME_MAX_CODE_POINTS,
   VAULT_ENVELOPE_SALT_BYTES,
+  VAULT_PAYLOAD_MAX_ACCOUNTS,
+  VAULT_PAYLOAD_MAX_KEYS,
+  VAULT_PAYLOAD_MAX_UTF8_BYTES,
   decodeBase64Url,
   encodeBase64Url,
+  parseVaultEnvelopeJson,
   validateVaultEnvelope,
   validateVaultPayloadText,
 } from '@/lib/vault/envelope';
@@ -118,9 +128,13 @@ describe('vault envelope validation', () => {
     });
     const capped = validateVaultEnvelope({
       ...VALID_ENVELOPE,
-      vaultName: 'a'.repeat(VAULT_ENVELOPE_NAME_MAX_LENGTH),
+      vaultName: 'a'.repeat(VAULT_ENVELOPE_NAME_MAX_CODE_POINTS),
     });
-    expect(capped.vaultName).toHaveLength(VAULT_ENVELOPE_NAME_MAX_LENGTH);
+    expect(capped.vaultName).toHaveLength(VAULT_ENVELOPE_NAME_MAX_CODE_POINTS);
+    // The cap counts Unicode code points, not UTF-16 code units: 32 astral
+    // characters are 64 code units but only 32 code points — accepted.
+    const astral = validateVaultEnvelope({ ...VALID_ENVELOPE, vaultName: '😀'.repeat(32) });
+    expect([...astral.vaultName]).toHaveLength(32);
   });
 
   const rejections: Array<{ msg: string; value: unknown }> = [
@@ -168,17 +182,49 @@ describe('vault envelope validation', () => {
     await expectRejectedBy(() => validateVaultEnvelope(value), 'VAULT_ENVELOPE_INVALID');
   });
 
+  it('rejects non-canonical base64url aliases that decode to identical bytes', async () => {
+    // `...ODx` decodes to the SAME 16 bytes as the canonical fixture salt
+    // `...ODw` (same top bits, non-zero trailing bits) — proof of identical
+    // bytes, then proof of rejection: only the canonical encoding is valid.
+    const SALT_ALIAS = 'AAECAwQFBgcICQoLDA0ODx';
+    expect(encodeBase64Url(decodeBase64Url(SALT_ALIAS))).toBe(v.salt);
+    expect(SALT_ALIAS).not.toBe(v.salt);
+    await expectRejectedBy(
+      () => validateVaultEnvelope({ ...VALID_ENVELOPE, salt: SALT_ALIAS }),
+      'VAULT_ENVELOPE_INVALID',
+    );
+    // The fixture ciphertext ends in 'A'; 'B'/'C'/'D' share its four top
+    // bits (179 chars = 134 bytes + 2 trailing bits), so they are aliases.
+    const CT_ALIAS = `${v.ciphertext.slice(0, -1)}B`;
+    expect(encodeBase64Url(decodeBase64Url(CT_ALIAS))).toBe(v.ciphertext);
+    await expectRejectedBy(
+      () => validateVaultEnvelope({ ...VALID_ENVELOPE, ciphertext: CT_ALIAS }),
+      'VAULT_ENVELOPE_INVALID',
+    );
+  });
+
   it('rejects a ciphertext above the 1 MiB cap and accepts one exactly at it', async () => {
     // Oversized by a single byte must reject — no real encryption involved,
-    // the cap guards the decode/allocate step inside validation itself.
+    // the resource cap fires inside validation itself, before any decryption.
     const oversized = encodeBase64Url(new Uint8Array(VAULT_ENVELOPE_CIPHERTEXT_MAX_BYTES + 1));
     await expectRejectedBy(
       () => validateVaultEnvelope({ ...VALID_ENVELOPE, ciphertext: oversized }),
-      'VAULT_ENVELOPE_INVALID',
+      'VAULT_LIMIT_EXCEEDED',
     );
-    // Exactly at the cap is structurally valid (validation never decrypts).
+    // Exactly at the cap is valid (validation never decrypts).
     const atCap = encodeBase64Url(new Uint8Array(VAULT_ENVELOPE_CIPHERTEXT_MAX_BYTES));
     expect(() => validateVaultEnvelope({ ...VALID_ENVELOPE, ciphertext: atCap })).not.toThrow();
+  });
+
+  it('rejects a ciphertext whose ENCODED length is over the cap before decoding', async () => {
+    // 1398103 chars cannot decode to <= 1 MiB; the pre-decode bound rejects
+    // without allocating the decoded bytes (VAULT_ENVELOPE_CIPHERTEXT_MAX_CHARS).
+    expect(VAULT_ENVELOPE_CIPHERTEXT_MAX_CHARS).toBe(1398102);
+    const tooManyChars = 'A'.repeat(VAULT_ENVELOPE_CIPHERTEXT_MAX_CHARS + 1);
+    await expectRejectedBy(
+      () => validateVaultEnvelope({ ...VALID_ENVELOPE, ciphertext: tooManyChars }),
+      'VAULT_LIMIT_EXCEEDED',
+    );
   });
 
   it('rejection messages never echo envelope field values', () => {
@@ -262,5 +308,122 @@ describe('vault payload validation', () => {
       expect(error).toBeInstanceOf(VaultError);
       expect((error as Error).message).not.toContain('5J5Fyoy7FDUn57R7');
     }
+  });
+});
+
+describe('parseVaultEnvelopeJson (raw JSON entry point, A1.1)', () => {
+  it('accepts the valid envelope serialized as JSON text', () => {
+    expect(parseVaultEnvelopeJson(JSON.stringify(VALID_ENVELOPE))).toEqual(VALID_ENVELOPE);
+  });
+
+  it('accepts raw JSON exactly at the 1 MiB cap (leading whitespace padding)', () => {
+    const json = JSON.stringify(VALID_ENVELOPE);
+    const padded = ' '.repeat(VAULT_ENVELOPE_JSON_MAX_BYTES - json.length) + json;
+    expect(padded.length).toBe(VAULT_ENVELOPE_JSON_MAX_BYTES);
+    expect(parseVaultEnvelopeJson(padded)).toEqual(VALID_ENVELOPE);
+  });
+
+  it('rejects raw JSON over 1 MiB (UTF-16 unit proxy) with VAULT_LIMIT_EXCEEDED', async () => {
+    const oversized = ' '.repeat(VAULT_ENVELOPE_JSON_MAX_BYTES + 1) + JSON.stringify(VALID_ENVELOPE);
+    await expectRejectedBy(() => parseVaultEnvelopeJson(oversized), 'VAULT_LIMIT_EXCEEDED');
+  });
+
+  it('rejects raw JSON whose multi-byte UTF-8 size exceeds 1 MiB with VAULT_LIMIT_EXCEEDED', async () => {
+    // 600k 'é' chars = 600k UTF-16 units (< the unit proxy bound) but 1.2M
+    // UTF-8 bytes (> the cap) — the exact byte count must catch it.
+    const oversized = 'é'.repeat(600000) + JSON.stringify(VALID_ENVELOPE);
+    await expectRejectedBy(() => parseVaultEnvelopeJson(oversized), 'VAULT_LIMIT_EXCEEDED');
+  });
+
+  it('rejects non-JSON text with VAULT_ENVELOPE_INVALID', async () => {
+    await expectRejectedBy(() => parseVaultEnvelopeJson('not json at all'), 'VAULT_ENVELOPE_INVALID');
+  });
+
+  it('rejects valid JSON of the wrong shape with VAULT_ENVELOPE_INVALID', async () => {
+    await expectRejectedBy(() => parseVaultEnvelopeJson('{"nope":1}'), 'VAULT_ENVELOPE_INVALID');
+  });
+
+  it('rejects non-string input with VAULT_ENVELOPE_INVALID', async () => {
+    await expectRejectedBy(
+      () => parseVaultEnvelopeJson(42 as unknown as string),
+      'VAULT_ENVELOPE_INVALID',
+    );
+  });
+});
+
+describe('payload resource boundaries (A1.1)', () => {
+  const entry = (accountName: string, role = 'posting'): string =>
+    JSON.stringify({ accountName, role, privateKey: '5Jtest-wif-not-real' });
+
+  const payloadWith = (entries: string[]): string => `{"keys":[${entries.join(',')}]}`;
+
+  it('accepts a payload with exactly 400 key entries', () => {
+    // Cycle 400 entries over 100 distinct accounts so ONLY the key-count
+    // boundary is exercised here (the account cap is 100).
+    const entries = Array.from({ length: VAULT_PAYLOAD_MAX_KEYS }, (_, i) =>
+      entry(`user${String(i % 100).padStart(3, '0')}`),
+    );
+    const payload = validateVaultPayloadText(payloadWith(entries));
+    expect(payload.keys).toHaveLength(VAULT_PAYLOAD_MAX_KEYS);
+  });
+
+  it('rejects a payload with 401 key entries with VAULT_LIMIT_EXCEEDED', async () => {
+    const entries = Array.from({ length: VAULT_PAYLOAD_MAX_KEYS + 1 }, (_, i) =>
+      entry(`user${String(i % 100).padStart(3, '0')}`),
+    );
+    await expectRejectedBy(() => validateVaultPayloadText(payloadWith(entries)), 'VAULT_LIMIT_EXCEEDED');
+  });
+
+  it('accepts a payload referencing exactly 100 distinct normalized accounts', () => {
+    const entries = Array.from({ length: VAULT_PAYLOAD_MAX_ACCOUNTS }, (_, i) =>
+      entry(`user${String(i).padStart(3, '0')}`),
+    );
+    const payload = validateVaultPayloadText(payloadWith(entries));
+    expect(payload.keys).toHaveLength(VAULT_PAYLOAD_MAX_ACCOUNTS);
+  });
+
+  it('rejects a payload referencing 101 distinct accounts with VAULT_LIMIT_EXCEEDED', async () => {
+    const entries = Array.from({ length: VAULT_PAYLOAD_MAX_ACCOUNTS + 1 }, (_, i) =>
+      entry(`user${String(i).padStart(3, '0')}`),
+    );
+    await expectRejectedBy(() => validateVaultPayloadText(payloadWith(entries)), 'VAULT_LIMIT_EXCEEDED');
+  });
+
+  it('counts accounts after normalization: mixed-case duplicates do not multiply', () => {
+    // 101 entries over a single account (mixed case) = 101 keys but ONE
+    // normalized account — inside both caps, so it must pass.
+    const entries = Array.from({ length: 101 }, (_, i) =>
+      entry(i % 2 === 0 ? 'Alice' : 'alice'),
+    );
+    const payload = validateVaultPayloadText(payloadWith(entries));
+    expect(payload.keys).toHaveLength(101);
+  });
+
+  it('rejects a payload whose UTF-8 size exceeds 1 MiB - 16 bytes (unit proxy path)', async () => {
+    // Structurally valid JSON whose single privateKey string pushes the text
+    // over the cap in plain ASCII — caught by the UTF-16-unit proxy.
+    const big = JSON.stringify({
+      keys: [{ accountName: 'alice', role: 'posting', privateKey: 'x'.repeat(VAULT_PAYLOAD_MAX_UTF8_BYTES) }],
+    });
+    expect(big.length).toBeGreaterThan(VAULT_PAYLOAD_MAX_UTF8_BYTES);
+    await expectRejectedBy(() => validateVaultPayloadText(big), 'VAULT_LIMIT_EXCEEDED');
+  });
+
+  it('rejects a multi-byte payload within the unit proxy but over the byte cap', async () => {
+    // 600k 'é' chars: ~600k UTF-16 units (< cap) but ~1.2M UTF-8 bytes (> cap).
+    const big = JSON.stringify({
+      keys: [{ accountName: 'alice', role: 'posting', privateKey: 'é'.repeat(600000) }],
+    });
+    expect(big.length).toBeLessThanOrEqual(VAULT_PAYLOAD_MAX_UTF8_BYTES);
+    await expectRejectedBy(() => validateVaultPayloadText(big), 'VAULT_LIMIT_EXCEEDED');
+  });
+
+  it('rejects over-limit payloads even when they are also structurally invalid', async () => {
+    // Resource bounds run before structural parsing: an over-cap text
+    // rejects as VAULT_LIMIT_EXCEEDED regardless of its JSON shape.
+    await expectRejectedBy(
+      () => validateVaultPayloadText('x'.repeat(VAULT_PAYLOAD_MAX_UTF8_BYTES + 1)),
+      'VAULT_LIMIT_EXCEEDED',
+    );
   });
 });
