@@ -17,9 +17,16 @@
 // CROSS-TAB INVALIDATION — two layers, deliberately:
 //   1. HARD LINE (the defense): every session-bound operation (status query,
 //      account read, payload mutation — and, from A4 on, every signing call)
-//      re-reads the registry and compares `revision`/`lockEpoch` against the
-//      session. Any drift (another tab locked, mutated, renamed or removed the
-//      vault) clears the local session and rejects with `VAULT_SESSION_STALE`.
+//      re-reads the registry and compares the session's
+//      `createdAt`/`revision`/`lockEpoch` triple against the stored record.
+//      Any drift (another tab locked, mutated, renamed or removed the vault)
+//      clears the local session and rejects with `VAULT_SESSION_STALE`.
+//      Binding the session to the record's `createdAt` (its instance
+//      identity) is what defeats remove+recreate-same-name: a recreated
+//      record's counters restart at 0/0, its `createdAt` does not. Residual
+//      window: a recreate landing on the same millisecond as the original
+//      `createdAt` is indistinguishable without a random per-record id (a
+//      type-contract change, out of scope for V1 — see registry.ts).
 //      Potentially-delayed notifications are NEVER the only defense.
 //   2. ACCELERATION (best effort): when `BroadcastChannel` exists, lock/mutate
 //      events from other tabs clear this instance's session immediately. When
@@ -35,18 +42,19 @@
 import { decodeBase64Url, encodeBase64Url, validateVaultPayloadText } from './envelope';
 import { decryptVaultText, deriveVaultKek, encryptVaultText, generateVaultIv } from './crypto';
 import { VaultError } from './errors';
-import { vaultRecordToEnvelope } from './registry';
+import { VAULT_DB_NAME, vaultRecordToEnvelope } from './registry';
 import type { VaultRegistry } from './registry';
 import type { VaultAccountSummary, VaultPayloadV1, VaultPublicKey, VaultRecordV1 } from './types';
 import { validateVaultWif, vaultNameComparisonKey } from './validation';
 
 /**
  * BroadcastChannel name shared by all vault service instances of this origin.
- * Intentionally the same string as the IndexedDB database name
- * (`VAULT_DB_NAME`); messages carry no sensitive material — only an event
- * kind and the target vault's comparison key.
+ * Deliberately reuses the registry's exported `VAULT_DB_NAME` so the storage
+ * and notification namespaces stay defined in one place; messages carry no
+ * sensitive material — only an event kind and the target vault's comparison
+ * key.
  */
-export const VAULT_BROADCAST_CHANNEL = 'steem-wallet-vault';
+export const VAULT_BROADCAST_CHANNEL = VAULT_DB_NAME;
 
 /** Non-sensitive session status — safe to pass anywhere in the UI. */
 export interface VaultServiceStatus {
@@ -66,6 +74,13 @@ interface VaultBroadcastMessage {
 /** Internal session shape — SENSITIVE, closure-only. */
 interface ActiveSession {
   vaultName: string;
+  /**
+   * `createdAt` of the record this session unlocked — the record's instance
+   * identity. Compared on every session-bound operation so a same-name
+   * remove+recreate (whose counters restart at 0/0) cannot adopt this
+   * session.
+   */
+  createdAt: number;
   revision: number;
   lockEpoch: number;
   kek: Uint8Array<ArrayBuffer>;
@@ -83,16 +98,21 @@ export interface VaultService {
    * Unlock a vault by name + its EXISTING password (the strength policy never
    * runs here — unlocking must keep accepting the password the vault was
    * created with). Flow: read record → fail-closed envelope validation →
-   * PBKDF2 derivation → authenticated decrypt → payload validation → hold the
-   * session in the closure. If ANY session is currently active (same or
-   * another vault) it is locked COMPLETELY first — switching clears.
+   * PBKDF2 derivation → authenticated decrypt → payload validation → a
+   * registry RE-CHECK (the derivation takes ~a second; if the record was
+   * removed or its revision/`createdAt` moved meanwhile, the unlock fails
+   * with `VAULT_SESSION_STALE` instead of returning a session that is born
+   * stale) → hold the session in the closure. If ANY session is currently
+   * active (same or another vault) it is locked COMPLETELY first — switching
+   * clears.
    *
    * Failures: `VAULT_NOT_FOUND`, `VAULT_ENVELOPE_INVALID` (corrupt stored
    * envelope), `VAULT_PASSWORD_INVALID` (empty password or GCM authentication
    * failure — wrong password and tampering are indistinguishable by design),
    * `VAULT_PAYLOAD_INVALID`/`VAULT_LIMIT_EXCEEDED` (decrypted payload fails
-   * validation). A KEK derived during a failed unlock is zeroized before the
-   * error propagates.
+   * validation), `VAULT_SESSION_STALE` (concurrent removal/rename/mutation
+   * detected by the re-check). A KEK derived during a failed unlock is
+   * zeroized before the error propagates.
    */
   unlock(vaultName: string, password: string): Promise<VaultServiceStatus>;
 
@@ -101,7 +121,9 @@ export interface VaultService {
    * memory first (KEK `fill(0)` + drop all references), then persistence
    * (`lockEpoch` +1 so other tabs' sessions for this vault go stale), then
    * broadcast the acceleration event. If the persistence step fails, this tab
-   * is still locked — the error propagates to the caller.
+   * is still locked, the acceleration event is STILL broadcast (other tabs
+   * must not silently keep their sessions just because the epoch bump could
+   * not be persisted) and the error propagates to the caller.
    */
   lock(): Promise<void>;
 
@@ -124,7 +146,8 @@ export interface VaultService {
   /**
    * Mutate the unlocked vault's payload under one compare-and-swap:
    *
-   *   1. hard-line freshness check (re-read + revision/lockEpoch compare),
+   *   1. hard-line freshness check (re-read + createdAt/revision/lockEpoch
+   *      compare),
    *   2. the mutator runs against a COPY of the session payload (throws
    *      propagate with nothing written and the session untouched),
    *   3. the serialized result is validated (`VAULT_PAYLOAD_INVALID` /
@@ -132,11 +155,18 @@ export interface VaultService {
    *      session keeps its original payload; that is the rollback semantics),
    *   4. whole-payload re-encryption with a FRESH IV and the session KEK
    *      (salt unchanged — new salts belong to password changes),
-   *   5. CAS write: revision +1; a concurrent change rejects with
-   *      `VAULT_SESSION_STALE` and clears the session.
+   *   5. CAS write: revision +1; a concurrent change (including a
+   *      remove+recreate under the same name, caught by the pointer's
+   *      `createdAt`) rejects with `VAULT_SESSION_STALE` and clears the
+   *      session.
    *
-   * On success the session adopts the new payload and revision, and a
-   * `vault-mutate` acceleration event is broadcast.
+   * On success the session adopts the new payload and revision — using the
+   * LIVE session's KEK, never an await-time snapshot (if the session was
+   * destroyed and re-unlocked while the CAS was in flight, the snapshot's
+   * bytes were zeroized) — and a `vault-mutate` acceleration event is
+   * broadcast. The returned status describes the service's CURRENT session:
+   * when the session was cleared or replaced concurrently, it reports that
+   * state rather than the completed write's revision.
    */
   mutatePayload(mutator: (draft: VaultPayloadV1) => void): Promise<VaultServiceStatus>;
 
@@ -166,6 +196,22 @@ function statusOf(session: ActiveSession): VaultServiceStatus {
 
 function clonePayload(payload: VaultPayloadV1): VaultPayloadV1 {
   return JSON.parse(JSON.stringify(payload)) as VaultPayloadV1;
+}
+
+/**
+ * Whether the live session is still the same logical session a snapshot was
+ * taken from: the same vault record instance (`createdAt`) at the same
+ * counters. A session cleared or replaced in between does not match. (The
+ * only escape is a re-unlock of a same-millisecond remove+recreate — the
+ * documented residual window; see the header note.)
+ */
+function sameIdentity(live: ActiveSession, snapshot: ActiveSession): boolean {
+  return (
+    live.vaultName === snapshot.vaultName &&
+    live.createdAt === snapshot.createdAt &&
+    live.revision === snapshot.revision &&
+    live.lockEpoch === snapshot.lockEpoch
+  );
 }
 
 /**
@@ -202,11 +248,12 @@ export function createVaultService(registry: VaultRegistry): VaultService {
   }
 
   /**
-   * The hard line: re-read the registry and verify the session's
-   * revision/lockEpoch still match the stored record. Missing record or drift
-   * → clear memory, reject `VAULT_SESSION_STALE`. Also rejects `VAULT_LOCKED`
-   * when no session exists (or one was cleared while awaiting, e.g. by an
-   * acceleration event landing mid-operation).
+   * The hard line: re-read the registry and verify the session still points
+   * at the exact record instance it unlocked — same `createdAt` at the same
+   * `revision`/`lockEpoch`. Missing record or drift (including a same-name
+   * remove+recreate) → clear memory, reject `VAULT_SESSION_STALE`. Also
+   * rejects `VAULT_LOCKED` when no session exists (or one was cleared while
+   * awaiting, e.g. by an acceleration event landing mid-operation).
    */
   async function requireFreshSession(): Promise<FreshSession> {
     if (session === null) {
@@ -216,6 +263,7 @@ export function createVaultService(registry: VaultRegistry): VaultService {
     const record = await registry.getRecord(snapshot.vaultName);
     if (
       record === null ||
+      record.createdAt !== snapshot.createdAt ||
       record.revision !== snapshot.revision ||
       record.lockEpoch !== snapshot.lockEpoch
     ) {
@@ -236,12 +284,17 @@ export function createVaultService(registry: VaultRegistry): VaultService {
     const { vaultName } = session;
     clearSessionMemory();
     // Memory is already clear; persistence failures propagate but cannot
-    // resurrect the session.
-    await registry.bumpLockEpoch(vaultName);
-    channel?.postMessage({
-      kind: 'vault-lock',
-      key: vaultNameComparisonKey(vaultName),
-    });
+    // resurrect the session. The acceleration broadcast runs in a finally so
+    // a persistence failure still notifies other tabs — without it they would
+    // see no epoch change AND no message and silently stay unlocked.
+    try {
+      await registry.bumpLockEpoch(vaultName);
+    } finally {
+      channel?.postMessage({
+        kind: 'vault-lock',
+        key: vaultNameComparisonKey(vaultName),
+      });
+    }
   }
 
   return {
@@ -272,8 +325,23 @@ export function createVaultService(registry: VaultRegistry): VaultService {
           decodeBase64Url(envelope.ciphertext),
         );
         const payload = validateVaultPayloadText(payloadText);
+        // Narrow the concurrent-modification window: derivation + decryption
+        // take ~a second, during which the record may have been removed,
+        // renamed away or swapped. A session born stale must fail NOW, not on
+        // its next operation. (lockEpoch is deliberately not compared: a
+        // concurrent lock does not change what was decrypted, and the born-
+        // stale epoch is caught by the hard line on the next operation.)
+        const current = await registry.getRecord(record.vaultName);
+        if (
+          current === null ||
+          current.createdAt !== record.createdAt ||
+          current.revision !== record.revision
+        ) {
+          throw sessionStale();
+        }
         unlocked = {
           vaultName: record.vaultName,
+          createdAt: record.createdAt,
           revision: record.revision,
           lockEpoch: record.lockEpoch,
           kek,
@@ -351,6 +419,7 @@ export function createVaultService(registry: VaultRegistry): VaultService {
         await registry.swapRecord(
           {
             vaultName: fresh.session.vaultName,
+            createdAt: fresh.session.createdAt,
             revision: fresh.session.revision,
             lockEpoch: fresh.session.lockEpoch,
           },
@@ -362,30 +431,27 @@ export function createVaultService(registry: VaultRegistry): VaultService {
           (error.code === 'VAULT_SESSION_STALE' || error.code === 'VAULT_NOT_FOUND');
         // Clear only when THIS session is still the one that went stale — a
         // concurrent unlock()/lock() may have replaced it in the meantime.
-        if (
-          stale &&
-          session !== null &&
-          session.vaultName === fresh.session.vaultName &&
-          session.revision === fresh.session.revision &&
-          session.lockEpoch === fresh.session.lockEpoch
-        ) {
+        if (stale && session !== null && sameIdentity(session, fresh.session)) {
           clearSessionMemory();
         }
         throw error;
       }
       // Adopt the new state only if the session was not cleared/replaced while
-      // the CAS was in flight (acceleration event, concurrent lock).
-      if (
-        session !== null &&
-        session.vaultName === fresh.session.vaultName &&
-        session.revision === fresh.session.revision &&
-        session.lockEpoch === fresh.session.lockEpoch
-      ) {
+      // the CAS was in flight (acceleration event, concurrent lock, destroy).
+      if (session !== null && sameIdentity(session, fresh.session)) {
         session = {
           vaultName: fresh.session.vaultName,
+          createdAt: fresh.session.createdAt,
           revision: nextRecord.revision,
           lockEpoch: fresh.session.lockEpoch,
-          kek: fresh.session.kek,
+          // The LIVE session's KEK, never the await-time snapshot: when this
+          // session object is a re-unlock that replaced a destroyed one
+          // mid-CAS, the snapshot's bytes were already zeroized by the
+          // destroy — adopting them would encrypt future writes under an
+          // all-zero key and permanently corrupt the vault. Whenever the
+          // identity matches, the live KEK derives from the same
+          // password+salt and is byte-equal to what this mutation used.
+          kek: session.kek,
           payload: validated,
         };
       }
@@ -393,12 +459,13 @@ export function createVaultService(registry: VaultRegistry): VaultService {
         kind: 'vault-mutate',
         key: vaultNameComparisonKey(fresh.session.vaultName),
       });
-      return {
-        locked: false,
-        vaultName: fresh.session.vaultName,
-        revision: nextRecord.revision,
-        lockEpoch: fresh.session.lockEpoch,
-      };
+      // Report the service's current truth: a session cleared or replaced
+      // while the CAS was in flight must not be reported as unlocked at the
+      // new revision (the write itself did succeed).
+      if (session === null) {
+        return { locked: true, vaultName: null, revision: null, lockEpoch: null };
+      }
+      return statusOf(session);
     },
 
     destroy(): void {

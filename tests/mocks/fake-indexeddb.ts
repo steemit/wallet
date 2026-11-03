@@ -20,9 +20,12 @@
 //   - Values are deep-cloned on put AND on get (JSON clone) — mirroring IDB
 //     structured clone for the plain-JSON rows the registry stores, so
 //     mutating a returned record never corrupts stored state.
-//   - Not implemented: abort rollback (abort() just fires onabort),
-//     IDBKeyRange, cursors, indexes beyond index(name).get(key), real version
-//     upgrades with data migration, durable-storage/quirks of real browsers.
+//   - Not implemented: abort ROLLBACK (abort() fires onabort but keeps any
+//     writes already applied — the abort() CALL itself is observable via the
+//     handle's abortCount() so tests can still lock the "was aborted"
+//     behavior; what the rollback would have undone is real-IDB territory),
+//     IDBKeyRange, cursors, indexes, real version upgrades with data
+//     migration, durable-storage/quirks of real browsers.
 // Real multi-tab browser semantics (versionchange, true cross-connection
 // serialization) are covered by the service's hard line (every operation
 // re-reads the registry before trusting a session) and by later e2e tests.
@@ -35,14 +38,8 @@ interface FakeEvent<TTarget> {
   oldVersion?: number;
 }
 
-interface FakeIndexDef {
-  keyPath: string;
-  unique: boolean;
-}
-
 interface FakeStoreDef {
   keyPath: string | undefined;
-  indexes: Map<string, FakeIndexDef>;
 }
 
 interface FakeDbState {
@@ -127,6 +124,7 @@ class FakeIDBTransaction {
 
   abort(): void {
     if (this.finished) return;
+    abortedTransactions += 1; // observable for "was aborted" regression tests
     this.finished = true;
     this.active = false;
     queueMicrotask(() => {
@@ -218,31 +216,6 @@ class FakeIDBTransaction {
   }
 }
 
-class FakeIDBIndex {
-  constructor(
-    private readonly state: FakeDbState,
-    private readonly storeName: string,
-    private readonly def: FakeIndexDef,
-    private readonly tx: FakeIDBTransaction,
-  ) {}
-
-  get(key: FakeKey): FakeIDBRequest {
-    const request = new FakeIDBRequest();
-    this.tx._submit(request, () => {
-      const rows = this.state.data.get(this.storeName) ?? new Map<FakeKey, unknown>();
-      for (const value of rows.values()) {
-        const record = value as Record<string, unknown>;
-        if (record[this.def.keyPath] === key) {
-          request.fulfill(deepClone(value));
-          return;
-        }
-      }
-      request.fulfill(null);
-    });
-    return request;
-  }
-}
-
 class FakeObjectStore {
   readonly name: string;
   private readonly tx: FakeIDBTransaction;
@@ -314,18 +287,6 @@ class FakeObjectStore {
     });
     return request;
   }
-
-  createIndex(name: string, keyPath: string, options?: { unique?: boolean }): void {
-    this.def.indexes.set(name, { keyPath, unique: options?.unique ?? false });
-  }
-
-  index(name: string): FakeIDBIndex {
-    const def = this.def.indexes.get(name);
-    if (!def) {
-      throw new Error(`NotFoundError: no such index "${name}"`);
-    }
-    return new FakeIDBIndex(this.state, this.name, def, this.tx);
-  }
 }
 
 class FakeIDBDatabase {
@@ -351,7 +312,7 @@ class FakeIDBDatabase {
     if (this.state.defs.has(name)) {
       throw new Error(`ConstraintError: object store "${name}" already exists`);
     }
-    this.state.defs.set(name, { keyPath: options?.keyPath, indexes: new Map() });
+    this.state.defs.set(name, { keyPath: options?.keyPath });
     this.state.data.set(name, new Map());
     const tx = new FakeIDBTransaction(this, [name], 'versionchange');
     return new FakeObjectStore(tx, this.state, name);
@@ -387,6 +348,14 @@ class FakeIDBDatabase {
 }
 
 const databaseStates = new Map<string, FakeDbState>();
+
+/**
+ * Total transactions aborted so far (monotonic across installs). The fake
+ * does not roll back writes on abort — this counter is the observable for
+ * tests that lock "the transaction WAS aborted" behavior. Read it as a
+ * delta around the act under test.
+ */
+let abortedTransactions = 0;
 
 function freshState(): FakeDbState {
   return {
@@ -442,14 +411,23 @@ export interface FakeIndexedDBHandle {
   seed(databaseName: string, storeName: string, value: unknown, key?: string | number): void;
   /** Test-only: wipe every database (open connections become stale — re-open). */
   reset(): void;
+  /**
+   * Test-only: number of transactions aborted so far (monotonic across
+   * installs). The fake does not roll back on abort; this counter is how
+   * tests assert that an abort was issued at all.
+   */
+  abortCount(): number;
   uninstall(): void;
 }
 
 /**
- * Install a fresh fake as the global `indexedDB`. Returns a handle for
- * seeding, resetting and uninstalling (restores the original descriptor).
+ * Install a fresh fake as the global `indexedDB` (any state left behind by a
+ * previous install is dropped — uninstall followed by install never silently
+ * inherits an old database). Returns a handle for seeding, resetting and
+ * uninstalling (restores the original descriptor).
  */
 export function installFakeIndexedDB(): FakeIndexedDBHandle {
+  databaseStates.clear();
   const factory = new FakeIDBFactory();
   const original = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB');
   Object.defineProperty(globalThis, 'indexedDB', {
@@ -482,6 +460,9 @@ export function installFakeIndexedDB(): FakeIndexedDBHandle {
     },
     reset() {
       databaseStates.clear();
+    },
+    abortCount() {
+      return abortedTransactions;
     },
     uninstall() {
       if (original) {

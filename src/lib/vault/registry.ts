@@ -12,9 +12,12 @@
 //   part of the type contract (and the comparison key is neither the vault
 //   identity nor envelope/AAD material).
 // - `revision` increments once per persisted PAYLOAD change (create starts at
-//   0); `lockEpoch` increments once per lock. They are compared together by
-//   `swapRecord` (CAS) and by the service before every session-bound
-//   operation — the cross-tab invalidation hard line.
+//   0); `lockEpoch` increments once per lock. Together with `createdAt` (the
+//   record's instance identity) they are compared by `swapRecord` (CAS) and
+//   by the service before every session-bound operation — the cross-tab
+//   invalidation hard line. Binding to `createdAt` is what defeats the
+//   remove+recreate-same-name attack on that line: a recreated record's
+//   counters restart at 0/0, but its `createdAt` differs.
 // - All name/password rules come from ./validation.ts (shared entry points —
 //   never re-implemented here). Lookups normalize with NFC only; create and
 //   rename validate fully.
@@ -54,11 +57,22 @@ const EMPTY_PAYLOAD_TEXT = '{"keys":[]}';
 
 /**
  * Identifies the exact stored revision a CAS writer observed: a vault name
- * plus the `revision`/`lockEpoch` pair current at read time. If either number
- * moved since, the writer's view is stale.
+ * plus the `createdAt`/`revision`/`lockEpoch` triple current at read time. If
+ * any of the three moved since the read — including a same-name
+ * remove+recreate whose counters restart at 0/0 but whose `createdAt` differs —
+ * the writer's view is stale.
+ *
+ * KNOWN RESIDUAL WINDOW: a remove+recreate whose `Date.now()` lands on the
+ * exact same millisecond as the original record's `createdAt` is
+ * indistinguishable from the original record. Closing that requires a random
+ * per-record id (a `VaultRecordV1` type-contract change), deliberately out of
+ * scope for V1; binding sessions to (createdAt, revision, lockEpoch) closes
+ * every other counter-reset collision.
  */
 export interface VaultRevisionPointer {
   vaultName: string;
+  /** Creation timestamp of the observed record — its instance identity. */
+  createdAt: number;
   revision: number;
   lockEpoch: number;
 }
@@ -102,10 +116,13 @@ export interface VaultRegistry {
 
   /**
    * Atomic compare-and-swap write. Persists `next` only when the stored record
-   * for `expected.vaultName` still has exactly `expected.revision` and
+   * for `expected.vaultName` is the same record instance the writer observed
+   * (`createdAt` equal) at exactly `expected.revision` and
    * `expected.lockEpoch`; otherwise `VAULT_SESSION_STALE` (or
-   * `VAULT_NOT_FOUND` when the record is gone). Enforces the programmer-error
-   * contract (`TypeError`): `next.vaultName` must equal `expected.vaultName`,
+   * `VAULT_NOT_FOUND` when the record is gone). The `createdAt` comparison is
+   * what rejects a writer that observed a REMOVED record after a same-name
+   * recreate reset the counters. Enforces the programmer-error contract
+   * (`TypeError`): `next.vaultName` must equal `expected.vaultName`,
    * `next.revision` must be `expected.revision + 1` and `next.lockEpoch` must
    * equal `expected.lockEpoch` — callers build `next` from the record they
    * read. `next`'s envelope fields are validated before any write
@@ -306,8 +323,12 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
  * completion (durability). Errors thrown by `run` propagate untouched when
  * they are already `VaultError`/`TypeError` (data vs programmer error — see
  * the crypto.ts precedent); anything else is wrapped as
- * `VAULT_STORAGE_UNAVAILABLE`. Because every mutating primitive throws BEFORE
- * issuing its write request, a `run` that rejects leaves no partial writes.
+ * `VAULT_STORAGE_UNAVAILABLE`. A `run` that rejects also ABORTS the
+ * transaction: primitives validate before issuing their first write request,
+ * but mid-transaction failures (e.g. rename/remove discovering a corrupt
+ * settings row AFTER their vault writes) would otherwise be auto-committed by
+ * real IndexedDB once the task ends — the explicit abort is what makes
+ * "no partial writes on the exception path" a general guarantee.
  */
 async function runInTransaction<T>(
   db: IDBDatabase,
@@ -328,6 +349,16 @@ async function runInTransaction<T>(
     await done;
     return result;
   } catch (error) {
+    try {
+      // Roll back any already-issued writes. Per spec abort() throws
+      // InvalidStateError on an already-finished transaction — nothing to
+      // roll back then, so swallow that. (The test fake does not roll back
+      // on abort — its documented fidelity boundary; the CALL is the
+      // guarantee real IndexedDB needs.)
+      transaction.abort();
+    } catch {
+      // already committed or aborted
+    }
     if (error instanceof VaultError || error instanceof TypeError) {
       throw error;
     }
@@ -335,6 +366,10 @@ async function runInTransaction<T>(
   }
 }
 
+// TODO(next schema version): wire onversionchange/onblocked (close or surface
+// the conflict) when a migration first ships. The DB version is fixed at 1 —
+// same-version re-opens never enter version negotiation — so the handlers are
+// deliberately omitted here.
 function openDatabase(dbName: string, version: number): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const factory = (globalThis as { indexedDB?: IDBFactory }).indexedDB;
@@ -473,6 +508,7 @@ export async function openVaultRegistry(dbName: string = VAULT_DB_NAME): Promise
         }
         const current = asRecord(raw);
         if (
+          current.createdAt !== expected.createdAt ||
           current.revision !== expected.revision ||
           current.lockEpoch !== expected.lockEpoch
         ) {

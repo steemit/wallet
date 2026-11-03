@@ -5,9 +5,11 @@
 // read/write. Real browser multi-tab semantics are covered by the service's
 // re-read-before-every-operation hard line and later e2e tests, not here.
 //
-// Performance: PBKDF2 600k costs ~0.9s per derivation. Only successful
-// `createVault` calls derive (4 in this file: Work, Café, and the two racing
-// creates); every conflict/validation/CAS case either fails before crypto or
+// Performance: PBKDF2 600k costs ~0.7s per derivation on CI-class hardware.
+// Only `createVault` calls that pass the cheap uniqueness pre-check derive
+// (7 in this file: Work ×3 — create, listRecords, case-fold uniqueness;
+// Café ×2 — create, NFC/NFD uniqueness; Race + race — the racing creates);
+// every other conflict/validation/CAS case either fails before crypto or
 // operates on seeded rows built from the fixed vectors.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import vectors from '../fixtures/vault-development-test-vectors.json';
@@ -206,6 +208,27 @@ describe('vault registry on the fake IndexedDB', () => {
         activeVaultName: 'Renamed',
       });
     });
+
+    it('aborts the transaction when the settings row is corrupt mid-rename (no partial writes on real IDB)', async () => {
+      // The rename has ALREADY issued its delete+put when the corrupt
+      // settings row fails validation — without an explicit abort, real
+      // IndexedDB would auto-commit that task and persist the partial write.
+      fake.seed(VAULT_DB_NAME, 'vaults', makeRecord('Rename Me'));
+      fake.seed(
+        VAULT_DB_NAME,
+        VAULT_STORE_SETTINGS,
+        { schemaVersion: 9, signingMode: 'vault', activeVaultName: 'Rename Me' },
+        'settings',
+      );
+      const abortsBefore = fake.abortCount();
+      await expect(registry.renameVault('Rename Me', 'Renamed')).rejects.toMatchObject({
+        code: 'VAULT_PAYLOAD_INVALID',
+      });
+      expect(fake.abortCount() - abortsBefore).toBe(1);
+      // The fake does not roll back writes on abort (its fidelity boundary)
+      // — the abort() call itself is the guarantee real IndexedDB needs to
+      // discard the mid-transaction delete+put above.
+    });
   });
 
   describe('remove', () => {
@@ -288,8 +311,8 @@ describe('vault registry on the fake IndexedDB', () => {
       return record;
     };
 
-    it('writes when the expected revision/lockEpoch match, persisting revision+1', async () => {
-      await seedCas();
+    it('writes when the expected createdAt/revision/lockEpoch match, persisting revision+1', async () => {
+      const seeded = await seedCas();
       const next = makeRecord('Cas', {
         revision: 4,
         lockEpoch: 5,
@@ -297,7 +320,10 @@ describe('vault registry on the fake IndexedDB', () => {
         ciphertext: v.reencryption.ciphertext,
       });
       await expect(
-        registry.swapRecord({ vaultName: 'Cas', revision: 3, lockEpoch: 5 }, next),
+        registry.swapRecord(
+          { vaultName: 'Cas', createdAt: seeded.createdAt, revision: 3, lockEpoch: 5 },
+          next,
+        ),
       ).resolves.toEqual(next);
       const stored = await registry.getRecord('Cas');
       expect(stored?.revision).toBe(4);
@@ -307,16 +333,19 @@ describe('vault registry on the fake IndexedDB', () => {
     });
 
     it('rejects a stale revision and leaves the stored record untouched', async () => {
-      await seedCas();
+      const seeded = await seedCas();
       // First writer moves the revision to 4…
       await registry.swapRecord(
-        { vaultName: 'Cas', revision: 3, lockEpoch: 5 },
+        { vaultName: 'Cas', createdAt: seeded.createdAt, revision: 3, lockEpoch: 5 },
         makeRecord('Cas', { revision: 4, lockEpoch: 5, ciphertext: v.reencryption.ciphertext }),
       );
       // …the second writer still expects 3 and must lose.
       const secondNext = makeRecord('Cas', { revision: 4, lockEpoch: 5, ciphertext: v.emptyPayload.ciphertext });
       await expect(
-        registry.swapRecord({ vaultName: 'Cas', revision: 3, lockEpoch: 5 }, secondNext),
+        registry.swapRecord(
+          { vaultName: 'Cas', createdAt: seeded.createdAt, revision: 3, lockEpoch: 5 },
+          secondNext,
+        ),
       ).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
       const stored = await registry.getRecord('Cas');
       expect(stored?.revision).toBe(4);
@@ -324,52 +353,83 @@ describe('vault registry on the fake IndexedDB', () => {
     });
 
     it('rejects a stale lockEpoch even when the revision matches (a lock moved it)', async () => {
-      await seedCas();
+      const seeded = await seedCas();
       await registry.bumpLockEpoch('Cas'); // lockEpoch 5 → 6, revision stays 3
       await expect(
         registry.swapRecord(
-          { vaultName: 'Cas', revision: 3, lockEpoch: 5 },
+          { vaultName: 'Cas', createdAt: seeded.createdAt, revision: 3, lockEpoch: 5 },
           makeRecord('Cas', { revision: 4, lockEpoch: 5 }),
         ),
       ).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
     });
 
+    it('rejects a swap against a recreated same-name record even when both counters match (createdAt identity)', async () => {
+      // The remove+recreate attack on the CAS: the recreated record restarts
+      // at revision 0/lockEpoch 0, so a pointer holding the OLD record's 0/0
+      // counters would hit — only the createdAt comparison rejects it.
+      const first = makeRecord('Cas', { revision: 0, lockEpoch: 0 });
+      fake.seed(VAULT_DB_NAME, 'vaults', first);
+      await registry.removeVault('Cas');
+      const recreated = makeRecord('Cas', {
+        revision: 0,
+        lockEpoch: 0,
+        ciphertext: v.reencryption.ciphertext,
+      });
+      fake.seed(VAULT_DB_NAME, 'vaults', recreated);
+      expect(recreated.createdAt).not.toBe(first.createdAt); // distinct instances
+      await expect(
+        registry.swapRecord(
+          { vaultName: 'Cas', createdAt: first.createdAt, revision: 0, lockEpoch: 0 },
+          makeRecord('Cas', { revision: 1, lockEpoch: 0, createdAt: first.createdAt }),
+        ),
+      ).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
+      // The recreated record is untouched — no ciphertext pollution.
+      const stored = await registry.getRecord('Cas');
+      expect(stored?.createdAt).toBe(recreated.createdAt);
+      expect(stored?.ciphertext).toBe(recreated.ciphertext);
+      expect(stored?.revision).toBe(0);
+    });
+
     it('rejects a swap for a missing record with VAULT_NOT_FOUND', async () => {
       await expect(
         registry.swapRecord(
-          { vaultName: 'ghost', revision: 0, lockEpoch: 0 },
+          { vaultName: 'ghost', createdAt: 1, revision: 0, lockEpoch: 0 },
           makeRecord('ghost', { revision: 1 }),
         ),
       ).rejects.toMatchObject({ code: 'VAULT_NOT_FOUND' });
     });
 
     it('enforces the programmer-error contract with TypeError', async () => {
+      const seeded = await seedCas();
       await expect(
         registry.swapRecord(
-          { vaultName: 'Cas', revision: 3, lockEpoch: 5 },
+          { vaultName: 'Cas', createdAt: seeded.createdAt, revision: 3, lockEpoch: 5 },
           makeRecord('Other', { revision: 4, lockEpoch: 5 }),
         ),
       ).rejects.toBeInstanceOf(TypeError);
       await expect(
         registry.swapRecord(
-          { vaultName: 'Cas', revision: 3, lockEpoch: 5 },
+          { vaultName: 'Cas', createdAt: seeded.createdAt, revision: 3, lockEpoch: 5 },
           makeRecord('Cas', { revision: 5, lockEpoch: 5 }),
         ),
       ).rejects.toBeInstanceOf(TypeError);
       await expect(
         registry.swapRecord(
-          { vaultName: 'Cas', revision: 3, lockEpoch: 5 },
+          { vaultName: 'Cas', createdAt: seeded.createdAt, revision: 3, lockEpoch: 5 },
           makeRecord('Cas', { revision: 4, lockEpoch: 6 }),
         ),
       ).rejects.toBeInstanceOf(TypeError);
     });
 
     it('validates the next record envelope before any write', async () => {
-      await seedCas();
+      const seeded = await seedCas();
       // 20 alphabet chars decode to 15 bytes — below the 16-byte GCM floor.
       const bad = makeRecord('Cas', { revision: 4, lockEpoch: 5, ciphertext: 'A'.repeat(20) });
       await expect(
-        registry.swapRecord({ vaultName: 'Cas', revision: 3, lockEpoch: 5 }, bad),
+        registry.swapRecord(
+          { vaultName: 'Cas', createdAt: seeded.createdAt, revision: 3, lockEpoch: 5 },
+          bad,
+        ),
       ).rejects.toMatchObject({ code: 'VAULT_ENVELOPE_INVALID' });
       const stored = await registry.getRecord('Cas');
       expect(stored?.revision).toBe(3);
@@ -484,7 +544,8 @@ describe('vault registry storage fail-closed (no memory fallback)', () => {
     });
   });
 
-  it('rejects when the open request errors', async () => {    fake = installFakeIndexedDB();
+  it('rejects when the open request errors', async () => {
+    fake = installFakeIndexedDB();
     type Handlers = Record<string, ((event?: unknown) => void) | null>;
     const brokenRequest: Handlers = {
       onupgradeneeded: null,
