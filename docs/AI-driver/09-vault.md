@@ -80,10 +80,13 @@ and must stay field-compatible with it.
 9. **Shared validation entry points (A1.1).** Alias, password, account-name and
    WIF rules live ONLY in `src/lib/vault/validation.ts` — never re-implement at
    a call site or only in the UI. Aliases: NFC display value stored, uniqueness
-   key `NFC(name).toLowerCase()` (`vaultNameComparisonKey`), 1–64 code points,
-   no trimming, no leading/trailing whitespace, no Cc/Cf/Zl/Zp code points.
-   Password policy (≥14 code points, versioned common-password blocklist,
-   not the normalized account name, not the same-flow master password) runs
+   key `NFC(name).toLowerCase()` (`vaultNameComparisonKey`), 1–64 code points
+   measured on BOTH the raw input and its NFC form (NFC composition can expand,
+   e.g. U+0344 → 2 code points), no trimming, no leading/trailing whitespace,
+   no Cc/Cf/Cs (unpaired surrogates — reachable via `JSON.parse` of a backup)
+   /Zl/Zp code points; legally paired astral characters pass. Password policy
+   (≥14 code points, versioned common-password blocklist, not the normalized
+   account name, not the same-flow master password) runs
    ONLY in create / independent-import / change-password — unlocking, export
    and deletion must keep accepting the existing password. Master-password
    comparison is "same flow, same input": never request it just to compare,
