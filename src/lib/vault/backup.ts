@@ -19,8 +19,9 @@
 // → an in-scope service `unlock` → `mutatePayload` (writes the imported
 // payload under a second fresh IV with CAS). The composition costs one extra
 // PBKDF2 derivation versus a hypothetical payload-accepting create; any
-// failure after the create removes the just-created vault again, so a failed
-// import leaves no trace.
+// failure after the create removes the just-created vault again (BOUND to the
+// created instance's `createdAt` — see the import JSDoc), so a failed import
+// leaves no trace and never touches a concurrent same-name recreation.
 //
 // SENSITIVE-DATA RULES: source KEKs are zeroized (`fill(0)`) inside the scope
 // that derived them and never leave this module; WIFs exist only inside
@@ -193,11 +194,28 @@ function sourceDedupeKey(accountName: string, role: VaultKeyRole, publicKey: str
  * NEW local name (name conflicts/invalid names surface from the registry's
  * atomic alias-uniqueness transaction as `VAULT_NAME_EXISTS` /
  * `VAULT_NAME_INVALID`; a fresh salt/IV is minted inside) → an in-scope
- * service unlock + `mutatePayload` write of the normalized, deduplicated
- * payload (whole-payload encryption under a second fresh IV, revision 1, CAS).
- * On any failure after the create, the just-created vault is removed again —
- * a failed import leaves no trace (removal is best-effort; a removal failure
- * would leave an EMPTY, harmless vault while the primary error wins).
+ * service unlock → an INSTANCE-BOUND ADOPTION CHECK (see
+ * {@link assertCreatedInstanceCurrent}: before any write, the record under
+ * the created name must still be the instance this import created) → a
+ * `mutatePayload` write of the normalized, deduplicated payload
+ * (whole-payload encryption under a second fresh IV, revision 1, CAS) → an
+ * instance-bound final read-back.
+ *
+ * INSTANCE BINDING (A3 review r2): the create→unlock gap spans a ~1s PBKDF2
+ * derivation, during which another tab may remove the just-created vault and
+ * recreate the SAME name. `VaultServiceStatus` exposes no `createdAt`, so an
+ * unlock that (legitimately, by name) adopted the replacement record is
+ * indistinguishable from the session the import intended — the adoption
+ * check compares the stored record's `createdAt` against the created one and
+ * rejects with `VAULT_SESSION_STALE` BEFORE any write, so the source payload
+ * can never land in another tab's rebuilt vault.
+ *
+ * ROLLBACK (any failure after the create): best-effort AND instance-bound —
+ * see {@link rollbackCreatedVault}. The just-created vault is removed again
+ * so a failed import leaves no trace, but ONLY when the record under the
+ * name is still the created instance (same name + `createdAt`); a concurrent
+ * same-name recreation is never deleted. A removal failure would leave an
+ * EMPTY, harmless vault while the primary error wins.
  *
  * The import NEVER activates the vault (`settings.activeVaultName` is not
  * touched — activation is the A4 manager's explicit act). Returns the final
@@ -217,20 +235,92 @@ export async function importVaultBackup(
     });
     try {
       await service.unlock(created.vaultName, params.password);
+      await assertCreatedInstanceCurrent(registry, created);
       await service.mutatePayload((draft) => {
         draft.keys = source.map(({ entry }) => ({ ...entry }));
       });
     } catch (error) {
-      await registry.removeVault(created.vaultName).catch(() => undefined);
+      await rollbackCreatedVault(registry, created);
       throw error;
     }
     const record = await registry.getRecord(created.vaultName);
-    if (record === null) {
-      throw new VaultError('VAULT_NOT_FOUND', 'no vault exists under that name');
+    if (record === null || record.createdAt !== created.createdAt) {
+      throw createdInstanceReplaced();
     }
     return record;
   } finally {
     service.destroy();
+  }
+}
+
+/** The stored record under the created name is not the created instance. */
+function createdInstanceReplaced(): VaultError {
+  return new VaultError(
+    'VAULT_SESSION_STALE',
+    'the vault created by this import is no longer the stored instance',
+  );
+}
+
+/** Whether a record is the exact instance this import created. */
+function isCreatedInstance(current: VaultRecordV1, created: VaultRecordV1): boolean {
+  // `createdAt` is the record's instance identity (registry invariant): a
+  // same-name remove+recreate restarts the counters but not the timestamp.
+  // The name comparison is implied by the name-keyed lookup but kept explicit.
+  return current.vaultName === created.vaultName && current.createdAt === created.createdAt;
+}
+
+/**
+ * Instance-bound adoption check between the in-scope unlock and the payload
+ * write: the record under the created name must still be the instance this
+ * import created. `service.unlock` looks the vault up BY NAME, so when
+ * another tab removed the just-created vault and recreated the same name
+ * during the create→unlock gap, the unlock legitimately adopted the
+ * REPLACEMENT record (same password + the replacement's fresh salt decrypt
+ * fine — unlock's own born-stale check cannot see the swap either, because
+ * the replacement was already stored before unlock's first read). The
+ * service status exposes no `createdAt` to compare directly, so the record
+ * is re-read here; a mismatch throws `VAULT_SESSION_STALE` and the import
+ * rolls back without writing. `mutatePayload`'s hard-line check remains the
+ * backstop for swaps that land AFTER this check.
+ */
+async function assertCreatedInstanceCurrent(
+  registry: VaultRegistry,
+  created: VaultRecordV1,
+): Promise<void> {
+  const current = await registry.getRecord(created.vaultName);
+  if (current === null || !isCreatedInstance(current, created)) {
+    throw createdInstanceReplaced();
+  }
+}
+
+/**
+ * Best-effort rollback of a failed import, BOUND TO THE CREATED INSTANCE:
+ * re-read the record under the created name and remove it ONLY when it is
+ * still the instance this import created (same name + `createdAt`). When a
+ * different instance is stored there — another tab's remove+recreate already
+ * replaced ours — the rollback STANDS DOWN: deleting by bare name here would
+ * destroy the other tab's rebuilt vault (A3 review r2), so the primary error
+ * propagates untouched and the replacement survives. When NO record is
+ * visible the removal is still attempted (an absent record is not a positive
+ * replacement signal; `VAULT_NOT_FOUND` is swallowed) and any removal
+ * failure leaves an EMPTY, harmless vault while the primary error wins.
+ *
+ * The read→delete pair is not atomic (the registry deliberately offers no
+ * conditional remove); the check shrinks the cross-deletion window from the
+ * whole PBKDF2 gap to the sub-millisecond span between these two calls.
+ */
+async function rollbackCreatedVault(
+  registry: VaultRegistry,
+  created: VaultRecordV1,
+): Promise<void> {
+  try {
+    const current = await registry.getRecord(created.vaultName);
+    if (current !== null && !isCreatedInstance(current, created)) {
+      return; // replaced by a concurrent same-name recreate — stand down
+    }
+    await registry.removeVault(created.vaultName);
+  } catch {
+    // Best-effort by contract: the primary error wins.
   }
 }
 
@@ -265,7 +355,12 @@ export async function importVaultBackup(
  *      a fresh IV and CAS. Any failure — validation, mutator throw, CAS drift
  *      — leaves the stored target ciphertext byte-identical; there is no
  *      partial-write path. The target alias, salt and `lastBackupAt` are
- *      untouched by construction, and nothing is activated.
+ *      untouched by construction, and nothing is activated. A merge that
+ *      changes nothing (an EMPTY `{"keys":[]}` source, or one whose entries
+ *      all conflict with the target's) is still a REWRITE, not a no-op: the
+ *      record comes back under a fresh IV with revision +1. There is
+ *      deliberately no equality short-circuit — one unconditional write path
+ *      keeps the primitive simple and the CAS semantics uniform.
  */
 export async function mergeVaultBackup(
   registry: VaultRegistry,
