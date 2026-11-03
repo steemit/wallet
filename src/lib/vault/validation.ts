@@ -61,11 +61,15 @@ export const VAULT_COMMON_PASSWORDS_V1: readonly string[] = [
 
 /**
  * Forbidden code-point categories for vault aliases: control (Cc), format
- * (Cf — BOM, ZWSP, soft hyphen, bidi overrides…), line separator (Zl) and
- * paragraph separator (Zp). Unicode property escapes require an ES2018+
+ * (Cf — BOM, ZWSP, soft hyphen, bidi overrides…), surrogate (Cs — unpaired
+ * surrogates; a lone \uD800 can arrive via JSON.parse of a crafted backup and
+ * is invisible, untrimmable and NFC-invariant, so it must fail closed),
+ * line separator (Zl) and paragraph separator (Zp). Properly paired
+ * surrogates (astral characters such as U+1F600) are single non-Cs code
+ * points and are NOT matched. Unicode property escapes require an ES2018+
  * runtime — same baseline as the Web Crypto API this vault depends on.
  */
-const FORBIDDEN_NAME_CODE_POINT_RE = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+const FORBIDDEN_NAME_CODE_POINT_RE = /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;
 
 function nameInvalid(reason: string): VaultError {
   return new VaultError('VAULT_NAME_INVALID', `vault name rejected: ${reason}`);
@@ -97,11 +101,16 @@ function countCodePoints(value: string): number {
  * normalized value is what callers must store and show.
  *
  * Rules: a non-empty string of 1–64 Unicode code points (code-point count,
- * so 64 astral characters pass and 65 reject); no automatic trimming and no
- * leading/trailing whitespace (the raw input is compared against its own
- * `trim()`); no control (Cc), format (Cf), line-separator (Zl) or
- * paragraph-separator (Zp) code points anywhere. Throws
- * `VaultError('VAULT_NAME_INVALID')` — messages never contain the name.
+ * so 64 astral characters pass and 65 reject), measured BOTH on the raw
+ * input and on the NFC display value — normalization expands the few
+ * non-starter composition sequences (e.g. U+0344 becomes two combining
+ * marks), so a 64-code-point raw input could otherwise grow past the limit
+ * the envelope layer enforces on the stored value; no automatic trimming and
+ * no leading/trailing whitespace (the raw input is compared against its own
+ * `trim()`); no control (Cc), format (Cf), surrogate (Cs — unpaired
+ * surrogates), line-separator (Zl) or paragraph-separator (Zp) code points
+ * anywhere. Throws `VaultError('VAULT_NAME_INVALID')` — messages never
+ * contain the name.
  *
  * Uniqueness is NOT checked here: compare {@link vaultNameComparisonKey}
  * values in the A2 registry's create/rename transaction.
@@ -125,10 +134,19 @@ export function validateVaultName(name: unknown): string {
   const forbidden = FORBIDDEN_NAME_CODE_POINT_RE.exec(name);
   if (forbidden !== null) {
     throw nameInvalid(
-      'name must not contain control, format, line-separator or paragraph-separator characters',
+      'name must not contain control, format, unpaired-surrogate, line-separator or paragraph-separator characters',
     );
   }
-  return name.normalize('NFC');
+  // Re-measure AFTER NFC: U+0344-style inputs double their code-point count
+  // under normalization, and the returned display value is what later layers
+  // (envelope) validate at 64 — reject here so both layers stay consistent.
+  const display = name.normalize('NFC');
+  if (countCodePoints(display) > VAULT_NAME_MAX_CODE_POINTS) {
+    throw nameInvalid(
+      `name must be at most ${VAULT_NAME_MAX_CODE_POINTS} Unicode code points after normalization`,
+    );
+  }
+  return display;
 }
 
 /**

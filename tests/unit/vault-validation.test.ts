@@ -64,6 +64,22 @@ describe('validateVaultName', () => {
       value: 'a'.repeat(VAULT_NAME_MAX_CODE_POINTS),
       stored: 'a'.repeat(VAULT_NAME_MAX_CODE_POINTS),
     },
+    {
+      // Contrast with the lone-surrogate rejections below: a surrogate PAIR
+      // is one legal astral code point (not Cs) and must keep passing now
+      // that \p{Cs} is in the forbidden regex.
+      msg: 'paired surrogates form a legal astral character (Cs rejects only UNPAIRED surrogates)',
+      value: 'a\uD800\uDC00b',
+      stored: 'a\uD800\uDC00b',
+    },
+    {
+      // U+0344 doubles to U+0308 U+0301 under NFC: 32 raw code points
+      // normalize to EXACTLY the 64-code-point ceiling — the boundary case
+      // for the post-normalization re-measure.
+      msg: 'combining marks whose NFC form is exactly 64 code points',
+      value: '\u0344'.repeat(VAULT_NAME_MAX_CODE_POINTS / 2),
+      stored: '\u0308\u0301'.repeat(VAULT_NAME_MAX_CODE_POINTS / 2),
+    },
   ];
 
   it.each(accepted)('accepts $msg', ({ value, stored }) => {
@@ -91,6 +107,14 @@ describe('validateVaultName', () => {
     { msg: 'left-to-right override (Cf)', value: 'de\u202emo' },
     { msg: 'line separator (Zl)', value: 'de\u2028mo' },
     { msg: 'paragraph separator (Zp)', value: 'de\u2029mo' },
+    // Lone surrogates (Cs) are invisible, survive trim and NFC untouched,
+    // and can arrive via JSON.parse of an imported backup — reject them.
+    { msg: 'lone high surrogate (Cs)', value: '\uD800' },
+    { msg: 'lone low surrogate (Cs)', value: '\uDC00' },
+    { msg: 'unpaired surrogate inside (Cs)', value: 'a\uD800b' },
+    // 64 raw code points that NFC expands to 128 — the raw count passes but
+    // the display value would blow the envelope layer's 64 limit.
+    { msg: '64 combining marks whose NFC form is 128 code points', value: '\u0344'.repeat(64) },
     { msg: 'non-string name', value: 42 },
     { msg: 'null name', value: null },
   ];
@@ -102,11 +126,16 @@ describe('validateVaultName', () => {
   });
 
   it('rejection messages never echo the name', () => {
+    // 'e\u0007' and '\u0007m' span the control character, so they can only
+    // appear in the message if a fragment of THIS input was echoed. A short
+    // generic fragment like 'de' is too weak: it collides with ordinary
+    // message wording (false reds) and barely detects real echoes.
     const secret = 'de\u0007mo';
     const { error } = captureCode(() => validateVaultName(secret));
     expect(error).toBeDefined();
-    expect((error as Error).message).not.toContain('de');
-    expect((error as Error).message).not.toContain('\u0007');
+    expect((error as Error).message).not.toContain(secret);
+    expect((error as Error).message).not.toContain('e\u0007');
+    expect((error as Error).message).not.toContain('\u0007m');
   });
 });
 
@@ -225,8 +254,12 @@ describe('validateVaultPassword', () => {
     ] as const) {
       const { error } = captureCode(() => validateVaultPassword(password, context));
       expect(error).toBeDefined();
+      // Fragments are input-specific (>=10 chars unique to each password,
+      // prefix AND suffix) — short generic fragments would collide with
+      // ordinary message wording while detecting little.
       expect((error as Error).message).not.toContain(password);
       expect((error as Error).message).not.toContain(password.slice(0, 10));
+      expect((error as Error).message).not.toContain(password.slice(-12));
     }
   });
 
@@ -298,7 +331,10 @@ describe('validateVaultWif (mock-driven — see file header)', () => {
     expect(error).toBeDefined();
     expectVaultErrorCode(error, 'VAULT_KEY_INVALID');
     expect((error as Error).message).not.toContain(WIF);
-    expect((error as Error).message).not.toContain(WIF.slice(0, 8));
+    // 12-char random-base58 fragments (prefix AND suffix) are unique to this
+    // WIF and cannot collide with English message wording.
+    expect((error as Error).message).not.toContain(WIF.slice(0, 12));
+    expect((error as Error).message).not.toContain(WIF.slice(-12));
   });
 
   it('rejects with VAULT_KEY_INVALID when public key derivation throws', () => {
