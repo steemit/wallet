@@ -386,14 +386,22 @@ export async function mergeVaultBackup(
 
 /** Result of a successful {@link mergeVaultBackup}. */
 export interface VaultMergeResult {
-  /** The service's session status after the merged write. */
+  /**
+   * The service's session status after the merged write. NOTE: this low-level
+   * primitive deliberately does NOT lock after the merge — the blueprint's
+   * "advance revision and lockEpoch, then lock the target" contract is the
+   * Manager orchestration layer's responsibility (call `service.lock()` right
+   * after a successful merge; see docs/AI-driver/09-vault.md).
+   */
   status: VaultServiceStatus;
   /**
    * The pre-merge five-field envelope of the target (the internal safety
    * net). Memory-only on this layer: never persisted by the merge and it does
    * NOT update `lastBackupAt` — callers may keep it (or offer it as a file)
-   * as the pre-merge recovery point. On any merge failure the stored target
-   * ciphertext is untouched regardless.
+   * as the pre-merge recovery point. The UI must not claim the pre-migration
+   * backup is "done" until this envelope has actually been saved/downloaded
+   * (or explicitly discarded) by the user. On any merge failure the stored
+   * target ciphertext is untouched regardless.
    */
   preMergeBackup: VaultEnvelopeV1;
 }
