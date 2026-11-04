@@ -131,6 +131,11 @@ function makeManager(initial: VaultSummary[]): ManagerState {
     }),
     exportVault: vi.fn(async (name: string) => {
       record('exportVault')(name);
+      // Export bumps the vault revision, ending this tab's unlock session
+      // (A4) — the refreshed list shows the vault locked again.
+      state.list = state.list.map((entry) =>
+        entry.vaultName === name ? { ...entry, locked: true } : entry,
+      );
       return envelopeFor(name);
     }),
     lockVault: vi.fn(async (...args: unknown[]) => {
@@ -182,6 +187,60 @@ async function chooseRowAction(label: string) {
 
 function renderPanel(state: ManagerState, facade = makeFacade()) {
   return render(<VaultManagerPanel manager={state.manager} facade={facade} />);
+}
+
+/**
+ * Drive an unlocked 'Main' vault through a successful merge and resolve once
+ * the completion dialog (with a preMergeBackup present) is mounted.
+ */
+async function mergeToComplete(state: ManagerState) {
+  const importVaultDetailed = state.manager.importVaultDetailed as unknown as AnyMock;
+  importVaultDetailed.mockResolvedValueOnce({
+    summary: summary({ vaultName: 'Main', locked: true }),
+    preMergeBackup: envelopeFor('Main'),
+  } as ImportVaultDetailedResult);
+
+  await chooseRowAction('actionMerge');
+  await waitFor(() => {
+    expect(document.getElementById('vault-merge-file')).not.toBeNull();
+  });
+  const file = new File([JSON.stringify(envelopeFor('Source'))], 'source-backup.json', {
+    type: 'application/json',
+  });
+  fireEvent.change(document.getElementById('vault-merge-file') as HTMLInputElement, {
+    target: { files: [file] },
+  });
+  fireEvent.change(document.getElementById('vault-merge-password') as HTMLInputElement, {
+    target: { value: 'source-password-1234' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'mergeButton' }));
+  return screen.findByTestId('vault-merge-complete');
+}
+
+/**
+ * Secrets that must never appear in rendered HTML: the three WIF base58
+ * prefixes, vault-service internals, and every passphrase literal the flows
+ * in this file type into inputs.
+ */
+const SECRET_SUBSTRINGS = [
+  '5J',
+  '5K',
+  '5H',
+  'kek',
+  'payload',
+  'a-strong-passphrase-1',
+  'different-passphrase',
+  'the-vault-password-1',
+  'source-password-1234',
+  'wrong-but-nonempty',
+] as const;
+
+/** Assert a rendered tree (document.body covers radix portals) leaks none. */
+function expectNoSecrets(container: HTMLElement) {
+  const html = container.innerHTML;
+  for (const secret of SECRET_SUBSTRINGS) {
+    expect(html, `rendered tree leaked "${secret}"`).not.toContain(secret);
+  }
 }
 
 describe('VaultManagerPanel', () => {
@@ -303,6 +362,10 @@ describe('VaultManagerPanel', () => {
     expect(continueButton).toBeDisabled();
     fireEvent.click(screen.getByRole('checkbox'));
     expect(continueButton).not.toBeDisabled();
+
+    // The create-success tree (including the portaled key-confirmation
+    // dialog) leaks neither key material nor the typed passphrases.
+    expectNoSecrets(document.body);
   });
 
   it('unlock dialog: wrong password surfaces the mapped code and stays open; success unlocks', async () => {
@@ -355,11 +418,12 @@ describe('VaultManagerPanel', () => {
     });
   });
 
-  it('export downloads the five-field envelope client-side (blob URL, no network)', async () => {
-    const state = makeManager([summary({ vaultName: 'Main' })]);
+  it('export downloads the five-field envelope client-side; the revision bump locks the row again', async () => {
+    // Start UNLOCKED so the post-export lock assertion cannot pass trivially.
+    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
     renderPanel(state);
     await waitFor(() => {
-      expect(screen.getByText('Main')).toBeInTheDocument();
+      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
     });
 
     await chooseRowAction('actionExport');
@@ -367,8 +431,40 @@ describe('VaultManagerPanel', () => {
       expect(createObjectURLMock).toHaveBeenCalled();
     });
     expect(state.manager.exportVault).toHaveBeenCalledWith('Main');
-    // Export locks this tab's session (A4 note) — refreshed list shows locked.
-    expect(screen.getByText('lockedBadge')).toBeInTheDocument();
+    // The export bumps the revision, ending this tab's session (A4 note) —
+    // the refreshed list shows the vault locked again.
+    await waitFor(() => {
+      expect(screen.getByText('lockedBadge')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('unlockedBadge')).not.toBeInTheDocument();
+    // The lock is also stated explicitly as a post-export info banner.
+    expect(screen.getByText('exportSuccess')).toBeInTheDocument();
+  });
+
+  it('mode read failure replaces the forever-spinner with the unavailable notice; retry recovers', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const facade = makeFacade('privateKey');
+    (facade.getSigningMode as unknown as AnyMock).mockRejectedValueOnce(
+      new Error('mode read failed'),
+    );
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    renderPanel(state, facade);
+
+    // The switcher shows its inline error + retry; the panel body swaps the
+    // loading spinner for the short unavailable notice. The hook state lives
+    // in the switcher, so the panel learns through the callback effect one
+    // commit later — assert the notice asynchronously.
+    expect(await screen.findByText('modeLoadFailed')).toBeInTheDocument();
+    expect(await screen.findByTestId('mode-unavailable')).toHaveTextContent('modeUnavailable');
+    await waitFor(() => {
+      expect(screen.queryByText('modeLoading')).not.toBeInTheDocument();
+    });
+
+    // Retry re-reads the mode; the panel recovers (privateKey info card).
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }));
+    expect(await screen.findByText('legacyActiveTitle')).toBeInTheDocument();
+    expect(screen.queryByTestId('mode-unavailable')).not.toBeInTheDocument();
+    errorSpy.mockRestore();
   });
 
   it('delete asks for the vault password and calls removeVault', async () => {
@@ -415,30 +511,8 @@ describe('VaultManagerPanel', () => {
       expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
     });
 
-    const importVaultDetailed = state.manager.importVaultDetailed as unknown as AnyMock;
-    importVaultDetailed.mockResolvedValueOnce({
-      summary: summary({ vaultName: 'Main', locked: true }),
-      preMergeBackup: envelopeFor('Main'),
-    } as ImportVaultDetailedResult);
-
-    await chooseRowAction('actionMerge');
-    await waitFor(() => {
-      expect(document.getElementById('vault-merge-file')).not.toBeNull();
-    });
-
-    const file = new File([JSON.stringify(envelopeFor('Source'))], 'source-backup.json', {
-      type: 'application/json',
-    });
-    fireEvent.change(document.getElementById('vault-merge-file') as HTMLInputElement, {
-      target: { files: [file] },
-    });
-    fireEvent.change(document.getElementById('vault-merge-password') as HTMLInputElement, {
-      target: { value: 'source-password-1234' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'mergeButton' }));
-
     // Completion dialog: locked notice + pending backup warning.
-    const dialog = await screen.findByTestId('vault-merge-complete');
+    const dialog = await mergeToComplete(state);
     expect(dialog).toHaveTextContent('mergeCompleteTitle');
     expect(dialog).toHaveTextContent('mergeLockedNotice');
     expect(screen.getByTestId('merge-backup-pending')).toBeInTheDocument();
@@ -464,31 +538,50 @@ describe('VaultManagerPanel', () => {
       expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
     });
 
-    const importVaultDetailed = state.manager.importVaultDetailed as unknown as AnyMock;
-    importVaultDetailed.mockResolvedValueOnce({
-      summary: summary({ vaultName: 'Main', locked: true }),
-      preMergeBackup: envelopeFor('Main'),
-    } as ImportVaultDetailedResult);
-
-    await chooseRowAction('actionMerge');
-    await waitFor(() => {
-      expect(document.getElementById('vault-merge-file')).not.toBeNull();
-    });
-    const file = new File([JSON.stringify(envelopeFor('Source'))], 'source.json', {
-      type: 'application/json',
-    });
-    fireEvent.change(document.getElementById('vault-merge-file') as HTMLInputElement, {
-      target: { files: [file] },
-    });
-    fireEvent.change(document.getElementById('vault-merge-password') as HTMLInputElement, {
-      target: { value: 'source-password-1234' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'mergeButton' }));
-
-    await screen.findByTestId('vault-merge-complete');
+    await mergeToComplete(state);
     fireEvent.click(screen.getByTestId('vault-merge-discard-backup'));
     expect(await screen.findByTestId('merge-backup-discarded')).toBeInTheDocument();
     expect(screen.getByTestId('vault-merge-continue')).not.toBeDisabled();
+  });
+
+  it('merge completion: pending delivery is dismiss-proof (Esc and the X button keep the dialog open)', async () => {
+    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+    });
+
+    await mergeToComplete(state);
+
+    // Esc: radix's DismissableLayer listens for keydown on document —
+    // dispatching there is the jsdom equivalent of pressing Escape (firing
+    // on the dialog element itself does not reach that listener reliably).
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByTestId('vault-merge-complete')).toBeInTheDocument();
+    expect(screen.getByTestId('vault-merge-continue')).toBeDisabled();
+
+    // The X close button (radix DialogContent close) — same interception.
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByTestId('vault-merge-complete')).toBeInTheDocument();
+    expect(screen.getByTestId('vault-merge-continue')).toBeDisabled();
+    expect(screen.getByTestId('merge-backup-pending')).toBeInTheDocument();
+  });
+
+  it('merge completion: after the explicit choice, Esc closes like Continue', async () => {
+    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+    });
+
+    await mergeToComplete(state);
+    fireEvent.click(screen.getByTestId('vault-merge-discard-backup'));
+    expect(await screen.findByTestId('merge-backup-discarded')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByTestId('vault-merge-complete')).not.toBeInTheDocument();
+    });
   });
 
   it('surfaces mapped errors for simple row actions (activate failure)', async () => {
@@ -507,15 +600,13 @@ describe('VaultManagerPanel', () => {
 
   it('renders no key material anywhere in the tree', async () => {
     const state = makeManager([summary({ vaultName: 'Main' })]);
-    const { container } = renderPanel(state);
+    renderPanel(state);
     await waitFor(() => {
       expect(screen.getByText('Main')).toBeInTheDocument();
     });
-    // Sensitive strings from the vault layers never appear in rendered HTML.
-    const html = container.innerHTML;
-    expect(html).not.toContain('5J');
-    expect(html).not.toContain('kek');
-    expect(html).not.toContain('payload');
+    // Sensitive strings from the vault layers never appear in rendered HTML
+    // (document.body also covers radix portal containers).
+    expectNoSecrets(document.body);
   });
 });
 

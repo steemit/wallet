@@ -29,7 +29,9 @@
 //   - the merge's preMergeBackup is a MEMORY-ONLY snapshot — the completion
 //     dialog forces an explicit Download or Discard before it lets the user
 //     continue, and never claims the pre-migration backup is complete before
-//     that choice;
+//     that choice; while the delivery is pending it also swallows X / Esc /
+//     overlay close requests (dismiss-proof), and honors them afterwards
+//     (equivalent to Continue);
 //   - exporting locks this tab's session for the exported vault (revision
 //     bump) — the refreshed list shows it locked;
 //   - changePassword locks the vault afterwards, and a WRONG old password
@@ -330,6 +332,7 @@ export interface VaultManagerPanelProps {
 export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPanelProps) {
   const t = useTranslations('vault');
   const [mode, setMode] = useState<SigningMode | null>(null);
+  const [modeLoadFailed, setModeLoadFailed] = useState(false);
   const [vaults, setVaults] = useState<VaultSummary[] | null>(null);
   const [listErrorKey, setListErrorKey] = useState<string | null>(null);
   const [view, setView] = useState<PanelView>('list');
@@ -419,10 +422,22 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
 
   return (
     <div className="flex flex-col gap-4 pb-6">
-      <WorkModeSwitcher facade={facade} onModeChange={setMode} focusId={focusId} />
+      <WorkModeSwitcher
+        facade={facade}
+        onModeChange={setMode}
+        onLoadStateChange={setModeLoadFailed}
+        focusId={focusId}
+      />
       <Separator />
 
-      {mode === null && <PendingRow label={t('modeLoading')} />}
+      {mode === null && !modeLoadFailed && <PendingRow label={t('modeLoading')} />}
+      {mode === null && modeLoadFailed && (
+        // The switcher already shows the error + Retry next to its control;
+        // the body just drops the forever-spinner for a short notice.
+        <div className="bg-muted/40 rounded-lg border p-3" data-testid="mode-unavailable">
+          <p className="text-muted-foreground text-sm">{t('modeUnavailable')}</p>
+        </div>
+      )}
 
       {mode === 'privateKey' && (
         <div className="bg-muted/40 rounded-lg border p-3">
@@ -552,10 +567,16 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
                         onRename={() => setRenameTarget(vault.vaultName)}
                         onChangePassword={() => setPasswordTarget(vault.vaultName)}
                         onExport={() =>
-                          void runRowAction(vault, async () => {
-                            const envelope = await manager.exportVault(vault.vaultName);
-                            downloadVaultBackupFile(envelope, 'backup');
-                          })
+                          void runRowAction(
+                            vault,
+                            async () => {
+                              const envelope = await manager.exportVault(vault.vaultName);
+                              downloadVaultBackupFile(envelope, 'backup');
+                            },
+                            // The export bumps the revision, ending this tab's
+                            // session for the vault — state it explicitly.
+                            'exportSuccess',
+                          )
                         }
                         onMerge={() => setMergeTarget(vault.vaultName)}
                         onDelete={() => setDeleteTarget(vault.vaultName)}
@@ -649,13 +670,15 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
         }}
       />
 
-      <MergeCompleteDialog
-        result={mergeResult}
-        onClose={() => {
-          setMergeResult(null);
-          void refreshVaults();
-        }}
-      />
+      {mergeResult !== null && (
+        <MergeCompleteDialog
+          result={mergeResult}
+          onClose={() => {
+            setMergeResult(null);
+            void refreshVaults();
+          }}
+        />
+      )}
 
       <KeyConfirmationDialog
         open={keyConfirm !== null}
@@ -1470,26 +1493,33 @@ function MergeBackupForm({
  * Post-merge flow. Until the user DOWNLOADS the pre-merge backup or
  * EXPLICITLY discards it, the dialog keeps stating that the backup has NOT
  * been saved and "Continue" stays disabled — the memory-only snapshot alone
- * is never presented as a completed backup (kickoff A5 acceptance).
+ * is never presented as a completed backup (kickoff A5 acceptance). While
+ * the delivery is pending, radix close requests (X / Esc / overlay) are
+ * swallowed; after the explicit choice any of them closes like Continue.
+ *
+ * The panel mounts this component only while a merge result exists, so the
+ * `delivery` state starts from 'pending' on every merge.
  */
 function MergeCompleteDialog({
   result,
   onClose,
 }: {
-  result: { vaultName: string; preMergeBackup: VaultEnvelopeV1 | null } | null;
+  result: { vaultName: string; preMergeBackup: VaultEnvelopeV1 | null };
   onClose: () => void;
 }) {
   const t = useTranslations('vault');
-  if (result === null) {
-    return null;
-  }
+  // Owned here (not in the body) so the close interception and the body's
+  // buttons share one source of truth.
+  const [delivery, setDelivery] = useState<'pending' | 'saved' | 'discarded'>('pending');
   return (
     <Dialog
       open
       onOpenChange={(next) => {
-        // Radix requests close (X / overlay / Esc); the choice must be
-        // explicit, so pending delivery keeps the dialog open.
-        void next;
+        // Radix requests close (X / overlay / Esc). A pending delivery must
+        // stay dismiss-proof; once the choice was made, closing is Continue.
+        if (!next && delivery !== 'pending') {
+          onClose();
+        }
       }}
     >
       <DialogContent className="sm:max-w-md" data-testid="vault-merge-complete">
@@ -1499,7 +1529,12 @@ function MergeCompleteDialog({
             {t('mergeLockedNotice', { name: result.vaultName })}
           </DialogDescription>
         </DialogHeader>
-        <MergeCompleteBody preMergeBackup={result.preMergeBackup} onFinished={onClose} />
+        <MergeCompleteBody
+          preMergeBackup={result.preMergeBackup}
+          delivery={delivery}
+          onDeliveryChange={setDelivery}
+          onFinished={onClose}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -1507,22 +1542,25 @@ function MergeCompleteDialog({
 
 function MergeCompleteBody({
   preMergeBackup,
+  delivery,
+  onDeliveryChange,
   onFinished,
 }: {
   preMergeBackup: VaultEnvelopeV1 | null;
+  delivery: 'pending' | 'saved' | 'discarded';
+  onDeliveryChange: (delivery: 'pending' | 'saved' | 'discarded') => void;
   onFinished: () => void;
 }) {
   const t = useTranslations('vault');
-  const [delivery, setDelivery] = useState<'pending' | 'saved' | 'discarded'>('pending');
 
   const download = () => {
     if (preMergeBackup !== null) {
       downloadVaultBackupFile(preMergeBackup, 'pre-merge');
-      setDelivery('saved');
+      onDeliveryChange('saved');
     } else {
       // Defensive: merge flows always carry a snapshot; independent imports
       // never open this dialog.
-      setDelivery('discarded');
+      onDeliveryChange('discarded');
     }
   };
 
@@ -1567,7 +1605,7 @@ function MergeCompleteBody({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => setDelivery('discarded')}
+                onClick={() => onDeliveryChange('discarded')}
                 disabled={delivery !== 'pending'}
                 data-testid="vault-merge-discard-backup"
               >

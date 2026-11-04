@@ -29,6 +29,13 @@ export interface WorkModeSwitcherProps {
   facade: SigningFacade | null;
   /** Notified on every mode transition — the initial load and each successful switch. */
   onModeChange?: (mode: SigningMode) => void;
+  /**
+   * Notified when the initial mode read settles. Hosts use it to swap their
+   * loading placeholder for an unavailable notice (the error + Retry stay
+   * here, next to the control). Parents pass stable callbacks (state
+   * setters), so the dependency on onLoadStateChange is safe.
+   */
+  onLoadStateChange?: (loadFailed: boolean) => void;
   /** id of the focusable container (the B-phase dapp hook focuses it — see app-layout.tsx). */
   focusId?: string | undefined;
 }
@@ -41,7 +48,12 @@ interface ModeOption {
   icon: typeof KeyRound;
 }
 
-export function WorkModeSwitcher({ facade, onModeChange, focusId }: WorkModeSwitcherProps) {
+export function WorkModeSwitcher({
+  facade,
+  onModeChange,
+  onLoadStateChange,
+  focusId,
+}: WorkModeSwitcherProps) {
   const t = useTranslations('vault');
   const { mode, loading, switching, loadFailed, retryLoad, setMode } = useSigningMode(facade);
   const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -55,6 +67,12 @@ export function WorkModeSwitcher({ facade, onModeChange, focusId }: WorkModeSwit
       onModeChange?.(mode);
     }
   }, [mode, onModeChange]);
+
+  // Report the initial-read outcome so hosts can replace a forever-loading
+  // placeholder; re-fires after a successful retry (loadFailed back to false).
+  useEffect(() => {
+    onLoadStateChange?.(loadFailed);
+  }, [loadFailed, onLoadStateChange]);
 
   const select = async (next: SigningMode) => {
     if (switching || mode === next) return;

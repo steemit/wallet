@@ -4,8 +4,12 @@
  * The UI routes every VaultError through `vault.errors.<CODE>` — a missing
  * key in any locale would render the raw dotted key (the exact failure mode
  * the i18n-symmetry test was written for). This test pins, per locale:
- *   - all 17 codes from src/lib/vault/types.ts + the `unexpected` fallback
- *     exist with non-empty values;
+ *   - the `vault.errors` key set is EXACTLY `VAULT_ERROR_CODES` (imported
+ *     from src/lib/vault/types.ts — the single source of truth the
+ *     `VaultErrorCode` union derives from) plus the `unexpected` fallback —
+ *     a bidirectional lock: adding a code to types.ts without translating
+ *     it fails here, and so does adding an i18n key with no code behind it;
+ *   - all codes + the `unexpected` fallback exist with non-empty values;
  *   - no locale renders the raw code itself as the message (catches
  *     copy-paste of codes into translations);
  *   - every code has a DISTINCT English message (catches two codes
@@ -16,29 +20,12 @@ import en from '@/i18n/messages/en.json';
 import zh from '@/i18n/messages/zh.json';
 import es from '@/i18n/messages/es.json';
 import ko from '@/i18n/messages/ko.json';
+import { VAULT_ERROR_CODES } from '@/lib/vault/types';
 import type { VaultErrorCode } from '@/lib/vault/types';
 
-// Kept in lockstep with types.ts (VaultErrorCode union) + the `unexpected`
-// fallback used by the vault UI components.
-const CODES: VaultErrorCode[] = [
-  'VAULT_NAME_EXISTS',
-  'VAULT_NOT_FOUND',
-  'VAULT_EMPTY',
-  'VAULT_MODE_REQUIRED',
-  'VAULT_OPERATION_UNSUPPORTED',
-  'VAULT_LOCKED',
-  'VAULT_PASSWORD_INVALID',
-  'VAULT_ENVELOPE_INVALID',
-  'VAULT_PAYLOAD_INVALID',
-  'VAULT_SESSION_STALE',
-  'VAULT_STORAGE_UNAVAILABLE',
-  'VAULT_CRYPTO_UNAVAILABLE',
-  'VAULT_NAME_INVALID',
-  'VAULT_PASSWORD_WEAK',
-  'VAULT_KEY_INVALID',
-  'VAULT_LIMIT_EXCEEDED',
-  'VAULT_AUTHORITY_UNAVAILABLE',
-];
+// Single source of truth: the exported array types.ts derives the union
+// from. No hand-maintained copy here — the lock below catches any drift.
+const CODES: readonly VaultErrorCode[] = VAULT_ERROR_CODES;
 
 type Messages = Record<string, unknown>;
 
@@ -57,20 +44,27 @@ function errorTable(locale: string): Record<string, unknown> {
 }
 
 describe('vault error i18n mapping table', () => {
-  it('covers all 17 codes plus the unexpected fallback in every locale', () => {
+  it('locks VAULT_ERROR_CODES and every locale table to the same key set (bidirectional)', () => {
+    const expected = [...CODES, 'unexpected'].sort();
+    for (const locale of Object.keys(locales)) {
+      // Types gains a code without translations → missing key here; an i18n
+      // key with no code behind it → extra key here. Both directions fail.
+      expect(Object.keys(errorTable(locale)).sort(), `${locale}.json vault.errors`).toEqual(
+        expected,
+      );
+    }
+  });
+
+  it('covers all codes plus the unexpected fallback with non-empty values in every locale', () => {
     for (const locale of Object.keys(locales)) {
       const errors = errorTable(locale);
-      const keys = [...CODES, 'unexpected'];
-      for (const key of keys) {
+      for (const key of [...CODES, 'unexpected']) {
         expect(
           errors[key],
           `${locale}.json vault.errors.${key}`,
         ).toEqual(expect.any(String));
         expect((errors[key] as string).trim(), `${locale}:${key}`).not.toBe('');
       }
-      // No extra error keys that the UI would never read (keeps the table
-      // exactly the code set).
-      expect(Object.keys(errors).sort()).toEqual(keys.sort());
     }
   });
 

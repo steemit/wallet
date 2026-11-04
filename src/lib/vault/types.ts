@@ -105,24 +105,35 @@ export interface VaultUnlockSession {
   payload: VaultPayloadV1;
 }
 
-export type VaultErrorCode =
-  | 'VAULT_NAME_EXISTS'
-  | 'VAULT_NOT_FOUND'
-  | 'VAULT_EMPTY'
-  | 'VAULT_MODE_REQUIRED'
-  | 'VAULT_OPERATION_UNSUPPORTED'
-  | 'VAULT_LOCKED'
-  | 'VAULT_PASSWORD_INVALID'
-  | 'VAULT_ENVELOPE_INVALID'
-  | 'VAULT_PAYLOAD_INVALID'
-  | 'VAULT_SESSION_STALE'
-  | 'VAULT_STORAGE_UNAVAILABLE'
-  | 'VAULT_CRYPTO_UNAVAILABLE'
-  | 'VAULT_NAME_INVALID'
-  | 'VAULT_PASSWORD_WEAK'
-  | 'VAULT_KEY_INVALID'
-  | 'VAULT_LIMIT_EXCEEDED'
-  | 'VAULT_AUTHORITY_UNAVAILABLE';
+/**
+ * The closed set of `VaultError` codes, as a value so tests can iterate it.
+ * `VaultErrorCode` derives from this array — the array is the single source
+ * of truth, and tests/unit/vault-i18n-errors.test.ts locks it
+ * bidirectionally against the `vault.errors.*` i18n tables (adding a code
+ * without translating it, or an i18n key with no code behind it, fails the
+ * suite). Keep the members identical to the kickoff §2 union.
+ */
+export const VAULT_ERROR_CODES = [
+  'VAULT_NAME_EXISTS',
+  'VAULT_NOT_FOUND',
+  'VAULT_EMPTY',
+  'VAULT_MODE_REQUIRED',
+  'VAULT_OPERATION_UNSUPPORTED',
+  'VAULT_LOCKED',
+  'VAULT_PASSWORD_INVALID',
+  'VAULT_ENVELOPE_INVALID',
+  'VAULT_PAYLOAD_INVALID',
+  'VAULT_SESSION_STALE',
+  'VAULT_STORAGE_UNAVAILABLE',
+  'VAULT_CRYPTO_UNAVAILABLE',
+  'VAULT_NAME_INVALID',
+  'VAULT_PASSWORD_WEAK',
+  'VAULT_KEY_INVALID',
+  'VAULT_LIMIT_EXCEEDED',
+  'VAULT_AUTHORITY_UNAVAILABLE',
+] as const;
+
+export type VaultErrorCode = (typeof VAULT_ERROR_CODES)[number];
 
 export type ImportVaultParams =
   | {
