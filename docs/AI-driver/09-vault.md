@@ -256,6 +256,16 @@ goes through i18n) and never echo names, passwords, WIFs, ciphertext or payload.
     leaves the target ciphertext byte-identical. An empty/no-change source still
     rewrites the record (fresh IV, revision+1) — deliberate, do not add an
     equality short-circuit.
+  - **Post-merge lock is the Manager layer's job (blueprint contract).** The
+    low-level `mergeVaultBackup` deliberately does NOT lock (the A3 tests pin
+    `locked: false` at the primitive level), but the blueprint requires the
+    target to be locked after a successful merge, with revision and lockEpoch
+    advanced. A4's orchestration MUST call `service.lock()` right after a
+    successful merge and assert `locked: true` + `lockEpoch + 1`; a `lock()`
+    failure must still have cleared memory and must propagate. Likewise the
+    `preMergeBackup` must actually be delivered to the user (file save/download
+    or an explicit discard) before the UI claims the pre-migration backup is
+    done — the memory-only snapshot alone is not a completed backup.
   - `exportVaultBackup` CAS-writes `lastBackupAt` — the revision bump invalidates
     unlocked sessions for that vault in ANY tab (including the caller's own
     service instance). UI flows should lock first or tolerate re-unlock after
