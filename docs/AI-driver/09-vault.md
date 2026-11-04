@@ -1,13 +1,14 @@
 # 09 — Vault (encrypted multi-account wallet)
 
-> Status date: 2026-11-04, baseline `next@5dcece14` + A2 (PR #382 A0, PR #383 A1,
+> Status date: 2026-11-04, baseline `next@4def3cc4` + A3 (PR #382 A0, PR #383 A1,
 > A1.1 shared validation / canonical base64url / resource limits, PR #386 A2
-> IndexedDB registry + unlock-session service).
+> IndexedDB registry + unlock-session service, PR #387 A3 backup export /
+> independent import / merge migration).
 > Covers only what has landed: type contracts, error taxonomy, envelope validation,
 > Web Crypto whole-envelope encryption, shared input validation with resource
-> boundaries, and the registry/service layer. Backup/manager/UI/migration
-> (A3–A6) are not implemented yet — this doc grows with each task package.
-> Tracking issue: #381.
+> boundaries, the registry/service layer and the backup/import/merge layer.
+> Manager/UI/migration (A4–A6) are not implemented yet — this doc grows with each
+> task package. Tracking issue: #381.
 
 ## Module map
 
@@ -27,6 +28,11 @@ src/lib/vault/registry.ts  IndexedDB layer (A2, PR #386): `steem-wallet-vault` v
                            atomic alias uniqueness inside one readwrite transaction
                            (comparison key scanned via getAll — never persisted, never
                            in the AAD); revision/lockEpoch CAS; abort-on-callback-throw
+src/lib/vault/backup.ts    Backup layer (A3, PR #387): exportVaultBackup (five-field envelope
+                           + lastBackupAt CAS), importVaultBackup (single-password contract,
+                           instance-bound adoption/rollback), mergeVaultBackup (target-first
+                           dedupe on (accountName, role, publicKey), preMergeBackup snapshot,
+                           any failure leaves the target ciphertext byte-identical)
 src/lib/vault/service.ts   Unlock-session service (A2, PR #386): createVaultService()
                            factory; KEK + payload live ONLY in the instance closure;
                            per-operation freshness re-read; BroadcastChannel as
@@ -43,6 +49,8 @@ tests/unit/vault-registry.test.ts    41 cases: atomic uniqueness, NFC/case colli
 tests/unit/vault-service.test.ts     13 cases: unlock/lock lifecycle, cross-tab
                            invalidation (hard line + broadcast), mutate semantics,
                            shuffle-stable per-case state (A2)
+tests/unit/vault-backup.test.ts      27 cases: export round-trip, import boundaries and
+                           rollback races, merge dedupe/failure-atomicity (A3)
 tests/mocks/fake-indexeddb.ts        hand-written in-memory IndexedDB fake (A2) — see
                            fidelity notes under Pitfalls
 tests/node/vault-wif-real-check.mjs  plain-`node` real-crypto WIF verification (A1.1;
@@ -227,15 +235,31 @@ goes through i18n) and never echo names, passwords, WIFs, ciphertext or payload.
   with direct IndexedDB access. Session identity, transaction discipline, cross-tab
   invalidation and the adopt-branch KEK rule are invariants 11–14 above. The manager
   (`VaultManager` orchestration incl. `activateVault`) is A4; work-mode UI is A5.
-- **A3 (backup/import)**: backups are the five envelope fields only (revision/
-  lockEpoch/timestamps are local runtime state). Independent import MUST mint a new
-  salt+iv and parse incoming text through `parseVaultEnvelopeJson` — the raw-JSON,
-  ciphertext and payload caps are then enforced by the shared validators before any
-  write; never duplicate the bounds at the call site. Password policy applies to the
-  NEW password chosen during independent import / change-password only. Import
-  writes go through the registry's atomic-uniqueness transaction; merges dedupe on
-  `(accountName, role, publicKey)` and use `mutatePayload` (fresh IV, CAS) on the
-  unlocked target.
+- **A3 has landed (`backup.ts`)** — consume `exportVaultBackup` /
+  `importVaultBackup` / `mergeVaultBackup` as-is. Wiring rules for A4/A5:
+  - Backups are the five envelope fields only; TEXT backups must be parsed through
+    `parseVaultEnvelopeJson` first (the raw-JSON 1 MiB gate lives there) — the
+    import functions take an already-parsed `VaultEnvelopeV1`.
+  - Single-password contract: independent import uses one password both to decrypt
+    the source and as the new vault's password, so it MUST pass
+    `validateVaultPassword` (weak source passwords are rejected — guide users to
+    re-encrypt via UI, do not weaken the check). Merge decrypts with the source
+    password only; no policy runs on it.
+  - Import is instance-bound: after `createVault`, the unlock adoption check and
+    the failure rollback both verify the record is still the just-created instance
+    (name + `createdAt`) before writing/deleting — a concurrent remove+recreate of
+    the same name is never cross-deleted or cross-written (known residual: a
+    sub-millisecond read→delete window inside the rollback, documented in code).
+  - Merge requires the target unlocked on the SAME service instance, snapshots a
+    `preMergeBackup` (memory-only, does not touch `lastBackupAt`), dedupes on
+    `(accountName, role, publicKey)` with TARGET entries winning, and any failure
+    leaves the target ciphertext byte-identical. An empty/no-change source still
+    rewrites the record (fresh IV, revision+1) — deliberate, do not add an
+    equality short-circuit.
+  - `exportVaultBackup` CAS-writes `lastBackupAt` — the revision bump invalidates
+    unlocked sessions for that vault in ANY tab (including the caller's own
+    service instance). UI flows should lock first or tolerate re-unlock after
+    export.
 - **New vault tests**: follow the fixture-recompute discipline; never copy WIFs or
   passwords into `src/`. Anything touching WIF handling needs BOTH layers: mock-driven
   vitest cases plus a rerun of `tests/node/vault-wif-real-check.mjs` recorded in the
