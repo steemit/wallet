@@ -103,7 +103,7 @@ tests/unit/signing-facade.test.ts    6 cases: mode dispatch, no fallback, persis
 tests/unit/work-mode-switcher.test.tsx  7 cases: dual options + Legacy badge,
                            signed-out render, in-place switch, failure keeps the
                            previous mode + maps codes, busy state (A5)
-tests/unit/vault-manager-panel.test.tsx  15 cases: list/empty-dialog/create/
+tests/unit/vault-manager-panel.test.tsx  18 cases: list/empty-dialog/create/
                            unlock/export/delete/merge incl. preMergeBackup
                            delivery, storage-unavailable retry (A5, mocked
                            manager/facade)
