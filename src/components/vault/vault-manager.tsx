@@ -213,7 +213,7 @@ export function VaultWorkModeContent({ focusId }: { focusId?: string | undefined
 
   if (runtime.state === 'loading') {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 px-1 py-6 text-sm">
+      <div className="text-muted-foreground flex items-center gap-2 px-4 py-6 text-sm">
         <Loader2 className="size-4 animate-spin" aria-hidden />
         {t('storageInitializing')}
       </div>
@@ -221,7 +221,7 @@ export function VaultWorkModeContent({ focusId }: { focusId?: string | undefined
   }
   if (runtime.state === 'unavailable') {
     return (
-      <div className="flex flex-col gap-3 px-1 py-4">
+      <div className="flex flex-col gap-3 px-4 py-4">
         <p className="text-destructive text-sm font-medium" role="alert">
           {t(`errors.${runtime.code}`)}
         </p>
@@ -421,7 +421,7 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
   };
 
   return (
-    <div className="flex flex-col gap-4 pb-6">
+    <div className="flex flex-col gap-4 px-4 pb-6">
       <WorkModeSwitcher
         facade={facade}
         onModeChange={setMode}

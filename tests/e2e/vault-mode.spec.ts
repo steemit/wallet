@@ -117,7 +117,13 @@ test.describe('Vault work mode', () => {
     // Create form (name + password + confirm).
     const createForm = drawer.getByTestId('vault-create-form');
     await expect(createForm).toBeVisible({ timeout: 15_000 });
-    await createForm.getByLabel('Vault name').fill(VAULT_NAME);
+    const nameInput = createForm.getByLabel('Vault name');
+    const drawerBox = await drawer.boundingBox();
+    const inputBox = await nameInput.boundingBox();
+    if (!drawerBox || !inputBox) throw new Error('Work Mode drawer geometry is unavailable');
+    expect(inputBox.x - drawerBox.x).toBeGreaterThanOrEqual(16);
+    expect(drawerBox.x + drawerBox.width - inputBox.x - inputBox.width).toBeGreaterThanOrEqual(16);
+    await nameInput.fill(VAULT_NAME);
     await createForm.getByLabel('Vault password', { exact: true }).fill(VAULT_PASSWORD);
     await createForm.getByLabel('Confirm vault password').fill(VAULT_PASSWORD);
     await createForm.getByRole('button', { name: 'Create vault' }).click();
