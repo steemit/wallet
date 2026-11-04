@@ -1,15 +1,17 @@
 # 09 — Vault (encrypted multi-account wallet)
 
-> Status date: 2026-11-04, baseline `next@cf76b353` + A4 (PR #382 A0, PR #383 A1,
+> Status date: 2026-11-04, baseline `next@475b49a8` + A5 (PR #382 A0, PR #383 A1,
 > A1.1 shared validation / canonical base64url / resource limits, PR #386 A2
 > IndexedDB registry + unlock-session service, PR #387 A3 backup export /
-> independent import / merge migration, PR #389 A4 manager / signer / signing
-> facade).
+> independent import / merge migration, PR #389 A4 manager / signer /
+> signing facade, A5 work-mode drawer UI).
 > Covers only what has landed: type contracts, error taxonomy, envelope validation,
 > Web Crypto whole-envelope encryption, shared input validation with resource
-> boundaries, the registry/service/backup layers and the manager + signer +
-> unified facade. Work-mode UI and caller migration (A5–A6) are not implemented
-> yet — this doc grows with each task package. Tracking issue: #381.
+> boundaries, the registry/service/backup layers, the manager + signer +
+> unified facade, and the A5 work-mode UI (mode switcher, vault manager panel,
+> empty/unlock/key-confirmation dialogs). Caller migration (A6) and the dapp
+> phase (B0–B4) are not implemented yet — this doc grows with each task
+> package. Tracking issue: #381.
 
 ## Module map
 
@@ -45,6 +47,27 @@ src/lib/vault/signer.ts    Vault-mode signer (A4): op->authority table (19 relay
 src/lib/vault/signing-facade.ts  Mode dispatch (A4): settings-backed signingMode
                            (default privateKey), no silent fallback, backend errors
                            propagate verbatim
+src/hooks/use-signing-mode.ts   A5 mode-state hook wrapping the facade's
+                           getSigningMode/setSigningMode: success updates local
+                           state in place (never reloads), failure rethrows with
+                           the previous mode still displayed
+src/components/vault/work-mode-switcher.tsx  A5 PrivateKey/Vault dual selector
+                           (radiogroup) — device preference, works signed-out;
+                           PrivateKey carries the Legacy/Deprecated badge
+src/components/vault/vault-manager.tsx  A5 composition root + panel:
+                           VaultProvider/getVaultRuntime (module-singleton
+                           registry + manager + facade — one tab = one session
+                           service), VaultManagerPanel (vault list / create /
+                           import / merge with preMergeBackup delivery / rename /
+                           change-password / delete / export), merge completion
+                           dialog enforces download-or-explicit-discard
+src/components/vault/vault-empty-dialog.tsx  A5 three-option empty state
+                           (create / import / continue browsing)
+src/components/vault/unlock-vault-dialog.tsx  A5 unlock (existing password only —
+                           no strength policy on unlock)
+src/components/vault/key-confirmation-dialog.tsx  A5 post-create/import backup
+                           acknowledgment (password loss unrecoverable; on-chain
+                           keys unaffected)
 src/lib/auth/legacy-private-key-signer.ts  privateKey-mode signer (A4): injected WIF
                            getter (A6 wiring point), deliberately NO authority pre-check
                            (A6 acceptance: default privateKey behavior unchanged)
@@ -77,6 +100,19 @@ tests/unit/vault-signer.test.ts      29 cases: authority pre-check branches, key
                            selection/coverage, frozen-tx integrity, recover_account
                            exclusion (A4)
 tests/unit/signing-facade.test.ts    6 cases: mode dispatch, no fallback, persistence (A4)
+tests/unit/work-mode-switcher.test.tsx  7 cases: dual options + Legacy badge,
+                           signed-out render, in-place switch, failure keeps the
+                           previous mode + maps codes, busy state (A5)
+tests/unit/vault-manager-panel.test.tsx  15 cases: list/empty-dialog/create/
+                           unlock/export/delete/merge incl. preMergeBackup
+                           delivery, storage-unavailable retry (A5, mocked
+                           manager/facade)
+tests/unit/vault-i18n-errors.test.ts  error-code → i18n table completeness
+                           across all four locales (A5)
+tests/e2e/vault-mode.spec.ts  2 cases, REAL browser IndexedDB + Web Crypto:
+                           no-reload mode switch + empty-state options; full
+                           create → confirm → unlock/lock → export download
+                           lifecycle (A5)
 tests/mocks/fake-indexeddb.ts        hand-written in-memory IndexedDB fake (A2) — see
                            fidelity notes under Pitfalls
 tests/node/vault-wif-real-check.mjs  plain-`node` real-crypto WIF verification (A1.1;
@@ -321,6 +357,35 @@ goes through i18n) and never echo names, passwords, WIFs, ciphertext or payload.
   - Known residual (documented in code): the same-millisecond remove+recreate
     `createdAt` collision (A2 invariant 11) and the sub-ms rollback window in
     A3 import; both need a future schema-level record id to fully close.
+- **A5 has landed (work-mode UI)** — wiring rules for A6/B:
+  - The composition root lives in `src/components/vault/vault-manager.tsx`:
+    `getVaultRuntime()` is a MODULE-LEVEL SINGLETON (registry + manager +
+    facade with `manager.createSigner()` as the vault backend). The manager's
+    session service is pure memory, so a second runtime could never share the
+    session the drawer unlocks — consume `useVaultRuntime()` /
+    `<VaultProvider>` (mounted once in app-layout), never build another
+    runtime. The privateKey backend is NOT wired yet (A6 injects the
+    login-state WIF getter); until then facade privateKey signing fails with
+    a TypeError — nothing routes signing through the facade before A6.
+  - Mode is a DEVICE PREFERENCE (settings row): the switcher works
+    signed-out. `useSigningMode` updates local state in place on success and
+    rethrows on failure with the previous mode still displayed — do not add a
+    page refresh to mode switching.
+  - A5 UI surfaces ALL VaultErrors through `vault.errors.<CODE>` i18n keys
+    (17 codes + `unexpected`, four locales, pinned by
+    `tests/unit/vault-i18n-errors.test.ts`). Never render `error.message`.
+  - The merge completion dialog enforces the preMergeBackup delivery
+    contract: "Continue" (and any close) is blocked until the user downloads
+    the snapshot or explicitly discards it, and the post-merge LOCKED state
+    is shown with re-unlock guidance.
+  - The B-phase dapp hook is reserved: dispatching
+    `VAULT_WORK_MODE_OPEN_EVENT` (exported from app-layout.tsx) opens the
+    drawer and focuses the mode switcher (`#work-mode-switcher`).
+  - jsdom notes for tests: radix DropdownMenu opens via keyboard
+    (ArrowDown), not click; `File#text()` does not exist in jsdom (the UI
+    uses a FileReader helper); modal dialogs aria-hide the rest of the page,
+    so Playwright role queries must target the dialog itself or use CSS
+    locators.
 - **New vault tests**: follow the fixture-recompute discipline; never copy WIFs or
   passwords into `src/`. Anything touching WIF handling needs BOTH layers: mock-driven
   vitest cases plus a rerun of `tests/node/vault-wif-real-check.mjs` recorded in the
