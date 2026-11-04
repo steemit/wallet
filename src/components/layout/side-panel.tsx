@@ -24,6 +24,7 @@ import {
   FileText,
   BookOpen,
   Settings,
+  KeyRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SIDE_PANEL_EXTERNAL, SIDE_PANEL_INTERNAL } from '@/lib/navigation/side-panel-links';
@@ -31,9 +32,11 @@ import { SIDE_PANEL_EXTERNAL, SIDE_PANEL_INTERNAL } from '@/lib/navigation/side-
 interface SidePanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Opens the Work Mode drawer (vault / signing mode management). */
+  onOpenWorkMode?: () => void;
 }
 
-export function SidePanel({ open, onOpenChange }: SidePanelProps) {
+export function SidePanel({ open, onOpenChange, onOpenWorkMode }: SidePanelProps) {
   const t = useTranslations('wallet');
   const pathname = usePathname();
   const username = useSelector((state: RootState) => state.auth.username);
@@ -104,6 +107,21 @@ export function SidePanel({ open, onOpenChange }: SidePanelProps) {
           <div className="px-2 py-1">
             <LanguageSwitcher onLocaleSelected={close} />
           </div>
+
+          {onOpenWorkMode && (
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                onOpenWorkMode();
+              }}
+              className={navItemClassName}
+              data-testid="side-panel-work-mode"
+            >
+              <KeyRound />
+              {t('navWorkMode')}
+            </button>
+          )}
 
           {isLoggedIn && (
             <>
