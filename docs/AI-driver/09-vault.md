@@ -1,14 +1,15 @@
 # 09 — Vault (encrypted multi-account wallet)
 
-> Status date: 2026-11-04, baseline `next@4def3cc4` + A3 (PR #382 A0, PR #383 A1,
+> Status date: 2026-11-04, baseline `next@cf76b353` + A4 (PR #382 A0, PR #383 A1,
 > A1.1 shared validation / canonical base64url / resource limits, PR #386 A2
 > IndexedDB registry + unlock-session service, PR #387 A3 backup export /
-> independent import / merge migration).
+> independent import / merge migration, PR #389 A4 manager / signer / signing
+> facade).
 > Covers only what has landed: type contracts, error taxonomy, envelope validation,
 > Web Crypto whole-envelope encryption, shared input validation with resource
-> boundaries, the registry/service layer and the backup/import/merge layer.
-> Manager/UI/migration (A4–A6) are not implemented yet — this doc grows with each
-> task package. Tracking issue: #381.
+> boundaries, the registry/service/backup layers and the manager + signer +
+> unified facade. Work-mode UI and caller migration (A5–A6) are not implemented
+> yet — this doc grows with each task package. Tracking issue: #381.
 
 ## Module map
 
@@ -28,6 +29,25 @@ src/lib/vault/registry.ts  IndexedDB layer (A2, PR #386): `steem-wallet-vault` v
                            atomic alias uniqueness inside one readwrite transaction
                            (comparison key scanned via getAll — never persisted, never
                            in the AAD); revision/lockEpoch CAS; abort-on-callback-throw
+src/lib/vault/manager.ts    VaultManager orchestration (A4, PR #389): the A0 ten
+                           methods plus unlockVault/importVaultDetailed (preMergeBackup
+                           handoff)/createSigner/destroy; merge -> service.lock() (the
+                           blueprint post-merge lock contract); changePassword re-encrypts
+                           with a fresh salt via swapRecord CAS (mutatePayload cannot
+                           change salt) and locks after
+src/lib/vault/signer.ts    Vault-mode signer (A4): op->authority table (19 relay ops +
+                           account_update/custom_json payload-based, unknown ops rejected,
+                           recover_account deliberately EXCLUDED — needs old+new owner
+                           dual signatures, see client.ts signRecoverAccount), one sorted
+                           batched authority fetch via accounts-client with fresh:true,
+                           lowest-privilege key selection over ALL key_auths with
+                           owner>active>posting downward coverage, memo never signs
+src/lib/vault/signing-facade.ts  Mode dispatch (A4): settings-backed signingMode
+                           (default privateKey), no silent fallback, backend errors
+                           propagate verbatim
+src/lib/auth/legacy-private-key-signer.ts  privateKey-mode signer (A4): injected WIF
+                           getter (A6 wiring point), deliberately NO authority pre-check
+                           (A6 acceptance: default privateKey behavior unchanged)
 src/lib/vault/backup.ts    Backup layer (A3, PR #387): exportVaultBackup (five-field envelope
                            + lastBackupAt CAS), importVaultBackup (single-password contract,
                            instance-bound adoption/rollback), mergeVaultBackup (target-first
@@ -51,6 +71,12 @@ tests/unit/vault-service.test.ts     13 cases: unlock/lock lifecycle, cross-tab
                            shuffle-stable per-case state (A2)
 tests/unit/vault-backup.test.ts      27 cases: export round-trip, import boundaries and
                            rollback races, merge dedupe/failure-atomicity (A3)
+tests/unit/vault-manager.test.ts     20 cases: the ten methods, post-merge lock hard
+                           contract, changePassword incl. cross-tab interleavings (A4)
+tests/unit/vault-signer.test.ts      29 cases: authority pre-check branches, key
+                           selection/coverage, frozen-tx integrity, recover_account
+                           exclusion (A4)
+tests/unit/signing-facade.test.ts    6 cases: mode dispatch, no fallback, persistence (A4)
 tests/mocks/fake-indexeddb.ts        hand-written in-memory IndexedDB fake (A2) — see
                            fidelity notes under Pitfalls
 tests/node/vault-wif-real-check.mjs  plain-`node` real-crypto WIF verification (A1.1;
@@ -256,20 +282,45 @@ goes through i18n) and never echo names, passwords, WIFs, ciphertext or payload.
     leaves the target ciphertext byte-identical. An empty/no-change source still
     rewrites the record (fresh IV, revision+1) — deliberate, do not add an
     equality short-circuit.
-  - **Post-merge lock is the Manager layer's job (blueprint contract).** The
-    low-level `mergeVaultBackup` deliberately does NOT lock (the A3 tests pin
-    `locked: false` at the primitive level), but the blueprint requires the
-    target to be locked after a successful merge, with revision and lockEpoch
-    advanced. A4's orchestration MUST call `service.lock()` right after a
-    successful merge and assert `locked: true` + `lockEpoch + 1`; a `lock()`
-    failure must still have cleared memory and must propagate. Likewise the
-    `preMergeBackup` must actually be delivered to the user (file save/download
-    or an explicit discard) before the UI claims the pre-migration backup is
-    done — the memory-only snapshot alone is not a completed backup.
+  - **Post-merge lock is the Manager layer's job (blueprint contract; LANDED
+    in A4).** The low-level `mergeVaultBackup` deliberately does NOT lock (the
+    A3 tests pin `locked: false` at the primitive level), but the blueprint
+    requires the target to be locked after a successful merge, with revision
+    and lockEpoch advanced. `manager.importVaultDetailed` calls `service.lock()`
+    right after a successful merge and its tests assert `locked: true` +
+    `lockEpoch + 1`; a `lock()` failure still has cleared memory and propagates.
+    The `preMergeBackup` flows out through `importVaultDetailed` — the UI (A5)
+    must deliver it to the user (file save/download or an explicit discard)
+    before claiming the pre-migration backup is done; the memory-only snapshot
+    alone is not a completed backup.
   - `exportVaultBackup` CAS-writes `lastBackupAt` — the revision bump invalidates
     unlocked sessions for that vault in ANY tab (including the caller's own
     service instance). UI flows should lock first or tolerate re-unlock after
     export.
+- **A4 has landed (manager / signer / facade)** — wiring rules for A5/A6:
+  - Components get ONE entry point: the `SigningFacade` (compose via
+    `createVaultManager(registry)` + `manager.createSigner()` + the legacy
+    signer with a WIF getter from the login state). Never build a signer at a
+    component, never query `/api/query/accounts` outside the vault signer.
+  - The vault signer's authority pre-check is per-signing-request: one sorted
+    batched `fetchAccounts(..., { fresh: true })` (bypasses browser L1 only —
+    the server keeps its 10s/300s cache governance); `degraded`/missing
+    accounts/malformed authority/fetch failure → `VAULT_AUTHORITY_UNAVAILABLE`
+    with ZERO signing calls. The legacy signer deliberately has NO pre-check
+    (A6 acceptance: default privateKey behavior unchanged).
+  - `recover_account` is deliberately unsupported through the facade/signers
+    (`VAULT_OPERATION_UNSUPPORTED`): it needs old+new owner dual signatures
+    (2026-10-08 incident, `tx_missing_other_auth`); recovery flows keep the
+    dedicated dual-key path in `client.ts` — do not route them into the vault
+    signer until multi-key signing exists.
+  - `changePassword` on an already-unlocked vault bumps lockEpoch by +2 (unlock
+    switch-clears +1, final lock +1) and a WRONG old password locks the
+    previously-unlocked session (retry needs a fresh unlock) — A5 UX should
+    account for both. `importVault` (the A0-shaped method) drops the
+    `preMergeBackup`; merge flows must use `importVaultDetailed`.
+  - Known residual (documented in code): the same-millisecond remove+recreate
+    `createdAt` collision (A2 invariant 11) and the sub-ms rollback window in
+    A3 import; both need a future schema-level record id to fully close.
 - **New vault tests**: follow the fixture-recompute discipline; never copy WIFs or
   passwords into `src/`. Anything touching WIF handling needs BOTH layers: mock-driven
   vitest cases plus a rerun of `tests/node/vault-wif-real-check.mjs` recorded in the
