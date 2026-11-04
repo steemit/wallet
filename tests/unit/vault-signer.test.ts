@@ -1,9 +1,12 @@
 // Vault signer tests (A4). Storage runs on the hand-written fake IndexedDB
 // (tests/mocks/fake-indexeddb.ts — see its FIDELITY BOUNDARY header); the
 // unlocked vault is the fixed fixture envelope, so one unlock per test pays
-// one PBKDF2 derivation (~0.5-0.8s). Whole-file budget: 17 derivations
-// (beforeAll 1 for the memo-vault envelope + 16 in-test unlocks; the legacy
-// privateKey-signer block derives nothing). Per-test timeouts accordingly.
+// one PBKDF2 derivation (~0.5-0.8s). Whole-file budget: 20 derivations
+// (beforeAll 1 for the memo-vault envelope + 19 in-test unlock executions:
+// the authority-precheck it.each unlocks 4x, the frozen-transaction
+// beforeEach unlocks once per its 4 tests, eleven single unlocks elsewhere;
+// the unsupported-operation and legacy privateKey-signer blocks derive
+// nothing). Per-test timeouts accordingly.
 //
 // MOCK DISCIPLINE (two layers, per docs/AI-driver/08-testing.md and the A1.1
 // ruling):
@@ -260,6 +263,7 @@ describe('vault signer (A4)', () => {
       };
       expectClassifierRejection([]);
       expectClassifierRejection([['vote', {}]]);
+      expectClassifierRejection([['recover_account', {}]]);
       expectClassifierRejection([['transfer', 'not-an-object']]);
       expectClassifierRejection([['custom_json', { id: 'x', json: '{}' }]]);
     });
@@ -500,6 +504,34 @@ describe('vault signer (A4)', () => {
           accountName: 'alice',
           role: 'posting',
           operations: [['piquant_novel_op', {}]],
+        }),
+      ).rejects.toMatchObject({ code: 'VAULT_OPERATION_UNSUPPORTED' });
+      expect(mockFetchAccounts).not.toHaveBeenCalled();
+      expect(signCalls()).toBe(0);
+    });
+
+    it('recover_account is deliberately unsupported: VAULT_OPERATION_UNSUPPORTED, zero signing', async () => {
+      // Chain semantics: recover_account requires the old (recent) owner AND
+      // the new owner to BOTH sign (client.ts signRecoverAccount; the
+      // 2026-10-08 production incident — a single owner signature is
+      // rejected with tx_missing_other_auth). The vault signer's
+      // single-key model cannot express dual-key signing, so the op is
+      // deliberately absent from the table and fails closed here; recovery
+      // flows keep their dedicated dual-key path.
+      await expect(
+        manager.createSigner().signOperations({
+          accountName: 'alice',
+          role: 'owner',
+          operations: [
+            [
+              'recover_account',
+              {
+                account_to_recover: 'alice',
+                new_owner_authority: { weight_threshold: 1, account_auths: [], key_auths: [] },
+                recent_owner_authority: { weight_threshold: 1, account_auths: [], key_auths: [] },
+              },
+            ],
+          ],
         }),
       ).rejects.toMatchObject({ code: 'VAULT_OPERATION_UNSUPPORTED' });
       expect(mockFetchAccounts).not.toHaveBeenCalled();

@@ -9,9 +9,14 @@
 // Performance: PBKDF2 600k costs ~0.5-0.8s per derivation. Exactly ONE is
 // paid in beforeAll (the KEK that seals the shared import/merge source
 // envelope); each test then pays only for the derivations its own calls
-// perform (create 1, unlock 1, independent import 3, merge 2 + re-unlock,
-// changePassword 2 + verification re-unlocks, probe authentications 1).
-// Whole-file budget: ~34 derivations; per-test budgets are set as timeouts.
+// perform (measured counts: create 1; unlock 1 — also 1 when the password
+// is wrong, derivation precedes authentication; independent import 3 per
+// success — backup-envelope open 1 + registry createVault 1 + the import's
+// internal session unlock 1 — or 1 on a wrong source password; merge 1
+// after its pre-unlock (the post-merge lock derives nothing) plus the
+// re-unlock; changePassword 2 plus verification re-unlocks; probe
+// authentications 1). Whole-file budget: 37 derivations (1 beforeAll +
+// 36 in-test); per-test budgets are set as timeouts.
 // Do not add unlock-happy tests without pruning.
 //
 // The BLUEPRINT HARD CONTRACT acceptance lives here: a successful merge

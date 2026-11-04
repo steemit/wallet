@@ -47,8 +47,7 @@ import { fetchAccounts, type AccountsResponse } from '@/lib/steem/accounts-clien
 import { isValidSteemUsernameFormat, normalizeSteemUsername } from '@/lib/steem/username';
 import type { KeyAuthority, Operation, SteemAccount } from '@/lib/steem/types';
 import { VaultError } from './errors';
-import type { VaultRegistry } from './registry';
-import type { VaultService, VaultServiceStatus } from './service';
+import type { VaultService } from './service';
 import type {
   SignOperationsRequest,
   SignResolvedTransactionRequest,
@@ -74,7 +73,18 @@ export type AuthorityClass = 'posting' | 'active' | 'owner';
  *   - `account_update` — owner when the payload carries an `owner` authority,
  *     active otherwise;
  *   - `custom_json` — active when `required_auths` is non-empty, posting when
- *     only `required_posting_auths` is present.
+ *     only `required_posting_auths` is present. When BOTH lists are non-empty
+ *     the chain requires BOTH authorities and a single-key signature does not
+ *     suffice — the complete mixed-authority mapping is B0's job.
+ * `recover_account` is DELIBERATELY EXCLUDED: Steem chain semantics require
+ * the old (recent) owner AND the new owner to BOTH sign the transaction —
+ * signing with a single owner key is rejected by steemd with
+ * `tx_missing_other_auth` (see `signRecoverAccount` in
+ * `src/lib/steem/client.ts` and the 2026-10-08 production incident). The
+ * vault signer's single-key model cannot express that, so a recover_account
+ * request fails closed with `VAULT_OPERATION_UNSUPPORTED` (unknown-to-this-
+ * table path). Recovery flows must keep their dedicated dual-key path and
+ * must NOT be routed through the vault signer until multi-key signing lands.
  * UNKNOWN OPERATION TYPES ARE REJECTED (`VAULT_OPERATION_UNSUPPORTED`,
  * fail closed). This table is the A4 interim classifier: the complete
  * per-operation authority/account-field mapping (incl. mixed-authority and
@@ -104,7 +114,6 @@ const OPERATION_AUTHORITY_CLASSES: Readonly<Record<string, AuthorityClass>> = {
   claim_reward_balance: 'posting',
   // owner-class operations
   change_recovery_account: 'owner',
-  recover_account: 'owner',
 };
 
 /** Authority levels in ascending privilege — the chain's coverage direction. */
@@ -440,24 +449,23 @@ async function fetchAuthorityAccounts(names: readonly string[]): Promise<Map<str
  * ran at entry (`getStatus`), but the authority query and the transaction
  * header fetch leave await gaps during which the vault could be locked,
  * mutated, renamed or removed (by this tab or another). Before the WIF is
- * used, re-read the registry and compare the snapshot's counters. `createdAt`
- * is not observable through the service status; the four-field comparison
- * remains the service's job on its next session-bound operation — this check
- * closes the signer-specific gap between "verified" and "signed".
+ * used, `service.getStatus()` re-runs the service's four-field hard line
+ * (`requireFreshSession`: name lookup + `createdAt` + `revision` +
+ * `lockEpoch`). This is deliberately the SERVICE's check, not a hand-rolled
+ * registry re-read: `createdAt` — the field that defeats a same-name
+ * remove+recreate whose counters happen to match (the session 0/0 natural
+ * recreate window found in the A4 review) — is not observable outside the
+ * service, so any local re-implementation would be a strictly weaker
+ * three-field variant. Failures surface as `VAULT_SESSION_STALE` (registry
+ * drift, including remove+recreate) or, when the session itself was cleared
+ * or locked mid-flight, `VAULT_LOCKED` from the service / `sessionStale()`
+ * here — all mean "unlock again", and nothing is signed.
  */
-async function assertSessionStillCurrent(
-  registry: VaultRegistry,
-  snapshot: VaultServiceStatus,
-): Promise<void> {
-  if (snapshot.vaultName === null) {
-    throw sessionStale();
-  }
-  const record = await registry.getRecord(snapshot.vaultName);
-  if (
-    record === null ||
-    record.revision !== snapshot.revision ||
-    record.lockEpoch !== snapshot.lockEpoch
-  ) {
+async function assertSessionStillCurrent(service: VaultService): Promise<void> {
+  const fresh = await service.getStatus();
+  if (fresh.locked) {
+    // No session left where the entry check saw one (cleared mid-flight by
+    // this tab's lock/destroy or an acceleration event).
     throw sessionStale();
   }
 }
@@ -510,12 +518,14 @@ async function signWithKey(
 }
 
 /**
- * Build the vault-mode signer over a registry and an unlock-session service.
- * The service instance MUST be the one whose session the surrounding UI
- * unlocks (one tab = one manager = one service; see
- * `VaultManager.createSigner` for the sanctioned composition).
+ * Build the vault-mode signer over an unlock-session service. The service
+ * instance MUST be the one whose session the surrounding UI unlocks (one tab
+ * = one manager = one service; see `VaultManager.createSigner` for the
+ * sanctioned composition). Every session question — entry check and the
+ * mid-flight re-verification before the WIF is used — goes through the
+ * service's own hard line; the signer keeps no registry access of its own.
  */
-export function createVaultSigner(registry: VaultRegistry, service: VaultService) {
+export function createVaultSigner(service: VaultService) {
   return {
     /**
      * Sign freshly built operations with a key from the unlocked vault.
@@ -553,7 +563,7 @@ export function createVaultSigner(registry: VaultRegistry, service: VaultService
         );
       }
       const header = await apiClient.getTransactionHeader();
-      await assertSessionStillCurrent(registry, status);
+      await assertSessionStillCurrent(service);
       const unsigned: UnsignedTransaction = {
         ref_block_num: header.ref_block_num,
         ref_block_prefix: header.ref_block_prefix,
@@ -604,7 +614,7 @@ export function createVaultSigner(registry: VaultRegistry, service: VaultService
           'no vault-held key satisfies the account authority for the requested operations',
         );
       }
-      await assertSessionStillCurrent(registry, status);
+      await assertSessionStillCurrent(service);
       // Frozen semantics: the object is handed to the signer as-is. The txid
       // is computed over a shallow copy's normalized serialization so the
       // caller's frozen object is never mutated.

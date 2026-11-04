@@ -69,13 +69,6 @@ function notFound(): VaultError {
   return new VaultError('VAULT_NOT_FOUND', 'no vault exists under that name');
 }
 
-function sessionStale(): VaultError {
-  return new VaultError(
-    'VAULT_SESSION_STALE',
-    'the unlocked vault changed outside this session; unlock again',
-  );
-}
-
 /**
  * The manager's extended surface: the A0 `VaultManager` interface VERBATIM
  * plus the orchestration extras A4/A5 need (the A0 interface alone has no way
@@ -216,6 +209,12 @@ export function createVaultManager(registry: VaultRegistry): VaultManagerExtende
       return summarize(record, status);
     },
 
+    /**
+     * A0-shaped import (summary only). For a MERGE migration prefer
+     * {@link VaultManagerExtended.importVaultDetailed}: this method drops
+     * the `preMergeBackup` snapshot, and a merge caller who ignores the
+     * pre-migration backup handoff loses the merge's safety net.
+     */
     async importVault(params: ImportVaultParams): Promise<VaultSummary> {
       const { summary } = await importVaultDetailed(params);
       return summary;
@@ -295,6 +294,24 @@ export function createVaultManager(registry: VaultRegistry): VaultManagerExtende
       await registry.bumpLockEpoch(vaultName);
     },
 
+    /**
+     * Re-encrypt the vault under a new password: fresh salt + fresh KEK via
+     * registry CAS, then lock (the session holds the OLD KEK; the closing
+     * lock's epoch bump also stales other tabs' sessions for this vault).
+     *
+     * Lock accounting when THIS manager already holds the same vault
+     * unlocked: the net `lockEpoch` movement is +2 — the internal `unlock`
+     * switches sessions first (clearing the previous one persists its own
+     * +1), and the final `lock()` adds another +1. Both bumps are safe in
+     * either direction: an epoch only ever moves forward, and every bump
+     * just invalidates other tabs' sessions for this vault.
+     *
+     * A WRONG old password still runs the unlock's switch semantics first:
+     * any session this service held (the same vault included) is locked and
+     * NOT restored when authentication then fails — after a failed attempt
+     * the caller must unlock again (the A5 UI should say so, not just
+     * prompt for a retry).
+     */
     async changePassword(
       vaultName: string,
       oldPassword: string,
@@ -305,18 +322,24 @@ export function createVaultManager(registry: VaultRegistry): VaultManagerExtende
       // password's strength policy, THEN the re-encryption. mutatePayload is
       // unusable here by design: it rotates the IV but keeps the salt, and a
       // password change MUST mint a fresh salt + fresh KEK.
-      const status = await service.unlock(vaultName, oldPassword);
+      await service.unlock(vaultName, oldPassword);
       validateVaultPassword(newPassword);
       // Read the decrypted payload through the just-established session
-      // (vault-internal capture; see readUnlockedPayload's JSDoc).
+      // (vault-internal capture; see readUnlockedPayload's JSDoc — its
+      // mutatePayload ride already runs the service's four-field hard line).
       const payload = await readUnlockedPayload(service);
       // The CAS pointer must describe the record the SESSION unlocked —
       // rewriting from a record that moved underneath would revert a
-      // concurrent mutation with stale plaintext.
+      // concurrent mutation with stale plaintext. `service.getStatus()` IS
+      // that check, in its strongest form: it re-runs the service's
+      // four-field hard line (createdAt + revision + lockEpoch against the
+      // record) where the previous hand-rolled status compare could not see
+      // `createdAt` and thus missed a same-name remove+recreate landing on
+      // matching counters. Running it AFTER requireRecord pins the record
+      // whose createdAt the swap pointer below uses; `swapRecord`'s own CAS
+      // backstops the remaining read→write window.
       const record = await requireRecord(vaultName);
-      if (record.revision !== status.revision || record.lockEpoch !== status.lockEpoch) {
-        throw sessionStale();
-      }
+      await service.getStatus();
       const salt = generateVaultSalt();
       const iv = generateVaultIv();
       const kek = await deriveVaultKek(newPassword, salt);
@@ -363,7 +386,7 @@ export function createVaultManager(registry: VaultRegistry): VaultManagerExtende
     },
 
     createSigner() {
-      return createVaultSigner(registry, service);
+      return createVaultSigner(service);
     },
 
     destroy(): void {
