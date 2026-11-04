@@ -15,8 +15,11 @@
 // internal session unlock 1 — or 1 on a wrong source password; merge 1
 // after its pre-unlock (the post-merge lock derives nothing) plus the
 // re-unlock; changePassword 2 plus verification re-unlocks; probe
-// authentications 1). Whole-file budget: 37 derivations (1 beforeAll +
-// 36 in-test); per-test budgets are set as timeouts.
+// authentications 1). The review-r2 C2 race tests inject via a REAL second
+// service/manager (its unlock counts 1, a removeVault adds its probe 1 and
+// a recreate's createVault 1) and verify through one re-unlock each.
+// Whole-file budget: 48 derivations (1 beforeAll + 47 in-test); per-test
+// budgets are set as timeouts.
 // Do not add unlock-happy tests without pruning.
 //
 // The BLUEPRINT HARD CONTRACT acceptance lives here: a successful merge
@@ -34,7 +37,9 @@ import {
   type VaultManagerExtended,
 } from '@/lib/vault/manager';
 import { VAULT_DB_NAME, openVaultRegistry, type VaultRegistry } from '@/lib/vault/registry';
+import { createVaultService } from '@/lib/vault/service';
 import type { VaultEnvelopeV1, VaultKeyEntry, VaultRecordV1 } from '@/lib/vault/types';
+import { vaultNameComparisonKey } from '@/lib/vault/validation';
 
 const v = vectors.vault;
 
@@ -68,6 +73,74 @@ async function expectRejectedBy(
 }
 
 let fakeClock = 1_700_300_000_000;
+
+// BroadcastChannel plumbing shared by the cross-tab race tests: vitest jsdom
+// exposes Node's own BroadcastChannel (real delivery; an instance never
+// receives its own messages), so acceleration events can be hidden for
+// hard-line-only determinism and settled for delivery — the vault-service
+// suite's established pattern.
+const broadcastDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'BroadcastChannel');
+
+function hideBroadcastChannel(): void {
+  Object.defineProperty(globalThis, 'BroadcastChannel', {
+    value: undefined,
+    writable: true,
+    configurable: true,
+  });
+}
+
+function restoreBroadcastChannel(): void {
+  if (broadcastDescriptor) {
+    Object.defineProperty(globalThis, 'BroadcastChannel', broadcastDescriptor);
+  } else {
+    delete (globalThis as { BroadcastChannel?: unknown }).BroadcastChannel;
+  }
+}
+
+/** Let Node deliver queued BroadcastChannel acceleration events. */
+const waitBroadcast = (): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, 25);
+  });
+
+// changePassword's reads of the target record through a gated registry, in
+// order: unlock's initial read + born-stale recheck (2), the payload
+// capture's requireFreshSession read (1) — so the 4th read is
+// requireRecord's, the deterministic point BETWEEN the capture and the
+// freshness guard where review-r2's C2 interleavings land.
+const REQUIRE_RECORD_READ_INDEX = 4;
+
+/**
+ * Wrap a registry so the `getRecord` call changePassword's `requireRecord`
+ * makes for the target vault first runs `interleave()` to completion and
+ * settles BroadcastChannel delivery, then re-reads and returns the
+ * POST-interleave record (what the real flow would observe). The concurrent
+ * "other tab" must write through the RAW registry so the gate never
+ * re-enters. Pinned to the current changePassword read sequence — if the
+ * implementation changes the read order, these tests fail loudly rather
+ * than silently stop covering the window.
+ */
+function gateRequireRecord(
+  base: VaultRegistry,
+  targetVaultName: string,
+  interleave: () => Promise<void>,
+): VaultRegistry {
+  const targetKey = vaultNameComparisonKey(targetVaultName);
+  let targetReads = 0;
+  return {
+    ...base,
+    async getRecord(vaultName: string) {
+      if (vaultNameComparisonKey(vaultName) === targetKey) {
+        targetReads += 1;
+        if (targetReads === REQUIRE_RECORD_READ_INDEX) {
+          await interleave();
+          await waitBroadcast();
+        }
+      }
+      return base.getRecord(vaultName);
+    },
+  };
+}
 
 function makeRecord(
   vaultName: string,
@@ -399,6 +472,143 @@ describe('vault manager (A4)', () => {
       expect(record.revision).toBe(0);
       expect(record.lockEpoch).toBe(0);
     }, 30000);
+  });
+
+  describe('changePassword cross-tab races in the capture→guard window (review r2 C2)', () => {
+    // C2 regression: a cross-tab write landing between the payload capture
+    // and the pre-CAS freshness guard. changePassword must CHECK the value
+    // getStatus returns — the service answers a CLEARED session with
+    // `{ locked: true }` and does NOT throw (the hard line inside it never
+    // runs without a session to compare) — otherwise the stale captured
+    // plaintext gets re-encrypted over the concurrent write: the swap's CAS
+    // pointer comes from the POST-mutation requireRecord read, so the CAS
+    // itself cannot catch it.
+
+    it('a cross-tab mutation clearing the session mid-flow → STALE; the concurrent key survives, no new envelope', async () => {
+      // Tab B (a real second service over the same storage) bumps the
+      // revision and its vault-mutate acceleration event clears tab A's
+      // freshly-unlocked session — the exact interleaving where an unchecked
+      // getStatus guard is a no-op.
+      let injected = false;
+      let concurrentRecord: VaultRecordV1 | null = null;
+      const tabB = createVaultService(registry);
+      const gated = gateRequireRecord(registry, 'demo', async () => {
+        injected = true;
+        await tabB.unlock('demo', v.password);
+        await tabB.mutatePayload((draft) => {
+          draft.keys.push({ ...BOB_ENTRY });
+        });
+        concurrentRecord = await registry.getRecord('demo');
+      });
+      const tabA = createVaultManager(gated);
+      try {
+        await expectRejectedBy(
+          tabA.changePassword('demo', v.password, NEW_PASSWORD),
+          'VAULT_SESSION_STALE',
+        );
+        expect(injected).toBe(true);
+        // Storage keeps the concurrent write byte-for-byte: bob's mutation at
+        // revision 1, epoch 0, the ORIGINAL salt (no fresh-salt re-encryption
+        // — a password change mints one) and B's IV/ciphertext untouched.
+        const after = await currentRecord('demo');
+        expect(after).toEqual(concurrentRecord);
+        expect(after.revision).toBe(1);
+        expect(after.lockEpoch).toBe(0);
+        expect(after.salt).toBe(v.salt);
+        // And the payload really still carries both keys: the rollback shape
+        // would leave only alice.
+        await tabA.unlockVault('demo', v.password);
+        const accounts = await tabA.getAccounts();
+        expect(accounts.map((a) => a.accountName).sort()).toEqual(['alice', 'bob']);
+        const bob = accounts.find((a) => a.accountName === 'bob');
+        expect(bob?.keys).toEqual([
+          { accountName: 'bob', role: 'active', publicKey: bobPublicKey },
+        ]);
+      } finally {
+        tabA.destroy();
+        tabB.destroy();
+      }
+    }, 60000);
+
+    it('same interleave with BroadcastChannel hidden → the hard line catches the revision drift (deterministic backstop)', async () => {
+      // Belt-and-suspenders for the broadcast-timing-dependent test above:
+      // with no acceleration layer at all, the session survives in memory
+      // and the guard's getStatus runs the four-field hard line, sees the
+      // revision drift and clears + rejects. STALE either way.
+      hideBroadcastChannel();
+      let injected = false;
+      const tabB = createVaultService(registry);
+      const gated = gateRequireRecord(registry, 'demo', async () => {
+        injected = true;
+        await tabB.unlock('demo', v.password);
+        await tabB.mutatePayload((draft) => {
+          draft.keys.push({ ...BOB_ENTRY });
+        });
+      });
+      const tabA = createVaultManager(gated);
+      try {
+        await expectRejectedBy(
+          tabA.changePassword('demo', v.password, NEW_PASSWORD),
+          'VAULT_SESSION_STALE',
+        );
+        expect(injected).toBe(true);
+        const after = await currentRecord('demo');
+        expect(after.revision).toBe(1);
+        expect(after.lockEpoch).toBe(0);
+        expect(after.salt).toBe(v.salt);
+        await tabA.unlockVault('demo', v.password);
+        const accounts = await tabA.getAccounts();
+        expect(accounts.map((a) => a.accountName).sort()).toEqual(['alice', 'bob']);
+      } finally {
+        tabA.destroy();
+        tabB.destroy();
+        restoreBroadcastChannel();
+      }
+    }, 60000);
+
+    it('a same-count remove+recreate in the same window → STALE; the recreated instance is not overwritten', async () => {
+      // Second C2 shape: another tab removes the vault and recreates the
+      // SAME name. The recreated record's counters restart at 0/0 — exactly
+      // what the seeded original had — and the removal flow's lock broadcast
+      // clears tab A's session, so only the guard's return-value check
+      // stands between the stale captured plaintext and the recreated
+      // instance.
+      let injected = false;
+      let recreatedSnapshot: VaultRecordV1 | null = null;
+      const tabB = createVaultManager(registry);
+      const gated = gateRequireRecord(registry, 'demo', async () => {
+        injected = true;
+        // B holds the session, so its removeVault locks first (broadcast —
+        // clears tab A's session) after the probe authentication.
+        await tabB.unlockVault('demo', v.password);
+        await tabB.removeVault('demo', v.password);
+        await tabB.createVault({ vaultName: 'demo', password: v.password });
+        recreatedSnapshot = await registry.getRecord('demo');
+      });
+      const tabA = createVaultManager(gated);
+      try {
+        expect(recreatedSnapshot).toBeNull(); // sanity: injected only mid-flow
+        await expectRejectedBy(
+          tabA.changePassword('demo', v.password, NEW_PASSWORD),
+          'VAULT_SESSION_STALE',
+        );
+        expect(injected).toBe(true);
+        // The recreated instance survived byte-for-byte: fresh-salt empty
+        // vault at 0/0 — not the old plaintext under a new-password envelope.
+        const after = await currentRecord('demo');
+        expect(after).toEqual(recreatedSnapshot);
+        expect(after.revision).toBe(0);
+        expect(after.lockEpoch).toBe(0);
+        expect(after.salt).not.toBe(v.salt);
+        // Functionally: the vault still opens with the recreate password and
+        // is EMPTY — alice must not be resurrected by the old plaintext.
+        await tabA.unlockVault('demo', v.password);
+        await expect(tabA.getAccounts()).resolves.toEqual([]);
+      } finally {
+        tabA.destroy();
+        tabB.destroy();
+      }
+    }, 60000);
   });
 
   describe('lockVault — two semantics', () => {

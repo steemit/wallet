@@ -339,7 +339,25 @@ export function createVaultManager(registry: VaultRegistry): VaultManagerExtende
       // whose createdAt the swap pointer below uses; `swapRecord`'s own CAS
       // backstops the remaining read→write window.
       const record = await requireRecord(vaultName);
-      await service.getStatus();
+      // The guard only bites if the RETURN VALUE is checked: `getStatus`
+      // answers a CLEARED session softly — `{ locked: true }` — instead of
+      // throwing, because the hard line inside it never runs when there is
+      // no session left to compare (service.ts getStatus early-returns). A
+      // cross-tab lock/mutate acceleration event (BroadcastChannel) can
+      // clear this tab's session between the payload capture and this
+      // point; an unchecked call (review r2's C2) sails through exactly
+      // then, and the swap below would re-encrypt the STALE captured
+      // plaintext over the concurrent write — its CAS pointer comes from
+      // the post-mutation record above, so the CAS cannot catch it. Same
+      // shape as the signer's `assertSessionStillCurrent`: a session that
+      // vanished mid-flight is STALE, never "fine".
+      const fresh = await service.getStatus();
+      if (fresh.locked || fresh.vaultName === null) {
+        throw new VaultError(
+          'VAULT_SESSION_STALE',
+          'the unlocked vault changed outside this session; unlock again',
+        );
+      }
       const salt = generateVaultSalt();
       const iv = generateVaultIv();
       const kek = await deriveVaultKek(newPassword, salt);
