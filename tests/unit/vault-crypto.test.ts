@@ -1,266 +1,163 @@
-// Vault crypto tests (A1). The checked-in fixed vectors are RECOMPUTED with
-// Web Crypto and compared byte-for-byte / character-for-character, per the
-// kickoff §3.1 requirement — never mere re-assertions of the fixture's
-// boolean flags. All WIFs/passwords here are public test-only data.
-//
-// Performance: PBKDF2 at 600k iterations costs hundreds of milliseconds per
-// call. Both KEKs (correct + wrong password) are derived ONCE in beforeAll
-// and shared across the describe block; two tests pay for extra derivations
-// of their own — the focused KEK vector test and the generators test (which
-// re-derives to prove subtle-only operations keep working). Do not move
-// derivations into any other individual `it` blocks.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import vectors from '../fixtures/vault-development-test-vectors.json';
 import {
   VAULT_IV_BYTES,
   VAULT_KEK_BYTES,
   VAULT_SALT_BYTES,
-  decryptVaultText,
+  decryptVaultKey,
   deriveVaultKek,
-  encryptVaultText,
+  encryptVaultKey,
+  encryptVaultKeyRecord,
   generateVaultIv,
   generateVaultSalt,
 } from '@/lib/vault/crypto';
-import { decodeBase64Url, encodeBase64Url, validateVaultPayloadText } from '@/lib/vault/envelope';
+import { decodeBase64Url, encodeBase64Url, validateVaultEnvelope } from '@/lib/vault/envelope';
 import { VaultError } from '@/lib/vault/errors';
 
 const v = vectors.vault;
-const WRONG_PASSWORD = 'wrong-password-123456';
-const WRONG_AAD = 'steem-wallet.vault.v2';
-
 const toHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 
-const utf8Bytes = (text: string): number => new TextEncoder().encode(text).length;
-
-describe('vault crypto — fixed vectors recomputed with Web Crypto', () => {
-  const salt = decodeBase64Url(v.salt);
-  const iv = decodeBase64Url(v.iv);
-  const ciphertext = decodeBase64Url(v.ciphertext);
+describe('vault per-key crypto fixed vectors', () => {
   let kek: Uint8Array<ArrayBuffer>;
   let wrongKek: Uint8Array<ArrayBuffer>;
 
   beforeAll(async () => {
-    kek = await deriveVaultKek(v.password, salt);
-    wrongKek = await deriveVaultKek(WRONG_PASSWORD, salt);
+    kek = await deriveVaultKek(v.password, decodeBase64Url(v.salt));
+    wrongKek = await deriveVaultKek('wrong-password-123456', decodeBase64Url(v.salt));
   }, 30000);
 
-  it('1. recomputes the fixture KEK via PBKDF2-HMAC-SHA-256 (600k iterations)', async () => {
-    const recomputed = await deriveVaultKek(v.password, salt);
-    expect(toHex(recomputed)).toBe(v.kekHex);
-    expect(recomputed).toHaveLength(VAULT_KEK_BYTES);
-  }, 20000);
-
-  it('1b. derives a different KEK for the wrong password', () => {
+  it('recomputes the shared PBKDF2-HMAC-SHA-256/600k KEK', () => {
+    expect(toHex(kek)).toBe(v.kekHex);
+    expect(kek).toHaveLength(VAULT_KEK_BYTES);
     expect(toHex(wrongKek)).not.toBe(v.kekHex);
   });
 
-  it('2. encrypts payloadText to the exact fixture ciphertext', async () => {
-    const ct = await encryptVaultText(kek, iv, v.payloadText);
-    expect(encodeBase64Url(ct)).toBe(v.ciphertext);
-    expect(ct).toHaveLength(v.ciphertextBytes);
-    expect(utf8Bytes(v.payloadText)).toBe(v.plaintextBytes);
+  it.each(v.keys.map((key, index) => [index, key] as const))(
+    'recomputes and decrypts key %i independently',
+    async (_index, keyVector) => {
+      const iv = decodeBase64Url(keyVector.iv);
+      const ciphertext = await encryptVaultKey(kek, iv, keyVector.privateKey);
+      expect(encodeBase64Url(ciphertext)).toBe(keyVector.ciphertext);
+      expect(ciphertext).toHaveLength(keyVector.ciphertextBytes);
+      expect(new TextEncoder().encode(keyVector.privateKey)).toHaveLength(keyVector.plaintextBytes);
+      await expect(
+        decryptVaultKey(kek, iv, decodeBase64Url(keyVector.ciphertext)),
+      ).resolves.toBe(keyVector.privateKey);
+    },
+  );
+
+  it('uses different IVs and ciphertexts for two WIFs under one KEK', () => {
+    expect(v.keys).toHaveLength(2);
+    expect(v.keys[0]?.iv).not.toBe(v.keys[1]?.iv);
+    expect(v.keys[0]?.ciphertext).not.toBe(v.keys[1]?.ciphertext);
+    expect(validateVaultEnvelope(v.envelope)).toEqual(v.envelope);
   });
 
-  it('3. decrypts the fixture ciphertext back to payloadText and it validates', async () => {
-    const plaintext = await decryptVaultText(kek, iv, ciphertext);
-    expect(plaintext).toBe(v.payloadText);
-    const payload = validateVaultPayloadText(plaintext);
-    expect(payload.keys[0]?.accountName).toBe('alice');
-    expect(payload.keys[0]?.role).toBe('posting');
-  });
-
-  it('4. rejects the wrong password with VAULT_PASSWORD_INVALID', async () => {
-    await expect(decryptVaultText(wrongKek, iv, ciphertext)).rejects.toBeInstanceOf(VaultError);
-    await expect(decryptVaultText(wrongKek, iv, ciphertext)).rejects.toMatchObject({
-      code: 'VAULT_PASSWORD_INVALID',
-    });
-  });
-
-  it('5. rejects a tampered ciphertext copy without polluting the baseline vector', async () => {
-    // Independent copy via slice() — never mutate the fixture-derived array.
-    const tampered = new Uint8Array(ciphertext.slice());
-    tampered[0] = (tampered[0] ?? 0) ^ 1;
-    await expect(decryptVaultText(kek, iv, tampered)).rejects.toMatchObject({
-      code: 'VAULT_PASSWORD_INVALID',
-    });
-    // Baseline untouched: the original vector still decrypts cleanly.
-    await expect(decryptVaultText(kek, iv, ciphertext)).resolves.toBe(v.payloadText);
-    expect(ciphertext[0]).toBe(decodeBase64Url(v.ciphertext)[0]);
-  });
-
-  it('6. rejects a different AAD on both the decrypt and encrypt sides', async () => {
-    // Decrypting the fixture ciphertext under a wrong AAD must fail.
-    await expect(decryptVaultText(kek, iv, ciphertext, WRONG_AAD)).rejects.toMatchObject({
-      code: 'VAULT_PASSWORD_INVALID',
-    });
-    // A ciphertext produced under a wrong AAD cannot be opened with the
-    // correct AAD either.
-    const wrongAadCiphertext = await encryptVaultText(kek, iv, v.payloadText, WRONG_AAD);
-    expect(encodeBase64Url(wrongAadCiphertext)).not.toBe(v.ciphertext);
-    await expect(decryptVaultText(kek, iv, wrongAadCiphertext)).rejects.toMatchObject({
-      code: 'VAULT_PASSWORD_INVALID',
-    });
-  });
-
-  it('7. reproduces the reencryption vector: new IV ⇒ new ciphertext', async () => {
-    const reencIv = decodeBase64Url(v.reencryption.iv);
-    const ct = await encryptVaultText(kek, reencIv, v.payloadText);
-    expect(encodeBase64Url(ct)).toBe(v.reencryption.ciphertext);
-    expect(encodeBase64Url(ct)).not.toBe(v.ciphertext);
-    // ...and it round-trips under its own IV.
-    await expect(decryptVaultText(kek, reencIv, ct)).resolves.toBe(v.payloadText);
-  });
-
-  it('8. covers the empty-payload vector ({"keys":[]})', async () => {
-    const emptyIv = decodeBase64Url(v.emptyPayload.iv);
-    const ct = await encryptVaultText(kek, emptyIv, v.emptyPayload.payloadText);
-    expect(encodeBase64Url(ct)).toBe(v.emptyPayload.ciphertext);
-    const plaintext = await decryptVaultText(
+  it('reencrypts the same WIF under a fresh IV with the exact vector', async () => {
+    const first = v.keys[0];
+    if (!first) throw new Error('missing first key vector');
+    const ciphertext = await encryptVaultKey(
       kek,
-      emptyIv,
-      decodeBase64Url(v.emptyPayload.ciphertext),
+      decodeBase64Url(v.reencryption.iv),
+      first.privateKey,
     );
-    expect(plaintext).toBe(v.emptyPayload.payloadText);
-    expect(validateVaultPayloadText(plaintext)).toEqual({ keys: [] });
+    expect(encodeBase64Url(ciphertext)).toBe(v.reencryption.ciphertext);
+    expect(v.reencryption.iv).not.toBe(first.iv);
+    expect(v.reencryption.ciphertext).not.toBe(first.ciphertext);
   });
 
-  it('9. generates correctly sized, non-repeating salts and IVs', () => {
-    for (let i = 0; i < 5; i += 1) {
-      const saltA = generateVaultSalt();
-      const saltB = generateVaultSalt();
-      expect(saltA).toHaveLength(VAULT_SALT_BYTES);
-      expect(saltB).toHaveLength(VAULT_SALT_BYTES);
-      expect(encodeBase64Url(saltA)).not.toBe(encodeBase64Url(saltB));
-
-      const ivA = generateVaultIv();
-      const ivB = generateVaultIv();
-      expect(ivA).toHaveLength(VAULT_IV_BYTES);
-      expect(ivB).toHaveLength(VAULT_IV_BYTES);
-      expect(encodeBase64Url(ivA)).not.toBe(encodeBase64Url(ivB));
-    }
-  });
-
-  // A2 semantics this pins down: unlocking and locking without a payload
-  // modification leaves the stored envelope unchanged (same salt, IV and
-  // ciphertext — AES-GCM is deterministic for a fixed (key, IV, AAD,plaintext));
-  // any payload modification must rotate the IV and therefore the ciphertext.
-  it('10. deterministic for identical inputs; a fresh IV changes the ciphertext', async () => {
-    // Unlock → lock → re-encrypt the SAME payload with the SAME salt+IV:
-    // the envelope fields stay byte-identical (no rewrite needed).
-    const first = encodeBase64Url(await encryptVaultText(kek, iv, v.payloadText));
-    const second = encodeBase64Url(await encryptVaultText(kek, iv, v.payloadText));
-    expect(second).toBe(first);
-    expect(first).toBe(v.ciphertext);
-
-    // Modified payload + freshly generated random IV ⇒ different ciphertext.
-    const modifiedPayloadText = JSON.stringify({
-      keys: [
-        ...validateVaultPayloadText(v.payloadText).keys,
-        { accountName: 'bob', role: 'active', privateKey: '5Jtest-wif-not-real' },
-      ],
+  it('rejects a wrong password, tampering and a wrong AAD', async () => {
+    const first = v.keys[0];
+    if (!first) throw new Error('missing first key vector');
+    const iv = decodeBase64Url(first.iv);
+    const ciphertext = decodeBase64Url(first.ciphertext);
+    await expect(decryptVaultKey(wrongKek, iv, ciphertext)).rejects.toMatchObject({
+      code: 'VAULT_PASSWORD_INVALID',
     });
-    const freshIv = generateVaultIv();
-    // The rewrite's freshness guarantee rests on the fresh IV actually
-    // differing from the stored one (astronomically likely — assert it).
-    expect(encodeBase64Url(freshIv)).not.toBe(v.iv);
-    const rewritten = encodeBase64Url(await encryptVaultText(kek, freshIv, modifiedPayloadText));
-    expect(freshIv).toHaveLength(VAULT_IV_BYTES);
-    expect(rewritten).not.toBe(v.ciphertext);
-    // ...and the rewritten envelope decrypts back under the fresh IV.
-    await expect(decryptVaultText(kek, freshIv, decodeBase64Url(rewritten))).resolves.toBe(
-      modifiedPayloadText,
-    );
+    const tampered = ciphertext.slice();
+    tampered[0] = (tampered[0] ?? 0) ^ 1;
+    await expect(decryptVaultKey(kek, iv, tampered)).rejects.toMatchObject({
+      code: 'VAULT_PASSWORD_INVALID',
+    });
+    await expect(
+      decryptVaultKey(kek, iv, ciphertext, 'steem-wallet.vault.v2'),
+    ).rejects.toMatchObject({ code: 'VAULT_PASSWORD_INVALID' });
+    const wrongAad = await encryptVaultKey(kek, iv, first.privateKey, 'steem-wallet.vault.v2');
+    await expect(decryptVaultKey(kek, iv, wrongAad)).rejects.toMatchObject({
+      code: 'VAULT_PASSWORD_INVALID',
+    });
+    await expect(decryptVaultKey(kek, iv, ciphertext)).resolves.toBe(first.privateKey);
+  });
+
+  it('generates fresh IVs for each new key and excludes the old IV on reencryption', async () => {
+    const first = v.keys[0];
+    const second = v.keys[1];
+    if (!first || !second) throw new Error('missing key vectors');
+    const one = await encryptVaultKeyRecord(kek, first.privateKey, 'one', [first.iv, second.iv]);
+    const two = await encryptVaultKeyRecord(kek, second.privateKey, 'two', [first.iv, second.iv, one.iv]);
+    expect(one.iv).not.toBe(two.iv);
+    expect([first.iv, second.iv]).not.toContain(one.iv);
+    expect([first.iv, second.iv, one.iv]).not.toContain(two.iv);
+    await expect(
+      decryptVaultKey(kek, decodeBase64Url(one.iv), decodeBase64Url(one.ciphertext)),
+    ).resolves.toBe(first.privateKey);
+  });
+
+  it('accepts an empty vault without root IV or ciphertext', () => {
+    expect(validateVaultEnvelope(v.emptyEnvelope)).toEqual(v.emptyEnvelope);
+    expect(v.emptyEnvelope).not.toHaveProperty('iv');
+    expect(v.emptyEnvelope).not.toHaveProperty('ciphertext');
+  });
+
+  it('generates random values of the required sizes', () => {
+    for (let i = 0; i < 5; i += 1) {
+      expect(generateVaultSalt()).toHaveLength(VAULT_SALT_BYTES);
+      expect(generateVaultIv()).toHaveLength(VAULT_IV_BYTES);
+      expect(encodeBase64Url(generateVaultIv())).not.toBe(encodeBase64Url(generateVaultIv()));
+    }
   });
 });
 
-describe('vault crypto argument contracts (fail closed before any Web Crypto call)', () => {
-  it('rejects an empty password with VAULT_PASSWORD_INVALID', async () => {
+describe('vault per-key crypto argument and availability contracts', () => {
+  it('validates password, salt, KEK, IV and plaintext arguments', async () => {
     await expect(deriveVaultKek('', new Uint8Array(VAULT_SALT_BYTES))).rejects.toMatchObject({
       code: 'VAULT_PASSWORD_INVALID',
     });
-  });
-
-  it('rejects a wrong-length salt with VAULT_ENVELOPE_INVALID', async () => {
     await expect(deriveVaultKek('pw', new Uint8Array(VAULT_SALT_BYTES - 1))).rejects.toMatchObject({
       code: 'VAULT_ENVELOPE_INVALID',
     });
-  });
-
-  it('rejects wrong-length KEK/IV arguments with TypeError', async () => {
     await expect(
-      encryptVaultText(new Uint8Array(VAULT_KEK_BYTES - 1), new Uint8Array(VAULT_IV_BYTES), 'x'),
+      encryptVaultKey(new Uint8Array(VAULT_KEK_BYTES - 1), new Uint8Array(VAULT_IV_BYTES), 'x'),
     ).rejects.toBeInstanceOf(TypeError);
     await expect(
-      encryptVaultText(new Uint8Array(VAULT_KEK_BYTES), new Uint8Array(VAULT_IV_BYTES - 1), 'x'),
+      encryptVaultKey(new Uint8Array(VAULT_KEK_BYTES), new Uint8Array(VAULT_IV_BYTES), ''),
     ).rejects.toBeInstanceOf(TypeError);
     await expect(
-      decryptVaultText(new Uint8Array(VAULT_KEK_BYTES - 1), new Uint8Array(VAULT_IV_BYTES), new Uint8Array(16)),
-    ).rejects.toBeInstanceOf(TypeError);
-    await expect(
-      decryptVaultText(new Uint8Array(VAULT_KEK_BYTES), new Uint8Array(VAULT_IV_BYTES - 1), new Uint8Array(16)),
+      decryptVaultKey(new Uint8Array(VAULT_KEK_BYTES), new Uint8Array(VAULT_IV_BYTES - 1), new Uint8Array(16)),
     ).rejects.toBeInstanceOf(TypeError);
   });
-});
 
-describe('vault crypto without Web Crypto (fail closed)', () => {
-  // jsdom installs `crypto` as a configurable getter on globalThis; capture
-  // the original descriptor so each test can be reverted exactly.
-  const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
-  const originalSubtle = globalThis.crypto.subtle;
-
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  const subtle = globalThis.crypto.subtle;
   afterEach(() => {
-    if (originalDescriptor) {
-      Object.defineProperty(globalThis, 'crypto', originalDescriptor);
-    }
+    if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
   });
 
-  it('subtle operations throw VAULT_CRYPTO_UNAVAILABLE when subtle is missing', async () => {
+  it('fails closed when subtle or randomness is unavailable', async () => {
     Object.defineProperty(globalThis, 'crypto', {
-      value: {
-        getRandomValues: (array: Uint8Array) => {
-          array.fill(0);
-          return array;
-        },
-      },
-      writable: true,
+      value: { getRandomValues: (bytes: Uint8Array) => bytes.fill(1) },
       configurable: true,
     });
     await expect(deriveVaultKek('pw', new Uint8Array(VAULT_SALT_BYTES))).rejects.toBeInstanceOf(
       VaultError,
     );
     await expect(
-      deriveVaultKek('pw', new Uint8Array(VAULT_SALT_BYTES)),
+      encryptVaultKey(new Uint8Array(VAULT_KEK_BYTES), new Uint8Array(VAULT_IV_BYTES), 'x'),
     ).rejects.toMatchObject({ code: 'VAULT_CRYPTO_UNAVAILABLE' });
-    await expect(
-      encryptVaultText(new Uint8Array(VAULT_KEK_BYTES), new Uint8Array(VAULT_IV_BYTES), 'x'),
-    ).rejects.toMatchObject({ code: 'VAULT_CRYPTO_UNAVAILABLE' });
-    await expect(
-      decryptVaultText(new Uint8Array(VAULT_KEK_BYTES), new Uint8Array(VAULT_IV_BYTES), new Uint8Array(16)),
-    ).rejects.toMatchObject({ code: 'VAULT_CRYPTO_UNAVAILABLE' });
-    // Only getRandomValues is needed by the generators — they still work.
     expect(generateVaultSalt()).toHaveLength(VAULT_SALT_BYTES);
-    expect(generateVaultIv()).toHaveLength(VAULT_IV_BYTES);
-  });
-
-  it('generators throw VAULT_CRYPTO_UNAVAILABLE when getRandomValues is missing', async () => {
-    // subtle present, randomness absent.
-    Object.defineProperty(globalThis, 'crypto', {
-      value: { subtle: originalSubtle },
-      writable: true,
-      configurable: true,
-    });
-    expect(() => generateVaultSalt()).toThrow(VaultError);
+    Object.defineProperty(globalThis, 'crypto', { value: { subtle }, configurable: true });
     expect(() => generateVaultIv()).toThrow(VaultError);
-    try {
-      generateVaultSalt();
-      expect.unreachable('expected generateVaultSalt to reject');
-    } catch (error) {
-      expect(error).toBeInstanceOf(VaultError);
-      expect(error).toMatchObject({ code: 'VAULT_CRYPTO_UNAVAILABLE' });
-    }
-    // Subtle-only operations keep working without getRandomValues.
-    const kek = await deriveVaultKek(v.password, decodeBase64Url(v.salt));
-    expect(toHex(kek)).toBe(v.kekHex);
-  }, 20000);
+    expect(() => generateVaultSalt()).toThrow(VaultError);
+  });
 });

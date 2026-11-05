@@ -76,6 +76,7 @@ function KeyConfirmationBody({ onConfirm }: { onConfirm: () => void }) {
           </p>
         </div>
         <p className="text-muted-foreground text-sm">{t('keyConfirmWarningChainKeys')}</p>
+        <p className="text-muted-foreground text-sm">{t('keyConfirmWarningPublicNotes')}</p>
         <div className="flex items-start gap-2">
           <Checkbox
             id="vault-key-confirmation-ack"

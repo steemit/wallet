@@ -24,7 +24,10 @@
 // state without reset effects.
 //
 // UX contracts digested from the A2–A4 layers (see docs/AI-driver/09-vault.md):
-//   - merge success LOCKS the target (manager hard contract): the completion
+//   - merge asks for the TARGET vault password in the dialog and never
+//     requires pre-unlocking the target (per-key contract: the password
+//     re-encrypts/derives per key, no global unlocked state is formed);
+//     merge success LOCKS the target (manager hard contract): the completion
 //     dialog says so and the refreshed list shows the locked state;
 //   - the merge's preMergeBackup is a MEMORY-ONLY snapshot — the completion
 //     dialog forces an explicit Download or Discard before it lets the user
@@ -657,13 +660,7 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
         open={mergeTarget !== null}
         onOpenChange={(next) => !next && setMergeTarget(null)}
         vaultName={mergeTarget ?? ''}
-        locked={
-          mergeTarget === null
-            ? true
-            : (vaults?.find((vault) => vault.vaultName === mergeTarget)?.locked ?? true)
-        }
         manager={manager}
-        onRequestUnlock={() => mergeTarget !== null && setUnlockTarget(mergeTarget)}
         onMerged={(result) => {
           setMergeResult(result);
           void refreshVaults();
@@ -1330,24 +1327,20 @@ function DeleteVaultForm({
 }
 
 // ---------------------------------------------------------------------------
-// Merge dialog (target must be unlocked on this tab first)
+// Merge dialog (target password authenticates the target per key)
 // ---------------------------------------------------------------------------
 
 function MergeBackupDialog({
   open,
   onOpenChange,
   vaultName,
-  locked,
   manager,
-  onRequestUnlock,
   onMerged,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vaultName: string;
-  locked: boolean;
   manager: VaultManagerExtended | null;
-  onRequestUnlock: () => void;
   onMerged: (result: { vaultName: string; preMergeBackup: VaultEnvelopeV1 | null }) => void;
 }) {
   const t = useTranslations('vault');
@@ -1361,9 +1354,7 @@ function MergeBackupDialog({
         {open && (
           <MergeBackupForm
             vaultName={vaultName}
-            locked={locked}
             manager={manager}
-            onRequestUnlock={onRequestUnlock}
             onMerged={(result) => {
               onMerged(result);
               onOpenChange(false);
@@ -1378,26 +1369,23 @@ function MergeBackupDialog({
 
 function MergeBackupForm({
   vaultName,
-  locked,
   manager,
-  onRequestUnlock,
   onMerged,
   onCancel,
 }: {
   vaultName: string;
-  locked: boolean;
   manager: VaultManagerExtended | null;
-  onRequestUnlock: () => void;
   onMerged: (result: { vaultName: string; preMergeBackup: VaultEnvelopeV1 | null }) => void;
   onCancel: () => void;
 }) {
   const t = useTranslations('vault');
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState('');
+  const [targetPassword, setTargetPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
 
-  const canSubmit = file !== null && password !== '' && !busy && !locked;
+  const canSubmit = file !== null && password !== '' && targetPassword !== '' && !busy;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -1406,14 +1394,18 @@ function MergeBackupForm({
     setErrorKey(null);
     try {
       const envelope = parseVaultEnvelopeJson(await readFileText(file));
-      // importVaultDetailed (merge mode) locks the target on success (A4 hard
-      // contract) and returns the memory-only preMergeBackup that the
-      // completion dialog must deliver before claiming anything is done.
+      // Per-key merge contract: the target stays locked — targetPassword
+      // authenticates the target inside the merge (the manager derives the
+      // target KEK per key and never opens a global unlocked state). Success
+      // still LOCKS the target (A4 hard contract) and returns the
+      // memory-only preMergeBackup that the completion dialog must deliver
+      // before claiming anything is done.
       const result = await manager.importVaultDetailed({
         mode: 'merge',
         envelope,
         password,
         targetVaultName: vaultName,
+        targetPassword,
       });
       onMerged({ vaultName: result.summary.vaultName, preMergeBackup: result.preMergeBackup });
     } catch (error) {
@@ -1424,48 +1416,38 @@ function MergeBackupForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      {locked ? (
-        <div className="bg-muted/40 rounded-md border border-dashed p-3">
-          <p className="text-muted-foreground text-sm">
-            {t('mergeRequiresUnlock', { name: vaultName })}
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="mt-2"
-            onClick={onRequestUnlock}
-            disabled={busy}
-          >
-            <Unlock data-icon="inline-start" aria-hidden />
-            {t('mergeUnlockFirst')}
-          </Button>
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="vault-merge-file">{t('mergeFileLabel')}</Label>
-            <Input
-              id="vault-merge-file"
-              type="file"
-              accept="application/json,.json"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              disabled={busy}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="vault-merge-password">{t('mergePasswordLabel')}</Label>
-            <Input
-              id="vault-merge-password"
-              type="password"
-              autoComplete="off"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              disabled={busy}
-            />
-          </div>
-        </>
-      )}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="vault-merge-file">{t('mergeFileLabel')}</Label>
+        <Input
+          id="vault-merge-file"
+          type="file"
+          accept="application/json,.json"
+          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          disabled={busy}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="vault-merge-password">{t('mergePasswordLabel')}</Label>
+        <Input
+          id="vault-merge-password"
+          type="password"
+          autoComplete="off"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          disabled={busy}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="vault-merge-target-password">{t('mergeTargetPasswordLabel')}</Label>
+        <Input
+          id="vault-merge-target-password"
+          type="password"
+          autoComplete="current-password"
+          value={targetPassword}
+          onChange={(event) => setTargetPassword(event.target.value)}
+          disabled={busy}
+        />
+      </div>
       {errorKey && <ErrorBox messageKey={errorKey} />}
       <DialogFooter>
         <Button

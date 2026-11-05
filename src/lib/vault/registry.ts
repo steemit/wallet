@@ -32,7 +32,7 @@
 // non-secret runtime state. Error messages never echo vault names, passwords,
 // salts, IVs, ciphertext or derived keys.
 import { encodeBase64Url, validateVaultEnvelope } from './envelope';
-import { deriveVaultKek, encryptVaultText, generateVaultIv, generateVaultSalt } from './crypto';
+import { deriveVaultKek, generateVaultSalt } from './crypto';
 import { VaultError } from './errors';
 import { validateVaultName, validateVaultPassword, vaultNameComparisonKey } from './validation';
 import type { VaultEnvelopeV1, VaultRecordV1, VaultSettingsV1 } from './types';
@@ -51,9 +51,6 @@ export const VAULT_STORE_SETTINGS = 'settings';
 
 /** Fixed key of the single row inside the `settings` store. */
 const SETTINGS_KEY = 'settings';
-
-/** Initial payload of a freshly created vault — an empty key list. */
-const EMPTY_PAYLOAD_TEXT = '{"keys":[]}';
 
 /**
  * Identifies the exact stored revision a CAS writer observed: a vault name
@@ -176,19 +173,13 @@ export interface VaultRegistry {
   close(): void;
 }
 
-/**
- * Extract and validate the five `VaultEnvelopeV1` fields of a record (fail
- * closed with `VAULT_ENVELOPE_INVALID`). The envelope view is what unlock,
- * export and backup consume — runtime fields (revision/lockEpoch/timestamps)
- * never enter it.
- */
+/** Extract the portable envelope; local concurrency fields never enter backups. */
 export function vaultRecordToEnvelope(record: VaultRecordV1): VaultEnvelopeV1 {
   return validateVaultEnvelope({
     version: record.version,
     vaultName: record.vaultName,
     salt: record.salt,
-    iv: record.iv,
-    ciphertext: record.ciphertext,
+    accounts: record.accounts,
   });
 }
 
@@ -231,8 +222,7 @@ function asRecord(value: unknown): VaultRecordV1 {
     version: raw['version'],
     vaultName: raw['vaultName'],
     salt: raw['salt'],
-    iv: raw['iv'],
-    ciphertext: raw['ciphertext'],
+    accounts: raw['accounts'],
   };
   const envelope = validateVaultEnvelope(candidate);
   const runtimeShape =
@@ -440,25 +430,14 @@ export async function openVaultRegistry(dbName: string = VAULT_DB_NAME): Promise
         throw nameExists();
       }
       const salt = generateVaultSalt();
-      const iv = generateVaultIv();
       const kek = await deriveVaultKek(params.password, salt);
-      let ciphertext: string;
-      try {
-        ciphertext = encodeBase64Url(await encryptVaultText(kek, iv, EMPTY_PAYLOAD_TEXT));
-      } finally {
-        // The registry never retains the KEK: zeroize the bytes and let the
-        // reference go out of scope. (The password string itself cannot be
-        // physically zeroed — dropping the argument reference is the best
-        // JavaScript can do.)
-        kek.fill(0);
-      }
+      kek.fill(0);
       const now = Date.now();
       const record: VaultRecordV1 = {
         version: 1,
         vaultName: displayName,
         salt: encodeBase64Url(salt),
-        iv: encodeBase64Url(iv),
-        ciphertext,
+        accounts: [],
         revision: 0,
         lockEpoch: 0,
         createdAt: now,
