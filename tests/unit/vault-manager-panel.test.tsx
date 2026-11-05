@@ -636,6 +636,29 @@ describe('VaultManagerPanel', () => {
     expect(await screen.findByText('errors.VAULT_SESSION_STALE')).toBeInTheDocument();
   });
 
+  it('row menu "Manage keys" opens the locked-state key manager view and back returns to the list', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('Main')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionManageKeys');
+    expect(await screen.findByTestId('vault-key-manager')).toBeInTheDocument();
+    // The directory is served by the public getAccounts API — locked-state
+    // browsing, no unlock call.
+    await waitFor(() => {
+      expect(state.manager.getAccounts).toHaveBeenCalledWith('Main');
+    });
+    expect(state.manager.unlockVault).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'backToList' }));
+    await waitFor(() => {
+      expect(screen.queryByTestId('vault-key-manager')).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('vault-section')).toBeInTheDocument();
+  });
+
   it('renders no key material anywhere in the tree', async () => {
     const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);

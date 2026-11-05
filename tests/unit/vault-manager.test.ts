@@ -10,16 +10,18 @@
 // Performance: PBKDF2 600k costs ~0.5-0.8s per derivation. Exactly ONE is
 // paid in beforeAll (the KEK that seals the shared import/merge source
 // envelope); each test then pays only for the derivations its own calls
-// perform (measured counts: create 1 + its verification unlock 1; unlock 1 —
-// also 1 when the password is wrong, derivation precedes authentication;
-// independent import 3 per success (source open 1 + createVault 1 + target
-// KEK 1) or 1 on a wrong source password; merge without pre-unlock 3
-// (manager's targetPassword unlock probe 1 + merge target/source KEKs 2), 1
-// on a wrong target password; changePassword 2 plus verification derivations;
-// the C2 race tests inject via a REAL second service/manager (its unlock
-// counts 1, an addKey adds 1, a remove+recreate path adds 3) and verify
-// through one re-unlock each). Per-test budgets are set as timeouts.
-// Do not add unlock-happy tests without pruning.
+// perform (measured counts: create 0 — the registry stores an EMPTY accounts
+// list, no crypto at all, only a test's own verification unlock costs 1;
+// unlock 1 — also 1 when the password is wrong, derivation precedes
+// authentication; independent import 2 per success (source KEK 1 + target
+// KEK 1 — createVault itself derives nothing) or 1 on a wrong source
+// password; merge without pre-unlock 3 (manager's targetPassword unlock
+// probe 1 + merge target/source KEKs 2), 1 on a wrong target password;
+// changePassword 3 (authenticating unlock 1 + old KEK 1 + new KEK 1) plus
+// verification derivations; the C2 race tests inject via a REAL second
+// service/manager (its unlock counts 1, an addKey adds 1, a remove+recreate
+// path adds 3) and verify through one re-unlock each). Per-test budgets are
+// set as timeouts. Do not add unlock-happy tests without pruning.
 //
 // The BLUEPRINT HARD CONTRACT acceptance lives here: a successful merge
 // orchestration must leave the target locked with lockEpoch +1 versus

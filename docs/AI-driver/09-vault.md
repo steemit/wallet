@@ -1,7 +1,8 @@
 # 09 — Vault (encrypted multi-account wallet)
 
-> Status date: 2026-11-05. **R1 (hierarchical per-key encryption) LANDED on this
-> branch** — `feat/vault-per-key-hierarchy`, on top of `origin/next@cee626a2`
+> Status date: 2026-11-05. **R1 (hierarchical per-key encryption) and R2 (key
+> management with on-chain verification and notes) LANDED on this branch** —
+> `feat/vault-per-key-hierarchy`, on top of `origin/next@cee626a2`
 > (work-mode modal); see `git log` on this branch for the exact commits. The
 > branch is NOT merged into `next` and no PR exists yet; everything below is
 > branch-only until that PR lands. Tracking issue: #381.
@@ -13,11 +14,13 @@
 > contracts, error taxonomy, V1
 > hierarchical envelope validation, per-key Web Crypto, shared input validation
 > with resource boundaries, the registry/service/backup layers, the manager +
-> signer + unified facade, and the A5 work-mode UI (mode switcher, vault manager
-> panel, empty/unlock/key-confirmation dialogs) updated for the per-key contract.
-> Not implemented: R2 (key-management UI, locked-state browsing), R3 (no-unlock
-> identity login), A6 caller migration, and the B-phase dapp — this doc grows
-> with each task package.
+> signer + unified facade, the A5 work-mode UI (mode switcher, vault manager
+> panel, empty/unlock/key-confirmation dialogs) updated for the per-key contract,
+> and the R2 key-management layer (on-chain verification orchestration, the
+> locked-state key-manager view, the add-key dialog with per-key password
+> encryption).
+> Not implemented: R3 (no-unlock identity login), A6 caller migration, and the
+> B-phase dapp — this doc grows with each task package.
 
 ## Module map
 
@@ -115,6 +118,23 @@ src/lib/vault/signer.ts    Per-key signer: request selects the exact encrypted
 src/lib/vault/signing-facade.ts  Mode dispatch (A4, unchanged): settings-backed
                            signingMode (default privateKey), no silent fallback,
                            backend errors propagate verbatim
+src/lib/vault/key-management.ts  R2 on-chain key verification (ADVICE, not
+                           gates): verifyKeysOnChain takes WIF-FREE candidates
+                           (accountName + role + publicKey — the caller derives
+                           the public key locally), runs ONE sorted deduped
+                           batched fetchAccounts fresh:true query and reports
+                           per candidate where the key sits on-chain: full
+                           key_auths scan of owner/active/posting (most
+                           privileged match wins) plus memo_key comparison
+                           (memo match = weight 1/threshold 1/suffices true).
+                           degraded/missing/malformed/fetch failure ->
+                           VAULT_AUTHORITY_UNAVAILABLE, zero side effects;
+                           malformed candidates -> VAULT_KEY_INVALID. Storage
+                           semantics (2026-11-05 ruling): sub-threshold keys
+                           (matched, suffices:false) and not-on-chain keys
+                           (matched:false) MAY be stored with UI warnings —
+                           the vault is storage, not proof of authority; the
+                           single-key signer keeps failing closed on both
 src/hooks/use-signing-mode.ts   A5 mode-state hook wrapping the facade's
                            getSigningMode/setSigningMode: success updates local
                            state in place (never reloads), failure rethrows with
@@ -133,7 +153,35 @@ src/components/vault/vault-manager.tsx  A5+R1 composition root + panel:
                            target (no pre-unlock step; the retired
                            mergeRequiresUnlock gate is gone), and the completion
                            dialog enforces download-or-explicit-discard of the
-                           preMergeBackup plus the post-merge LOCKED notice
+                           preMergeBackup plus the post-merge LOCKED notice.
+                           R2: the row menu's "Manage keys" opens the
+                           VaultKeyManager view; merge/changePassword catch
+                           handlers route VAULT_EMPTY to the scene-level
+                           mergeTargetEmpty / changePasswordEmpty i18n keys
+                           (sceneErrorKey) instead of the generic errors-table
+                           message
+src/components/vault/vault-key-manager.tsx  R2 key-manager view (locked-state
+                           browsing): renders the public directory from
+                           manager.getAccounts — account groups, per-role key
+                           counts, outer notes — with NO unlock; per-key
+                           operations ride manager.updateKeyNote / removeKey
+                           (account + role + IV pointer, explicit confirm
+                           dialog, no password — removal only deletes
+                           ciphertext); "Add key" opens ImportKeyDialog
+src/components/vault/import-key-dialog.tsx  R2 add-key dialog: account / role
+                           (four options, native select) / WIF / note / vault
+                           password (encrypts THAT ONE key only). Two-phase
+                           submit — local validateVaultWif (WIF -> public key;
+                           the WIF never leaves the component) ->
+                           verifyKeysOnChain (public key + account only) ->
+                           result box (matched / sub-threshold / memo /
+                           not-on-chain, warnings amber) -> explicit confirm ->
+                           manager.addKey. Duplicate detection = public
+                           directory (account, role) count before vs after the
+                           call (the service's no-op leaves it unchanged) ->
+                           keyAlreadyExists banner. WIF discipline: transient
+                           form state only, scrubbed on success/cancel/unmount,
+                           never Redux/logs/analytics/network
 src/components/vault/vault-empty-dialog.tsx  A5 three-option empty state
                            (create / import / continue browsing)
 src/components/vault/unlock-vault-dialog.tsx  A5 unlock (existing password only —
@@ -212,11 +260,25 @@ tests/unit/signing-facade.test.ts    6 cases: mode dispatch, no fallback, persis
 tests/unit/work-mode-switcher.test.tsx  7 cases: dual options + Legacy badge,
                            signed-out render, in-place switch, failure keeps the
                            previous mode + maps codes, busy state (A5)
-tests/unit/vault-manager-panel.test.tsx  18 cases: list/empty-dialog/create/
+tests/unit/vault-manager-panel.test.tsx  19 cases: list/empty-dialog/create/
                            unlock/export/delete/merge — merge reachable on a
                            LOCKED target with the target-password field +
-                           preMergeBackup delivery, storage-unavailable retry
-                           (A5+R1, mocked manager/facade)
+                           preMergeBackup delivery, storage-unavailable retry,
+                           row-menu -> key-manager view (A5+R1+R2, mocked
+                           manager/facade)
+tests/unit/vault-key-management.test.ts  19 cases: single sorted deduped fresh
+                           batch query, full-key_auths scan (second entry),
+                           sub-threshold/memo/not-on-chain results, privilege
+                           priority, malformed-pair skipping, degraded/
+                           missing/malformed/fetch fail-closed, empty-input
+                           no-network, candidate shape rejections (R2)
+tests/unit/vault-key-manager.test.tsx   10 cases: locked-state directory
+                           rendering, empty hint, add flow (matched/
+                           sub-threshold/not-on-chain/verification-failure/
+                           local-validation), idempotent already-stored banner,
+                           remove confirmation with the account+role+IV
+                           pointer, note editing, rendered-tree leak
+                           assertions (R2, mocked manager + verifyKeysOnChain)
 tests/unit/vault-i18n-errors.test.ts  4 cases: error-code -> i18n table completeness
                            across all four locales (A5)
 tests/e2e/vault-mode.spec.ts  2 cases, REAL browser IndexedDB + Web Crypto:
@@ -535,7 +597,15 @@ into, or changePassword on, a vault with zero key ciphertext).
   runs and the session pointer survives — the panel keeps showing the target
   as unlocked. Harmless security-wise (the pointer holds no key material) but
   inconsistent with the post-merge-lock story; do not build UX that assumes
-  merge failure ⇒ locked.
+  merge failure ⇒ locked. The same asymmetry exists on FAILED
+  `changePassword` paths that throw after the authenticating `unlock`
+  succeeded (empty-vault `VAULT_EMPTY` rejection, weak new password, CAS
+  stale in the capture→CAS window): the final `service.lock()` is skipped and
+  the session survives — while a WRONG old password ends the previous session
+  locked (the unlock locks the prior session before deriving). Qualified in
+  the R1 review round as a known non-security asymmetry (the session is a
+  non-sensitive pointer); pinned here so future UX does not assume failure ⇒
+  locked for either flow.
 - **The public directory is readable while locked — by design (R1 semantic
   change).** `getAccounts` / `getEnvelope` / `getRecordSnapshot` resolve
   session vault → active vault with no password; R2 locked-state browsing and
@@ -553,29 +623,34 @@ into, or changePassword on, a vault with zero key ciphertext).
   or ad-hoc crypto. Invariants 1–20 above are the contract. The branch must
   land as ONE PR targeted at `next` covering the whole R1–R3 arc (handoff §5
   step 5) — do not split.
-- **R2 (key management + notes) is next — scope and acceptance live in the
-  R1–R3 handoff task package (agent-share, 2026-11-05) §5 step 3.** Pointers:
-  - New UI: `src/components/vault/vault-key-manager.tsx` +
-    `import-key-dialog.tsx` wired into `vault-manager.tsx`
-    (`src/lib/vault/key-management.ts` only if a lib seam is genuinely
-    needed — `service.addKey` / `removeKey` / `updateKeyNote` already exist).
-  - Locked-state browsing renders the public directory (accounts, roles, key
-    counts, outer notes) with NO unlock; add-key form fields: account, role,
-    WIF, note, vault password — the password is used for that one encryption
-    only.
-  - On-chain association check: ONE `/api/query/accounts` `fresh: true` query,
-    scan ALL `key_auths` per role, compare `memo_key` for memo.
-  - Idempotent dedupe on `(accountName, role, publicKey)` — `service.addKey`
-    already returns the unchanged record when the role already holds the
-    public key (it decrypts the role's existing keys to compare).
-  - Removal locates the key by account + role + IV with an explicit second
-    confirmation; removing a role's last key drops the account entry
-    (`service.removeKey`).
-  - Legally-valid-but-sub-threshold keys may be STORED with a warning; the
-    signer keeps failing closed on them (invariant 19) until multi-key
-    signing exists.
-  - WIF lives only in the dialog's transient state and vault internals —
-    cleared on success/cancel/unmount; never Redux, logs, analytics, network.
+- **R2 (key management + notes) has landed on this branch** — settled
+  decisions future work must preserve:
+  - `src/lib/vault/key-management.ts` is a READ-ONLY orchestration seam (the
+    R1 service primitives `addKey` / `removeKey` / `updateKeyNote` are
+    untouched and remain the only writers); it receives WIF-FREE candidates
+    and answers with `{matched, authority, weight, threshold, suffices}` per
+    candidate. Verification results are ADVICE: sub-threshold and
+    not-on-chain keys are storable with warnings (2026-11-05 ruling), the
+    signer keeps failing closed (invariant 19).
+  - Locked-state browsing renders `manager.getAccounts` output directly —
+    never gate it behind an unlock (invariant 2).
+  - The add-key password encrypts THAT ONE key only; the WIF lives solely in
+    the dialog's transient state (scrubbed on success/cancel/unmount) and
+    the vault's internal primitives — never Redux, logs, analytics, network.
+  - Idempotent dedupe rides `service.addKey`'s no-op (duplicate publicKey in
+    the role → unchanged record); the UI detects it by comparing the public
+    directory's (account, role) key count before vs after the call and shows
+    an "already stored" banner.
+  - Removal locates keys by account + role + IV behind an explicit confirm
+    and needs NO vault password (it only deletes ciphertext).
+  - New i18n surface: `vault.keys*` / `vault.addKey*` / `vault.verify*` /
+    `keyAdded` / `keyAlreadyExists` keys plus the scene-level
+    `mergeTargetEmpty` / `changePasswordEmpty` (VAULT_EMPTY inside those two
+    forms is always the empty-vault password-anchor scene — the generic
+    errors-table message stays for "nothing to resolve"). All four locales,
+    locked symmetric by i18n-symmetry + vault-i18n-errors (the new keys live
+    in the `vault` namespace, NOT the errors table, so the bidirectional
+    code lock is unaffected).
 - **R3 (no-unlock identity login) — handoff §5 step 4.** Pointers: new
   `src/components/auth/vault-login-form.tsx` (two native selects fed by the
   outer `accounts` directory); `login-form.tsx` becomes a mode dispatcher
