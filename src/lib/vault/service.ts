@@ -38,7 +38,7 @@ interface VaultBroadcastMessage {
 }
 
 /** Non-sensitive record selection only; no password, KEK or plaintext WIF. */
-interface ActiveSession extends VaultRevisionPointer {}
+type ActiveSession = VaultRevisionPointer;
 
 export interface VaultService {
   unlock(vaultName: string, password: string): Promise<VaultServiceStatus>;
