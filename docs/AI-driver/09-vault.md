@@ -141,7 +141,14 @@ src/lib/vault/key-management.ts  R2 on-chain key verification (ADVICE, not
 src/hooks/use-signing-mode.ts   A5 mode-state hook wrapping the facade's
                            getSigningMode/setSigningMode: success updates local
                            state in place (never reloads), failure rethrows with
-                           the previous mode still displayed
+                           the previous mode still displayed. R3 fix
+                           (2026-11-05, e2e-caught): every INSTANCE re-reads the
+                           persisted mode on VAULT_WORK_MODE_CLOSED_EVENT and on
+                           tab visibility — a switch happens inside the Work
+                           Mode modal and only the switcher's own instance sees
+                           it, so without the re-read other mounted consumers
+                           (the LoginForm dispatcher, HomeRedirectOrLogin) kept
+                           rendering the stale mode after the modal closed
 src/components/vault/work-mode-switcher.tsx  A5 PrivateKey/Vault dual selector
                            (radiogroup) — device preference, works signed-out;
                            PrivateKey carries the Legacy/Deprecated badge

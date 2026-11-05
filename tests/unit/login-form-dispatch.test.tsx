@@ -22,7 +22,10 @@ import authReducer from '@/lib/store/slices/auth';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import type { VaultRuntime } from '@/components/vault/vault-manager';
 import type { SigningFacade, SigningMode } from '@/lib/vault/types';
-import { VAULT_WORK_MODE_OPEN_EVENT } from '@/components/vault/work-mode-events';
+import {
+  VAULT_WORK_MODE_CLOSED_EVENT,
+  VAULT_WORK_MODE_OPEN_EVENT,
+} from '@/components/vault/work-mode-events';
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -219,5 +222,34 @@ describe('LoginForm mode dispatch (R3)', () => {
     expect(privateKeyInput()).toBeInTheDocument();
     expect(screen.queryByTestId('vault-login-form-stub')).not.toBeInTheDocument();
     errorSpy.mockRestore();
+  });
+
+  it('re-reads the mode when the Work Mode modal closes — a switch back to PrivateKey swaps the surface in place', async () => {
+    // The mode switch itself happens inside the modal (another
+    // useSigningMode instance); this mounted surface learns about it only
+    // through the closed-event re-read (e2e-caught staleness bug, 2026-11-05).
+    const getSigningMode = vi
+      .fn<() => Promise<import('@/lib/vault/types').SigningMode>>()
+      .mockResolvedValueOnce('vault')
+      .mockResolvedValue('privateKey');
+    const facade = {
+      getSigningMode,
+      setSigningMode: vi.fn(),
+      signOperations: vi.fn(),
+      signResolvedTransaction: vi.fn(),
+    } as unknown as SigningFacade;
+    mockRuntime = { state: 'ready', manager: {} as never, facade };
+    renderLogin();
+
+    expect(await screen.findByTestId('vault-login-form-stub')).toBeInTheDocument();
+    expect(privateKeyInput()).not.toBeInTheDocument();
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(VAULT_WORK_MODE_CLOSED_EVENT));
+    });
+
+    expect(await screen.findByPlaceholderText('secretPlaceholder')).toBeInTheDocument();
+    expect(screen.queryByTestId('vault-login-form-stub')).not.toBeInTheDocument();
+    expect(getSigningMode).toHaveBeenCalledTimes(2);
   });
 });

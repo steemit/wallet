@@ -12,12 +12,25 @@
 //     rejection).
 //   - The mode is a device preference: it does NOT depend on the login
 //     state and is available signed-out.
+//   - STALE-INSTANCE REFRESH: a switch happens inside the Work Mode modal,
+//     and only the switcher's OWN useSigningMode instance sees the new value
+//     in place. Every OTHER mounted consumer (the LoginForm mode dispatcher,
+//     HomeRedirectOrLogin) would keep rendering the pre-switch mode after the
+//     modal closes — e2e-caught (2026-11-05): switching back to PrivateKey
+//     left the login page showing the vault identity selects with no way to
+//     sign in without a manual reload. The hook therefore re-reads the
+//     persisted mode when the Work Mode modal closes (the same
+//     VAULT_WORK_MODE_CLOSED_EVENT the R3 vault login form uses to refresh
+//     its directory) and when the tab becomes visible again (mode switched
+//     in another tab). Both are cheap settings-row reads; a null facade
+//     stays a no-op.
 //
 // This hook never touches key material — mode strings only.
 import { useCallback, useEffect, useState } from 'react';
 
 import { VaultError } from '@/lib/vault/errors';
 import type { SigningFacade, SigningMode } from '@/lib/vault/types';
+import { VAULT_WORK_MODE_CLOSED_EVENT } from '@/components/vault/work-mode-events';
 
 export interface UseSigningModeResult {
   /** The persisted mode, or null while it is loading / unavailable. */
@@ -79,6 +92,22 @@ export function useSigningMode(facade: SigningFacade | null): UseSigningModeResu
       cancelled = true;
     };
   }, [facade, reloadNonce]);
+
+  // Stale-instance refresh (see the header comment): re-read the persisted
+  // mode after in-modal switches (the closed event fires once the switch has
+  // already been persisted) and when the tab regains visibility.
+  useEffect(() => {
+    const reread = () => setReloadNonce((nonce) => nonce + 1);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') reread();
+    };
+    window.addEventListener(VAULT_WORK_MODE_CLOSED_EVENT, reread);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener(VAULT_WORK_MODE_CLOSED_EVENT, reread);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, []);
 
   const setMode = useCallback(
     async (next: SigningMode) => {
