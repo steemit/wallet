@@ -13,7 +13,7 @@
  *  - the create flow (name + password -> key-backup confirmation) lands the
  *    vault in the list, LOCKED (creation never auto-unlocks);
  *  - unlock / lock round-trip with the real PBKDF2 path;
- *  - export triggers a real browser download of the five-field backup;
+ *  - export triggers a real browser download of the four-field backup;
  *  - switching back to PrivateKey Mode keeps working.
  *
  * The vault password below is TEST-ONLY data (fixture discipline) and never
@@ -196,7 +196,7 @@ test.describe('Vault work mode', () => {
     await page.getByRole('menuitem', { name: 'Lock' }).click();
     await expect(row.getByText('Locked', { exact: true })).toBeVisible({ timeout: 15_000 });
 
-    // Export triggers a real browser download of the five-field backup.
+    // Export triggers a real browser download of the four-field backup.
     await row.getByRole('button', { name: 'Manage' }).click();
     const [download] = await Promise.all([
       page.waitForEvent('download'),

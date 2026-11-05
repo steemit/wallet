@@ -515,6 +515,33 @@ describe('vault manager (per-key hierarchy)', () => {
       expect(record.revision).toBe(0);
       expect(record.lockEpoch).toBe(0);
     }, 30000);
+
+    it('rejects changing the password of an empty vault (VAULT_EMPTY) — no key exists to anchor the old password', async () => {
+      // 2026-11-05 ruling: with zero key ciphertext the old password cannot
+      // be authenticated (unlock accepts ANY password for an empty vault),
+      // so changePassword is meaningless — the password of the NEXT addKey is
+      // the real anchor. The rejection must fire for ANY input pair.
+      const before = await currentRecord('beta');
+      await expectRejectedBy(
+        manager.changePassword('beta', v.password, NEW_PASSWORD),
+        'VAULT_EMPTY',
+      );
+      // Nothing was written: unlock alone cannot move the counters.
+      expect(await currentRecord('beta')).toEqual(before);
+      // A WRONG old password surfaces the same code — PASSWORD_INVALID is
+      // unknowable without a key to probe. Second manager so the first call's
+      // surviving session cannot bump lockEpoch on switch-lock.
+      const second = createVaultManager(registry);
+      try {
+        await expectRejectedBy(
+          second.changePassword('beta', 'wrong-password-123456', NEW_PASSWORD),
+          'VAULT_EMPTY',
+        );
+      } finally {
+        second.destroy();
+      }
+      expect(await currentRecord('beta')).toEqual(before);
+    }, 30000);
   });
 
   describe('changePassword cross-tab races in the capture→CAS window (review r2 C2)', () => {

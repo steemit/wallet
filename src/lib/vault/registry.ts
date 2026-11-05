@@ -24,15 +24,16 @@
 // - Fail closed: a missing `indexedDB` global, a failed `open`, or a failed
 //   transaction rejects with `VAULT_STORAGE_UNAVAILABLE`. There is NO
 //   in-memory fallback pretending to be persistence.
-// - The registry never retains a KEK: `createVault` derives one, encrypts the
-//   empty payload, zeroizes the bytes (`fill(0)`) and drops the reference in
-//   the same scope.
+// - The registry never touches a KEK: `createVault` stores an empty key list
+//   under a fresh salt — zero keys exist at creation, so there is no
+//   ciphertext yet. Key sealing (and the per-operation KEK derivation and
+//   zeroization) happens in the service layer when keys are added.
 //
 // SENSITIVE-DATA RULES: records carry only envelope fields (ciphertext) and
 // non-secret runtime state. Error messages never echo vault names, passwords,
 // salts, IVs, ciphertext or derived keys.
 import { encodeBase64Url, validateVaultEnvelope } from './envelope';
-import { deriveVaultKek, generateVaultSalt } from './crypto';
+import { generateVaultSalt } from './crypto';
 import { VaultError } from './errors';
 import { validateVaultName, validateVaultPassword, vaultNameComparisonKey } from './validation';
 import type { VaultEnvelopeV1, VaultRecordV1, VaultSettingsV1 } from './types';
@@ -100,14 +101,15 @@ export interface VaultRegistry {
    * strength policy (`VAULT_PASSWORD_WEAK` — this IS the create primitive, the
    * check is not left to callers; flows with extra context such as a known
    * account name should additionally pre-validate with that context), atomic
-   * alias uniqueness (`VAULT_NAME_EXISTS`), a fresh salt/IV, and the empty
-   * payload encrypted with a KEK derived from the password. The KEK is
-   * zeroized inside this call and never stored or returned. The returned
-   * record has `revision: 0, lockEpoch: 0`.
+   * alias uniqueness (`VAULT_NAME_EXISTS`), and a fresh salt. No crypto
+   * beyond that: the vault starts with zero keys, so there is no ciphertext
+   * yet — the first key added later derives the KEK from the password and
+   * seals it (that password is the vault's real anchor). The returned record
+   * has `revision: 0, lockEpoch: 0`.
    *
-   * A cheap uniqueness pre-check runs before the (expensive) PBKDF2 derivation
-   * so a duplicate name never pays for crypto; the authoritative check + write
-   * still happen together in one transaction.
+   * A cheap uniqueness pre-check runs before the write transaction so a
+   * duplicate name fails fast; the authoritative check + write still happen
+   * together in one transaction.
    */
   createVault(params: { vaultName: string; password: string }): Promise<VaultRecordV1>;
 
@@ -209,7 +211,7 @@ function normalizeLookupName(vaultName: string): string {
 }
 
 /**
- * Fail-closed validation of a raw stored row into a `VaultRecordV1`: the five
+ * Fail-closed validation of a raw stored row into a `VaultRecordV1`: the four
  * envelope fields run through the shared envelope validator and the runtime
  * fields must be non-negative integers (`lastBackupAt` may be null).
  */
@@ -430,8 +432,6 @@ export async function openVaultRegistry(dbName: string = VAULT_DB_NAME): Promise
         throw nameExists();
       }
       const salt = generateVaultSalt();
-      const kek = await deriveVaultKek(params.password, salt);
-      kek.fill(0);
       const now = Date.now();
       const record: VaultRecordV1 = {
         version: 1,

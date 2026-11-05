@@ -165,6 +165,32 @@ describe('hierarchical vault backup', () => {
     await expect(exportVaultBackup(registry, 'ghost')).rejects.toMatchObject({ code: 'VAULT_NOT_FOUND' });
   });
 
+  it('propagates VAULT_SESSION_STALE when the record moves between read and CAS, leaving lastBackupAt untouched', async () => {
+    const before = await current('demo');
+    const racing: VaultRegistry = {
+      ...registry,
+      getRecord: async (name: string) => {
+        const record = await registry.getRecord(name);
+        if (record !== null && name === 'demo') {
+          // A concurrent lock lands AFTER the export's read but BEFORE its
+          // CAS: lockEpoch moves, so the captured pointer no longer matches.
+          await registry.bumpLockEpoch('demo');
+        }
+        return record;
+      },
+    };
+    await expect(exportVaultBackup(racing, 'demo')).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
+    const after = await current('demo');
+    // The swap never happened: lastBackupAt untouched, revision unchanged; the
+    // only movement is the injected lockEpoch bump, and the envelope bytes
+    // (accounts/salt) stay byte-identical.
+    expect(after.lastBackupAt).toBeNull();
+    expect(after.revision).toBe(before.revision);
+    expect(after.lockEpoch).toBe(before.lockEpoch + 1);
+    expect(after.accounts).toEqual(before.accounts);
+    expect(after.salt).toBe(before.salt);
+  }, 30000);
+
   it('independently imports with a fresh salt and fresh per-key IVs, deduplicating source keys', async () => {
     const imported = await importVaultBackup(registry, {
       mode: 'independent', envelope: duplicateSource, password: v.password, vaultName: 'Imported',
@@ -231,6 +257,83 @@ describe('hierarchical vault backup', () => {
       mode: 'independent', envelope: duplicateSource, password: v.password, vaultName: 'Imported',
     })).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
     expect(await registry.getRecord('Imported')).toBeNull();
+  }, 30000);
+
+  it('a same-name remove+recreate replacing the import\'s vault makes the rollback stand down — the rebuild survives byte-intact', async () => {
+    let importCreate: VaultRecordV1 | undefined;
+    let rebuiltSnapshot: VaultRecordV1 | undefined;
+    const racing: VaultRegistry = {
+      ...registry,
+      createVault: async (params: { vaultName: string; password: string }) => {
+        const mine = await registry.createVault(params);
+        importCreate = mine;
+        // "Another tab" replaces the just-created instance under the same
+        // name (fresh salt, same password) BEFORE the import's CAS reads
+        // that name.
+        await registry.removeVault(params.vaultName);
+        rebuiltSnapshot = await registry.createVault(params);
+        return mine;
+      },
+    };
+    await expect(importVaultBackup(racing, {
+      mode: 'independent', envelope: duplicateSource, password: v.password, vaultName: 'Imported',
+    })).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
+    if (importCreate === undefined || rebuiltSnapshot === undefined) {
+      throw new Error('createVault was not called');
+    }
+    // The CAS lost against the rebuild (different createdAt) and the rollback
+    // STOOD DOWN instead of deleting by bare name: the other tab's vault is
+    // still stored byte-for-byte — empty, revision 0, the source keys never
+    // landed in it.
+    expect(await current('Imported')).toEqual(rebuiltSnapshot);
+    expect(rebuiltSnapshot.createdAt).not.toBe(importCreate.createdAt);
+    expect(rebuiltSnapshot.revision).toBe(0);
+    expect(rebuiltSnapshot.accounts).toEqual([]);
+  }, 30000);
+
+  it('a removal failure during rollback propagates the PRIMARY error; the residual is the created empty vault', async () => {
+    let created: VaultRecordV1 | undefined;
+    const failing: VaultRegistry = {
+      ...registry,
+      createVault: async (params: { vaultName: string; password: string }) => {
+        created = await registry.createVault(params);
+        return created;
+      },
+      swapRecord: () => Promise.reject(new VaultError('VAULT_SESSION_STALE', 'injected CAS failure')),
+      removeVault: () => Promise.reject(new VaultError('VAULT_STORAGE_UNAVAILABLE', 'injected removal failure')),
+    };
+    await expect(importVaultBackup(failing, {
+      mode: 'independent', envelope: duplicateSource, password: v.password, vaultName: 'Imported',
+    })).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
+    // The PRIMARY (CAS) error wins — the rollback's own removal failure is
+    // swallowed (best-effort). Residual terminal state in the per-key era,
+    // asserted as implemented: the just-created EMPTY vault exactly as
+    // created — revision 0, zero keys, the payload write never landed. It is
+    // the documented VAULT_NAME_EXISTS-hinted leftover the user can delete
+    // (or re-import under another name); nothing half-written is inside.
+    if (created === undefined) throw new Error('createVault was not called');
+    expect(await registry.getRecord('Imported')).toEqual(created);
+    const residual = await registry.getRecord('Imported');
+    expect(residual?.revision).toBe(0);
+    expect(residual?.accounts).toEqual([]);
+  }, 30000);
+
+  it('imports an empty-source envelope (accounts: []) as a fresh empty vault', async () => {
+    const emptySource: VaultEnvelopeV1 = { ...v.emptyEnvelope, version: 1, vaultName: 'empty-source' };
+    const result = await importVaultBackup(registry, {
+      mode: 'independent', envelope: emptySource, password: v.password, vaultName: 'Empty',
+    });
+    // Pinned semantics (2026-11-05 ruling): an empty source is a VALID
+    // backup — the independent import (the recovery path the VAULT_EMPTY
+    // merge rejection points at) creates a fresh, empty vault: fresh salt,
+    // no keys to copy, one CAS commit (revision 1), nothing activated.
+    expect(result.vaultName).toBe('Empty');
+    expect(result.accounts).toEqual([]);
+    expect(result.salt).not.toBe(emptySource.salt);
+    expect(result.revision).toBe(1);
+    expect(result.lastBackupAt).toBeNull();
+    expect((await registry.getSettings()).activeVaultName).toBeNull();
+    expect((await registry.listRecords()).map((record) => record.vaultName).sort()).toEqual(['Empty', 'demo']);
   }, 30000);
 
   it('merges with different source/target passwords, target-first dedupe and unchanged target ciphertext', async () => {
@@ -325,6 +428,48 @@ describe('hierarchical vault backup', () => {
     // The failed authentication left the target byte-identical — no partial
     // merge, no re-encryption, no revision bump.
     expect(await current()).toEqual(tampered);
+    service.destroy();
+  }, 40000);
+
+  it('refuses to merge into a target with no keys (VAULT_EMPTY) — no silent re-key by a wrong targetPassword', async () => {
+    fake.seed(VAULT_DB_NAME, 'vaults', makeRecord('beta', { accounts: [] }));
+    const service = createVaultService(registry);
+    // An empty vault unlocks with ANY password (pinned semantics) — the merge
+    // itself must be the fail-closed gate: with zero key ciphertext there is
+    // nothing to authenticate `targetPassword` against, and the per-key
+    // target decryption loop would iterate zero times, re-encrypting every
+    // source key under whatever password was typed.
+    await service.unlock('beta', 'any-password-opens-empty-1');
+    const before = await current('beta');
+    for (const targetPassword of [v.password, 'wrong-password-123456']) {
+      await expect(mergeVaultBackup(registry, service, {
+        mode: 'merge', envelope: mergeSource, password: SOURCE_PASSWORD,
+        targetVaultName: 'beta', targetPassword,
+      })).rejects.toMatchObject({ code: 'VAULT_EMPTY' });
+    }
+    // The rejection fires before any password is used: the empty target
+    // record is byte-identical — pre-fix, a wrong password would have
+    // silently re-keyed the vault by importing every source key under it.
+    expect(await current('beta')).toEqual(before);
+    service.destroy();
+  }, 30000);
+
+  it('merges when the target name is a case variant of the selected session vault', async () => {
+    const service = createVaultService(registry);
+    await service.unlock('demo', v.password);
+    const before = await current('demo');
+    const result = await mergeVaultBackup(registry, service, {
+      mode: 'merge', envelope: mergeSource, password: SOURCE_PASSWORD,
+      targetVaultName: 'DEMO', targetPassword: v.password,
+    });
+    // The session selected 'demo'; 'DEMO' names the same vault through the
+    // shared comparison key (exactly how the manager matches targets), so
+    // the merge must resolve it instead of reporting VAULT_LOCKED. The
+    // commit still lands on the STORED display name.
+    expect(result.status).toMatchObject({ locked: false, vaultName: 'demo', revision: before.revision + 1 });
+    const after = await current('demo');
+    expect(after.accounts.map((account) => account.accountName)).toEqual(['alice', 'bob']);
+    expect(await decryptRecord(after, v.password)).toContain(BOB_WIF);
     service.destroy();
   }, 40000);
 });

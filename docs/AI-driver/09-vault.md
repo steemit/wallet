@@ -1,10 +1,10 @@
 # 09 — Vault (encrypted multi-account wallet)
 
 > Status date: 2026-11-05. **R1 (hierarchical per-key encryption) LANDED on this
-> branch** — `feat/vault-per-key-hierarchy`, three commits on top of
-> `origin/next@cee626a2` (work-mode modal), HEAD `3752c10e`. The branch is NOT
-> merged into `next` and no PR exists yet; everything below is branch-only until
-> that PR lands. Tracking issue: #381.
+> branch** — `feat/vault-per-key-hierarchy`, on top of `origin/next@cee626a2`
+> (work-mode modal); see `git log` on this branch for the exact commits. The
+> branch is NOT merged into `next` and no PR exists yet; everything below is
+> branch-only until that PR lands. Tracking issue: #381.
 > History: A0–A5 (PRs #382, #383, #386, #387, #389, #390, #391 and the modal
 > follow-up `cee626a2`) shipped a whole-envelope implementation that was never
 > released; R1 replaced it directly with the approved V1 hierarchical structure
@@ -90,7 +90,9 @@ src/lib/vault/manager.ts    VaultManager orchestration: the VaultManager surface
                            throwaway probe service (the live session survives
                            untouched unless it names the removed vault).
                            exportVault locks this tab's session first.
-                           changePassword: authenticate old -> policy-check new ->
+                           changePassword: authenticate old -> capture ->
+                           empty-vault rejection (VAULT_EMPTY — no key anchors
+                           the old password) -> policy-check new ->
                            per-key decrypt/re-encrypt one at a time under a FRESH
                            salt with fresh IVs -> CAS -> lock
 src/lib/vault/signer.ts    Per-key signer: request selects the exact encrypted
@@ -151,7 +153,11 @@ src/lib/vault/backup.ts    Backup layer, four-field envelope era: exportVaultBac
                            source WIF is decrypted and immediately re-encrypted,
                            plaintext never accumulated; instance-bound
                            adoption/rollback), mergeVaultBackup (requires the target
-                           selected on the SAME service instance; target-first
+                           selected on the SAME service instance — matched via
+                           the shared comparison key, so a case-variant name
+                           resolves the same vault; a target with zero key
+                           ciphertext rejects VAULT_EMPTY BEFORE any password
+                           is used; target-first
                            dedupe on (accountName, role, publicKey); target keys are
                            decrypted ONLY to authenticate/dedupe — winning target
                            ciphertext preserved byte-identically; source keys
@@ -184,12 +190,17 @@ tests/unit/vault-service.test.ts     11 cases: pointer-session lifecycle, locked
                            public directory, per-key add/remove/note semantics,
                            cross-tab invalidation (hard line + broadcast),
                            shuffle-stable per-case state (R1)
-tests/unit/vault-backup.test.ts      10 cases: export round-trip, import boundaries
-                           and rollback races, merge dedupe/failure-atomicity with
-                           different source/target passwords (A3+R1)
-tests/unit/vault-manager.test.ts     20 cases: manager surface, merge WITHOUT
+tests/unit/vault-backup.test.ts      16 cases: export round-trip + CAS-stale
+                           propagation, import boundaries, rollback races
+                           (remove+recreate stand-down, removal-failure
+                           residual), empty-source import, merge dedupe/
+                           failure-atomicity with different source/target
+                           passwords, empty-target VAULT_EMPTY rejection,
+                           case-variant target matching (A3+R1)
+tests/unit/vault-manager.test.ts     21 cases: manager surface, merge WITHOUT
                            pre-unlock via targetPassword (locked:true, lockEpoch+1,
-                           preMergeBackup), changePassword incl. cross-tab
+                           preMergeBackup), changePassword incl. the empty-vault
+                           rejection and cross-tab
                            interleavings, rename/remove/export (A4+R1)
 tests/unit/vault-signer.test.ts      31 cases: authority pre-check branches, IV-
                            selected-key contract (wrong password / unknown IV /
@@ -253,19 +264,28 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
    derived from the password; every new encryption under the same KEK mints a
    fresh IV (`encryptVaultKeyRecord` skips `excludedIvs`; envelope validation
    enforces vault-wide uniqueness) — re-encrypting the same WIF must always
-   produce a new IV (the fixture's `reencryption` vector pins this). All
-   parameters are exported constants, not literals; the fixture pins the exact
-   KEK and per-key ciphertexts — touching a parameter must fail the vector
-   tests, and that is correct.
+   produce a new IV (the fixture's `reencryption` vector pins this). The AAD
+   binds the FORMAT, not key identity: a ciphertext cut-and-pasted to another
+   account/role still decrypts, which is BY DESIGN — preventing misplaced
+   authority is the signer's on-chain authority pre-check's job (invariant
+   19), so never add account/role material to `VAULT_AAD` (it would break
+   every existing ciphertext). All parameters are exported constants, not
+   literals; the fixture pins the exact KEK and per-key ciphertexts —
+   touching a parameter must fail the vector tests, and that is correct.
 4. **No global WIF-unlocked state.** The service session is a NON-SENSITIVE
    `VaultRevisionPointer` (name + `createdAt`/`revision`/`lockEpoch`) — no KEK
    and no plaintext key ever live in the session closure. `unlock` derives the
    KEK, authenticates by decrypting exactly ONE key (the first found) +
-   `validateVaultWif`, then zeroizes the KEK and keeps only the pointer. Only
-   signing decrypts existing keys, and only the ONE key selected by `keyIv`.
-   Add / independent-import / merge / changePassword re-encrypt key-by-key
-   (decrypt → re-encrypt → clear before the next key) and must never form a
-   state where all WIFs are simultaneously in memory.
+   `validateVaultWif`, then zeroizes the KEK and keeps only the pointer.
+   Signing decrypts existing keys only for the ONE key selected by `keyIv`.
+   Two further decryption surfaces exist and are DELIBERATE — know them
+   before "optimizing" them away: `addKey` and `mergeVaultBackup` transiently
+   decrypt existing keys one at a time solely to derive public keys for
+   authentication/dedupe (these probes never rewrite the winning ciphertext),
+   and `changePassword` decrypts each key only to immediately re-encrypt it
+   under the fresh-salt KEK. Every such path clears each plaintext before
+   touching the next key and must never form a state where all WIFs are
+   simultaneously in memory.
 5. **Signing carries `keyIv` + `vaultPassword`; everything is cleared before
    broadcast.** `SignOperationsRequest` / `SignResolvedTransactionRequest`
    select the exact encrypted key by `(accountName, role, keyIv)` and carry the
@@ -383,11 +403,17 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
     failure still cleared memory and propagates), and the `preMergeBackup`
     flows out through `importVaultDetailed` — the UI must deliver it (file
     download or an explicit discard) before claiming the pre-migration backup
-    is done; the memory-only snapshot alone is not a completed backup. An
-    empty/no-change source still rewrites the record (fresh IVs, `revision+1`)
-    — deliberate, do not add an equality short-circuit. `importVault` (the
-    A0-shaped method) drops the `preMergeBackup`; merge flows must use
-    `importVaultDetailed`.
+    is done; the memory-only snapshot alone is not a completed backup. A
+    target that holds NO key ciphertext is rejected with `VAULT_EMPTY` BEFORE
+    any password is used (2026-11-05 ruling: an empty vault has no password
+    anchor, so nothing could authenticate `targetPassword` — proceeding would
+    silently re-key the vault under whatever was typed; add a key to the
+    target or do an independent import instead). An empty or fully-duplicate
+    SOURCE still commits once (`revision+1` via CAS — deliberate, do not add
+    an equality short-circuit) while every target ciphertext byte is
+    preserved; only genuinely new keys are re-encrypted with fresh IVs.
+    `importVault` (the A0-shaped method) drops the `preMergeBackup`; merge
+    flows must use `importVaultDetailed`.
 19. **Authority pre-check and traffic contract.** Per signing request: the
     op→authority classifier (19 relay ops in `OPERATION_AUTHORITY_CLASSES` +
     payload-based `account_update`/`custom_json`; unknown ops →
@@ -423,7 +449,9 @@ passwords, WIFs, ciphertext or payload. Per-key-era reading of the
 whole-envelope-era codes: `VAULT_PAYLOAD_INVALID` now fires only on the stored
 settings row (corrupt/unknown shape); `VAULT_LOCKED` means "no vault is
 selected in this session", not "WIFs are sealed" — there is no WIF-bearing
-session anymore.
+session anymore; `VAULT_EMPTY` covers both "nothing to resolve" (no session
+and no active vault) and the empty-vault password-anchor rejections (merge
+into, or changePassword on, a vault with zero key ciphertext).
 
 ## Pitfalls already hit
 
@@ -484,12 +512,17 @@ session anymore.
   one — do not "optimize" that away. Genuinely concurrent (interleaved) unlock
   calls still resolve last-writer-wins; single-tab UI never races them. If a
   future flow allows it, serialize explicitly.
-- **Empty-vault unlock semantics are UNDECIDED (flagged, not pinned).** With
-  `accounts: []` there is no key to probe, so `service.unlock` accepts ANY
-  non-empty password for an empty vault (`authenticate` returns early). No test
-  pins this either way and the handoff (§7) lists it as an open contract
-  question — decide it deliberately before R2/R3 UI leans on
-  unlock-for-empty-vault; do not silently harden or rely on it.
+- **Empty-vault password semantics are DECIDED (2026-11-05 ruling).** With
+  zero key ciphertext (empty `accounts`, or every role array empty) there is
+  no key to probe, so `service.unlock` accepts ANY non-empty password for an
+  empty vault — the pass-through stays (pinned). The flip side is fail-closed:
+  `mergeVaultBackup` into an empty target and `changePassword` on an empty
+  vault both reject `VAULT_EMPTY` BEFORE any password is used — an empty
+  vault has no password anchor, and the password of the NEXT `addKey` is the
+  real one. `addKey` into an empty vault stays allowed (R2 main path; a typo
+  introduced there can be corrected by changePassword once a key exists), and
+  an independent import of an empty source creates a fresh empty vault — the
+  recovery path the merge rejection's message points at.
 - **Rename leaves a lingering session pointer (KNOWN WRINKLE, pinned in
   `vault-manager.test.ts`).** After `renameVault`, an existing session still
   names the OLD record: session-bound reads fail `VAULT_NOT_FOUND`, and the

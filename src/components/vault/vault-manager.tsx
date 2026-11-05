@@ -893,7 +893,7 @@ function ImportBackupForm({
     setBusy(true);
     setErrorKey(null);
     try {
-      // parseVaultEnvelopeJson owns the raw-JSON size gate and the five-field
+      // parseVaultEnvelopeJson owns the raw-JSON size gate and the four-field
       // fail-closed validation (single-password contract: the backup password
       // also becomes the new vault's password and must pass the current
       // policy — a weak source password is rejected by design).
@@ -1442,7 +1442,7 @@ function MergeBackupForm({
         <Input
           id="vault-merge-target-password"
           type="password"
-          autoComplete="current-password"
+          autoComplete="off"
           value={targetPassword}
           onChange={(event) => setTargetPassword(event.target.value)}
           disabled={busy}

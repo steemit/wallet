@@ -19,7 +19,7 @@ import type {
   VaultRecordV1,
 } from './types';
 import { normalizeSteemUsername } from '@/lib/steem/username';
-import { validateVaultPassword, validateVaultWif } from './validation';
+import { validateVaultPassword, validateVaultWif, vaultNameComparisonKey } from './validation';
 
 export type IndependentImportParams = Extract<ImportParameters, { mode: 'independent' }>;
 export type MergeImportParams = Extract<ImportParameters, { mode: 'merge' }>;
@@ -200,12 +200,29 @@ export async function mergeVaultBackup(
   params: MergeImportParams,
 ): Promise<VaultMergeResult> {
   const status = await service.getStatus();
-  const targetName = params.targetVaultName.normalize('NFC');
-  if (status.locked || status.vaultName !== targetName) {
+  // Match the target like the manager does (NFC + case-folded comparison
+  // key): a session opened under a case variant of the target name selects
+  // the same vault and must satisfy the merge contract too.
+  if (
+    status.locked ||
+    status.vaultName === null ||
+    vaultNameComparisonKey(status.vaultName) !== vaultNameComparisonKey(params.targetVaultName)
+  ) {
     throw new VaultError('VAULT_LOCKED', 'the target vault is not selected in this session');
   }
   const record = await registry.getRecord(status.vaultName);
   if (record === null) throw new VaultError('VAULT_NOT_FOUND', 'no vault exists under that name');
+  // Empty-target password anchor (2026-11-05 ruling): a vault with no key
+  // ciphertext has nothing that could authenticate `targetPassword` — the
+  // per-key target decryption loop below would iterate zero times and the
+  // source keys would land re-encrypted under WHATEVER password was typed
+  // (a silent re-key). Fail closed here, BEFORE any password is used.
+  if (keyRefs(record.accounts).next().done) {
+    throw new VaultError(
+      'VAULT_EMPTY',
+      'the target vault holds no keys yet; add a key to it or use an independent import instead',
+    );
+  }
   const preMergeBackup = vaultRecordToEnvelope(record);
   const source = validateVaultEnvelope(params.envelope);
   const sourceKek = await deriveVaultKek(params.password, decodeBase64Url(source.salt));

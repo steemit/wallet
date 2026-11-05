@@ -427,7 +427,7 @@ describe('VaultManagerPanel', () => {
     });
   });
 
-  it('export downloads the five-field envelope client-side; the revision bump locks the row again', async () => {
+  it('export downloads the four-field envelope client-side; the revision bump locks the row again', async () => {
     // Start UNLOCKED so the post-export lock assertion cannot pass trivially.
     const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
     renderPanel(state);

@@ -76,6 +76,15 @@ function statusMatchesVault(status: VaultServiceStatus, vaultName: string): bool
   );
 }
 
+/** True when the record carries no key ciphertext at all (the empty-vault state). */
+function recordHasNoKeys(record: VaultRecordV1): boolean {
+  return record.accounts.every((account) =>
+    (['owner', 'active', 'posting', 'memo'] as const).every(
+      (role) => account.keys[role].length === 0,
+    ),
+  );
+}
+
 export function createVaultManager(registry: VaultRegistry): VaultManagerExtended {
   const service = createVaultService(registry);
 
@@ -200,8 +209,19 @@ export function createVaultManager(registry: VaultRegistry): VaultManagerExtende
       newPassword: string,
     ): Promise<void> {
       await service.unlock(vaultName, oldPassword);
-      validateVaultPassword(newPassword);
       const record = await requireRecord(vaultName);
+      // Empty-vault password anchor (2026-11-05 ruling): with no key
+      // ciphertext the old password cannot be authenticated (unlock accepts
+      // any password for an empty vault), so changing it is meaningless — the
+      // password of the NEXT addKey is the real anchor. Checked before the
+      // new-password policy: the operation is refused regardless of inputs.
+      if (recordHasNoKeys(record)) {
+        throw new VaultError(
+          'VAULT_EMPTY',
+          'the vault holds no keys yet; the password of the next added key is the anchor',
+        );
+      }
+      validateVaultPassword(newPassword);
       const status = await service.getStatus();
       if (status.locked) {
         throw new VaultError('VAULT_SESSION_STALE', 'the vault changed during password authentication');
