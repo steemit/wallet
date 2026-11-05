@@ -8,7 +8,9 @@
 // PUBLIC key and the account name are involved) -> render the verification
 // result (matched level / weight / threshold, sub-threshold and not-on-chain
 // WARNINGS — both still allow storage per the R2 ruling: the vault is
-// storage, not proof of authority) -> explicit confirm -> manager.addKey
+// storage, not proof of authority; a key the chain places on a DIFFERENT
+// level than the selected role is also a warning, since it is stored under
+// the selected role regardless) -> explicit confirm -> manager.addKey
 // (idempotent on (accountName, role, publicKey); the service detects the
 // duplicate by decrypting the role's existing keys and skips the write).
 //
@@ -46,6 +48,7 @@ import {
 import type { VaultManagerExtended } from '@/lib/vault/manager';
 import type { VaultAccountSummary, VaultKeyRole } from '@/lib/vault/types';
 import { validateVaultWif } from '@/lib/vault/validation';
+import { normalizeSteemUsername } from '@/lib/steem/username';
 
 const ROLE_OPTIONS: readonly VaultKeyRole[] = ['owner', 'active', 'posting', 'memo'];
 
@@ -112,10 +115,15 @@ function countRoleKeys(
   accountName: string,
   role: VaultKeyRole,
 ): number {
+  // Account names compare through the shared canonical normalization (repo
+  // rule: never a raw `===` on usernames) — both sides are normalized
+  // already today (directory names by the service, the verified name by
+  // validateVaultWif), but the comparison must not depend on that.
+  const wanted = normalizeSteemUsername(accountName);
   return (
-    accounts.find((account) => account.accountName === accountName)?.keys.filter(
-      (key) => key.role === role,
-    ).length ?? 0
+    accounts
+      .find((account) => normalizeSteemUsername(account.accountName) === wanted)
+      ?.keys.filter((key) => key.role === role).length ?? 0
   );
 }
 
@@ -236,24 +244,24 @@ function ImportKeyForm({
     values: Record<string, string>;
   }
 
-  /** Which i18n message (and tone) renders this verification result. */
+  /**
+   * Which i18n message (and tone) renders this verification result. Order
+   * matters — the most consequential finding wins:
+   *   1. not on chain                      -> warn (stored, cannot sign);
+   *   2. matched but sub-threshold         -> warn (signer will reject it);
+   *   3. matched on a DIFFERENT level than the selected role (e.g. memo
+   *      selected, posting matched)        -> warn: the key is stored under
+   *      the SELECTED role but acts on chain only as what it really is — a
+   *      green "verified" here would read as "stored where it belongs";
+   *   4. memo match                        -> ok (encrypts memos, never signs);
+   *   5. matched, sufficient weight        -> ok.
+   */
   const verdictOf = (candidate: ImportKeyFormVerification): VerificationVerdict => {
     const { result } = candidate;
-    if (result.matched && result.authority === 'memo') {
-      return { tone: 'ok', key: 'verifyMemo', values: {} };
+    if (!result.matched) {
+      return { tone: 'warn', key: 'verifyNotOnChain', values: {} };
     }
-    if (result.matched && result.suffices) {
-      return {
-        tone: 'ok',
-        key: 'verifyMatched',
-        values: {
-          authority: roleLabel(result.authority),
-          weight: String(result.weight),
-          threshold: String(result.threshold),
-        },
-      };
-    }
-    if (result.matched) {
+    if (!result.suffices) {
       return {
         tone: 'warn',
         key: 'verifySubthreshold',
@@ -264,7 +272,28 @@ function ImportKeyForm({
         },
       };
     }
-    return { tone: 'warn', key: 'verifyNotOnChain', values: {} };
+    if (result.authority !== candidate.role) {
+      return {
+        tone: 'warn',
+        key: 'verifyAuthorityDiffers',
+        values: {
+          authority: roleLabel(result.authority),
+          role: roleLabel(candidate.role),
+        },
+      };
+    }
+    if (result.authority === 'memo') {
+      return { tone: 'ok', key: 'verifyMemo', values: {} };
+    }
+    return {
+      tone: 'ok',
+      key: 'verifyMatched',
+      values: {
+        authority: roleLabel(result.authority),
+        weight: String(result.weight),
+        threshold: String(result.threshold),
+      },
+    };
   };
 
   const verdict = verification !== null ? verdictOf(verification) : null;

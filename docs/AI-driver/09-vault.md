@@ -1,7 +1,8 @@
 # 09 — Vault (encrypted multi-account wallet)
 
-> Status date: 2026-11-05. **R1 (hierarchical per-key encryption) and R2 (key
-> management with on-chain verification and notes) LANDED on this branch** —
+> Status date: 2026-11-05. **R1 (hierarchical per-key encryption), R2 (key
+> management with on-chain verification and notes) and R3 (identity selection
+> without unlocking) LANDED on this branch** —
 > `feat/vault-per-key-hierarchy`, on top of `origin/next@cee626a2`
 > (work-mode modal); see `git log` on this branch for the exact commits. The
 > branch is NOT merged into `next` and no PR exists yet; everything below is
@@ -16,10 +17,12 @@
 > with resource boundaries, the registry/service/backup layers, the manager +
 > signer + unified facade, the A5 work-mode UI (mode switcher, vault manager
 > panel, empty/unlock/key-confirmation dialogs) updated for the per-key contract,
-> and the R2 key-management layer (on-chain verification orchestration, the
+> the R2 key-management layer (on-chain verification orchestration, the
 > locked-state key-manager view, the add-key dialog with per-key password
-> encryption).
-> Not implemented: R3 (no-unlock identity login), A6 caller migration, and the
+> encryption), and the R3 vault identity login (mode-dispatched login form,
+> two-select identity picker over the public directory, key-free
+> `sessionKind: 'vault'` sessions).
+> Not implemented: A6 caller migration (signing with a vault identity) and the
 > B-phase dapp — this doc grows with each task package.
 
 ## Module map
@@ -174,11 +177,17 @@ src/components/vault/import-key-dialog.tsx  R2 add-key dialog: account / role
                            submit — local validateVaultWif (WIF -> public key;
                            the WIF never leaves the component) ->
                            verifyKeysOnChain (public key + account only) ->
-                           result box (matched / sub-threshold / memo /
-                           not-on-chain, warnings amber) -> explicit confirm ->
+                           result box (warnings amber, most consequential
+                           finding wins: not-on-chain > sub-threshold >
+                           authority-differs-from-selected-role [R3 batch: e.g.
+                           memo selected but posting matched — stored under the
+                           SELECTED role, so never a green "verified"] > memo >
+                           matched) -> explicit confirm ->
                            manager.addKey. Duplicate detection = public
                            directory (account, role) count before vs after the
-                           call (the service's no-op leaves it unchanged) ->
+                           call (the service's no-op leaves it unchanged;
+                           account names compared through
+                           normalizeSteemUsername, never a raw ===) ->
                            keyAlreadyExists banner. WIF discipline: transient
                            form state only, scrubbed on success/cancel/unmount,
                            never Redux/logs/analytics/network
@@ -192,6 +201,69 @@ src/components/vault/key-confirmation-dialog.tsx  A5+R1 post-create/import backu
                            keys unaffected, AND (R1, four locales) account names /
                            roles / notes are public in storage and backups —
                            never put secrets in a note
+src/components/vault/work-mode-events.ts  R3 leaf module holding
+                           VAULT_WORK_MODE_OPEN_EVENT (re-exported by
+                           app-layout.tsx for the historical import path) and
+                           VAULT_WORK_MODE_CLOSED_EVENT (dispatched by
+                           app-layout whenever the modal closes — the single
+                           close path, Esc/outside clicks are blocked) — lets
+                           the login surfaces open the modal and react to its
+                           closing without an import cycle (layout -> header
+                           -> login form -> vault login form -> layout)
+src/components/auth/login-form.tsx  R3 MODE DISPATCHER (`LoginForm`): reads the
+                           persisted signing mode via useVaultRuntime +
+                           useSigningMode. 'vault' -> VaultLoginForm; 'vault' +
+                           embedded re-auth (fixedUsername / requiredAuthTypes)
+                           -> explicit "not available in Vault Mode yet" notice
+                           + Work Mode shortcut; EVERY other state (privateKey,
+                           mode still loading, failed read, runtime unavailable,
+                           no provider) -> the module-private
+                           PrivateKeyLoginForm, whose body is byte-identical to
+                           the pre-R3 LoginForm (the R3 diff is insert-only)
+src/components/auth/vault-login-form.tsx  R3 identity selection: two NATIVE
+                           selects — vaults (manager.listVaults) and the
+                           selected vault's account names (manager.getAccounts,
+                           the locked-readable outer directory; no IVs / notes
+                           rendered; accounts holding NO key are not offered —
+                           such an identity could never sign). Default =
+                           active vault, else the first;
+                           selections are DERIVED in render (explicit choices
+                           keyed by vault — a vault switch drops the account
+                           choice); directory loads are sequence-guarded and
+                           keyed by (vaultName, retry generation) so a slow
+                           response for a previously selected vault never
+                           lands. Empty states: no vault -> create/import
+                           entry, empty vault -> add-a-key hint (both dispatch
+                           VAULT_WORK_MODE_OPEN_EVENT), storage/runtime/
+                           directory errors -> vault.errors.* + Retry, NEVER a
+                           PrivateKey fallback. Directory-change refresh: the
+                           list + directory are re-read on
+                           VAULT_WORK_MODE_CLOSED_EVENT (in-modal management)
+                           and on visibilitychange -> visible (other tabs),
+                           stale-while-revalidate (a refreshNonce re-triggers
+                           the read WITHOUT entering the result key, so no
+                           loading flash; still-valid choices survive, a
+                           removed account / vault drops its choice). Submit =
+                           dispatch
+                           setVaultIdentity + navigate (or onLoginSuccess when
+                           embedded): no unlock, no decryption, no challenge/
+                           login, no network
+src/lib/store/slices/auth.ts  R3: `sessionKind?: 'privateKey' | 'vault'` (OPTIONAL
+                           — absent = 'privateKey', so every pre-R3 AuthState
+                           value stays valid; read via sessionKindOf);
+                           setCredentials writes 'privateKey'; setVaultIdentity
+                           ({ username }) writes 'vault' and forces all six key
+                           fields null (wipes any previous privateKey session's
+                           keys); logout resets to the initial privateKey state
+src/hooks/use-auth.ts      R3: logout of a 'vault' session clears ONLY the Redux
+                           identity — no /api/auth/logout (the session never
+                           logged in server-side) and no Legacy remembered
+                           username / posting key read, write or delete
+src/components/home/home-redirect-or-login.tsx  R3: waits for the signing mode;
+                           'vault' skips the Legacy remembered-username jump
+                           (the remembered keys are not even read); privateKey,
+                           unavailable runtime and failed reads keep the
+                           historical jump
 src/lib/auth/legacy-private-key-signer.ts  privateKey-mode signer (A4): injected WIF
                            getter (A6 wiring point), deliberately NO authority pre-check
                            (A6 acceptance: default privateKey behavior unchanged)
@@ -260,25 +332,72 @@ tests/unit/signing-facade.test.ts    6 cases: mode dispatch, no fallback, persis
 tests/unit/work-mode-switcher.test.tsx  7 cases: dual options + Legacy badge,
                            signed-out render, in-place switch, failure keeps the
                            previous mode + maps codes, busy state (A5)
-tests/unit/vault-manager-panel.test.tsx  19 cases: list/empty-dialog/create/
+tests/unit/vault-manager-panel.test.tsx  21 cases: list/empty-dialog/create/
                            unlock/export/delete/merge — merge reachable on a
                            LOCKED target with the target-password field +
                            preMergeBackup delivery, storage-unavailable retry,
-                           row-menu -> key-manager view (A5+R1+R2, mocked
-                           manager/facade)
-tests/unit/vault-key-management.test.ts  19 cases: single sorted deduped fresh
+                           row-menu -> key-manager view, VAULT_EMPTY scene
+                           routing (changePasswordEmpty / mergeTargetEmpty, R3
+                           batch) (A5+R1+R2, mocked manager/facade)
+tests/unit/vault-key-management.test.ts  20 cases: single sorted deduped fresh
                            batch query, full-key_auths scan (second entry),
                            sub-threshold/memo/not-on-chain results, privilege
                            priority, malformed-pair skipping, degraded/
-                           missing/malformed/fetch fail-closed, empty-input
-                           no-network, candidate shape rejections (R2)
-tests/unit/vault-key-manager.test.tsx   10 cases: locked-state directory
+                           missing/malformed/fetch fail-closed (incl. the
+                           missing / non-string memo_key typeof branch),
+                           empty-input no-network, candidate shape rejections
+                           (R2)
+tests/unit/vault-key-manager.test.tsx   18 cases: locked-state directory
                            rendering, empty hint, add flow (matched/
                            sub-threshold/not-on-chain/verification-failure/
                            local-validation), idempotent already-stored banner,
                            remove confirmation with the account+role+IV
                            pointer, note editing, rendered-tree leak
-                           assertions (R2, mocked manager + verifyKeysOnChain)
+                           assertions; R3 batch: WIF scrub on cancel / Esc
+                           dismiss / whole-view unmount, authority-differs
+                           verdict (both directions, warn tone; sub-threshold
+                           outranks it), normalized added-vs-duplicate count
+                           (R2, mocked manager + verifyKeysOnChain)
+tests/unit/vault-login-form.test.tsx    19 cases (R3): vault list -> account
+                           directory data flow, default active vault / first
+                           vault, switch clears the account choice (also on
+                           switching back), keyless accounts not offered,
+                           slow stale directory response
+                           discarded (mutation-checked against the sequence
+                           guard), no-vault / empty-vault entries firing the
+                           Work Mode event, list / directory / runtime errors
+                           mapped + Retry with no private-key input anywhere,
+                           submit -> sessionKind 'vault' with all key fields
+                           null, NO unlock / challenge / login / fetch,
+                           embedded onLoginSuccess, no IV / note rendering,
+                           directory-change refresh (modal closed: no-vault ->
+                           created vault, empty vault -> added keys, stale-
+                           while-revalidate keeping a valid choice, removed
+                           account dropping it; visibilitychange for other
+                           tabs) — the refresh wiring is mutation-checked
+tests/unit/app-layout-work-mode.test.tsx  2 cases (R3): open event opens the
+                           modal, the X close dispatches the CLOSED event, the
+                           historical OPEN re-export still matches
+tests/unit/login-form-dispatch.test.tsx 9 cases (R3): REAL useSigningMode over a
+                           mocked facade — privateKey -> classic form, vault ->
+                           VaultLoginForm (plain + embedded pass-through),
+                           embedded fixedUsername / requiredAuthTypes ->
+                           unsupported notice + Work Mode event, privateKey
+                           embedded re-auth unchanged, loading / unavailable /
+                           failed read -> classic form
+tests/unit/home-redirect-or-login.test.tsx  6 cases (R3): privateKey jump kept,
+                           vault mode skips the jump without reading the
+                           remembered key, waits while the runtime loads,
+                           unavailable / failed read keep the default jump
+tests/unit/auth-slice.test.ts + use-auth.test.tsx  R3 additions: sessionKind
+                           writes, setVaultIdentity nulls every key field (also
+                           wiping a previous privateKey session), sessionKindOf
+                           default, vault logout with no server call and NO
+                           Legacy localStorage access (spied on jsdom's Storage
+                           prototype). login-form-reauth.test.tsx is
+                           deliberately UNCHANGED — it renders LoginForm with
+                           no VaultProvider and still passes (PrivateKey path
+                           untouched)
 tests/unit/vault-i18n-errors.test.ts  4 cases: error-code -> i18n table completeness
                            across all four locales (A5)
 tests/e2e/vault-mode.spec.ts  2 cases, REAL browser IndexedDB + Web Crypto:
@@ -497,6 +616,34 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
     dedicated dual-key path in `client.ts` — do not route them into the vault
     signer until multi-key signing exists. The facade's settings-backed
     signing mode defaults to `privateKey`.
+21. **A vault identity is a SELECTION, never an authentication (R3).** Vault
+    Mode "login" picks a vault + account from the locked-readable public
+    directory and dispatches `auth/setVaultIdentity({ username })`: the
+    session gets `sessionKind: 'vault'`, `isAuthenticated: true` and ALL six
+    key fields null (`setVaultIdentity` forcibly wipes any key material left by
+    a previous privateKey session). The flow never unlocks, never decrypts a
+    key, never calls `/api/auth/challenge` / `/api/auth/login` (or any other
+    network endpoint), and never reads, writes or removes the Legacy
+    remembered username / posting key. The action carries no key material,
+    so the DevTools sanitizers (`auth/setCredentials` only) need no change —
+    keep it that way: a vault identity must never grow key fields. Logout of
+    a vault session is local-only (Redux; no `/api/auth/logout`, Legacy
+    localStorage untouched). Consequences for callers:
+    - An identity proves NOTHING about key possession: signing still needs the
+      per-key password path (invariant 5) and the on-chain pre-check
+      (invariant 19). Nothing may treat `isAuthenticated` of a vault session
+      as "keys are available" — `useActiveSigningKey()` correctly returns null.
+    - The login surface is chosen by the persisted mode (`LoginForm`
+      dispatcher). Only a POSITIVELY read `'vault'` mode renders vault
+      surfaces; every other state renders the PrivateKey form (persisted
+      default; login must not hard-depend on IndexedDB). Inside Vault Mode the
+      reverse holds: storage errors show mapped errors + Retry, never a silent
+      PrivateKey fallback.
+    - Embedded re-auth callers (`fixedUsername` / `requiredAuthTypes`) cannot
+      be satisfied by identity selection and get an explicit "not available
+      in Vault Mode yet" notice with a Work Mode shortcut until A6 wires the
+      per-key password + signing path into them — never a silently degraded
+      form.
 
 ## Error taxonomy (17 codes, types.ts order)
 
@@ -614,13 +761,33 @@ into, or changePassword on, a vault with zero key ciphertext).
 - **Vault tests must stay shuffle-stable (A2 standard).** `vault-service.test.ts`
   rebuilds fake + registry + service in `beforeEach` and shares only
   `beforeAll` KEKs — that is the pattern to copy for new lifecycle suites.
+- **Vault-mode users may see the PrivateKey form for one frame (R3,
+  deliberate).** The `LoginForm` dispatcher renders the classic form until the
+  stored mode positively reads `'vault'` (see invariant 21) — the price of
+  never gating PrivateKey login on IndexedDB. The mode read is one settings
+  get on an already-open registry, so the swap is near-instant; do NOT "fix"
+  it with a loading gate in front of the classic form (that regresses the
+  PrivateKey path and breaks the provider-less `login-form-reauth` suite).
+- **Selections are derived, not synced by effects (R3).** The
+  `react-hooks/set-state-in-effect` lint rule forbids synchronous `setState`
+  in effect bodies. `VaultLoginForm` therefore stores only EXPLICIT user
+  choices (vault choice; account choice keyed by vault) and derives the
+  effective selection during render (active vault / first vault fallback,
+  account choice valid only for the current vault and directory). Directory
+  loads write state only from their async callbacks, gated by a sequence ref
+  and keyed by `(vaultName, retry generation)`. Copy this pattern instead of
+  "repair the selection in an effect".
+- **jsdom `Storage` spying under Node >= 22.4.** Node ships its own experimental
+  `Storage` global, so `vi.spyOn(Storage.prototype, ...)` may not intercept
+  jsdom's `localStorage`. Spy on `Object.getPrototypeOf(localStorage)` instead
+  (use-auth / home-redirect R3 tests).
 
 ## Extension checklist
 
 - **R1 has landed on this branch** — consume `envelope.ts` / `crypto.ts` /
   `registry.ts` / `service.ts` / `backup.ts` / `manager.ts` / `signer.ts` /
   `signing-facade.ts` as-is; do not bypass them with direct IndexedDB access
-  or ad-hoc crypto. Invariants 1–20 above are the contract. The branch must
+  or ad-hoc crypto. Invariants 1–21 above are the contract. The branch must
   land as ONE PR targeted at `next` covering the whole R1–R3 arc (handoff §5
   step 5) — do not split.
 - **R2 (key management + notes) has landed on this branch** — settled
@@ -651,14 +818,42 @@ into, or changePassword on, a vault with zero key ciphertext).
     locked symmetric by i18n-symmetry + vault-i18n-errors (the new keys live
     in the `vault` namespace, NOT the errors table, so the bidirectional
     code lock is unaffected).
-- **R3 (no-unlock identity login) — handoff §5 step 4.** Pointers: new
-  `src/components/auth/vault-login-form.tsx` (two native selects fed by the
-  outer `accounts` directory); `login-form.tsx` becomes a mode dispatcher
-  (PrivateKey behavior unchanged); `auth` slice gains `setVaultIdentity` +
-  `sessionKind: 'vault'` with all private/public key fields null; no
-  challenge/login calls, no unlock, no decryption, no touching the Legacy
-  remembered posting key; embedded `fixedUsername/requiredAuthTypes` flows
-  still route through the per-key password + signing path (A6 wiring).
+- **R3 (no-unlock identity login) has landed on this branch** — settled
+  decisions future work must preserve (invariant 21 is the contract):
+  - `LoginForm` is a pure mode DISPATCHER; the classic flow lives in the
+    module-private `PrivateKeyLoginForm`, whose body is byte-identical to the
+    pre-R3 `LoginForm` (the R3 diff of that file is insert-only). Do not edit
+    the classic body as part of vault work, and do not export it — every
+    caller must go through the dispatcher.
+  - Mode resolution: only a POSITIVELY read `'vault'` renders vault surfaces;
+    loading / failed read / unavailable runtime / missing provider render the
+    PrivateKey form (persisted default, no hard IndexedDB dependency for
+    login). `HomeRedirectOrLogin` instead WAITS for the mode before its
+    Legacy remembered-username jump (so a vault user is never redirected by
+    PrivateKey-era device data) and skips the jump entirely in Vault Mode.
+  - Embedded re-auth (`fixedUsername` / `requiredAuthTypes`) + Vault Mode =
+    the explicit `vaultUnsupported*` notice with a Work Mode shortcut —
+    chosen over "silently guide to identity selection" because identity
+    selection cannot satisfy an authority requirement. A6 replaces this
+    notice with the per-key password + signing path; plain embedded usage
+    (header / market / proposals login modals) already gets VaultLoginForm.
+  - `sessionKind` is OPTIONAL on `AuthState` (absent = 'privateKey') so every
+    pre-R3 AuthState value stays valid; read it via `sessionKindOf`.
+  - `VAULT_WORK_MODE_OPEN_EVENT` (and the new `VAULT_WORK_MODE_CLOSED_EVENT`)
+    live in the leaf module `src/components/vault/work-mode-events.ts`
+    (app-layout re-exports the OPEN one). Import the leaf from any component
+    that the layout itself renders, or you recreate the layout -> header ->
+    login form import cycle.
+  - Directory-change refresh: vault-derived views OUTSIDE the modal re-read on
+    `VAULT_WORK_MODE_CLOSED_EVENT` (every management action happens inside
+    the modal) plus `visibilitychange` for other tabs — deliberately NOT by
+    listening to the service's BroadcastChannel (its `vault-mutate` /
+    `vault-lock` messages are a private cross-tab acceleration protocol, and
+    registry-level create / rename / remove / import never broadcast). Keep
+    refreshes stale-while-revalidate (no loading flash, valid choices kept).
+  - New i18n surface: `auth.vault*` (16 keys: selects, helper, loading,
+    no-vault / empty-vault / unsupported copy) plus `vault.verifyAuthorityDiffers`
+    (R2 batch), all four locales.
 - **A6 (caller migration) still pending** — the privateKey backend is NOT
   wired into the facade yet (`vault-manager.tsx` injects only
   `manager.createSigner()`); until A6, facade privateKey signing fails with a
@@ -666,7 +861,12 @@ into, or changePassword on, a vault with zero key ciphertext).
   entry point when it happens: the `SigningFacade`, composed via
   `createVaultManager(registry)` + `manager.createSigner()` + the legacy
   signer with a login-state WIF getter. Never build a signer at a component;
-  never query `/api/query/accounts` outside the vault signer.
+  never query `/api/query/accounts` outside the vault signer. A6 must also
+  give R3 vault sessions (`sessionKind: 'vault'`, zero keys in Redux) their
+  signing path: per operation, select the encrypted key by
+  `(accountName, role, keyIv)` from the public directory and ask for the
+  vault password — and replace the embedded re-auth `vaultUnsupported*`
+  notice with that path.
 - **Work-mode UI wiring rules (A5, still current):** the composition root is
   `getVaultRuntime()` in `vault-manager.tsx` — a MODULE-LEVEL SINGLETON
   (registry + manager + facade); consume `useVaultRuntime()` /

@@ -26,7 +26,10 @@ Auth state is client-side only: Redux `auth` slice + optional localStorage.
 - `src/lib/steem/server.ts` — `generateChallenge`, `verifyChallengeSignature`, `getKeyType`
 - `src/components/auth/login-form.tsx` — **the only live login UI** (login page, header modal,
   re-auth modal). Contains: username normalization, required-authority gate (#338), posting-key
-  restore from localStorage, remember-me writes.
+  restore from localStorage, remember-me writes. Since vault R3 the exported `LoginForm` is a
+  signing-mode DISPATCHER: the classic flow above is the module-private `PrivateKeyLoginForm`
+  (body unchanged); a positively read Vault Mode renders `vault-login-form.tsx` (identity
+  selection — no challenge/login at all), see `09-vault.md` invariant 21.
 - `src/hooks/use-auth.ts` — read-only consumption (`username`/`isAuthenticated`/`logout`).
   ⚠️ Its `login`, `useRequireAuth`, `usePrivateKey` are dead, behavior-rotted code (no
   normalization, no #338 gate). Do not call them; candidate for deletion.
@@ -131,13 +134,17 @@ route does this; copy that pattern, do not let a parse throw reach the outer cat
   console output.
 - Redux DevTools sanitizers (`store/index.ts`) cover `auth/setCredentials` — **the only action
   allowed to carry key material**. If you invent a second action that carries keys, you must
-  extend `devActionSanitizer` (there is no guard that reminds you).
+  extend `devActionSanitizer` (there is no guard that reminds you). (`auth/setVaultIdentity`,
+  vault R3, carries only a username by contract and nulls every key field.)
 - localStorage (`browser-storage.ts`): **only** `username` + optional posting key
   (`REMEMBERED_*` keys). Never active/owner keys. Note the module only has get/clear — the actual
   `setItem` is inlined in `login-form.tsx:308-326`; keep new writes inside that same audit surface
   or extend the module properly.
-- Logout (`useAuth().logout`): fires `/api/auth/logout` (CSRF'd no-op on the server) and
-  unconditionally clears Redux + both localStorage keys regardless of the HTTP result.
+- Logout (`useAuth().logout`): for privateKey sessions, fires `/api/auth/logout` (CSRF'd no-op
+  on the server) and unconditionally clears Redux + both localStorage keys regardless of the
+  HTTP result. Vault sessions (`sessionKind: 'vault'`, R3) never logged in server-side: their
+  logout clears ONLY Redux — no server call, and the Legacy remembered keys are neither read nor
+  removed (deliberate; do not "unify" the two paths).
 - Re-auth (#338): `LoginForm` accepts `requiredAuthTypes` and enforces the authority hierarchy
   owner > active > posting (memo separate) — which mirrors the chain's signing fallback, see
   the "Steem authority semantics" section above. Modal consumers (change password, recovery,

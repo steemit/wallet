@@ -14,6 +14,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { VaultProvider, VaultWorkModeContent } from '@/components/vault/vault-manager';
+import {
+  VAULT_WORK_MODE_CLOSED_EVENT,
+  VAULT_WORK_MODE_OPEN_EVENT,
+} from '@/components/vault/work-mode-events';
 import { useTranslations } from 'next-intl';
 
 /**
@@ -29,8 +33,15 @@ import { useTranslations } from 'next-intl';
  * Deliberately a bare custom event (no payload) for now: B0–B4 are deferred,
  * so only the "open + focus" contract is reserved here. If B-phase needs to
  * convey WHICH error occurred, extend the event detail then.
+ *
+ * The constant itself lives in the leaf module
+ * `@/components/vault/work-mode-events` (shared with the R3 vault login form
+ * without an import cycle); it is re-exported here to keep the historical
+ * import path working. The same module defines VAULT_WORK_MODE_CLOSED_EVENT,
+ * which this layout dispatches whenever the modal closes (R3: the vault login
+ * form re-reads the public directory after in-modal management changes).
  */
-export const VAULT_WORK_MODE_OPEN_EVENT = 'steem-wallet:open-work-mode';
+export { VAULT_WORK_MODE_OPEN_EVENT } from '@/components/vault/work-mode-events';
 
 /** id of the focusable mode-switcher container inside the modal. */
 const WORK_MODE_SWITCHER_FOCUS_ID = 'work-mode-switcher';
@@ -65,7 +76,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             onOpenChange={setSidePanelOpen}
             onOpenWorkMode={() => setWorkModeOpen(true)}
           />
-          <Dialog open={workModeOpen} onOpenChange={setWorkModeOpen}>
+          <Dialog
+            open={workModeOpen}
+            onOpenChange={(open) => {
+              setWorkModeOpen(open);
+              // Vault-derived views outside the modal refresh on close (all
+              // vault management happens inside it). Esc / outside clicks are
+              // blocked below, so this is the single close path.
+              if (!open) window.dispatchEvent(new CustomEvent(VAULT_WORK_MODE_CLOSED_EVENT));
+            }}
+          >
             <DialogContent
               className="max-h-[85vh] overflow-y-auto p-0 sm:max-w-xl"
               onEscapeKeyDown={(event) => event.preventDefault()}

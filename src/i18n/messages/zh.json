@@ -33,7 +33,23 @@
     "keepLoggedIn": "保持登录状态",
     "passwordUpdateSuccess": "{username} 的密码已成功更新，请使用新密码登录。",
     "insufficientAuthority": "当前登录凭据不包含此操作所需的密钥权限。请使用相应角色的私钥（如 active 权限）或主密码重试。",
-    "accountRecoverySuccess": "账户 {username} 已成功恢复，请使用新密码登录。"
+    "accountRecoverySuccess": "账户 {username} 已成功恢复，请使用新密码登录。",
+    "vaultLoading": "正在加载保险库…",
+    "vaultAccountsLoading": "正在加载账户…",
+    "vaultSelectLabel": "保险库",
+    "vaultAccountLabel": "账户",
+    "vaultAccountPlaceholder": "选择账户",
+    "vaultHelper": "无需密码——密钥保持加密状态。签名时才会要求所选密钥的保险库密码。",
+    "vaultSubmit": "继续",
+    "vaultNoVaultsTitle": "此设备上还没有保险库",
+    "vaultNoVaultsBody": "保险库模式已启用，但此浏览器中还没有加密保险库。请先创建一个或导入备份。",
+    "vaultOpenManager": "打开保险库管理",
+    "vaultEmptyTitle": "此保险库中还没有账户",
+    "vaultEmptyBody": "请先向此保险库添加一把密钥，然后在此处选择账户。",
+    "vaultManageKeys": "管理密钥",
+    "vaultUnsupportedTitle": "保险库模式下暂不可用",
+    "vaultUnsupportedBody": "此操作需要特定的密钥权限，保险库模式的身份选择暂时无法提供。请切换回私钥模式继续。",
+    "vaultSwitchMode": "打开工作模式设置"
   },
   "wallet": {
     "title": "钱包",
@@ -817,6 +833,7 @@
       "VAULT_LIMIT_EXCEEDED": "保险库或备份超出大小限制。",
       "VAULT_AUTHORITY_UNAVAILABLE": "链上账户数据当前不可用，暂时无法验证签名权限。",
       "unexpected": "发生意外错误。"
-    }
+    },
+    "verifyAuthorityDiffers": "该密钥匹配的是账户链上的 {authority} 密钥，而不是所选角色（{role}）。它仍会按 {role} 存储，但在链上只能作为 {authority} 密钥使用。"
   }
 }

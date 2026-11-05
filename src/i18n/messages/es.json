@@ -33,7 +33,23 @@
     "keepLoggedIn": "Mantener la sesión iniciada",
     "passwordUpdateSuccess": "La contraseña de {username} se actualizó correctamente. Inicie sesión con la nueva contraseña.",
     "insufficientAuthority": "Las credenciales proporcionadas no incluyen la autoridad de clave que requiere esta acción. Prueba con la clave del rol correspondiente (p. ej. activa) o tu contraseña maestra.",
-    "accountRecoverySuccess": "La cuenta {username} fue recuperada exitosamente. Inicie sesión con su nueva contraseña."
+    "accountRecoverySuccess": "La cuenta {username} fue recuperada exitosamente. Inicie sesión con su nueva contraseña.",
+    "vaultLoading": "Cargando bóvedas…",
+    "vaultAccountsLoading": "Cargando cuentas…",
+    "vaultSelectLabel": "Bóveda",
+    "vaultAccountLabel": "Cuenta",
+    "vaultAccountPlaceholder": "Selecciona una cuenta",
+    "vaultHelper": "No hace falta contraseña: las claves siguen cifradas. Al firmar se pedirá la contraseña de la bóveda de la clave elegida.",
+    "vaultSubmit": "Continuar",
+    "vaultNoVaultsTitle": "Aún no hay ninguna bóveda en este dispositivo",
+    "vaultNoVaultsBody": "El modo Vault está activo, pero este navegador no tiene ninguna bóveda cifrada. Crea una o importa una copia primero.",
+    "vaultOpenManager": "Abrir la gestión de bóvedas",
+    "vaultEmptyTitle": "Esta bóveda aún no contiene cuentas",
+    "vaultEmptyBody": "Añade primero una clave privada a esta bóveda y después selecciona la cuenta aquí.",
+    "vaultManageKeys": "Gestionar claves",
+    "vaultUnsupportedTitle": "Aún no disponible en el modo Vault",
+    "vaultUnsupportedBody": "Esta acción necesita una autoridad de clave concreta que la selección de identidad del modo Vault todavía no puede proporcionar. Cambia al modo PrivateKey para continuar.",
+    "vaultSwitchMode": "Abrir la configuración del modo de trabajo"
   },
   "wallet": {
     "title": "Billetera",
@@ -817,6 +833,7 @@
       "VAULT_LIMIT_EXCEEDED": "La bóveda o la copia superan los límites de tamaño.",
       "VAULT_AUTHORITY_UNAVAILABLE": "Los datos de cuenta on-chain no están disponibles, por lo que no se puede verificar la autoridad de firma en este momento.",
       "unexpected": "Ocurrió un error inesperado."
-    }
+    },
+    "verifyAuthorityDiffers": "Esta clave coincide con la clave {authority} de la cuenta en la cadena, no con el rol seleccionado ({role}). Se guardará igualmente como {role}, pero en la cadena solo puede actuar como clave {authority}."
   }
 }

@@ -636,6 +636,80 @@ describe('VaultManagerPanel', () => {
     expect(await screen.findByText('errors.VAULT_SESSION_STALE')).toBeInTheDocument();
   });
 
+  it('change password on an EMPTY vault routes VAULT_EMPTY to the scene message (changePasswordEmpty)', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    (state.manager.changePassword as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_EMPTY', 'internal detail'),
+    );
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('Main')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionChangePassword');
+    expect(await screen.findByText('changePasswordTitle')).toBeInTheDocument();
+    fireEvent.change(document.getElementById('vault-password-old') as HTMLInputElement, {
+      target: { value: 'the-vault-password-1' },
+    });
+    fireEvent.change(document.getElementById('vault-password-new') as HTMLInputElement, {
+      target: { value: 'a-strong-passphrase-1' },
+    });
+    fireEvent.change(document.getElementById('vault-password-confirm') as HTMLInputElement, {
+      target: { value: 'a-strong-passphrase-1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'changePasswordButton' }));
+
+    // The scene-level copy, NOT the generic "no vault is available" message.
+    expect(await screen.findByText('changePasswordEmpty')).toBeInTheDocument();
+    expect(screen.queryByText('errors.VAULT_EMPTY')).not.toBeInTheDocument();
+    expect(screen.queryByText('internal detail')).not.toBeInTheDocument();
+    // The dialog stays open so the user can read the guidance (the typed
+    // passwords stay in their inputs for correction); the error box itself
+    // never echoes them.
+    expect(screen.getByText('changePasswordTitle')).toBeInTheDocument();
+    const alert = screen.getByText('changePasswordEmpty').closest('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expectNoSecrets(alert as HTMLElement);
+  });
+
+  it('merge into an EMPTY target routes VAULT_EMPTY to the scene message (mergeTargetEmpty)', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    (state.manager.importVaultDetailed as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_EMPTY', 'internal detail'),
+    );
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('Main')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionMerge');
+    await waitFor(() => {
+      expect(document.getElementById('vault-merge-file')).not.toBeNull();
+    });
+    const file = new File([JSON.stringify(envelopeFor('Source'))], 'source-backup.json', {
+      type: 'application/json',
+    });
+    fireEvent.change(document.getElementById('vault-merge-file') as HTMLInputElement, {
+      target: { files: [file] },
+    });
+    fireEvent.change(document.getElementById('vault-merge-password') as HTMLInputElement, {
+      target: { value: 'source-password-1234' },
+    });
+    fireEvent.change(document.getElementById('vault-merge-target-password') as HTMLInputElement, {
+      target: { value: 'target-password-1234' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'mergeButton' }));
+
+    expect(await screen.findByText('mergeTargetEmpty')).toBeInTheDocument();
+    expect(screen.queryByText('errors.VAULT_EMPTY')).not.toBeInTheDocument();
+    expect(screen.queryByText('internal detail')).not.toBeInTheDocument();
+    // No completion dialog: nothing was merged.
+    expect(screen.queryByTestId('vault-merge-complete')).not.toBeInTheDocument();
+    const alert = screen.getByText('mergeTargetEmpty').closest('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expectNoSecrets(alert as HTMLElement);
+  });
+
   it('row menu "Manage keys" opens the locked-state key manager view and back returns to the list', async () => {
     const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);

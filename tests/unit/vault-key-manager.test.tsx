@@ -29,6 +29,7 @@ import { VaultError } from '@/lib/vault/errors';
 import type { VaultKeyChainMatch } from '@/lib/vault/key-management';
 import type { VaultManagerExtended } from '@/lib/vault/manager';
 import type { VaultAccountSummary, VaultKeyInput, VaultKeyPointer } from '@/lib/vault/types';
+import { normalizeSteemUsername } from '@/lib/steem/username';
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -278,6 +279,8 @@ describe('VaultKeyManager (R2 key management)', () => {
     await waitFor(() => {
       expect(state.manager.addKey).toHaveBeenCalled();
     });
+    await screen.findByText('keyAdded');
+    expectNoSecrets();
   });
 
   it('verification failure blocks the add with the mapped error', async () => {
@@ -405,5 +408,211 @@ describe('VaultKeyManager (R2 key management)', () => {
     });
     await screen.findByText('keysNoteSaved');
     await screen.findByText('laptop key');
+  });
+
+  // -------------------------------------------------------------------------
+  // R2 quick-review follow-ups (R3 batch)
+  // -------------------------------------------------------------------------
+
+  /** Open the add-key dialog and type the sensitive fields (no submit). */
+  async function openAndFillAddKey() {
+    fireEvent.click(screen.getByRole('button', { name: 'keysAddKey' }));
+    await screen.findByTestId('vault-add-key-form');
+    fireEvent.change(document.getElementById('vault-add-key-account') as HTMLInputElement, {
+      target: { value: 'alice' },
+    });
+    fireEvent.change(document.getElementById('vault-add-key-wif') as HTMLInputElement, {
+      target: { value: WIF },
+    });
+    fireEvent.change(document.getElementById('vault-add-key-password') as HTMLInputElement, {
+      target: { value: VAULT_PASSWORD },
+    });
+  }
+
+  /** The sensitive inputs of a (re)opened dialog start empty. */
+  function expectEmptySensitiveInputs() {
+    expect((document.getElementById('vault-add-key-wif') as HTMLInputElement).value).toBe('');
+    expect((document.getElementById('vault-add-key-password') as HTMLInputElement).value).toBe(
+      '',
+    );
+  }
+
+  it('cancel scrubs the WIF and password: dialog closes, nothing leaks, reopening starts empty', async () => {
+    const state = makeManager();
+    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    await screen.findAllByTestId('vault-key-account');
+
+    await openAndFillAddKey();
+    expect((document.getElementById('vault-add-key-wif') as HTMLInputElement).value).toBe(WIF);
+
+    fireEvent.click(screen.getByRole('button', { name: 'cancelAction' }));
+    await waitFor(() => {
+      expect(screen.queryByTestId('vault-add-key-form')).not.toBeInTheDocument();
+    });
+    expectNoSecrets();
+
+    fireEvent.click(screen.getByRole('button', { name: 'keysAddKey' }));
+    await screen.findByTestId('vault-add-key-form');
+    expectEmptySensitiveInputs();
+    expect(state.manager.addKey).not.toHaveBeenCalled();
+    expect(mockVerifyKeysOnChain).not.toHaveBeenCalled();
+  });
+
+  it('dismissing the dialog (Esc unmounts the form) also leaves no WIF behind', async () => {
+    const state = makeManager();
+    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    await screen.findAllByTestId('vault-key-account');
+
+    // Mid-flow: verified but NOT confirmed — the WIF sits in the form state.
+    await verifyAddKey(MATCHED);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByTestId('vault-add-key-form')).not.toBeInTheDocument();
+    });
+    expectNoSecrets();
+
+    fireEvent.click(screen.getByRole('button', { name: 'keysAddKey' }));
+    await screen.findByTestId('vault-add-key-form');
+    expectEmptySensitiveInputs();
+    // The verification snapshot did not survive the unmount either.
+    expect(screen.queryByTestId('vault-add-key-verification')).not.toBeInTheDocument();
+    expect(state.manager.addKey).not.toHaveBeenCalled();
+  });
+
+  it('unmounting the whole key manager with a typed WIF leaves nothing in the document', async () => {
+    const state = makeManager();
+    const { unmount } = render(
+      <VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />,
+    );
+    await screen.findAllByTestId('vault-key-account');
+
+    await openAndFillAddKey();
+    unmount();
+    expectNoSecrets();
+    expect(document.getElementById('vault-add-key-wif')).toBeNull();
+    expect(state.manager.addKey).not.toHaveBeenCalled();
+  });
+
+  /** Select a role, then verify with the given chain result. */
+  async function verifyWithRole(role: string, match: VaultKeyChainMatch) {
+    mockVerifyKeysOnChain.mockResolvedValueOnce([match]);
+    await openAndFillAddKey();
+    fireEvent.change(document.getElementById('vault-add-key-role') as HTMLSelectElement, {
+      target: { value: role },
+    });
+    fireEvent.click(screen.getByTestId('vault-add-key-primary'));
+    return screen.findByTestId('vault-add-key-verification');
+  }
+
+  it('authority differs from the selected role (memo selected, posting matched): WARN tone + stored-as-selected copy', async () => {
+    const state = makeManager();
+    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    await screen.findAllByTestId('vault-key-account');
+
+    const box = await verifyWithRole('memo', MATCHED);
+    expect(box).toHaveTextContent('verifyAuthorityDiffers');
+    expect(box).not.toHaveTextContent('verifyMatched');
+    // Warn tone (amber), never the green "verified" box.
+    expect(box.className).toContain('amber');
+    expect(box.className).not.toContain('emerald');
+
+    // Still storable — under the SELECTED role.
+    fireEvent.click(screen.getByTestId('vault-add-key-primary'));
+    await waitFor(() => {
+      expect(state.manager.addKey).toHaveBeenCalledWith(
+        expect.objectContaining({ accountName: 'alice', role: 'memo' }),
+      );
+    });
+    expectNoSecrets();
+  });
+
+  it('authority differs the other way (posting selected, memo key matched): WARN, not the green memo verdict', async () => {
+    const state = makeManager();
+    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    await screen.findAllByTestId('vault-key-account');
+
+    const box = await verifyWithRole('posting', {
+      matched: true,
+      authority: 'memo',
+      weight: 1,
+      threshold: 1,
+      suffices: true,
+    });
+    expect(box).toHaveTextContent('verifyAuthorityDiffers');
+    expect(box.className).toContain('amber');
+  });
+
+  it('memo selected and memo matched keeps the green memo verdict', async () => {
+    const state = makeManager();
+    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    await screen.findAllByTestId('vault-key-account');
+
+    const box = await verifyWithRole('memo', {
+      matched: true,
+      authority: 'memo',
+      weight: 1,
+      threshold: 1,
+      suffices: true,
+    });
+    expect(box).toHaveTextContent('verifyMemo');
+    expect(box.className).toContain('emerald');
+  });
+
+  it('sub-threshold outranks authority-differs (the signer-rejection warning wins)', async () => {
+    const state = makeManager();
+    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    await screen.findAllByTestId('vault-key-account');
+
+    const box = await verifyWithRole('posting', {
+      matched: true,
+      authority: 'active',
+      weight: 1,
+      threshold: 2,
+      suffices: false,
+    });
+    expect(box).toHaveTextContent('verifySubthreshold');
+    expect(box).not.toHaveTextContent('verifyAuthorityDiffers');
+  });
+
+  it('added-vs-duplicate detection compares account names through normalization (non-canonical stored name)', async () => {
+    // A directory entry whose STORED name is not canonical (e.g. from an
+    // imported backup) — the service matches it by normalized name, so the
+    // new key lands under 'ALICE'. A raw `===` against the verified 'alice'
+    // would count 0 before and after and mislabel the add as a duplicate.
+    const state: ManagerState = {
+      manager: null as unknown as VaultManagerExtended,
+      directory: [
+        {
+          accountName: 'ALICE',
+          keys: [{ role: 'posting', iv: 'ivalicepost', note: 'desktop key' }],
+          balances: null,
+        },
+      ],
+    };
+    state.manager = {
+      getAccounts: vi.fn(async () => state.directory.map((account) => ({ ...account }))),
+      addKey: vi.fn(async (input: VaultKeyInput) => {
+        state.directory = state.directory.map((account) =>
+          normalizeSteemUsername(account.accountName) === normalizeSteemUsername(input.accountName)
+            ? {
+                ...account,
+                keys: [...account.keys, { role: input.role, iv: 'ivnewkey', note: input.note }],
+              }
+            : account,
+        );
+        return {} as never;
+      }),
+      removeKey: vi.fn(),
+      updateKeyNote: vi.fn(),
+      unlockVault: vi.fn(),
+    } as unknown as VaultManagerExtended;
+
+    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    await screen.findAllByTestId('vault-key-account');
+
+    await verifyAddKey(MATCHED);
+    fireEvent.click(screen.getByTestId('vault-add-key-primary'));
+    expect(await screen.findByText('keyAdded')).toBeInTheDocument();
+    expect(screen.queryByText('keyAlreadyExists')).not.toBeInTheDocument();
   });
 });

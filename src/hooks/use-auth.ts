@@ -3,7 +3,7 @@
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
 import { clearRememberedDeviceAuth } from '@/lib/auth/browser-storage';
-import { logout as authLogout } from '@/lib/store/slices/auth';
+import { logout as authLogout, sessionKindOf } from '@/lib/store/slices/auth';
 import { apiClient } from '@/lib/steem/client';
 
 interface UseAuthReturn {
@@ -22,8 +22,19 @@ export function useAuth(): UseAuthReturn {
   const dispatch = useDispatch();
   const username = useSelector((state: RootState) => state.auth.username);
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const sessionKind = useSelector((state: RootState) => sessionKindOf(state.auth));
 
   const logout = async (): Promise<void> => {
+    // Vault sessions (R3) never called /api/auth/login, so the server holds
+    // no state for them — there is nothing to call /api/auth/logout against.
+    // Ending a vault session only clears the local identity in Redux. The
+    // Legacy remembered username/posting key (localStorage) belongs to the
+    // privateKey flow and is deliberately left untouched here: a vault
+    // logout must never read, write or destroy it.
+    if (sessionKind === 'vault') {
+      dispatch(authLogout());
+      return;
+    }
     try {
       // Call server logout
       await apiClient.logout();

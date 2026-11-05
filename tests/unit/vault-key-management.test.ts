@@ -275,6 +275,27 @@ describe('verifyKeysOnChain (R2 key management)', () => {
     ]);
   });
 
+  it('fails closed when memo_key is missing or not a string (typeof branch), even for non-memo candidates', async () => {
+    // Field absent entirely — condenser_api always returns it, so its absence
+    // means the whole row is unreliable.
+    const missingMemo = makeAccount('alice');
+    delete (missingMemo as unknown as Record<string, unknown>)['memo_key'];
+    mockFetchAccounts.mockResolvedValue(accountsResponse([missingMemo]));
+    await expectUnavailable([
+      { accountName: 'alice', role: 'posting', publicKey: 'STMposting-alice' },
+    ]);
+
+    // Present but the wrong type.
+    for (const bogus of [null, 42, { key: 'STMmemo-alice' }, ['STMmemo-alice']]) {
+      const wrongType = makeAccount('alice');
+      (wrongType as unknown as Record<string, unknown>)['memo_key'] = bogus;
+      mockFetchAccounts.mockResolvedValue(accountsResponse([wrongType]));
+      await expectUnavailable([
+        { accountName: 'alice', role: 'memo', publicKey: 'STMmemo-alice' },
+      ]);
+    }
+  });
+
   it('an empty candidate list returns [] without touching the network', async () => {
     await expect(verifyKeysOnChain([])).resolves.toEqual([]);
     expect(mockFetchAccounts).not.toHaveBeenCalled();
