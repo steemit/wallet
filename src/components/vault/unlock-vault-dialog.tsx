@@ -50,7 +50,7 @@ export function UnlockVaultDialog({
   const t = useTranslations('vault');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="z-[60] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('unlockTitle')}</DialogTitle>
           <DialogDescription>{t('unlockDescription', { name: vaultName })}</DialogDescription>

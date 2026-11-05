@@ -4,7 +4,7 @@
  * mocks). CI runs workers=1; locally the dev server is reused.
  *
  * Covered (kickoff A5 acceptance):
- *  - the side-panel Work Mode entry opens the drawer (logged OUT — the mode
+ *  - the side-panel Work Mode entry opens the modal (logged OUT — the mode
  *    is a device preference, not a login feature);
  *  - switching to Vault Mode persists WITHOUT a page reload (window marker
  *    survives + app chrome stays attached);
@@ -44,32 +44,35 @@ async function expectNoReload(page: import('@playwright/test').Page) {
   await expect(page.locator('header')).toBeVisible();
 }
 
-async function openWorkModeDrawer(page: import('@playwright/test').Page) {
+async function openWorkModeModal(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Menu' }).click();
-  await page.getByTestId('side-panel-work-mode').click();
-  const drawer = page.getByTestId('work-mode-drawer');
-  await expect(drawer).toBeVisible({ timeout: 15_000 });
-  return drawer;
+  const entry = page.getByTestId('side-panel-work-mode');
+  await expect(entry).toHaveText('PrivateKey Mode');
+  await entry.click();
+  const modal = page.getByTestId('work-mode-modal');
+  await expect(modal).toBeVisible({ timeout: 15_000 });
+  await expect(entry).toBeHidden();
+  return modal;
 }
 
 test.describe('Vault work mode', () => {
-  test('switching to Vault Mode persists without a reload and offers the three empty-state options', async ({
+  test('mode entry stays current and the management modal only closes through its X button', async ({
     page,
   }) => {
     await page.goto('/');
     await setNoReloadMarker(page);
 
-    const drawer = await openWorkModeDrawer(page);
+    const modal = await openWorkModeModal(page);
 
     // Mode radios are addressed via [data-mode] CSS locators, not getByRole:
-    // once the empty-vault dialog (a modal) opens, the drawer subtree goes
+    // once the empty-vault dialog (a modal) opens, the modal subtree goes
     // aria-hidden and role-based queries stop matching the radios.
 
     // Fresh profile: the persisted default is PrivateKey Mode, marked legacy.
-    const privateKeyRadio = drawer.locator('[data-mode="privateKey"]');
-    const vaultRadio = drawer.locator('[data-mode="vault"]');
+    const privateKeyRadio = modal.locator('[data-mode="privateKey"]');
+    const vaultRadio = modal.locator('[data-mode="vault"]');
     await expect(privateKeyRadio).toHaveAttribute('aria-checked', 'true', { timeout: 15_000 });
-    await expect(drawer.getByText('Legacy', { exact: true })).toBeVisible();
+    await expect(modal.getByText('Legacy', { exact: true })).toBeVisible();
 
     await vaultRadio.click();
 
@@ -89,24 +92,44 @@ test.describe('Vault work mode', () => {
     // "Continue browsing" closes the dialog; the vault section stays usable.
     await emptyDialog.getByRole('button', { name: 'Continue browsing' }).click();
     await expect(emptyDialog).toBeHidden();
-    await expect(drawer.getByText('No vaults yet. Create a vault or import a backup to use Vault Mode.')).toBeVisible();
+    await expect(modal.getByText('No vaults yet. Create a vault or import a backup to use Vault Mode.')).toBeVisible();
+
+    await modal.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(modal).toBeHidden();
+    await page.getByRole('button', { name: 'Menu' }).click();
+    const vaultEntry = page.getByTestId('side-panel-work-mode');
+    await expect(vaultEntry).toHaveText('Vault Mode');
+    await vaultEntry.click();
+    await expect(modal).toBeVisible();
+    await expect(emptyDialog).toBeVisible();
+    await emptyDialog.getByRole('button', { name: 'Continue browsing' }).click();
+    await expect(emptyDialog).toBeHidden();
 
     // Switch back to PrivateKey — still in place.
-    await drawer.locator('[data-mode="privateKey"]').click();
+    await modal.locator('[data-mode="privateKey"]').click();
     await expect(privateKeyRadio).toHaveAttribute('aria-checked', 'true', { timeout: 15_000 });
     await expectNoReload(page);
+
+    await page.keyboard.press('Escape');
+    await expect(modal).toBeVisible();
+    await page.mouse.click(8, 8);
+    await expect(modal).toBeVisible();
+    await modal.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(modal).toBeHidden();
+    await page.getByRole('button', { name: 'Menu' }).click();
+    await expect(page.getByTestId('side-panel-work-mode')).toHaveText('PrivateKey Mode');
   });
 
   test('vault lifecycle: create, confirm backup, unlock, lock, export download', async ({ page }) => {
     await page.goto('/');
     await setNoReloadMarker(page);
 
-    const drawer = await openWorkModeDrawer(page);
+    const modal = await openWorkModeModal(page);
 
     // Enter Vault Mode via the empty dialog's create option. The radio is a
     // CSS locator (role queries lose it once the modal dialog aria-hides the
-    // drawer subtree).
-    await drawer.locator('[data-mode="vault"]').click();
+    // modal subtree).
+    await modal.locator('[data-mode="vault"]').click();
     const emptyDialog = page.getByRole('dialog').filter({
       has: page.getByRole('heading', { name: 'No vaults yet' }),
     });
@@ -115,14 +138,19 @@ test.describe('Vault work mode', () => {
     });
 
     // Create form (name + password + confirm).
-    const createForm = drawer.getByTestId('vault-create-form');
+    const createForm = modal.getByTestId('vault-create-form');
     await expect(createForm).toBeVisible({ timeout: 15_000 });
     const nameInput = createForm.getByLabel('Vault name');
-    const drawerBox = await drawer.boundingBox();
+    const modalBox = await modal.boundingBox();
     const inputBox = await nameInput.boundingBox();
-    if (!drawerBox || !inputBox) throw new Error('Work Mode drawer geometry is unavailable');
-    expect(inputBox.x - drawerBox.x).toBeGreaterThanOrEqual(16);
-    expect(drawerBox.x + drawerBox.width - inputBox.x - inputBox.width).toBeGreaterThanOrEqual(16);
+    const backButtonBox = await createForm.getByRole('button', { name: 'Back', exact: true }).boundingBox();
+    if (!modalBox || !inputBox || !backButtonBox) {
+      throw new Error('Work Mode modal geometry is unavailable');
+    }
+    expect(inputBox.x - modalBox.x).toBeGreaterThanOrEqual(16);
+    expect(modalBox.x + modalBox.width - inputBox.x - inputBox.width).toBeGreaterThanOrEqual(16);
+    expect(modalBox.x + modalBox.width - backButtonBox.x - backButtonBox.width).toBeGreaterThanOrEqual(16);
+    expect(await createForm.evaluate((form) => form.scrollWidth <= form.clientWidth)).toBe(true);
     await nameInput.fill(VAULT_NAME);
     await createForm.getByLabel('Vault password', { exact: true }).fill(VAULT_PASSWORD);
     await createForm.getByLabel('Confirm vault password').fill(VAULT_PASSWORD);
@@ -133,6 +161,7 @@ test.describe('Vault work mode', () => {
       has: page.getByRole('heading', { name: 'Back up your vault' }),
     });
     await expect(confirmDialog).toBeVisible({ timeout: 30_000 });
+    await expect(confirmDialog).toHaveCSS('z-index', '60');
     // Both warning lines are distinct from the checkbox label text.
     await expect(
       confirmDialog.getByText(/cannot be recovered on this device/i),
@@ -147,7 +176,7 @@ test.describe('Vault work mode', () => {
     await expect(confirmDialog).toBeHidden();
 
     // The list shows the new vault — created LOCKED (no auto-unlock).
-    const row = drawer.getByTestId('vault-row').filter({ hasText: VAULT_NAME });
+    const row = modal.getByTestId('vault-row').filter({ hasText: VAULT_NAME });
     await expect(row).toBeVisible({ timeout: 15_000 });
     await expect(row.getByText('Locked', { exact: true })).toBeVisible();
 
@@ -177,7 +206,7 @@ test.describe('Vault work mode', () => {
     expect(download.suggestedFilename()).toMatch(/^steem-wallet-vault-/);
 
     // Switch back to PrivateKey Mode to close the loop.
-    const privateKeyRadio = drawer.locator('[data-mode="privateKey"]');
+    const privateKeyRadio = modal.locator('[data-mode="privateKey"]');
     await privateKeyRadio.click();
     await expect(privateKeyRadio).toHaveAttribute('aria-checked', 'true', { timeout: 15_000 });
     await expectNoReload(page);

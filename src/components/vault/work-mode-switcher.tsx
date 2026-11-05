@@ -1,7 +1,7 @@
 'use client';
 
 // Work mode switcher (A5) — the PrivateKey / Vault dual selector shown at the
-// top of the Work Mode drawer.
+// top of the Work Mode modal.
 //
 // - The mode is a DEVICE PREFERENCE: it is read from and written to the vault
 //   registry's settings row and does not depend on the login state — the

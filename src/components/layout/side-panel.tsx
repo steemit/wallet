@@ -28,12 +28,33 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SIDE_PANEL_EXTERNAL, SIDE_PANEL_INTERNAL } from '@/lib/navigation/side-panel-links';
+import { useVaultRuntime } from '@/components/vault/vault-manager';
+import { useSigningMode } from '@/hooks/use-signing-mode';
 
 interface SidePanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Opens the Work Mode drawer (vault / signing mode management). */
+  /** Opens the Work Mode modal (vault / signing mode management). */
   onOpenWorkMode?: () => void;
+}
+
+function WorkModeEntry({ className, onOpen }: { className: string; onOpen: () => void }) {
+  const runtime = useVaultRuntime();
+  const { mode } = useSigningMode(runtime.state === 'ready' ? runtime.facade : null);
+  const t = useTranslations('vault');
+  const label =
+    mode === 'privateKey'
+      ? t('modePrivateKeyTitle')
+      : mode === 'vault'
+        ? t('modeVaultTitle')
+        : t('workModeTitle');
+
+  return (
+    <button type="button" onClick={onOpen} className={className} data-testid="side-panel-work-mode">
+      <KeyRound />
+      {label}
+    </button>
+  );
 }
 
 export function SidePanel({ open, onOpenChange, onOpenWorkMode }: SidePanelProps) {
@@ -109,18 +130,13 @@ export function SidePanel({ open, onOpenChange, onOpenWorkMode }: SidePanelProps
           </div>
 
           {onOpenWorkMode && (
-            <button
-              type="button"
-              onClick={() => {
-                close();
-                onOpenWorkMode();
-              }}
+            <WorkModeEntry
               className={navItemClassName}
-              data-testid="side-panel-work-mode"
-            >
-              <KeyRound />
-              {t('navWorkMode')}
-            </button>
+              onOpen={() => {
+                close();
+                requestAnimationFrame(() => onOpenWorkMode());
+              }}
+            />
           )}
 
           {isLoggedIn && (

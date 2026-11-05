@@ -8,20 +8,20 @@ import { OverseerPageTracker } from '@/components/analytics/overseer-page-tracke
 import { useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { VaultProvider, VaultWorkModeContent } from '@/components/vault/vault-manager';
 import { useTranslations } from 'next-intl';
 
 /**
- * B-PHASE (dapp signing) WIRING POINT — dapp error → Work Mode drawer.
+ * B-PHASE (dapp signing) WIRING POINT — dapp error → Work Mode modal.
  *
  * When a B-phase dapp signing surface hits a mode-related vault error
  * (`VAULT_MODE_REQUIRED`, `VAULT_LOCKED`, ...), it should dispatch this
- * custom window event; the listener below opens the Work Mode drawer and
+ * custom window event; the listener below opens the Work Mode modal and
  * focuses the mode switcher so the user can switch modes / unlock:
  *
  *   window.dispatchEvent(new CustomEvent(VAULT_WORK_MODE_OPEN_EVENT));
@@ -32,7 +32,7 @@ import { useTranslations } from 'next-intl';
  */
 export const VAULT_WORK_MODE_OPEN_EVENT = 'steem-wallet:open-work-mode';
 
-/** id of the focusable mode-switcher container inside the drawer. */
+/** id of the focusable mode-switcher container inside the modal. */
 const WORK_MODE_SWITCHER_FOCUS_ID = 'work-mode-switcher';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -43,7 +43,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const openWorkMode = () => {
       setWorkModeOpen(true);
-      // Focus the mode switcher once the drawer content has mounted.
+      // Focus the mode switcher once the modal content has mounted.
       requestAnimationFrame(() => {
         document.getElementById(WORK_MODE_SWITCHER_FOCUS_ID)?.focus();
       });
@@ -65,18 +65,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             onOpenChange={setSidePanelOpen}
             onOpenWorkMode={() => setWorkModeOpen(true)}
           />
-          <Sheet open={workModeOpen} onOpenChange={setWorkModeOpen}>
-            <SheetContent
-              side="right"
-              className="w-[320px] overflow-y-auto sm:w-[400px]"
-              data-testid="work-mode-drawer"
+          <Dialog open={workModeOpen} onOpenChange={setWorkModeOpen}>
+            <DialogContent
+              className="max-h-[85vh] overflow-y-auto p-0 sm:max-w-xl"
+              onEscapeKeyDown={(event) => event.preventDefault()}
+              onInteractOutside={(event) => event.preventDefault()}
+              data-testid="work-mode-modal"
             >
-              <SheetHeader>
-                <SheetTitle>{t('workModeTitle')}</SheetTitle>
-              </SheetHeader>
+              <DialogHeader className="p-4">
+                <DialogTitle>{t('workModeTitle')}</DialogTitle>
+              </DialogHeader>
               <VaultWorkModeContent focusId={WORK_MODE_SWITCHER_FOCUS_ID} />
-            </SheetContent>
-          </Sheet>
+            </DialogContent>
+          </Dialog>
           <main>{children}</main>
         </div>
       </TooltipProvider>

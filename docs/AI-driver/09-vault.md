@@ -4,7 +4,7 @@
 > A1.1 shared validation / canonical base64url / resource limits, PR #386 A2
 > IndexedDB registry + unlock-session service, PR #387 A3 backup export /
 > independent import / merge migration, PR #389 A4 manager / signer /
-> signing facade, A5 work-mode drawer UI).
+> signing facade, A5 work-mode modal UI).
 > Covers only what has landed: type contracts, error taxonomy, envelope validation,
 > Web Crypto whole-envelope encryption, shared input validation with resource
 > boundaries, the registry/service/backup layers, the manager + signer +
@@ -12,6 +12,14 @@
 > empty/unlock/key-confirmation dialogs). Caller migration (A6) and the dapp
 > phase (B0–B4) are not implemented yet — this doc grows with each task
 > package. Tracking issue: #381.
+>
+> **Target-structure revision (2026-11-05, NOT LANDED):** the approved V1 target is
+> now a hierarchical `accounts` record with per-key `{ iv, ciphertext, note }`.
+> One vault has one password and shared salt; each key uses a fresh random IV,
+> and signing decrypts only the selected key. Account names, roles and notes are
+> public outer metadata. The unreleased whole-envelope format will be replaced
+> directly in R1 without a migration layer. Until R1 lands, the module map and
+> invariants below describe the existing whole-envelope code, not the new target.
 
 ## Module map
 
@@ -362,7 +370,7 @@ goes through i18n) and never echo names, passwords, WIFs, ciphertext or payload.
     `getVaultRuntime()` is a MODULE-LEVEL SINGLETON (registry + manager +
     facade with `manager.createSigner()` as the vault backend). The manager's
     session service is pure memory, so a second runtime could never share the
-    session the drawer unlocks — consume `useVaultRuntime()` /
+    session the modal unlocks — consume `useVaultRuntime()` /
     `<VaultProvider>` (mounted once in app-layout), never build another
     runtime. The privateKey backend is NOT wired yet (A6 injects the
     login-state WIF getter); until then facade privateKey signing fails with
@@ -380,7 +388,7 @@ goes through i18n) and never echo names, passwords, WIFs, ciphertext or payload.
     is shown with re-unlock guidance.
   - The B-phase dapp hook is reserved: dispatching
     `VAULT_WORK_MODE_OPEN_EVENT` (exported from app-layout.tsx) opens the
-    drawer and focuses the mode switcher (`#work-mode-switcher`).
+    modal and focuses the mode switcher (`#work-mode-switcher`).
   - jsdom notes for tests: radix DropdownMenu opens via keyboard
     (ArrowDown), not click; `File#text()` does not exist in jsdom (the UI
     uses a FileReader helper); modal dialogs aria-hide the rest of the page,

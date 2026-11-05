@@ -202,9 +202,9 @@ export function useVaultRuntime(): VaultRuntime {
 }
 
 /**
- * The Work Mode drawer body: resolves the runtime and renders the panel,
- * the storage-unavailable fallback or the loading state. The drawer shell
- * (Sheet) lives in app-layout.tsx; B-phase dapp surfaces open that drawer
+ * The Work Mode modal body: resolves the runtime and renders the panel,
+ * the storage-unavailable fallback or the loading state. The modal shell
+ * (Dialog) lives in app-layout.tsx; B-phase dapp surfaces open that modal
  * via the exported event constant there.
  */
 export function VaultWorkModeContent({ focusId }: { focusId?: string | undefined }) {
@@ -850,7 +850,7 @@ function CreateVaultForm({
       )}
       {errorKey && <ErrorBox messageKey={errorKey} />}
       <p className="text-muted-foreground text-xs">{t('createPolicyHint')}</p>
-      <div className="flex gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <Button type="submit" disabled={!canSubmit} className={modalFormActionButtonClassName}>
           {busy ? t('creating') : t('createButton')}
         </Button>
@@ -949,7 +949,7 @@ function ImportBackupForm({
         />
       </div>
       {errorKey && <ErrorBox messageKey={errorKey} />}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <Button type="submit" disabled={!canSubmit} className={modalFormActionButtonClassName}>
           {busy ? t('importing') : t('importButton')}
         </Button>
@@ -987,7 +987,7 @@ function RenameVaultDialog({
   const t = useTranslations('vault');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="z-[60] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('renameTitle')}</DialogTitle>
           <DialogDescription>{t('renameDescription', { name: vaultName })}</DialogDescription>
@@ -1093,7 +1093,7 @@ function ChangeVaultPasswordDialog({
   const t = useTranslations('vault');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="z-[60] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('changePasswordTitle')}</DialogTitle>
           <DialogDescription>
@@ -1237,7 +1237,7 @@ function DeleteVaultDialog({
   const t = useTranslations('vault');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="z-[60] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('deleteTitle')}</DialogTitle>
           <DialogDescription>{t('deleteDescription', { name: vaultName })}</DialogDescription>
@@ -1353,7 +1353,7 @@ function MergeBackupDialog({
   const t = useTranslations('vault');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="z-[60] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('mergeTitle')}</DialogTitle>
           <DialogDescription>{t('mergeDescription', { name: vaultName })}</DialogDescription>
@@ -1522,7 +1522,7 @@ function MergeCompleteDialog({
         }
       }}
     >
-      <DialogContent className="sm:max-w-md" data-testid="vault-merge-complete">
+      <DialogContent className="z-[60] sm:max-w-md" data-testid="vault-merge-complete">
         <DialogHeader>
           <DialogTitle>{t('mergeCompleteTitle')}</DialogTitle>
           <DialogDescription>
