@@ -6,7 +6,8 @@
  *  - vault list rendering (name / active / lock state / backup time);
  *  - the three-option empty-vault dialog (create / import / continue);
  *  - create flow with validation errors mapped through VaultError codes;
- *  - merge flow: unlock requirement, post-merge LOCK notice and the
+ *  - merge flow: reachable on a LOCKED target with the target-password
+ *    field (per-key contract), post-merge LOCK notice and the
  *    preMergeBackup delivery contract (download or EXPLICIT discard before
  *    "Continue" unlocks — never claims the backup is done while pending);
  *  - export produces a client-side blob download;
@@ -159,12 +160,14 @@ function makeManager(initial: VaultSummary[]): ManagerState {
 }
 
 function envelopeFor(name: string): VaultEnvelopeV1 {
+  // V1 hierarchical envelope: version/vaultName/salt/accounts with per-key
+  // iv/ciphertext/note entries. Empty accounts keep the mock shape minimal
+  // while still passing the real parseVaultEnvelopeJson gate on import.
   return {
     version: 1,
     vaultName: name,
-    salt: 'AAAAAAAAAAAAAAAAAAAAAA',
-    iv: 'AAAAAAAAAAAAAAAA',
-    ciphertext: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+    salt: 'AAECAwQFBgcICQoLDA0ODw',
+    accounts: [],
   };
 }
 
@@ -190,8 +193,10 @@ function renderPanel(state: ManagerState, facade = makeFacade()) {
 }
 
 /**
- * Drive an unlocked 'Main' vault through a successful merge and resolve once
- * the completion dialog (with a preMergeBackup present) is mounted.
+ * Drive a (possibly locked) 'Main' vault through a successful merge and
+ * resolve once the completion dialog (with a preMergeBackup present) is
+ * mounted. Under the per-key contract the merge form is reachable while the
+ * target is LOCKED — the target password field authenticates it.
  */
 async function mergeToComplete(state: ManagerState) {
   const importVaultDetailed = state.manager.importVaultDetailed as unknown as AnyMock;
@@ -213,6 +218,9 @@ async function mergeToComplete(state: ManagerState) {
   fireEvent.change(document.getElementById('vault-merge-password') as HTMLInputElement, {
     target: { value: 'source-password-1234' },
   });
+  fireEvent.change(document.getElementById('vault-merge-target-password') as HTMLInputElement, {
+    target: { value: 'target-password-1234' },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'mergeButton' }));
   return screen.findByTestId('vault-merge-complete');
 }
@@ -232,6 +240,7 @@ const SECRET_SUBSTRINGS = [
   'different-passphrase',
   'the-vault-password-1',
   'source-password-1234',
+  'target-password-1234',
   'wrong-but-nonempty',
 ] as const;
 
@@ -418,7 +427,7 @@ describe('VaultManagerPanel', () => {
     });
   });
 
-  it('export downloads the five-field envelope client-side; the revision bump locks the row again', async () => {
+  it('export downloads the four-field envelope client-side; the revision bump locks the row again', async () => {
     // Start UNLOCKED so the post-export lock assertion cannot pass trivially.
     const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
     renderPanel(state);
@@ -490,25 +499,54 @@ describe('VaultManagerPanel', () => {
     });
   });
 
-  it('merge requires an unlocked target and offers the unlock step', async () => {
+  it('merge form is reachable on a LOCKED target and submits the target password (per-key contract)', async () => {
     const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);
     await waitFor(() => {
-      expect(screen.getByText('Main')).toBeInTheDocument();
+      expect(screen.getByText('lockedBadge')).toBeInTheDocument();
     });
 
     await chooseRowAction('actionMerge');
     expect(await screen.findByText('mergeTitle')).toBeInTheDocument();
-    expect(screen.getByText('mergeRequiresUnlock')).toBeInTheDocument();
-    // No file/password form while locked.
-    expect(document.getElementById('vault-merge-file')).toBeNull();
+    // No pre-unlock step: the file, source-password and target-password
+    // inputs are all offered directly on the locked vault.
+    expect(document.getElementById('vault-merge-file')).not.toBeNull();
+    expect(document.getElementById('vault-merge-password')).not.toBeNull();
+    expect(document.getElementById('vault-merge-target-password')).not.toBeNull();
+
+    const file = new File([JSON.stringify(envelopeFor('Source'))], 'source-backup.json', {
+      type: 'application/json',
+    });
+    fireEvent.change(document.getElementById('vault-merge-file') as HTMLInputElement, {
+      target: { files: [file] },
+    });
+    fireEvent.change(document.getElementById('vault-merge-password') as HTMLInputElement, {
+      target: { value: 'source-password-1234' },
+    });
+    fireEvent.change(document.getElementById('vault-merge-target-password') as HTMLInputElement, {
+      target: { value: 'target-password-1234' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'mergeButton' }));
+
+    await waitFor(() => {
+      expect(state.manager.importVaultDetailed).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: 'merge',
+          targetVaultName: 'Main',
+          password: 'source-password-1234',
+          targetPassword: 'target-password-1234',
+        }),
+      );
+    });
+    // The typed passwords never render into the tree.
+    expectNoSecrets(document.body);
   });
 
   it('merge completion: the pre-merge backup must be downloaded or explicitly discarded before continuing', async () => {
-    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);
     await waitFor(() => {
-      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+      expect(screen.getByText('lockedBadge')).toBeInTheDocument();
     });
 
     // Completion dialog: locked notice + pending backup warning.
@@ -532,10 +570,10 @@ describe('VaultManagerPanel', () => {
   });
 
   it('merge completion: explicit discard also unlocks Continue', async () => {
-    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);
     await waitFor(() => {
-      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+      expect(screen.getByText('lockedBadge')).toBeInTheDocument();
     });
 
     await mergeToComplete(state);
@@ -545,10 +583,10 @@ describe('VaultManagerPanel', () => {
   });
 
   it('merge completion: pending delivery is dismiss-proof (Esc and the X button keep the dialog open)', async () => {
-    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);
     await waitFor(() => {
-      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+      expect(screen.getByText('lockedBadge')).toBeInTheDocument();
     });
 
     await mergeToComplete(state);
@@ -568,10 +606,10 @@ describe('VaultManagerPanel', () => {
   });
 
   it('merge completion: after the explicit choice, Esc closes like Continue', async () => {
-    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);
     await waitFor(() => {
-      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+      expect(screen.getByText('lockedBadge')).toBeInTheDocument();
     });
 
     await mergeToComplete(state);
@@ -596,6 +634,103 @@ describe('VaultManagerPanel', () => {
 
     await chooseRowAction('actionActivate');
     expect(await screen.findByText('errors.VAULT_SESSION_STALE')).toBeInTheDocument();
+  });
+
+  it('change password on an EMPTY vault routes VAULT_EMPTY to the scene message (changePasswordEmpty)', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    (state.manager.changePassword as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_EMPTY', 'internal detail'),
+    );
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('Main')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionChangePassword');
+    expect(await screen.findByText('changePasswordTitle')).toBeInTheDocument();
+    fireEvent.change(document.getElementById('vault-password-old') as HTMLInputElement, {
+      target: { value: 'the-vault-password-1' },
+    });
+    fireEvent.change(document.getElementById('vault-password-new') as HTMLInputElement, {
+      target: { value: 'a-strong-passphrase-1' },
+    });
+    fireEvent.change(document.getElementById('vault-password-confirm') as HTMLInputElement, {
+      target: { value: 'a-strong-passphrase-1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'changePasswordButton' }));
+
+    // The scene-level copy, NOT the generic "no vault is available" message.
+    expect(await screen.findByText('changePasswordEmpty')).toBeInTheDocument();
+    expect(screen.queryByText('errors.VAULT_EMPTY')).not.toBeInTheDocument();
+    expect(screen.queryByText('internal detail')).not.toBeInTheDocument();
+    // The dialog stays open so the user can read the guidance (the typed
+    // passwords stay in their inputs for correction); the error box itself
+    // never echoes them.
+    expect(screen.getByText('changePasswordTitle')).toBeInTheDocument();
+    const alert = screen.getByText('changePasswordEmpty').closest('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expectNoSecrets(alert as HTMLElement);
+  });
+
+  it('merge into an EMPTY target routes VAULT_EMPTY to the scene message (mergeTargetEmpty)', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    (state.manager.importVaultDetailed as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_EMPTY', 'internal detail'),
+    );
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('Main')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionMerge');
+    await waitFor(() => {
+      expect(document.getElementById('vault-merge-file')).not.toBeNull();
+    });
+    const file = new File([JSON.stringify(envelopeFor('Source'))], 'source-backup.json', {
+      type: 'application/json',
+    });
+    fireEvent.change(document.getElementById('vault-merge-file') as HTMLInputElement, {
+      target: { files: [file] },
+    });
+    fireEvent.change(document.getElementById('vault-merge-password') as HTMLInputElement, {
+      target: { value: 'source-password-1234' },
+    });
+    fireEvent.change(document.getElementById('vault-merge-target-password') as HTMLInputElement, {
+      target: { value: 'target-password-1234' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'mergeButton' }));
+
+    expect(await screen.findByText('mergeTargetEmpty')).toBeInTheDocument();
+    expect(screen.queryByText('errors.VAULT_EMPTY')).not.toBeInTheDocument();
+    expect(screen.queryByText('internal detail')).not.toBeInTheDocument();
+    // No completion dialog: nothing was merged.
+    expect(screen.queryByTestId('vault-merge-complete')).not.toBeInTheDocument();
+    const alert = screen.getByText('mergeTargetEmpty').closest('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expectNoSecrets(alert as HTMLElement);
+  });
+
+  it('row menu "Manage keys" opens the locked-state key manager view and back returns to the list', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('Main')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionManageKeys');
+    expect(await screen.findByTestId('vault-key-manager')).toBeInTheDocument();
+    // The directory is served by the public getAccounts API — locked-state
+    // browsing, no unlock call.
+    await waitFor(() => {
+      expect(state.manager.getAccounts).toHaveBeenCalledWith('Main');
+    });
+    expect(state.manager.unlockVault).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'backToList' }));
+    await waitFor(() => {
+      expect(screen.queryByTestId('vault-key-manager')).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('vault-section')).toBeInTheDocument();
   });
 
   it('renders no key material anywhere in the tree', async () => {

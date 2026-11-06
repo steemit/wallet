@@ -24,6 +24,10 @@ import {
 } from '@/components/ui/tooltip';
 import { transfersPathForUsername } from '@/lib/wallet/wallet-modal-search-params';
 import type { AccountAuthType } from '@/lib/wallet/account-keys';
+import { useSigningMode } from '@/hooks/use-signing-mode';
+import { useVaultRuntime } from '@/components/vault/vault-manager';
+import { VAULT_WORK_MODE_OPEN_EVENT } from '@/components/vault/work-mode-events';
+import { VaultLoginForm } from '@/components/auth/vault-login-form';
 
 interface LoginFormData {
   username: string;
@@ -53,7 +57,83 @@ export interface LoginFormProps {
   requiredAuthTypes?: AccountAuthType[];
 }
 
+/**
+ * Mode dispatcher (R3) — decides WHICH login surface the persisted signing
+ * mode (settings row, default `'privateKey'`) gets:
+ *
+ *   - `'vault'` + plain usage            -> VaultLoginForm (identity selection);
+ *   - `'vault'` + embedded caller that pins an account or requires specific
+ *     authorities (`fixedUsername` / `requiredAuthTypes` — the re-auth
+ *     dialogs) -> an explicit "not available in Vault Mode yet" notice with a
+ *     shortcut to the Work Mode modal. Identity selection cannot satisfy a
+ *     per-key authority requirement; the real path is the per-key password +
+ *     signing flow that A6 wires. Deliberately LOUD, never a silent swap.
+ *   - everything else                    -> PrivateKeyLoginForm below.
+ *
+ * The PrivateKey branch must stay byte-identical in behavior: when the mode
+ * is — or resolves to — `'privateKey'`, the classic form renders immediately
+ * and unchanged. Note that every NON-`'vault'` state also renders it,
+ * including mode-unknown (still loading), a failed mode read and a missing
+ * VaultProvider: `'privateKey'` is both the persisted default and the only
+ * path that works without vault storage, so login never hard-depends on
+ * IndexedDB (vault users see their form the moment the stored mode resolves
+ * to `'vault'`). This is NOT the "no PrivateKey fallback" red line — that
+ * rule lives INSIDE VaultLoginForm, where an ESTABLISHED vault mode must
+ * surface storage errors with Retry instead of quietly showing this form.
+ */
 export function LoginForm(props: LoginFormProps = {}) {
+  const { embedded = false, fixedUsername, requiredAuthTypes } = props;
+  const runtime = useVaultRuntime();
+  const { mode } = useSigningMode(runtime.state === 'ready' ? runtime.facade : null);
+
+  if (mode !== 'vault') {
+    return <PrivateKeyLoginForm {...props} />;
+  }
+
+  // Embedded re-auth consumers pin an account and/or require key authorities
+  // that identity selection cannot provide (A6 wires the real path).
+  if (embedded && (fixedUsername !== undefined || (requiredAuthTypes?.length ?? 0) > 0)) {
+    return <VaultModeUnsupportedNotice />;
+  }
+
+  return <VaultLoginForm embedded={embedded} onLoginSuccess={props.onLoginSuccess} />;
+}
+
+/**
+ * Explicit dead-end for embedded re-auth dialogs while the device is in Vault
+ * Mode: states that this flow needs a specific key authority, which identity
+ * selection cannot satisfy yet, and offers the Work Mode modal to switch back
+ * to PrivateKey Mode. Never renders a silently-degraded form.
+ */
+function VaultModeUnsupportedNotice() {
+  const t = useTranslations('auth');
+  return (
+    <div className="w-full" data-testid="vault-mode-unsupported">
+      <div className="bg-muted/40 rounded-lg border border-dashed p-4">
+        <p className="text-sm font-medium">{t('vaultUnsupportedTitle')}</p>
+        <p className="text-muted-foreground mt-1 text-sm">{t('vaultUnsupportedBody')}</p>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        className="mt-4 w-full"
+        onClick={() => {
+          window.dispatchEvent(new CustomEvent(VAULT_WORK_MODE_OPEN_EVENT));
+        }}
+      >
+        {t('vaultSwitchMode')}
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * The classic challenge-signed login (PrivateKey Mode). Module-private: every
+ * caller goes through the `LoginForm` mode dispatcher above. Body unchanged
+ * from the pre-R3 `LoginForm` — behavior, copy, remember-me and the #338
+ * re-auth authority gate are byte-identical.
+ */
+function PrivateKeyLoginForm(props: LoginFormProps = {}) {
   const {
     embedded = false,
     fixedUsername,
