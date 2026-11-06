@@ -100,7 +100,8 @@ mainnet blocks. This is consensus truth, not wallet policy — build key-selecti
   where "hierarchy" does not transfer.
 - Least privilege when the client picks a key: prefer the lowest authority the chain accepts
   for that op. The claim banner (#378) resolves
-  session posting → device-remembered posting (chain-verified) → session active → session owner
+  session posting → device-remembered posting (chain-verified; privateKey sessions only — a
+  vault session skips it, see 09-vault.md invariant 21) → session active → session owner
   → re-auth dialog. Re-auth dialog copy keeps asking for the minimal key (posting key /
   password) as a habit, while accepting higher keys, which the chain honors.
 - `LoginForm.requiredAuthTypes` (#338) models exactly the chain signing hierarchy:

@@ -652,12 +652,27 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
       per-key password + signing path into them — never a silently degraded
       form.
     - The claim-rewards banner's device-remembered posting-key restore
-      (#378) is a privateKey-session affordance ONLY: `handleClaim` skips it
-      when `sessionKindOf(auth)` reads `'vault'`, so a vault session never
+      (#375/#378) is a privateKey-session affordance ONLY: `handleClaim` skips
+      it when `sessionKindOf(auth)` reads `'vault'`, so a vault session never
       reads the Legacy remembered key (let alone signs with it) and falls
-      straight through to the re-auth dialog — i.e. the notice above. Pinned
-      in `tests/unit/claim-rewards-banner.test.tsx` (spied on jsdom's
-      Storage prototype; mutation-checked against the un-gated restore).
+      straight through to the re-auth dialog — the notice above when the mode
+      positively reads `'vault'`, otherwise the dispatcher's classic form
+      (i.e. an explicit privateKey login). Pinned in
+      `tests/unit/claim-rewards-banner.test.tsx` (spied on jsdom's Storage
+      prototype; mutation-checked against the un-gated restore).
+    - Scope of "never touches the Legacy remembered keys": the vault login
+      and logout flows and every key-resolution path a vault session can
+      reach. Two pre-existing, non-key touches are deliberate and remain:
+      (a) while the signing mode is still being read, the transient classic
+      form may READ the remembered USERNAME to prefill (no key read, no
+      write); (b) a successful change-password clears the remembered posting
+      key because the chain just invalidated it — a removal, never a borrow.
+    - Known pre-A6 UX gaps (no key exposure, recorded for A6): login dialogs
+      opened from the market and proposals pages pass neither
+      `fixedUsername` nor `requiredAuthTypes`, so in Vault Mode they show
+      identity selection and a later order/vote finds no key and reopens the
+      dialog; `transfer-form` / `delegate-form` show their pre-existing
+      hard-coded "Not authenticated" text for a keyless vault session.
 
 ## Error taxonomy (17 codes, types.ts order)
 
