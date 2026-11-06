@@ -651,6 +651,13 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
       in Vault Mode yet" notice with a Work Mode shortcut until A6 wires the
       per-key password + signing path into them — never a silently degraded
       form.
+    - The claim-rewards banner's device-remembered posting-key restore
+      (#378) is a privateKey-session affordance ONLY: `handleClaim` skips it
+      when `sessionKindOf(auth)` reads `'vault'`, so a vault session never
+      reads the Legacy remembered key (let alone signs with it) and falls
+      straight through to the re-auth dialog — i.e. the notice above. Pinned
+      in `tests/unit/claim-rewards-banner.test.tsx` (spied on jsdom's
+      Storage prototype; mutation-checked against the un-gated restore).
 
 ## Error taxonomy (17 codes, types.ts order)
 
