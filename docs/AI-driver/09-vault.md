@@ -385,7 +385,7 @@ tests/unit/vault-login-form.test.tsx    19 cases (R3): vault list -> account
 tests/unit/app-layout-work-mode.test.tsx  2 cases (R3): open event opens the
                            modal, the X close dispatches the CLOSED event, the
                            historical OPEN re-export still matches
-tests/unit/login-form-dispatch.test.tsx 9 cases (R3): REAL useSigningMode over a
+tests/unit/login-form-dispatch.test.tsx 10 cases (R3): REAL useSigningMode over a
                            mocked facade — privateKey -> classic form, vault ->
                            VaultLoginForm (plain + embedded pass-through),
                            embedded fixedUsername / requiredAuthTypes ->

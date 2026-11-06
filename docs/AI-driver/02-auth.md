@@ -30,9 +30,9 @@ Auth state is client-side only: Redux `auth` slice + optional localStorage.
   signing-mode DISPATCHER: the classic flow above is the module-private `PrivateKeyLoginForm`
   (body unchanged); a positively read Vault Mode renders `vault-login-form.tsx` (identity
   selection — no challenge/login at all), see `09-vault.md` invariant 21.
-- `src/hooks/use-auth.ts` — read-only consumption (`username`/`isAuthenticated`/`logout`).
-  ⚠️ Its `login`, `useRequireAuth`, `usePrivateKey` are dead, behavior-rotted code (no
-  normalization, no #338 gate). Do not call them; candidate for deletion.
+- `src/hooks/use-auth.ts` — read-only consumption (`username`/`isAuthenticated`/`logout`) plus
+  `useActiveSigningKey()`. (The old `login`, `useRequireAuth`, `usePrivateKey` halves were
+  deleted in #343; `LoginForm` is the only login entry point.)
 - `src/lib/auth/browser-storage.ts` — localStorage contract (see below).
 - `src/lib/store/slices/auth.ts` — holds credentials incl. private keys; sanitized in DevTools.
 
@@ -138,7 +138,8 @@ route does this; copy that pattern, do not let a parse throw reach the outer cat
   vault R3, carries only a username by contract and nulls every key field.)
 - localStorage (`browser-storage.ts`): **only** `username` + optional posting key
   (`REMEMBERED_*` keys). Never active/owner keys. Note the module only has get/clear — the actual
-  `setItem` is inlined in `login-form.tsx:308-326`; keep new writes inside that same audit surface
+  `setItem` is inlined in `login-form.tsx` (`PrivateKeyLoginForm`'s remember-me branch); keep new
+  writes inside that same audit surface
   or extend the module properly.
 - Logout (`useAuth().logout`): for privateKey sessions, fires `/api/auth/logout` (CSRF'd no-op
   on the server) and unconditionally clears Redux + both localStorage keys regardless of the
