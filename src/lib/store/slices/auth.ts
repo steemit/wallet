@@ -1,5 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
+export type AuthMethod = 'key' | 'keychain';
+
 export interface AuthState {
   username: string | null;
   // Individual role keys, only kept in memory and never persisted
@@ -11,6 +13,12 @@ export interface AuthState {
   privateKey: string | null; // Primary key used for signing (typically active)
   publicKey: string | null;
   isAuthenticated: boolean;
+  // How this session signs: 'key' holds real WIFs above; 'keychain' never
+  // does (the extension never exposes a key to the page) — every role-key
+  // field above stays null for a keychain session. See
+  // src/hooks/use-auth.ts (useActiveSigningKey / usePostingSigningKey) for
+  // where signing actually dispatches to the extension.
+  authMethod: AuthMethod;
 }
 
 const initialState: AuthState = {
@@ -22,6 +30,7 @@ const initialState: AuthState = {
   privateKey: null,
   publicKey: null,
   isAuthenticated: false,
+  authMethod: 'key',
 };
 
 const authSlice = createSlice({
@@ -70,6 +79,31 @@ const authSlice = createSlice({
 
       state.publicKey = publicKey;
       state.isAuthenticated = true;
+      state.authMethod = 'key';
+    },
+    /**
+     * Keychain login: the extension verified the challenge signature itself
+     * and the server confirmed the public key belongs to the account (same
+     * `/api/auth/login` check as a raw-key login — it is signature/pubkey
+     * agnostic). There is no private key to store: every role-key field is
+     * explicitly nulled so existing raw-key consumers (permissions/reveal
+     * page, the change-recovery-account dialog) see the same "no key
+     * available" state they already handle for a partial-key login.
+     */
+    setKeychainCredentials: (
+      state,
+      action: PayloadAction<{ username: string; publicKey: string }>
+    ) => {
+      const { username, publicKey } = action.payload;
+      state.username = username;
+      state.ownerKey = null;
+      state.activeKey = null;
+      state.postingKey = null;
+      state.memoKey = null;
+      state.privateKey = null;
+      state.publicKey = publicKey;
+      state.isAuthenticated = true;
+      state.authMethod = 'keychain';
     },
     logout: (state) => {
       state.username = null;
@@ -80,9 +114,10 @@ const authSlice = createSlice({
       state.privateKey = null;
       state.publicKey = null;
       state.isAuthenticated = false;
+      state.authMethod = 'key';
     },
   },
 });
 
-export const { setCredentials, logout } = authSlice.actions;
+export const { setCredentials, setKeychainCredentials, logout } = authSlice.actions;
 export default authSlice.reducer;

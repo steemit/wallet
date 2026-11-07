@@ -33,7 +33,11 @@
     "keepLoggedIn": "保持登录状态",
     "passwordUpdateSuccess": "{username} 的密码已成功更新，请使用新密码登录。",
     "insufficientAuthority": "当前登录凭据不包含此操作所需的密钥权限。请使用相应角色的私钥（如 active 权限）或主密码重试。",
-    "accountRecoverySuccess": "账户 {username} 已成功恢复，请使用新密码登录。"
+    "accountRecoverySuccess": "账户 {username} 已成功恢复，请使用新密码登录。",
+    "orDivider": "或",
+    "loginWithKeychain": "使用 Keychain 登录",
+    "keychainNotInstalled": "还没有安装 Steem Keychain 浏览器扩展？",
+    "keychainInstallLink": "立即安装"
   },
   "wallet": {
     "title": "钱包",

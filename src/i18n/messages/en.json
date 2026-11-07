@@ -33,7 +33,11 @@
     "keepLoggedIn": "Keep me logged in",
     "passwordUpdateSuccess": "The password for {username} was successfully updated. Please sign in with your new password.",
     "insufficientAuthority": "The provided credentials do not include the key authority this action requires. Try the relevant role key (e.g. active) or your master password.",
-    "accountRecoverySuccess": "The account {username} was successfully recovered. Please sign in with your new password."
+    "accountRecoverySuccess": "The account {username} was successfully recovered. Please sign in with your new password.",
+    "orDivider": "or",
+    "loginWithKeychain": "Login with Keychain",
+    "keychainNotInstalled": "Don't have the Steem Keychain browser extension?",
+    "keychainInstallLink": "Install it"
   },
   "wallet": {
     "title": "Wallet",

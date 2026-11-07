@@ -6,11 +6,13 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import { useAuthRoleKeys } from '@/hooks/use-auth-role-keys';
+import { usePostingSigningKey } from '@/hooks/use-auth';
 import {
   REMEMBERED_POSTING_KEY_KEY,
   REMEMBERED_USERNAME_KEY,
 } from '@/lib/auth/browser-storage';
 import { sameSteemAccount } from '@/lib/steem/username';
+import type { SigningKey } from '@/lib/steem/signing-key';
 import { ClaimRewardsReauthDialog } from '@/components/wallet/claim-rewards-reauth-dialog';
 import type { RootState } from '@/lib/store';
 import type { WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
@@ -31,11 +33,15 @@ export function ClaimRewardsBanner({
   onClaimed?: () => void;
 }) {
   const t = useTranslations('wallet');
-  const { postingKey, activeKey, ownerKey } = useAuthRoleKeys();
+  const { activeKey, ownerKey } = useAuthRoleKeys();
+  // Keychain sessions hold no raw key: this resolves to the extension signing
+  // key ({ type: 'keychain', role: 'Posting' }); for raw sessions it is
+  // wifKey(session posting key) or null — same truthiness as the raw key.
+  const postingSigningKey = usePostingSigningKey();
   const store = useStore<RootState>();
   // Any of these can sign claim_reward_balance (see the comment above
   // handleClaim); the hint and its aria link only apply when none exists.
-  const hasSigningKey = !!(postingKey || activeKey || ownerKey);
+  const hasSigningKey = !!(postingSigningKey || activeKey || ownerKey);
 
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
@@ -84,7 +90,8 @@ export function ClaimRewardsBanner({
   // (steem/protocol transaction_util.hpp verify_authority; claims signed
   // with active keys are accepted on chain), so ANY session key can sign
   // the claim. Resolution prefers the least-privileged key first:
-  //   session posting key -> device-remembered posting key (chain-verified)
+  //   session posting key (Keychain extension key for a Keychain login)
+  //   -> device-remembered posting key (chain-verified)
   //   -> session active key -> session owner key -> posting re-auth dialog.
   // The dialog's copy still recommends a posting key or the password
   // (least-privilege habit for manual input), but an active/owner key
@@ -98,7 +105,7 @@ export function ClaimRewardsBanner({
     claimingRef.current = true;
     setClaimError(null);
     try {
-      let key = postingKey;
+      let key: SigningKey | string | null = postingSigningKey;
       if (!key) {
         key = await tryRestoreRememberedPostingKey();
       }
@@ -169,9 +176,11 @@ export function ClaimRewardsBanner({
           // active, or owner authority for claim_reward_balance, so any of
           // those keys lets the claim proceed. Only a login that carries none
           // of them (memo-key only, which can sign nothing) keeps the dialog
-          // open with explicit guidance.
-          const { postingKey: p, activeKey: a, ownerKey: o } = store.getState().auth;
-          if (p || a || o) {
+          // open with explicit guidance. A Keychain login stores no raw key
+          // but signs via the extension, so it passes the same gate.
+          const { postingKey: p, activeKey: a, ownerKey: o, authMethod } =
+            store.getState().auth;
+          if (p || a || o || authMethod === 'keychain') {
             setReauthError(null);
             setReauthOpen(false);
           } else {

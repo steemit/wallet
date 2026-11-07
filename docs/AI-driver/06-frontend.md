@@ -58,6 +58,18 @@ side flipped), and duplicated `activity:Alice`/`activity:alice` caches. When tou
 username comparison, convert it to the normalized form — and remember chain op fields are always
 canonical lowercase.
 
+## Signing keys: raw WIF or Steem Keychain (`src/lib/steem/signing-key.ts`)
+
+`useActiveSigningKey()` / `usePostingSigningKey()` (`src/hooks/use-auth.ts`)
+return a `SigningKey` (`{ type: 'wif', wif }` or, for a Keychain session,
+`{ type: 'keychain', username, role }`), not a raw string. Every
+`SteemSigner.sign<Op>` method accepts `SigningKey | string` so existing
+raw-WIF call sites keep compiling unchanged; `signTransaction` is the one
+place that branches on it (02-auth.md has the Keychain login flow). If you
+add a new broadcast call site, just forward the hook's value straight into
+the `sign<Op>` call like every existing one does — don't unwrap it, don't
+assume it's a string.
+
 ## Client-side signing (`src/lib/steem/client.ts`)
 
 - `SteemSigner` holds ~20 `sign<Op>` static methods: build the op, `signTransaction` (fetches

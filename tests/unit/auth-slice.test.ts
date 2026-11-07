@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import authReducer, {
   setCredentials,
+  setKeychainCredentials,
   logout,
   type AuthState,
 } from '@/lib/store/slices/auth';
@@ -19,6 +20,7 @@ describe('Auth Slice', () => {
     privateKey: null,
     publicKey: null,
     isAuthenticated: false,
+    authMethod: 'key',
   };
 
   describe('Initial State', () => {
@@ -42,6 +44,7 @@ describe('Auth Slice', () => {
       expect(state.privateKey).toBe('5JTestPrivateKey...');
       expect(state.publicKey).toBe('STMTestPublicKey...');
       expect(state.isAuthenticated).toBe(true);
+      expect(state.authMethod).toBe('key');
     });
 
     it('should overwrite existing credentials', () => {
@@ -54,6 +57,7 @@ describe('Auth Slice', () => {
         privateKey: 'oldkey',
         publicKey: 'oldpub',
         isAuthenticated: true,
+        authMethod: 'key',
       };
 
       const action = setCredentials({
@@ -70,6 +74,58 @@ describe('Auth Slice', () => {
       expect(state.publicKey).toBe('newpub');
       expect(state.isAuthenticated).toBe(true);
     });
+
+    it('resets authMethod to key, overwriting a prior Keychain session', () => {
+      const keychainState: AuthState = {
+        ...initialState,
+        username: 'alice',
+        publicKey: 'STMKeychainPub',
+        isAuthenticated: true,
+        authMethod: 'keychain',
+      };
+
+      const state = authReducer(
+        keychainState,
+        setCredentials({ username: 'alice', activeKey: '5Jactive', publicKey: 'STMActivePub' })
+      );
+
+      expect(state.authMethod).toBe('key');
+      expect(state.activeKey).toBe('5Jactive');
+    });
+  });
+
+  describe('setKeychainCredentials', () => {
+    it('sets the keychain auth method and nulls every role-key field', () => {
+      const existingState: AuthState = {
+        username: 'olduser',
+        ownerKey: 'oldOwner',
+        activeKey: 'oldActive',
+        postingKey: 'oldPosting',
+        memoKey: 'oldMemo',
+        privateKey: 'oldkey',
+        publicKey: 'oldpub',
+        isAuthenticated: true,
+        authMethod: 'key',
+      };
+
+      const state = authReducer(
+        existingState,
+        setKeychainCredentials({ username: 'alice', publicKey: 'STM6KeychainPub' })
+      );
+
+      expect(state.username).toBe('alice');
+      expect(state.publicKey).toBe('STM6KeychainPub');
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.authMethod).toBe('keychain');
+      // No raw key exists for a Keychain session — every raw-key consumer
+      // (permissions/reveal page, change-recovery-account dialog) must see
+      // the same "no key available" state as a partial-key login.
+      expect(state.ownerKey).toBeNull();
+      expect(state.activeKey).toBeNull();
+      expect(state.postingKey).toBeNull();
+      expect(state.memoKey).toBeNull();
+      expect(state.privateKey).toBeNull();
+    });
   });
 
   describe('logout', () => {
@@ -83,6 +139,7 @@ describe('Auth Slice', () => {
         privateKey: 'testkey',
         publicKey: 'testpub',
         isAuthenticated: true,
+        authMethod: 'key',
       };
 
       const action = logout();
@@ -99,6 +156,21 @@ describe('Auth Slice', () => {
       const state = authReducer(initialState, action);
 
       expect(state).toEqual(initialState);
+    });
+
+    it('resets authMethod to key from a Keychain session', () => {
+      const keychainState: AuthState = {
+        ...initialState,
+        username: 'alice',
+        publicKey: 'STMKeychainPub',
+        isAuthenticated: true,
+        authMethod: 'keychain',
+      };
+
+      const state = authReducer(keychainState, logout());
+
+      expect(state).toEqual(initialState);
+      expect(state.authMethod).toBe('key');
     });
   });
 
@@ -129,6 +201,7 @@ describe('Auth Slice', () => {
         privateKey: 'privatekey',
         publicKey: 'publickey',
         isAuthenticated: true,
+        authMethod: 'key',
       };
 
       // Logout
