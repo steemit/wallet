@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
-import authReducer, { AuthState } from '@/lib/store/slices/auth';
+import authReducer, { AuthState, setVaultIdentity } from '@/lib/store/slices/auth';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ClaimRewardsBanner } from '@/components/wallet/claim-rewards-banner';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
@@ -90,10 +90,12 @@ type SessionKeys = {
   postingKey?: string | null;
   activeKey?: string | null;
   ownerKey?: string | null;
+  /** Build a Vault Mode identity session (R3) instead of a privateKey one. */
+  vaultSession?: boolean;
 };
 
 function makeStore(keys: SessionKeys) {
-  const { postingKey = null, activeKey = null, ownerKey = null } = keys;
+  const { postingKey = null, activeKey = null, ownerKey = null, vaultSession = false } = keys;
   const preloaded: { auth: AuthState } = {
     auth: {
       username: 'alice',
@@ -106,7 +108,13 @@ function makeStore(keys: SessionKeys) {
       isAuthenticated: true,
     },
   };
-  return configureStore({ reducer: { auth: authReducer }, preloadedState: preloaded });
+  const store = configureStore({ reducer: { auth: authReducer }, preloadedState: preloaded });
+  if (vaultSession) {
+    // Through the real reducer: sessionKind 'vault' with ALL six key fields
+    // forced to null, exactly what VaultLoginForm's identity selection leaves.
+    store.dispatch(setVaultIdentity({ username: 'alice' }));
+  }
+  return store;
 }
 
 function renderBanner(
@@ -249,6 +257,62 @@ describe('ClaimRewardsBanner', () => {
     await waitFor(() => expect(broadcastClaim).toHaveBeenCalledTimes(1));
     // No re-auth dialog in this path.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('never touches the Legacy remembered posting key in a vault session (invariant 21)', async () => {
+    // Same happy-path storage as the privateKey control case 'restores the
+    // device-remembered posting key and claims without re-auth' above — a
+    // chain-verifiable posting key remembered for THIS account — but under a
+    // keyless VAULT session (sessionKind 'vault', all six key fields null).
+    // The banner must not read the Legacy storage, fetch, sign or broadcast
+    // anything, and must fall through to the re-auth dialog (which the
+    // LoginForm dispatcher answers with the "not available in Vault Mode"
+    // notice for this fixedUsername usage).
+    window.localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, '5J-remembered-posting');
+    window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'alice');
+    getAccountsMock.mockResolvedValue({
+      success: true,
+      accounts: [
+        {
+          posting: {
+            account_auths: [],
+            key_auths: [['STM-valid-posting-pub', '1']],
+            weight_threshold: 1,
+          },
+        } as never,
+      ],
+    });
+    verifyPrivateKeyMock.mockReturnValue(true);
+
+    // Node >= 22.4 ships its own Storage global, so spy on the prototype of
+    // jsdom's actual localStorage instance (09-vault.md Pitfalls).
+    const storageProto = Object.getPrototypeOf(window.localStorage) as Storage;
+    const getItemSpy = vi.spyOn(storageProto, 'getItem');
+    try {
+      renderBanner({}, { vaultSession: true });
+      fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+
+      // Settle on whichever terminal state the click reaches — the re-auth
+      // dialog (correct) or a relayed claim (the defect) — so a regression
+      // fails on the violated invariant below, not on a missing dialog.
+      await waitFor(() =>
+        expect(
+          screen.queryByRole('dialog') !== null || broadcastClaim.mock.calls.length > 0
+        ).toBe(true)
+      );
+      // The Legacy remembered posting key was never read...
+      expect(
+        getItemSpy.mock.calls.filter(([k]) => k === REMEMBERED_POSTING_KEY_KEY)
+      ).toHaveLength(0);
+      // ...nothing was fetched, signed or relayed...
+      expect(getAccountsMock).not.toHaveBeenCalled();
+      expect(signClaim).not.toHaveBeenCalled();
+      expect(broadcastClaim).not.toHaveBeenCalled();
+      // ...and the keyless fall-through opened the re-auth dialog.
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    } finally {
+      getItemSpy.mockRestore();
+    }
   });
 
   it('ignores a remembered key belonging to a different account', async () => {

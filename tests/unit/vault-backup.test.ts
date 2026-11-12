@@ -1,1049 +1,540 @@
-// Vault backup export / independent import / merge migration tests (A3).
-// Storage runs on the hand-written fake IndexedDB (tests/mocks/fake-indexeddb.ts
-// — read its FIDELITY BOUNDARY header before trusting concurrency cases) and
-// source backups are REAL envelopes: fixture password/salt plus AES-GCM
-// encryptions of the fixture payload variants, sealed once in beforeAll.
-//
-// WIF→public-key derivation runs through the shared validateVaultWif entry
-// point, which under vitest is driven by tests/mocks/steem-js.ts (fake
-// getPublicKey: 'STM' + last 8 chars; isWif overridable per call). WIF cases
-// here prove branches/error codes ONLY, per the A1.1 two-layer rule — real
-// checksum/derivation evidence lives in tests/node/vault-wif-real-check.mjs
-// (rerun for this PR; see the PR body).
-//
-// ORDER INDEPENDENCE: every test rebuilds its own fake database and registry
-// in beforeEach (records re-seeded from beforeAll envelope material) and
-// destroys its services — shuffle- and single-test safe (A2 standard).
-//
-// Performance: PBKDF2 600k costs ~0.5-0.8s per derivation (machine-dependent;
-// this container measures slower than the ~16s the file originally shipped
-// with). Exactly TWO are paid in beforeAll (the fixture KEK shared by all
-// sealed envelopes + the weak-password KEK); each test then pays only for the
-// derivations its own calls perform. Whole-file budget: 49 derivations
-// (beforeAll 2, import success 4, the bad-role end-to-end case 1, the
-// export→import roundtrip 4, the import rollback case 2, the removal-failure
-// rollback case 4, the empty-source import 4, eight single-derivation import
-// failure cases, merge success 2, the empty-source merge 2, two combined
-// merge-failure tests 3 each, two remove+recreate race regression cases 5
-// each). Per-test budgets are noted in test headers where > 0. Failure
-// scenarios that share an unlocked target deliberately SHARE the unlock
-// derivation.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { steem } from '@steemit/steem-js';
 import vectors from '../fixtures/vault-development-test-vectors.json';
 import { installFakeIndexedDB, type FakeIndexedDBHandle } from '../mocks/fake-indexeddb';
 import {
-  decryptVaultText,
+  decryptVaultKey,
   deriveVaultKek,
-  encryptVaultText,
-  generateVaultIv,
+  encryptVaultKeyRecord,
 } from '@/lib/vault/crypto';
-import {
-  decodeBase64Url,
-  encodeBase64Url,
-  parseVaultEnvelopeJson,
-  validateVaultPayloadText,
-} from '@/lib/vault/envelope';
+import { decodeBase64Url, encodeBase64Url, validateVaultEnvelope } from '@/lib/vault/envelope';
 import { VaultError } from '@/lib/vault/errors';
 import {
   exportVaultBackup,
   importVaultBackup,
   mergeVaultBackup,
-  type VaultMergeResult,
 } from '@/lib/vault/backup';
-import {
-  VAULT_DB_NAME,
-  openVaultRegistry,
-  type VaultRegistry,
-} from '@/lib/vault/registry';
+import { VAULT_DB_NAME, openVaultRegistry, type VaultRegistry } from '@/lib/vault/registry';
 import { createVaultService } from '@/lib/vault/service';
-import type { VaultEnvelopeV1, VaultKeyEntry, VaultRecordV1 } from '@/lib/vault/types';
+import type { VaultEnvelopeV1, VaultKeyCiphertext, VaultRecordV1 } from '@/lib/vault/types';
 
 const v = vectors.vault;
-
-// Test WIFs: the fixture WIF plus PUBLIC TEST-ONLY strings (never real keys).
+const posting = v.keys[0];
+const active = v.keys[1];
+if (!posting || !active) throw new Error('fixture needs two keys');
+const SOURCE_PASSWORD = 'a-different-source-passphrase';
 const BOB_WIF = '5Ktest-wif-bob-0001';
-const CAROL_WIF = '5Ktest-wif-carol-01';
-const BAD_WIF = 'totally-not-a-wif';
-// 29 code points — passes the length floor, hits the common-password
-// blocklist, so the weak-import case exercises the policy itself (the short
-// 'password' path is the length branch, covered in vault-validation tests).
-const WEAK_PASSWORD = 'correct horse battery staple';
+let clock = 1_700_200_000_000;
 
-const fixtureKeys = validateVaultPayloadText(v.payloadText).keys;
-const aliceEntry: VaultKeyEntry | undefined = fixtureKeys[0];
-if (!aliceEntry) {
-  throw new Error('fixture payload has no key entry');
-}
-const aliceWif = aliceEntry.privateKey;
-
-function entry(accountName: string, role: VaultKeyEntry['role'], privateKey: string): VaultKeyEntry {
-  return { accountName, role, privateKey };
-}
-const keysText = (keys: VaultKeyEntry[]): string => JSON.stringify({ keys });
-
-/** Distinct mock public keys need distinct WIF tails — padded counters guarantee that. */
-const numberedWif = (prefix: string, i: number): string => `${prefix}-${String(i).padStart(3, '0')}`;
-
-// Envelope material sealed once in beforeAll (AES-GCM only after the two
-// shared derivations — see the header).
-let sharedKek: Uint8Array<ArrayBuffer>;
-let weakKek: Uint8Array<ArrayBuffer>;
-let weakEnvelope: VaultEnvelopeV1;
-let emptySourceEnvelope: VaultEnvelopeV1;
-let dupEnvelope: VaultEnvelopeV1;
-let badRoleEnvelope: VaultEnvelopeV1;
-let badWifEnvelope: VaultEnvelopeV1;
-let badAccountEnvelope: VaultEnvelopeV1;
-let keys401Envelope: VaultEnvelopeV1;
-let accounts101Envelope: VaultEnvelopeV1;
-let oversizedEnvelope: VaultEnvelopeV1;
-let source400Envelope: VaultEnvelopeV1;
-let mergeSourceEnvelope: VaultEnvelopeV1;
-let targetEnvelope: VaultEnvelopeV1;
-
-/** Seal a payload under a given KEK with a fresh IV and the fixture salt. */
-async function seal(
-  payloadText: string,
-  kek: Uint8Array<ArrayBuffer>,
-  vaultName: string,
-): Promise<VaultEnvelopeV1> {
-  const iv = generateVaultIv();
-  const ciphertext = await encryptVaultText(kek, iv, payloadText);
+function makeRecord(name = 'demo', overrides: Partial<VaultRecordV1> = {}): VaultRecordV1 {
   return {
+    ...v.envelope,
     version: 1,
-    vaultName,
-    salt: v.salt,
-    iv: encodeBase64Url(iv),
-    ciphertext: encodeBase64Url(ciphertext),
-  };
-}
-
-let fakeClock = 1_700_200_000_000;
-
-function makeRecord(
-  vaultName: string,
-  envelope: { iv: string; ciphertext: string },
-  overrides: Partial<VaultRecordV1> = {},
-): VaultRecordV1 {
-  return {
-    version: 1,
-    vaultName,
-    salt: v.salt,
-    iv: envelope.iv,
-    ciphertext: envelope.ciphertext,
+    vaultName: name,
     revision: 0,
     lockEpoch: 0,
-    createdAt: fakeClock++,
-    updatedAt: fakeClock++,
+    createdAt: clock++,
+    updatedAt: clock++,
     lastBackupAt: null,
     ...overrides,
   };
 }
 
-/** Markers that must never appear in a public result or an error message. */
-function expectClean(value: unknown): void {
-  const text = typeof value === 'string' ? value : JSON.stringify(value);
-  const secrets = [
-    aliceWif,
-    BOB_WIF,
-    CAROL_WIF,
-    BAD_WIF,
-    v.password,
-    WEAK_PASSWORD,
-    v.kekHex.slice(0, 32),
-    v.payloadText.slice(0, 24),
-  ];
-  for (const secret of secrets) {
-    expect(text).not.toContain(secret);
-  }
+/** The seeded record's portable envelope: the fixture shape named 'demo'. */
+const demoEnvelope: VaultEnvelopeV1 = { ...v.envelope, version: 1, vaultName: 'demo' };
+
+function encryptedFromVector(
+  key: (typeof v.keys)[number],
+  overrides: Partial<VaultKeyCiphertext> = {},
+): VaultKeyCiphertext {
+  return { iv: key.iv, ciphertext: key.ciphertext, note: key.note, ...overrides };
 }
 
-/** Assert a synchronous throw is a VaultError with the given code. */
-function expectVaultError(fn: () => unknown, code: string): void {
-  let caught: unknown;
-  try {
-    fn();
-  } catch (error) {
-    caught = error;
-  }
-  expect(caught, `expected a VaultError with code ${code}`).toBeInstanceOf(VaultError);
-  expect((caught as VaultError).code).toBe(code);
-}
-
-describe('vault backup (A3)', () => {
+describe('hierarchical vault backup', () => {
   let fake: FakeIndexedDBHandle;
   let registry: VaultRegistry;
+  let targetKek: Uint8Array<ArrayBuffer>;
+  let sourceKek: Uint8Array<ArrayBuffer>;
+  let duplicateSource: VaultEnvelopeV1;
+  let mergeSource: VaultEnvelopeV1;
 
   beforeAll(async () => {
-    sharedKek = await deriveVaultKek(v.password, decodeBase64Url(v.salt));
-    weakKek = await deriveVaultKek(WEAK_PASSWORD, decodeBase64Url(v.salt));
-
-    // Weak-password source: decrypts fine under a policy-failing password.
-    weakEnvelope = await seal(v.payloadText, weakKek, 'weak-source');
-    // Empty source: a VALID backup carrying zero keys (locked semantics: a
-    // fresh empty vault on import, a content no-op REWRITE on merge).
-    emptySourceEnvelope = await seal(keysText([]), sharedKek, 'empty-source');
-    // Duplicate entries inside the source (case variant + exact repeat).
-    dupEnvelope = await seal(
-      keysText([
-        entry('alice', 'posting', aliceWif),
-        entry('Alice', 'posting', aliceWif), // normalizes onto the first entry
-        entry('bob', 'active', BOB_WIF),
-      ]),
-      sharedKek,
-      'dup-source',
+    targetKek = await deriveVaultKek(v.password, decodeBase64Url(v.salt));
+    sourceKek = await deriveVaultKek(SOURCE_PASSWORD, decodeBase64Url(v.salt));
+    duplicateSource = {
+      ...v.envelope,
+      version: 1,
+      vaultName: 'duplicate-source',
+      accounts: [
+        {
+          accountName: 'Alice',
+          keys: {
+            owner: [], active: [], memo: [],
+            posting: [
+              encryptedFromVector(posting),
+              { iv: v.reencryption.iv, ciphertext: v.reencryption.ciphertext, note: 'duplicate' },
+            ],
+          },
+        },
+      ],
+    };
+    // The merge source must decrypt under SOURCE_PASSWORD (its own KEK), so
+    // alice's posting entry is re-encrypted with sourceKek — reusing the
+    // fixture reencryption ciphertext here would encrypt it under the TARGET
+    // password and every merge with this source would fail authentication.
+    const aliceSourceKey = await encryptVaultKeyRecord(
+      sourceKek,
+      posting.privateKey,
+      'source loses',
+      [posting.iv],
     );
-    badRoleEnvelope = await seal(
-      // 'superuser' is outside the fixed role vocabulary — the payload
-      // validator (not the per-entry WIF path) owns this rejection.
-      keysText([entry('alice', 'superuser' as VaultKeyEntry['role'], aliceWif)]),
-      sharedKek,
-      'bad-role-source',
-    );
-    badWifEnvelope = await seal(
-      keysText([entry('alice', 'posting', BAD_WIF)]),
-      sharedKek,
-      'bad-wif-source',
-    );
-    badAccountEnvelope = await seal(
-      keysText([entry('x', 'posting', aliceWif)]), // 'x' fails the account-name format
-      sharedKek,
-      'bad-account-source',
-    );
-    // 401 distinct keys across 100 accounts (i and i+400 share account+role
-    // but differ in WIF → distinct mock public keys → no dedupe collapse).
-    keys401Envelope = await seal(
-      keysText(
-        Array.from({ length: 401 }, (_, i) =>
-          entry(
-            `acct${i % 100}`,
-            (['owner', 'active', 'posting', 'memo'] as const)[i % 4] ?? 'posting',
-            numberedWif('5Kkey', i),
-          ),
-        ),
-      ),
-      sharedKek,
-      'keys401-source',
-    );
-    // 101 entries on 101 distinct accounts (keys stay under 400).
-    accounts101Envelope = await seal(
-      keysText(
-        Array.from({ length: 101 }, (_, i) => entry(`acct${i}`, 'posting', numberedWif('5Kacc', i))),
-      ),
-      sharedKek,
-      'accounts101-source',
-    );
-    // A REAL plaintext one byte over the decrypted-payload cap. Its ciphertext
-    // (cap + 17 bytes) necessarily exceeds the envelope ciphertext cap too —
-    // through an import the outer cap fires first with the SAME code, by
-    // design (payload cap = ciphertext cap − GCM tag); the payload-layer
-    // rejection is asserted directly below and the byte cap is exercised for
-    // real on the in-memory merge path.
-    const OVERSIZE_BYTES = 1024 * 1024 - 16 + 1;
-    const head = '{"keys":[{"accountName":"alice","role":"posting","privateKey":"';
-    const tail = '"}]}';
-    const oversizeText = head + 'x'.repeat(OVERSIZE_BYTES - head.length - tail.length) + tail;
-    expect(oversizeText.length).toBe(OVERSIZE_BYTES); // pure ASCII → length === UTF-8 bytes
-    oversizedEnvelope = await seal(oversizeText, sharedKek, 'oversize-source');
-    // 400 distinct keys on 100 accounts — source for the merge over-limit case
-    // (target already holds 1 key → merged 401).
-    source400Envelope = await seal(
-      keysText(
-        Array.from({ length: 400 }, (_, i) =>
-          entry(
-            `acct${i % 100}`,
-            (['owner', 'active', 'posting', 'memo'] as const)[i % 4] ?? 'posting',
-            numberedWif('5Ksrc', i),
-          ),
-        ),
-      ),
-      sharedKek,
-      'source400',
-    );
-    // Carol (new) + an alice entry colliding with the target's key.
-    mergeSourceEnvelope = await seal(
-      keysText([entry('carol', 'active', CAROL_WIF), entry('alice', 'posting', aliceWif)]),
-      sharedKek,
-      'merge-source',
-    );
-    // The merge TARGET: the same key as the fixture payload but stored with a
-    // NON-normalized account spelling (makes target-priority observable), plus
-    // an exact internal duplicate (exercises the target-side dedupe collapse).
-    targetEnvelope = await seal(
-      keysText([entry('Alice', 'posting', aliceWif), entry('alice', 'posting', aliceWif)]),
-      sharedKek,
-      'Target',
-    );
+    const bobKey = await encryptVaultKeyRecord(sourceKek, BOB_WIF, 'bob public label', [
+      posting.iv,
+      aliceSourceKey.iv,
+    ]);
+    mergeSource = {
+      version: 1,
+      vaultName: 'merge-source',
+      salt: v.salt,
+      accounts: [
+        {
+          accountName: 'alice',
+          keys: {
+            owner: [], active: [], memo: [],
+            posting: [aliceSourceKey],
+          },
+        },
+        { accountName: 'bob', keys: { owner: [], active: [bobKey], posting: [], memo: [] } },
+      ],
+    };
   }, 30000);
 
   beforeEach(async () => {
     fake = installFakeIndexedDB();
     registry = await openVaultRegistry();
-    fake.seed(VAULT_DB_NAME, 'vaults', makeRecord('demo', v));
-    fake.seed(VAULT_DB_NAME, 'vaults', makeRecord('Target', targetEnvelope));
+    fake.seed(VAULT_DB_NAME, 'vaults', makeRecord());
   });
 
   afterEach(() => {
     registry.close();
     fake.uninstall();
     fake.reset();
-    // Restore the steem-js mock defaults regardless of per-test overrides.
     vi.mocked(steem.auth.isWif).mockReset();
     vi.mocked(steem.auth.isWif).mockReturnValue(true);
     vi.mocked(steem.auth.getPublicKey).mockReset();
-    vi.mocked(steem.auth.getPublicKey).mockImplementation((wif: string) =>
-      wif ? 'STM' + wif.slice(-8) : 'STM',
-    );
+    vi.mocked(steem.auth.getPublicKey).mockImplementation((wif: string) => `STM${wif.slice(-8)}`);
   });
 
-  const currentRecord = async (name: string): Promise<VaultRecordV1> => {
+  async function current(name = 'demo'): Promise<VaultRecordV1> {
     const record = await registry.getRecord(name);
-    if (!record) {
-      throw new Error(`record ${name} disappeared`);
-    }
+    if (!record) throw new Error('record missing');
     return record;
-  };
+  }
 
-  const vaultNames = async (): Promise<string[]> =>
-    (await registry.listRecords()).map((record) => record.vaultName);
-
-  describe('exportVaultBackup', () => {
-    it('exports EXACTLY the five envelope fields, updates lastBackupAt via CAS, never touches crypto material', async () => {
-      const before = await currentRecord('demo');
-      const backup = await exportVaultBackup(registry, 'demo');
-      // Exactly five fields — no revision/lockEpoch/timestamps.
-      expect(Object.keys(backup).sort()).toEqual(['ciphertext', 'iv', 'salt', 'vaultName', 'version']);
-      expect(backup).toEqual({
-        version: 1,
-        vaultName: 'demo',
-        salt: before.salt,
-        iv: before.iv,
-        ciphertext: before.ciphertext,
-      });
-      // Read-only crypto: salt/IV/ciphertext byte-identical; only the backup
-      // marker moved (plus the revision +1 the swapRecord contract mandates).
-      const after = await currentRecord('demo');
-      expect(after.salt).toBe(before.salt);
-      expect(after.iv).toBe(before.iv);
-      expect(after.ciphertext).toBe(before.ciphertext);
-      expect(after.revision).toBe(before.revision + 1);
-      expect(after.lockEpoch).toBe(before.lockEpoch);
-      expect(after.lastBackupAt).not.toBeNull();
-      expect(typeof after.lastBackupAt).toBe('number');
-      expectClean(backup);
-    });
-
-    it('rejects with VAULT_NOT_FOUND for an unknown vault', async () => {
-      await expect(exportVaultBackup(registry, 'ghost')).rejects.toMatchObject({
-        code: 'VAULT_NOT_FOUND',
-      });
-    });
-
-    it('propagates VAULT_SESSION_STALE when the record moves between read and CAS, leaving lastBackupAt untouched', async () => {
-      const before = await currentRecord('demo');
-      const racing: VaultRegistry = {
-        ...registry,
-        getRecord: async (name: string) => {
-          const record = await registry.getRecord(name);
-          if (record !== null && name === 'demo') {
-            // Concurrent lock lands AFTER the export's read but BEFORE its CAS.
-            await registry.bumpLockEpoch('demo');
+  async function decryptRecord(record: VaultRecordV1, password: string): Promise<string[]> {
+    const kek = await deriveVaultKek(password, decodeBase64Url(record.salt));
+    const result: string[] = [];
+    try {
+      for (const account of record.accounts) {
+        for (const role of ['owner', 'active', 'posting', 'memo'] as const) {
+          for (const key of account.keys[role]) {
+            result.push(await decryptVaultKey(kek, decodeBase64Url(key.iv), decodeBase64Url(key.ciphertext)));
           }
-          return record;
-        },
-      };
-      await expect(exportVaultBackup(racing, 'demo')).rejects.toMatchObject({
-        code: 'VAULT_SESSION_STALE',
-      });
-      const after = await currentRecord('demo');
-      expect(after.lastBackupAt).toBeNull(); // the swap never happened
-      expect(after.ciphertext).toBe(before.ciphertext);
-      expect(after.iv).toBe(before.iv);
-      expect(after.salt).toBe(before.salt);
-      expect(after.revision).toBe(before.revision);
-      expect(after.lockEpoch).toBe(before.lockEpoch + 1); // the injected bump only
-    });
+        }
+      }
+    } finally {
+      kek.fill(0);
+    }
+    return result;
+  }
+
+  it('exports exactly four portable fields and leaves every key byte-identical', async () => {
+    const before = await current();
+    const backup = await exportVaultBackup(registry, 'demo');
+    // The seeded record is the fixture envelope renamed 'demo' — the export
+    // must carry that name, not the fixture's 'work' label.
+    expect(backup).toEqual(demoEnvelope);
+    expect(Object.keys(backup).sort()).toEqual(['accounts', 'salt', 'vaultName', 'version']);
+    const after = await current();
+    expect(after.accounts).toEqual(before.accounts);
+    expect(after.salt).toBe(before.salt);
+    expect(after.revision).toBe(1);
+    expect(after.lastBackupAt).not.toBeNull();
+    expect(JSON.stringify(backup)).not.toContain(posting.privateKey);
+    expect(JSON.stringify(backup)).toContain('desktop posting key');
+    await expect(exportVaultBackup(registry, 'ghost')).rejects.toMatchObject({ code: 'VAULT_NOT_FOUND' });
   });
 
-  describe('importVaultBackup (independent)', () => {
-    // 4 derivations: source decrypt + createVault + in-scope unlock + verify.
-    it('creates a new vault: fresh salt/IV, re-encrypted normalized payload, no activation', async () => {
-      const result = await importVaultBackup(registry, {
-        mode: 'independent',
-        envelope: dupEnvelope,
-        password: v.password,
-        vaultName: 'Imported',
-      });
-      expect(result.vaultName).toBe('Imported');
-      expect(result.revision).toBe(1); // create (0) + the payload write (1)
-      expect(result.lastBackupAt).toBeNull();
-      expect(result.salt).not.toBe(dupEnvelope.salt);
-      expect(result.iv).not.toBe(dupEnvelope.iv);
-      expect(result.ciphertext).not.toBe(dupEnvelope.ciphertext);
-      // Single-password contract: the SAME password unlocks the new vault, and
-      // the payload is exactly the normalized, deduplicated source payload.
-      const newKek = await deriveVaultKek(v.password, decodeBase64Url(result.salt));
-      const payloadText = await decryptVaultText(
-        newKek,
-        decodeBase64Url(result.iv),
-        decodeBase64Url(result.ciphertext),
-      );
-      expect(payloadText).toBe(
-        keysText([entry('alice', 'posting', aliceWif), entry('bob', 'active', BOB_WIF)]),
-      );
-      // Not activated — settings untouched.
-      await expect(registry.getSettings()).resolves.toEqual({
-        schemaVersion: 1,
-        signingMode: 'privateKey',
-        activeVaultName: null,
-      });
-      expect(await vaultNames()).toEqual(['demo', 'Imported', 'Target']);
-      expectClean(result);
-    }, 30000);
+  it('propagates VAULT_SESSION_STALE when the record moves between read and CAS, leaving lastBackupAt untouched', async () => {
+    const before = await current('demo');
+    const racing: VaultRegistry = {
+      ...registry,
+      getRecord: async (name: string) => {
+        const record = await registry.getRecord(name);
+        if (record !== null && name === 'demo') {
+          // A concurrent lock lands AFTER the export's read but BEFORE its
+          // CAS: lockEpoch moves, so the captured pointer no longer matches.
+          await registry.bumpLockEpoch('demo');
+        }
+        return record;
+      },
+    };
+    await expect(exportVaultBackup(racing, 'demo')).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
+    const after = await current('demo');
+    // The swap never happened: lastBackupAt untouched, revision unchanged; the
+    // only movement is the injected lockEpoch bump, and the envelope bytes
+    // (accounts/salt) stay byte-identical.
+    expect(after.lastBackupAt).toBeNull();
+    expect(after.revision).toBe(before.revision);
+    expect(after.lockEpoch).toBe(before.lockEpoch + 1);
+    expect(after.accounts).toEqual(before.accounts);
+    expect(after.salt).toBe(before.salt);
+  }, 30000);
 
-    // 1 derivation (source decrypts, then the policy fires).
-    it('rejects a policy-failing password with VAULT_PASSWORD_WEAK and creates nothing', async () => {
-      const error: unknown = await importVaultBackup(registry, {
-        mode: 'independent',
-        envelope: weakEnvelope,
-        password: WEAK_PASSWORD,
-        vaultName: 'Weak',
-      }).catch((cause: unknown) => cause);
-      expect(error).toMatchObject({ code: 'VAULT_PASSWORD_WEAK' });
-      expectClean((error as Error).message);
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
-      await expect(registry.getSettings()).resolves.toMatchObject({ activeVaultName: null });
-    }, 20000);
-
-    // 1 derivation (the wrong KEK attempt itself).
-    it('rejects a wrong source password with VAULT_PASSWORD_INVALID and creates nothing', async () => {
-      await expect(
-        importVaultBackup(registry, {
-          mode: 'independent',
-          envelope: dupEnvelope,
-          password: 'wrong-password-123456',
-          vaultName: 'Nope',
-        }),
-      ).rejects.toMatchObject({ code: 'VAULT_PASSWORD_INVALID' });
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
-    }, 20000);
-
-    it('rejects malformed envelopes with VAULT_ENVELOPE_INVALID before any crypto or write', async () => {
-      const cases: Array<[string, Record<string, unknown>]> = [
-        ['unknown version', { ...dupEnvelope, version: 2 }],
-        ['missing ciphertext field', (() => {
-          const broken: Record<string, unknown> = { ...dupEnvelope };
-          delete broken['ciphertext'];
-          return broken;
-        })()],
-        ['non-canonical salt (trailing-bit alias)', { ...dupEnvelope, salt: 'AAECAwQFBgcICQoLDA0ODx' }],
-        ['extra sixth field', { ...dupEnvelope, revision: 0 }],
-      ];
-      for (const [label, envelope] of cases) {
-        await expect(
-          importVaultBackup(registry, {
-            mode: 'independent',
-            envelope: envelope as unknown as VaultEnvelopeV1,
-            password: v.password,
-            vaultName: 'X',
-          }),
-          label,
-        ).rejects.toMatchObject({ code: 'VAULT_ENVELOPE_INVALID' });
-      }
-      // Invalid ROLE: the shared payload validator (the import pipeline's
-      // step 2, before any per-entry WIF check) owns role legality and rejects
-      // with VAULT_PAYLOAD_INVALID — the kickoff assigns VAULT_KEY_INVALID to
-      // WIF/public-key/account failures only. Zero-derivation assertion: the
-      // validator is what the import path calls on the decrypted text.
-      expectVaultError(
-        () =>
-          validateVaultPayloadText(
-            keysText([entry('alice', 'superuser' as VaultKeyEntry['role'], aliceWif)]),
-          ),
-        'VAULT_PAYLOAD_INVALID',
-      );
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
+  it('independently imports with a fresh salt and fresh per-key IVs, deduplicating source keys', async () => {
+    const imported = await importVaultBackup(registry, {
+      mode: 'independent', envelope: duplicateSource, password: v.password, vaultName: 'Imported',
     });
+    expect(imported.vaultName).toBe('Imported');
+    expect(imported.salt).not.toBe(v.salt);
+    expect(imported.accounts).toHaveLength(1);
+    expect(imported.accounts[0]?.accountName).toBe('alice');
+    expect(imported.accounts[0]?.keys.posting).toHaveLength(1);
+    const importedKey = imported.accounts[0]?.keys.posting[0];
+    expect(importedKey?.note).toBe('desktop posting key');
+    expect([posting.iv, v.reencryption.iv]).not.toContain(importedKey?.iv);
+    expect(await decryptRecord(imported, v.password)).toEqual([posting.privateKey]);
+    expect((await registry.getSettings()).activeVaultName).toBeNull();
+  }, 40000);
 
-    // 1 derivation: the source envelope is REAL crypto — it validates and
-    // decrypts fine, then the decrypted-payload validator rejects the illegal
-    // role (before any per-entry WIF check, so no steem-js involvement).
-    it('rejects an illegal source role END-TO-END with VAULT_PAYLOAD_INVALID, creating nothing', async () => {
-      const error: unknown = await importVaultBackup(registry, {
-        mode: 'independent',
-        envelope: badRoleEnvelope,
-        password: v.password,
-        vaultName: 'X',
-      }).catch((cause: unknown) => cause);
-      expect(error).toMatchObject({ code: 'VAULT_PAYLOAD_INVALID' });
-      expectClean((error as Error).message);
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
-    }, 20000);
-
-    it('rejects raw backup JSON beyond 1 MiB with VAULT_LIMIT_EXCEEDED at the parse gate', async () => {
-      // importVaultBackup takes the parsed envelope object (A0 contract); the
-      // raw-JSON text gate (A4/A5 callers compose it before this call) is
-      // parseVaultEnvelopeJson — same shared constants, enforced before
-      // JSON.parse and long before any write.
-      const raw = JSON.stringify(dupEnvelope).slice(0, -1) + ',"pad":"' + 'A'.repeat(1024 * 1024) + '"}';
-      expectVaultError(() => parseVaultEnvelopeJson(raw), 'VAULT_LIMIT_EXCEEDED');
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
+  it('round-trips export/import with both keys and public notes intact', async () => {
+    const backup = await exportVaultBackup(registry, 'demo');
+    const imported = await importVaultBackup(registry, {
+      mode: 'independent', envelope: backup, password: v.password, vaultName: 'Roundtrip',
     });
+    expect((await decryptRecord(imported, v.password)).sort()).toEqual(
+      [posting.privateKey, active.privateKey].sort(),
+    );
+    expect(imported.accounts[0]?.keys.posting[0]?.note).toBe('desktop posting key');
+    expect(imported.accounts[0]?.keys.active[0]?.note).toBe('backup active key');
+  }, 40000);
 
-    it('rejects oversized ciphertext and oversized plaintext with VAULT_LIMIT_EXCEEDED before any write', async () => {
-      // Encoded-length pre-check: 1398103 chars > the 1398102 cap.
-      await expect(
-        importVaultBackup(registry, {
-          mode: 'independent',
-          envelope: { ...dupEnvelope, ciphertext: 'A'.repeat(1398103) },
-          password: v.password,
-          vaultName: 'X',
-        }),
-      ).rejects.toMatchObject({ code: 'VAULT_LIMIT_EXCEEDED' });
-      // A REAL over-cap plaintext source (one byte past the payload cap): its
-      // ciphertext necessarily trips the tighter envelope cap first — same
-      // code. Prove the plaintext genuinely exceeds the payload bound.
-      const text = await decryptVaultText(
-        sharedKek,
-        decodeBase64Url(oversizedEnvelope.iv),
-        decodeBase64Url(oversizedEnvelope.ciphertext),
-      );
-      expect(text.length).toBe(1024 * 1024 - 15);
-      expectVaultError(() => validateVaultPayloadText(text), 'VAULT_LIMIT_EXCEEDED');
-      await expect(
-        importVaultBackup(registry, {
-          mode: 'independent',
-          envelope: oversizedEnvelope,
-          password: v.password,
-          vaultName: 'X',
-        }),
-      ).rejects.toMatchObject({ code: 'VAULT_LIMIT_EXCEEDED' });
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
-    });
-
-    // 1 derivation each (decrypt succeeds, then the payload bound fires).
-    it('rejects 401 source keys with VAULT_LIMIT_EXCEEDED and creates nothing', async () => {
-      await expect(
-        importVaultBackup(registry, {
-          mode: 'independent',
-          envelope: keys401Envelope,
-          password: v.password,
-          vaultName: 'X',
-        }),
-      ).rejects.toMatchObject({ code: 'VAULT_LIMIT_EXCEEDED' });
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
-    }, 20000);
-
-    it('rejects 101 distinct source accounts with VAULT_LIMIT_EXCEEDED and creates nothing', async () => {
-      await expect(
-        importVaultBackup(registry, {
-          mode: 'independent',
-          envelope: accounts101Envelope,
-          password: v.password,
-          vaultName: 'X',
-        }),
-      ).rejects.toMatchObject({ code: 'VAULT_LIMIT_EXCEEDED' });
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
-    }, 20000);
-
-    // 1 derivation each (mock-driven WIF branch — real checks live in the
-    // plain-Node script; see the file header).
-    it('rejects an invalid source WIF with VAULT_KEY_INVALID (mock-driven), no echo, nothing created', async () => {
-      vi.mocked(steem.auth.isWif).mockReturnValueOnce(false);
-      const error: unknown = await importVaultBackup(registry, {
-        mode: 'independent',
-        envelope: badWifEnvelope,
-        password: v.password,
-        vaultName: 'X',
-      }).catch((cause: unknown) => cause);
-      expect(error).toMatchObject({ code: 'VAULT_KEY_INVALID' });
-      expectClean((error as Error).message);
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
-    }, 20000);
-
-    it('rejects an invalid source account name with VAULT_KEY_INVALID (real normalization path)', async () => {
-      const error: unknown = await importVaultBackup(registry, {
-        mode: 'independent',
-        envelope: badAccountEnvelope,
-        password: v.password,
-        vaultName: 'X',
-      }).catch((cause: unknown) => cause);
-      expect(error).toMatchObject({ code: 'VAULT_KEY_INVALID' });
-      expectClean((error as Error).message);
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
-    }, 20000);
-
-    // 1 derivation each (name errors surface from the registry transaction).
-    it('routes a colliding new name to VAULT_NAME_EXISTS and leaves the existing vault intact', async () => {
-      const before = await currentRecord('demo');
-      await expect(
-        importVaultBackup(registry, {
-          mode: 'independent',
-          envelope: dupEnvelope,
-          password: v.password,
-          vaultName: 'Demo', // case-fold collision with the seeded 'demo'
-        }),
-      ).rejects.toMatchObject({ code: 'VAULT_NAME_EXISTS' });
-      expect(await currentRecord('demo')).toEqual(before);
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
-    }, 20000);
-
-    it('routes an invalid new name to VAULT_NAME_INVALID and creates nothing', async () => {
-      await expect(
-        importVaultBackup(registry, {
-          mode: 'independent',
-          envelope: dupEnvelope,
-          password: v.password,
-          vaultName: ' leading-space',
-        }),
-      ).rejects.toMatchObject({ code: 'VAULT_NAME_INVALID' });
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
-    }, 20000);
-
-    // 2 derivations: source decrypt + createVault; the in-scope unlock then
-    // fails cheaply (the wrapper hides the just-created record from unlock's
-    // FIRST read, before any crypto) — same rollback path as a CAS failure.
-    it('a failure after the create rolls the whole import back — no empty vault left behind', async () => {
-      const failing: VaultRegistry = {
-        ...registry,
-        getRecord: async (name: string) =>
-          name === 'Imported' ? null : registry.getRecord(name),
-      };
-      const error: unknown = await importVaultBackup(failing, {
-        mode: 'independent',
-        envelope: dupEnvelope,
-        password: v.password,
-        vaultName: 'Imported',
-      }).catch((cause: unknown) => cause);
-      expect(error).toMatchObject({ code: 'VAULT_NOT_FOUND' });
-      expectClean((error as Error).message);
-      // The just-created vault was removed again — a failed import leaves no
-      // trace (kickoff A3 completion criterion): without the rollback the
-      // name list would contain an empty 'Imported' vault.
-      expect(await vaultNames()).toEqual(['demo', 'Target']);
-      await expect(registry.getSettings()).resolves.toMatchObject({ activeVaultName: null });
-    }, 30000);
-
-    // 4 derivations: source decrypt + create + the import's in-scope unlock
-    // (the payload write itself fails by INJECTION at the CAS), plus the
-    // residual-vault unlock proof. Best-effort rollback semantics: when the
-    // post-failure removal ALSO fails, the PRIMARY error still wins and the
-    // residual is an unlockable EMPTY vault (the review's Node evidence) —
-    // locked here against drift.
-    it('a removal failure after a failed payload write propagates the PRIMARY error and leaves an unlockable EMPTY vault', async () => {
-      let created: VaultRecordV1 | undefined;
-      const failing: VaultRegistry = {
-        ...registry,
-        createVault: async (params: { vaultName: string; password: string }) => {
-          created = await registry.createVault(params);
-          return created;
+  it('carries a declared source publicKey as-is and backfills the derived key for legacy entries', async () => {
+    // A source entry DECLARING the outer publicKey: carried verbatim onto the
+    // re-encrypted record (public outer data, not re-derived).
+    const declared = 'STMimport-declared-key-1';
+    const source: VaultEnvelopeV1 = {
+      ...v.envelope,
+      version: 1,
+      accounts: [
+        {
+          accountName: 'alice',
+          keys: {
+            owner: [], active: [], memo: [],
+            posting: [{ ...encryptedFromVector(posting), publicKey: declared }],
+          },
         },
-        // The service's payload-write CAS (mutatePayload step 5) always loses.
-        swapRecord: () =>
-          Promise.reject(
-            new VaultError('VAULT_SESSION_STALE', 'injected concurrent change'),
-          ),
-        // ... and the import's best-effort rollback removal fails too.
-        removeVault: () =>
-          Promise.reject(
-            new VaultError('VAULT_STORAGE_UNAVAILABLE', 'injected removal failure'),
-          ),
-      };
-      const error: unknown = await importVaultBackup(failing, {
-        mode: 'independent',
-        envelope: dupEnvelope,
-        password: v.password,
-        vaultName: 'Imported',
-      }).catch((cause: unknown) => cause);
-      // The mutate failure (not the swallowed removal failure) propagates.
-      expect(error).toMatchObject({ code: 'VAULT_SESSION_STALE' });
-      expectClean((error as Error).message);
-      // The rollback removal failed: the just-created vault is still there,
-      // EXACTLY as created — revision 0, the payload write never landed.
-      if (created === undefined) {
-        throw new Error('createVault was not called');
-      }
-      expect(await registry.getRecord('Imported')).toEqual(created);
-      expect(await registry.getRecord('Imported')).toMatchObject({ revision: 0 });
-      expect(await vaultNames()).toEqual(['demo', 'Imported', 'Target']);
-      // The residual is an UNLOCKABLE EMPTY vault: the same password unlocks
-      // it and zero key entries come back (no imported keys inside).
-      const service = createVaultService(registry);
-      await expect(service.unlock('Imported', v.password)).resolves.toMatchObject({
-        locked: false,
-        vaultName: 'Imported',
-      });
-      await expect(service.getAccounts()).resolves.toEqual([]);
-      service.destroy();
-      await expect(registry.getSettings()).resolves.toMatchObject({ activeVaultName: null });
-    }, 30000);
-
-    // 5 derivations: source decrypt + the import's create + the OTHER tab's
-    // recreate + the import's unlock attempt (the import password cannot
-    // authenticate the rebuild's fresh envelope) + the rebuild's unlock proof.
-    // A3 review r2 P2: the pre-fix rollback deleted by bare NAME and would
-    // have destroyed the other tab's rebuild — the instance-bound rollback
-    // must stand down instead.
-    it('a same-name remove+recreate (OTHER password) between create and unlock fails the import WITHOUT deleting the rebuilt vault', async () => {
-      const REBUILT_PASSWORD = 'other-tab-password-9';
-      let importCreate: VaultRecordV1 | undefined;
-      const racing: VaultRegistry = {
-        ...registry,
-        createVault: async (params: { vaultName: string; password: string }) => {
-          const mine = await registry.createVault(params);
-          importCreate = mine;
-          // "Another tab" replaces the just-created instance under the same
-          // name (fresh salt/IV, different password) BEFORE the import's
-          // unlock reads that name.
-          await registry.removeVault(params.vaultName);
-          await registry.createVault({
-            vaultName: params.vaultName,
-            password: REBUILT_PASSWORD,
-          });
-          return mine;
-        },
-      };
-      const error: unknown = await importVaultBackup(racing, {
-        mode: 'independent',
-        envelope: dupEnvelope,
-        password: v.password,
-        vaultName: 'Imported',
-      }).catch((cause: unknown) => cause);
-      // The import's unlock attempted the REBUILD's envelope under the import
-      // password and failed authentication — the only reachable failure here.
-      expect(error).toMatchObject({ code: 'VAULT_PASSWORD_INVALID' });
-      expectClean((error as Error).message);
-      if (importCreate === undefined) {
-        throw new Error('createVault was not called');
-      }
-      // The rebuild SURVIVED the rollback: still stored, a DIFFERENT record
-      // instance, unlockable only under the other tab's password, and the
-      // source payload was never written into it.
-      const rebuilt = await currentRecord('Imported');
-      expect(rebuilt.createdAt).not.toBe(importCreate.createdAt);
-      expect(await vaultNames()).toEqual(['demo', 'Imported', 'Target']);
-      const service = createVaultService(registry);
-      await expect(service.unlock('Imported', REBUILT_PASSWORD)).resolves.toMatchObject({
-        locked: false,
-        vaultName: 'Imported',
-      });
-      await expect(service.getAccounts()).resolves.toEqual([]);
-      service.destroy();
-      await expect(registry.getSettings()).resolves.toMatchObject({ activeVaultName: null });
-    }, 30000);
-
-    // 5 derivations: source decrypt + the import's create + the other tab's
-    // recreate + the import's unlock (which ADOPTS the rebuild — same
-    // password, fresh salt, so the decrypt succeeds) + the rebuild's unlock
-    // proof. Only the createdAt binding can tell the instances apart: the
-    // adoption check must abort BEFORE the payload write (pre-fix, the source
-    // keys landed in the other tab's rebuild).
-    it('a same-name remove+recreate (SAME password) is caught by the adoption check: no write, rebuild intact', async () => {
-      let importCreate: VaultRecordV1 | undefined;
-      const racing: VaultRegistry = {
-        ...registry,
-        createVault: async (params: { vaultName: string; password: string }) => {
-          const mine = await registry.createVault(params);
-          importCreate = mine;
-          await registry.removeVault(params.vaultName);
-          // SAME password under a FRESH salt: the rebuilt record decrypts
-          // fine, so unlock adopts it by name and unlock's own born-stale
-          // re-check cannot see the swap either (the replacement was already
-          // stored before unlock's first read).
-          await registry.createVault(params);
-          return mine;
-        },
-      };
-      const error: unknown = await importVaultBackup(racing, {
-        mode: 'independent',
-        envelope: dupEnvelope,
-        password: v.password,
-        vaultName: 'Imported',
-      }).catch((cause: unknown) => cause);
-      expect(error).toMatchObject({ code: 'VAULT_SESSION_STALE' });
-      expectClean((error as Error).message);
-      if (importCreate === undefined) {
-        throw new Error('createVault was not called');
-      }
-      // The rebuild was never written into (revision 0, empty payload — the
-      // source keys are absent) and never deleted.
-      const rebuilt = await currentRecord('Imported');
-      expect(rebuilt.createdAt).not.toBe(importCreate.createdAt);
-      expect(rebuilt.revision).toBe(0);
-      expect(await vaultNames()).toEqual(['demo', 'Imported', 'Target']);
-      const service = createVaultService(registry);
-      await expect(service.unlock('Imported', v.password)).resolves.toMatchObject({
-        locked: false,
-        vaultName: 'Imported',
-      });
-      await expect(service.getAccounts()).resolves.toEqual([]);
-      service.destroy();
-      await expect(registry.getSettings()).resolves.toMatchObject({ activeVaultName: null });
-    }, 30000);
-
-    // 4 derivations: source decrypt + create + in-scope unlock + read-back
-    // decryption. An empty source is a VALID backup: the import creates a
-    // fresh vault whose payload is (still) empty.
-    it('imports an EMPTY {"keys":[]} source as a fresh, unlockable, empty vault', async () => {
-      const result = await importVaultBackup(registry, {
-        mode: 'independent',
-        envelope: emptySourceEnvelope,
-        password: v.password,
-        vaultName: 'Empty',
-      });
-      expect(result.vaultName).toBe('Empty');
-      expect(result.revision).toBe(1); // create (0) + the (empty) payload write
-      expect(result.lastBackupAt).toBeNull();
-      expect(result.salt).not.toBe(emptySourceEnvelope.salt); // fresh salt/IV
-      const kek = await deriveVaultKek(v.password, decodeBase64Url(result.salt));
-      const payloadText = await decryptVaultText(
-        kek,
-        decodeBase64Url(result.iv),
-        decodeBase64Url(result.ciphertext),
-      );
-      expect(payloadText).toBe('{"keys":[]}');
-      expect(await vaultNames()).toEqual(['demo', 'Empty', 'Target']);
-      await expect(registry.getSettings()).resolves.toMatchObject({ activeVaultName: null });
-      expectClean(result);
-    }, 30000);
-  });
-
-  describe('export → import roundtrip', () => {
-    // 4 derivations: the import's source decrypt + create + in-scope unlock,
-    // plus the read-back decryption.
-    it('re-imports an exported backup as a NEW vault whose payload equals the source payload', async () => {
-      const before = await currentRecord('demo');
-      const backup = await exportVaultBackup(registry, 'demo');
-      // The export's CAS marker move (lastBackupAt, revision +1) never
-      // touches the envelope bytes.
-      expect(backup).toEqual({
-        version: 1,
-        vaultName: 'demo',
-        salt: before.salt,
-        iv: before.iv,
-        ciphertext: before.ciphertext,
-      });
-      // Import the EXPORTED envelope under a NEW local name (re-using 'demo'
-      // would collide with the still-existing source vault).
-      const result = await importVaultBackup(registry, {
-        mode: 'independent',
-        envelope: backup,
-        password: v.password,
-        vaultName: 'Roundtrip',
-      });
-      expect(result.vaultName).toBe('Roundtrip');
-      expect(result.revision).toBe(1);
-      expect(result.lastBackupAt).toBeNull();
-      expect(result.salt).not.toBe(backup.salt); // fresh salt/IV, re-encrypted
-      // Read back: decrypt under the new vault's fresh salt with the SAME
-      // password. The import pipeline stores the normalized, deduplicated
-      // source payload — for the fixture payload (a single already-normalized
-      // entry) that is byte-identical to vault A's stored payload.
-      const kek = await deriveVaultKek(v.password, decodeBase64Url(result.salt));
-      const payloadText = await decryptVaultText(
-        kek,
-        decodeBase64Url(result.iv),
-        decodeBase64Url(result.ciphertext),
-      );
-      expect(payloadText).toBe(v.payloadText);
-      // Source vault survives untouched on its envelope fields; nothing
-      // activated; both vaults coexist.
-      const afterDemo = await currentRecord('demo');
-      expect(afterDemo.salt).toBe(before.salt);
-      expect(afterDemo.iv).toBe(before.iv);
-      expect(afterDemo.ciphertext).toBe(before.ciphertext);
-      await expect(registry.getSettings()).resolves.toMatchObject({ activeVaultName: null });
-      expect(await vaultNames()).toEqual(['demo', 'Roundtrip', 'Target']);
-      expectClean(result);
-    }, 30000);
-  });
-
-  describe('mergeVaultBackup', () => {
-    // 2 derivations: target unlock + source decrypt.
-    it('merges into the unlocked target: union, target-priority dedupe, fresh IV, alias and lastBackupAt unchanged', async () => {
-      const service = createVaultService(registry);
-      const before = await currentRecord('Target');
-      await service.unlock('Target', v.password);
-      const result: VaultMergeResult = await mergeVaultBackup(registry, service, {
-        mode: 'merge',
-        envelope: mergeSourceEnvelope,
-        password: v.password,
-        targetVaultName: 'Target',
-      });
-      expect(result.status).toMatchObject({
-        locked: false,
-        vaultName: 'Target',
-        revision: before.revision + 1,
-      });
-      // Safety net: the pre-merge five-field envelope, byte-identical to the
-      // stored fields — and NOT persisted (lastBackupAt stays null below).
-      expect(result.preMergeBackup).toEqual({
-        version: 1,
-        vaultName: 'Target',
-        salt: before.salt,
-        iv: before.iv,
-        ciphertext: before.ciphertext,
-      });
-      const after = await currentRecord('Target');
-      expect(after.vaultName).toBe('Target'); // alias unchanged
-      expect(after.salt).toBe(before.salt); // salt belongs to password changes
-      expect(after.iv).not.toBe(before.iv); // whole-payload re-encryption
-      expect(after.ciphertext).not.toBe(before.ciphertext);
-      expect(after.lastBackupAt).toBeNull();
-      // Target entry first with its RAW spelling (priority), source-only
-      // carol appended (normalized) — decryptable under the TARGET password.
-      const payloadText = await decryptVaultText(
-        sharedKek,
-        decodeBase64Url(after.iv),
-        decodeBase64Url(after.ciphertext),
-      );
-      expect(payloadText).toBe(
-        keysText([entry('Alice', 'posting', aliceWif), entry('carol', 'active', CAROL_WIF)]),
-      );
-      // The session adopted the merged payload; no activation happened.
-      const accounts = await service.getAccounts();
-      expect(accounts.map((account) => account.accountName)).toEqual(['alice', 'carol']);
-      await expect(registry.getSettings()).resolves.toMatchObject({ activeVaultName: null });
-      // Name gate (rides on this test's already-paid unlock): a session on
-      // 'Target' does not satisfy a merge request for a DIFFERENT vault name.
-      await expect(
-        mergeVaultBackup(registry, service, {
-          mode: 'merge',
-          envelope: mergeSourceEnvelope,
-          password: v.password,
-          targetVaultName: 'demo',
-        }),
-      ).rejects.toMatchObject({ code: 'VAULT_LOCKED' });
-      expectClean(result);
-      service.destroy();
-    }, 30000);
-
-    // 2 derivations: target unlock + empty-source decrypt. The proof decrypt
-    // reuses the beforeAll KEK (the demo vault keeps the fixture salt). Locks
-    // the no-short-circuit semantics: a content no-op merge still REWRITES the
-    // record (fresh IV + revision +1).
-    it('merging an EMPTY source changes no content but still rewrites the record (fresh IV, revision +1)', async () => {
-      const service = createVaultService(registry);
-      const before = await currentRecord('demo');
-      await service.unlock('demo', v.password);
-      const result: VaultMergeResult = await mergeVaultBackup(registry, service, {
-        mode: 'merge',
-        envelope: emptySourceEnvelope,
-        password: v.password,
-        targetVaultName: 'demo',
-      });
-      expect(result.status).toMatchObject({
-        locked: false,
-        vaultName: 'demo',
-        revision: before.revision + 1,
-      });
-      expect(result.preMergeBackup).toEqual({
-        version: 1,
-        vaultName: 'demo',
-        salt: before.salt,
-        iv: before.iv,
-        ciphertext: before.ciphertext,
-      });
-      const after = await currentRecord('demo');
-      expect(after.salt).toBe(before.salt); // salt belongs to password changes
-      expect(after.iv).not.toBe(before.iv); // rewritten despite the no-op content
-      expect(after.ciphertext).not.toBe(before.ciphertext);
-      expect(after.lastBackupAt).toBeNull(); // the marker stays export-only
-      const payloadText = await decryptVaultText(
-        sharedKek,
-        decodeBase64Url(after.iv),
-        decodeBase64Url(after.ciphertext),
-      );
-      expect(payloadText).toBe(v.payloadText); // the content itself is unchanged
-      service.destroy();
-    }, 30000);
-
-    it('rejects with VAULT_LOCKED when the target is not unlocked in the service', async () => {
-      const service = createVaultService(registry);
-      const before = await currentRecord('Target');
-      await expect(
-        mergeVaultBackup(registry, service, {
-          mode: 'merge',
-          envelope: mergeSourceEnvelope,
-          password: v.password,
-          targetVaultName: 'Target',
-        }),
-      ).rejects.toMatchObject({ code: 'VAULT_LOCKED' });
-      expect(await currentRecord('Target')).toEqual(before);
-      service.destroy();
+      ],
+    };
+    const imported = await importVaultBackup(registry, {
+      mode: 'independent', envelope: source, password: v.password, vaultName: 'Carry',
     });
+    expect(imported.accounts[0]?.keys.posting[0]?.publicKey).toBe(declared);
+    // Legacy entries WITHOUT the field (old exports): the public key derived
+    // during the mandatory WIF validation is backfilled (vitest steem-js
+    // mock: STM + last 8 characters of the WIF).
+    const backfilled = await importVaultBackup(registry, {
+      mode: 'independent', envelope: demoEnvelope, password: v.password, vaultName: 'Backfill',
+    });
+    expect(backfilled.accounts[0]?.keys.posting[0]?.publicKey).toBe(
+      `STM${posting.privateKey.slice(-8)}`,
+    );
+    expect(backfilled.accounts[0]?.keys.active[0]?.publicKey).toBe(
+      `STM${active.privateKey.slice(-8)}`,
+    );
+  }, 40000);
 
-    // 3 derivations: one shared target unlock + one derivation per failing
-    // source open (wrong password / invalid entry). Both reject BEFORE any
-    // write attempt, so the target record stays byte-identical.
-    it('source-side failures (wrong password, invalid entry) leave the target record byte-identical', async () => {
-      const service = createVaultService(registry);
-      const before = await currentRecord('Target');
-      await service.unlock('Target', v.password);
-      const wrongPassword: unknown = await mergeVaultBackup(registry, service, {
-        mode: 'merge',
-        envelope: mergeSourceEnvelope,
-        password: 'wrong-password-123456',
-        targetVaultName: 'Target',
-      }).catch((cause: unknown) => cause);
-      expect(wrongPassword).toMatchObject({ code: 'VAULT_PASSWORD_INVALID' });
-      expectClean((wrongPassword as Error).message);
-      expect(await currentRecord('Target')).toEqual(before);
-      const invalidEntry: unknown = await mergeVaultBackup(registry, service, {
-        mode: 'merge',
-        envelope: badAccountEnvelope,
-        password: v.password,
-        targetVaultName: 'Target',
-      }).catch((cause: unknown) => cause);
-      expect(invalidEntry).toMatchObject({ code: 'VAULT_KEY_INVALID' });
-      expectClean((invalidEntry as Error).message);
-      expect(await currentRecord('Target')).toEqual(before);
-      service.destroy();
-    }, 30000);
+  it('rejects a wrong source password or weak import password without leaving a vault', async () => {
+    await expect(importVaultBackup(registry, {
+      mode: 'independent', envelope: duplicateSource, password: 'wrong-password-123456', vaultName: 'Nope',
+    })).rejects.toMatchObject({ code: 'VAULT_PASSWORD_INVALID' });
+    await expect(importVaultBackup(registry, {
+      mode: 'independent', envelope: duplicateSource, password: 'correct horse battery staple', vaultName: 'Weak',
+    })).rejects.toMatchObject({ code: 'VAULT_PASSWORD_INVALID' });
+    expect(await registry.listRecords()).toHaveLength(1);
+  }, 30000);
 
-    // 3 derivations: one shared target unlock + one per merge attempt. Runs
-    // over a registry whose CAS always reports a concurrent change — the
-    // over-limit attempt provably never reaches the CAS (it dies in mutatePayload
-    // validation), the second attempt dies AT the CAS.
-    it('write-side failures (over-limit result, CAS staleness) keep the target untouched', async () => {
-      const failing: VaultRegistry = {
-        ...registry,
-        swapRecord: () =>
-          Promise.reject(
-            new VaultError('VAULT_SESSION_STALE', 'injected concurrent change'),
-          ),
-      };
-      const service = createVaultService(failing);
-      const before = await currentRecord('Target');
-      await service.unlock('Target', v.password);
-      await expect(
-        mergeVaultBackup(failing, service, {
-          mode: 'merge',
-          envelope: source400Envelope, // 400 source keys + the target's 1 = 401
-          password: v.password,
-          targetVaultName: 'Target',
-        }),
-      ).rejects.toMatchObject({ code: 'VAULT_LIMIT_EXCEEDED' });
-      expect(await currentRecord('Target')).toEqual(before);
-      // The session survives a validation failure at the pre-merge revision.
-      await expect(service.getStatus()).resolves.toMatchObject({
-        locked: false,
-        vaultName: 'Target',
-        revision: before.revision,
-      });
-      await expect(
-        mergeVaultBackup(failing, service, {
-          mode: 'merge',
-          envelope: mergeSourceEnvelope,
-          password: v.password,
-          targetVaultName: 'Target',
-        }),
-      ).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
-      expect(await currentRecord('Target')).toEqual(before);
-      // The stale session was cleared by the service.
-      await expect(service.getStatus()).resolves.toMatchObject({ locked: true });
-      service.destroy();
-    }, 30000);
-  });
+  it('rolls back the whole import when any key fails validation', async () => {
+    vi.mocked(steem.auth.isWif).mockReturnValueOnce(true).mockReturnValueOnce(false);
+    const badKey = await encryptVaultKeyRecord(targetKek, 'not-a-wif', 'bad key', [posting.iv, active.iv]);
+    const source: VaultEnvelopeV1 = {
+      ...v.envelope,
+      version: 1,
+      accounts: [{ accountName: 'alice', keys: { owner: [], active: [], posting: [badKey], memo: [] } }],
+    };
+    await expect(importVaultBackup(registry, {
+      mode: 'independent', envelope: source, password: v.password, vaultName: 'Broken',
+    })).rejects.toMatchObject({ code: 'VAULT_KEY_INVALID' });
+    expect(await registry.getRecord('Broken')).toBeNull();
+  }, 30000);
+
+  it('rejects over-limit input and rolls back a failed final CAS', async () => {
+    const invalid = {
+      ...v.envelope,
+      accounts: [{ accountName: 'alice', keys: { owner: [], active: [], memo: [], posting: [] } }],
+    };
+    expect(validateVaultEnvelope(invalid)).toEqual(invalid);
+    const failing: VaultRegistry = {
+      ...registry,
+      swapRecord: () => Promise.reject(new VaultError('VAULT_SESSION_STALE', 'injected CAS failure')),
+    };
+    await expect(importVaultBackup(failing, {
+      mode: 'independent', envelope: duplicateSource, password: v.password, vaultName: 'Imported',
+    })).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
+    expect(await registry.getRecord('Imported')).toBeNull();
+  }, 30000);
+
+  it('a same-name remove+recreate replacing the import\'s vault makes the rollback stand down — the rebuild survives byte-intact', async () => {
+    let importCreate: VaultRecordV1 | undefined;
+    let rebuiltSnapshot: VaultRecordV1 | undefined;
+    const racing: VaultRegistry = {
+      ...registry,
+      createVault: async (params: { vaultName: string; password: string }) => {
+        const mine = await registry.createVault(params);
+        importCreate = mine;
+        // "Another tab" replaces the just-created instance under the same
+        // name (fresh salt, same password) BEFORE the import's CAS reads
+        // that name.
+        await registry.removeVault(params.vaultName);
+        rebuiltSnapshot = await registry.createVault(params);
+        return mine;
+      },
+    };
+    await expect(importVaultBackup(racing, {
+      mode: 'independent', envelope: duplicateSource, password: v.password, vaultName: 'Imported',
+    })).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
+    if (importCreate === undefined || rebuiltSnapshot === undefined) {
+      throw new Error('createVault was not called');
+    }
+    // The CAS lost against the rebuild (different createdAt) and the rollback
+    // STOOD DOWN instead of deleting by bare name: the other tab's vault is
+    // still stored byte-for-byte — empty, revision 0, the source keys never
+    // landed in it.
+    expect(await current('Imported')).toEqual(rebuiltSnapshot);
+    expect(rebuiltSnapshot.createdAt).not.toBe(importCreate.createdAt);
+    expect(rebuiltSnapshot.revision).toBe(0);
+    expect(rebuiltSnapshot.accounts).toEqual([]);
+  }, 30000);
+
+  it('a removal failure during rollback propagates the PRIMARY error; the residual is the created empty vault', async () => {
+    let created: VaultRecordV1 | undefined;
+    const failing: VaultRegistry = {
+      ...registry,
+      createVault: async (params: { vaultName: string; password: string }) => {
+        created = await registry.createVault(params);
+        return created;
+      },
+      swapRecord: () => Promise.reject(new VaultError('VAULT_SESSION_STALE', 'injected CAS failure')),
+      removeVault: () => Promise.reject(new VaultError('VAULT_STORAGE_UNAVAILABLE', 'injected removal failure')),
+    };
+    await expect(importVaultBackup(failing, {
+      mode: 'independent', envelope: duplicateSource, password: v.password, vaultName: 'Imported',
+    })).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
+    // The PRIMARY (CAS) error wins — the rollback's own removal failure is
+    // swallowed (best-effort). Residual terminal state in the per-key era,
+    // asserted as implemented: the just-created EMPTY vault exactly as
+    // created — revision 0, zero keys, the payload write never landed. It is
+    // the documented VAULT_NAME_EXISTS-hinted leftover the user can delete
+    // (or re-import under another name); nothing half-written is inside.
+    if (created === undefined) throw new Error('createVault was not called');
+    expect(await registry.getRecord('Imported')).toEqual(created);
+    const residual = await registry.getRecord('Imported');
+    expect(residual?.revision).toBe(0);
+    expect(residual?.accounts).toEqual([]);
+  }, 30000);
+
+  it('imports an empty-source envelope (accounts: []) as a fresh empty vault', async () => {
+    const emptySource: VaultEnvelopeV1 = { ...v.emptyEnvelope, version: 1, vaultName: 'empty-source' };
+    const result = await importVaultBackup(registry, {
+      mode: 'independent', envelope: emptySource, password: v.password, vaultName: 'Empty',
+    });
+    // Pinned semantics (2026-11-05 ruling): an empty source is a VALID
+    // backup — the independent import (the recovery path the VAULT_EMPTY
+    // merge rejection points at) creates a fresh, empty vault: fresh salt,
+    // no keys to copy, one CAS commit (revision 1), nothing activated.
+    expect(result.vaultName).toBe('Empty');
+    expect(result.accounts).toEqual([]);
+    expect(result.salt).not.toBe(emptySource.salt);
+    expect(result.revision).toBe(1);
+    expect(result.lastBackupAt).toBeNull();
+    expect((await registry.getSettings()).activeVaultName).toBeNull();
+    expect((await registry.listRecords()).map((record) => record.vaultName).sort()).toEqual(['Empty', 'demo']);
+  }, 30000);
+
+  it('merges with different source/target passwords, target-first dedupe and unchanged target ciphertext', async () => {
+    const service = createVaultService(registry);
+    await service.unlock('demo', v.password);
+    const before = await current();
+    const result = await mergeVaultBackup(registry, service, {
+      mode: 'merge', envelope: mergeSource, password: SOURCE_PASSWORD,
+      targetVaultName: 'demo', targetPassword: v.password,
+    });
+    expect(result.preMergeBackup).toEqual(demoEnvelope);
+    expect(result.status).toMatchObject({ locked: false, revision: 1 });
+    const after = await current();
+    expect(after.salt).toBe(before.salt);
+    expect(after.accounts[0]?.keys.posting[0]).toEqual(before.accounts[0]?.keys.posting[0]);
+    expect(after.accounts[0]?.keys.posting[0]?.note).toBe('desktop posting key');
+    expect(after.accounts[0]?.keys.active[0]).toEqual(before.accounts[0]?.keys.active[0]);
+    expect(after.accounts.map((account) => account.accountName)).toEqual(['alice', 'bob']);
+    expect(await decryptRecord(after, v.password)).toContain(BOB_WIF);
+    expect(JSON.stringify(result)).not.toContain(SOURCE_PASSWORD);
+    expect(JSON.stringify(result)).not.toContain(BOB_WIF);
+    service.destroy();
+  }, 40000);
+
+  it('an empty or all-duplicate merge still uses CAS but never reencrypts target keys', async () => {
+    const service = createVaultService(registry);
+    await service.unlock('demo', v.password);
+    const before = await current();
+    const empty: VaultEnvelopeV1 = { ...v.emptyEnvelope, version: 1, vaultName: 'empty-source' };
+    await mergeVaultBackup(registry, service, {
+      mode: 'merge', envelope: empty, password: SOURCE_PASSWORD,
+      targetVaultName: 'demo', targetPassword: v.password,
+    });
+    const after = await current();
+    expect(after.revision).toBe(before.revision + 1);
+    expect(after.accounts).toEqual(before.accounts);
+    service.destroy();
+  }, 30000);
+
+  it('carries a declared source publicKey into the merged record; winning target entries keep theirs byte-identically', async () => {
+    const declaredBob = 'STMmerge-declared-bob-1';
+    const bobDeclared = await encryptVaultKeyRecord(sourceKek, BOB_WIF, 'bob declared label', []);
+    const source: VaultEnvelopeV1 = {
+      version: 1,
+      vaultName: 'merge-source-declared',
+      salt: v.salt,
+      accounts: [
+        {
+          accountName: 'bob',
+          keys: { owner: [], active: [{ ...bobDeclared, publicKey: declaredBob }], posting: [], memo: [] },
+        },
+      ],
+    };
+    const service = createVaultService(registry);
+    await service.unlock('demo', v.password);
+    await mergeVaultBackup(registry, service, {
+      mode: 'merge', envelope: source, password: SOURCE_PASSWORD,
+      targetVaultName: 'demo', targetPassword: v.password,
+    });
+    const after = await current();
+    // The winning target entry (fixture posting key, no field) is preserved
+    // byte-identically — including its ABSENT publicKey.
+    expect('publicKey' in (after.accounts[0]?.keys.posting[0] ?? {})).toBe(false);
+    // The source entry's declared publicKey rides onto the re-encrypted copy.
+    const bob = after.accounts.find((account) => account.accountName === 'bob');
+    expect(bob?.keys.active[0]?.publicKey).toBe(declaredBob);
+    service.destroy();
+  }, 40000);
+
+  it('wrong passwords, locked target and CAS failure leave target byte-identical', async () => {
+    const service = createVaultService(registry);
+    const before = await current();
+    await expect(mergeVaultBackup(registry, service, {
+      mode: 'merge', envelope: mergeSource, password: SOURCE_PASSWORD,
+      targetVaultName: 'demo', targetPassword: v.password,
+    })).rejects.toMatchObject({ code: 'VAULT_LOCKED' });
+    await service.unlock('demo', v.password);
+    await expect(mergeVaultBackup(registry, service, {
+      mode: 'merge', envelope: mergeSource, password: 'wrong-password-123456',
+      targetVaultName: 'demo', targetPassword: v.password,
+    })).rejects.toMatchObject({ code: 'VAULT_PASSWORD_INVALID' });
+    expect(await current()).toEqual(before);
+    service.destroy();
+    const failing: VaultRegistry = {
+      ...registry,
+      swapRecord: () => Promise.reject(new VaultError('VAULT_SESSION_STALE', 'injected CAS failure')),
+    };
+    const raced = createVaultService(failing);
+    await raced.unlock('demo', v.password);
+    await expect(mergeVaultBackup(failing, raced, {
+      mode: 'merge', envelope: mergeSource, password: SOURCE_PASSWORD,
+      targetVaultName: 'demo', targetPassword: v.password,
+    })).rejects.toMatchObject({ code: 'VAULT_SESSION_STALE' });
+    expect(await current()).toEqual(before);
+    raced.destroy();
+  }, 60000);
+
+  it('authenticates target keys and never partially merges a tampered target', async () => {
+    // Flip one ciphertext byte of the stored target's POSTING key. The flip
+    // keeps the value canonical base64url (same length → re-encode is the
+    // identity), but the AES-GCM authentication tag can no longer verify, so
+    // the correct password is indistinguishable from a wrong one. The record's
+    // FIRST key (the active key — unlock's authentication probe) stays intact,
+    // so the session opens and the tampered posting key is first exercised by
+    // the merge's own target authentication loop.
+    const stored = makeRecord();
+    const accounts = JSON.parse(JSON.stringify(stored.accounts)) as VaultRecordV1['accounts'];
+    const key = accounts[0]?.keys.posting[0];
+    if (!key) throw new Error('key missing');
+    const bytes = decodeBase64Url(key.ciphertext);
+    bytes[0] = (bytes[0] ?? 0) ^ 1;
+    key.ciphertext = encodeBase64Url(bytes);
+    const tampered = { ...stored, accounts };
+    fake.seed(VAULT_DB_NAME, 'vaults', tampered);
+
+    const service = createVaultService(registry);
+    await service.unlock('demo', v.password);
+    await expect(mergeVaultBackup(registry, service, {
+      mode: 'merge', envelope: mergeSource, password: SOURCE_PASSWORD,
+      targetVaultName: 'demo', targetPassword: v.password,
+    })).rejects.toMatchObject({ code: 'VAULT_PASSWORD_INVALID' });
+    // The failed authentication left the target byte-identical — no partial
+    // merge, no re-encryption, no revision bump.
+    expect(await current()).toEqual(tampered);
+    service.destroy();
+  }, 40000);
+
+  it('refuses to merge into a target with no keys (VAULT_EMPTY) — no silent re-key by a wrong targetPassword', async () => {
+    fake.seed(VAULT_DB_NAME, 'vaults', makeRecord('beta', { accounts: [] }));
+    const service = createVaultService(registry);
+    // An empty vault unlocks with ANY password (pinned semantics) — the merge
+    // itself must be the fail-closed gate: with zero key ciphertext there is
+    // nothing to authenticate `targetPassword` against, and the per-key
+    // target decryption loop would iterate zero times, re-encrypting every
+    // source key under whatever password was typed.
+    await service.unlock('beta', 'any-password-opens-empty-1');
+    const before = await current('beta');
+    for (const targetPassword of [v.password, 'wrong-password-123456']) {
+      await expect(mergeVaultBackup(registry, service, {
+        mode: 'merge', envelope: mergeSource, password: SOURCE_PASSWORD,
+        targetVaultName: 'beta', targetPassword,
+      })).rejects.toMatchObject({ code: 'VAULT_EMPTY' });
+    }
+    // The rejection fires before any password is used: the empty target
+    // record is byte-identical — pre-fix, a wrong password would have
+    // silently re-keyed the vault by importing every source key under it.
+    expect(await current('beta')).toEqual(before);
+    service.destroy();
+  }, 30000);
+
+  it('merges when the target name is a case variant of the selected session vault', async () => {
+    const service = createVaultService(registry);
+    await service.unlock('demo', v.password);
+    const before = await current('demo');
+    const result = await mergeVaultBackup(registry, service, {
+      mode: 'merge', envelope: mergeSource, password: SOURCE_PASSWORD,
+      targetVaultName: 'DEMO', targetPassword: v.password,
+    });
+    // The session selected 'demo'; 'DEMO' names the same vault through the
+    // shared comparison key (exactly how the manager matches targets), so
+    // the merge must resolve it instead of reporting VAULT_LOCKED. The
+    // commit still lands on the STORED display name.
+    expect(result.status).toMatchObject({ locked: false, vaultName: 'demo', revision: before.revision + 1 });
+    const after = await current('demo');
+    expect(after.accounts.map((account) => account.accountName)).toEqual(['alice', 'bob']);
+    expect(await decryptRecord(after, v.password)).toContain(BOB_WIF);
+    service.destroy();
+  }, 40000);
 });

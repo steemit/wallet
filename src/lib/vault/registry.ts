@@ -24,15 +24,16 @@
 // - Fail closed: a missing `indexedDB` global, a failed `open`, or a failed
 //   transaction rejects with `VAULT_STORAGE_UNAVAILABLE`. There is NO
 //   in-memory fallback pretending to be persistence.
-// - The registry never retains a KEK: `createVault` derives one, encrypts the
-//   empty payload, zeroizes the bytes (`fill(0)`) and drops the reference in
-//   the same scope.
+// - The registry never touches a KEK: `createVault` stores an empty key list
+//   under a fresh salt — zero keys exist at creation, so there is no
+//   ciphertext yet. Key sealing (and the per-operation KEK derivation and
+//   zeroization) happens in the service layer when keys are added.
 //
 // SENSITIVE-DATA RULES: records carry only envelope fields (ciphertext) and
 // non-secret runtime state. Error messages never echo vault names, passwords,
 // salts, IVs, ciphertext or derived keys.
 import { encodeBase64Url, validateVaultEnvelope } from './envelope';
-import { deriveVaultKek, encryptVaultText, generateVaultIv, generateVaultSalt } from './crypto';
+import { generateVaultSalt } from './crypto';
 import { VaultError } from './errors';
 import { validateVaultName, validateVaultPassword, vaultNameComparisonKey } from './validation';
 import type { VaultEnvelopeV1, VaultRecordV1, VaultSettingsV1 } from './types';
@@ -51,9 +52,6 @@ export const VAULT_STORE_SETTINGS = 'settings';
 
 /** Fixed key of the single row inside the `settings` store. */
 const SETTINGS_KEY = 'settings';
-
-/** Initial payload of a freshly created vault — an empty key list. */
-const EMPTY_PAYLOAD_TEXT = '{"keys":[]}';
 
 /**
  * Identifies the exact stored revision a CAS writer observed: a vault name
@@ -103,14 +101,15 @@ export interface VaultRegistry {
    * strength policy (`VAULT_PASSWORD_WEAK` — this IS the create primitive, the
    * check is not left to callers; flows with extra context such as a known
    * account name should additionally pre-validate with that context), atomic
-   * alias uniqueness (`VAULT_NAME_EXISTS`), a fresh salt/IV, and the empty
-   * payload encrypted with a KEK derived from the password. The KEK is
-   * zeroized inside this call and never stored or returned. The returned
-   * record has `revision: 0, lockEpoch: 0`.
+   * alias uniqueness (`VAULT_NAME_EXISTS`), and a fresh salt. No crypto
+   * beyond that: the vault starts with zero keys, so there is no ciphertext
+   * yet — the first key added later derives the KEK from the password and
+   * seals it (that password is the vault's real anchor). The returned record
+   * has `revision: 0, lockEpoch: 0`.
    *
-   * A cheap uniqueness pre-check runs before the (expensive) PBKDF2 derivation
-   * so a duplicate name never pays for crypto; the authoritative check + write
-   * still happen together in one transaction.
+   * A cheap uniqueness pre-check runs before the write transaction so a
+   * duplicate name fails fast; the authoritative check + write still happen
+   * together in one transaction.
    */
   createVault(params: { vaultName: string; password: string }): Promise<VaultRecordV1>;
 
@@ -158,6 +157,49 @@ export interface VaultRegistry {
   removeVault(vaultName: string): Promise<void>;
 
   /**
+   * Scan the raw `vaults` store and report every row the standard validation
+   * path (`asRecord` — the exact `validateVaultEnvelope` route
+   * `getRecord`/`listRecords` run) REJECTS. This exists for INCOMPATIBLE
+   * ENVELOPE VERSIONS: devices that ran the never-shipped A5 whole-vault
+   * build still hold records the per-key format cannot read, and by design
+   * there is NO migration layer (2026-11-05 ruling — the old format was never
+   * publicly released). Instead of migrating, the UI offers an explicit purge
+   * (see {@link purgeInvalidVaultRecords}) once the user confirms; this
+   * read-only primitive lets the UI describe the damage first.
+   *
+   * Per-record failures are isolated: each row gets its own try/catch around
+   * the shared validation, so one unreadable row never fails the whole scan —
+   * and the validation logic is REUSED, never re-implemented. Genuine
+   * storage-layer failures (request errors, a closed connection) still fail
+   * closed with `VAULT_STORAGE_UNAVAILABLE`. Read-only (`readonly`
+   * transaction). `vaultName` is the raw stored string when the row carries
+   * one, `null` otherwise (the UI filters those out when listing names).
+   * `record` is the stored value VERBATIM (unknown shape — this version
+   * cannot interpret it): an as-is archival copy for the cleanup dialog to
+   * download before {@link purgeInvalidVaultRecords} deletes the rows, never
+   * a re-importable backup and never a lookup key.
+   */
+  listInvalidVaultRecords(): Promise<
+    Array<{ key: IDBValidKey; vaultName: string | null; record: unknown }>
+  >;
+
+  /**
+   * Delete every record that fails the standard validation path (the same
+   * verdict as {@link listInvalidVaultRecords}) inside ONE `readwrite`
+   * transaction, then reset `activeVaultName` to `null` when it points at a
+   * record that is gone or still fails validation. Callers MUST have EXPLICIT
+   * USER CONFIRMATION before calling: this is the sanctioned "clear
+   * incompatible vault data" escape hatch for the no-migration ruling above —
+   * not a routine cleanup — and it deletes ONLY records the normal load path
+   * rejects, so readable vaults and every other settings field are untouched.
+   * Removed records are unrecoverable. Returns the removed rows' `vaultName`
+   * as read from the raw record (`null` when the row carries none). A corrupt
+   * settings row still fails closed (`VAULT_PAYLOAD_INVALID`, aborting the
+   * transaction) — same discipline as `removeVault`.
+   */
+  purgeInvalidVaultRecords(): Promise<{ removed: Array<string | null> }>;
+
+  /**
    * Read the settings row; returns defaults
    * (`schemaVersion: 1, signingMode: 'privateKey', activeVaultName: null`)
    * when none is stored yet. A corrupt/unknown-version row rejects with
@@ -176,19 +218,13 @@ export interface VaultRegistry {
   close(): void;
 }
 
-/**
- * Extract and validate the five `VaultEnvelopeV1` fields of a record (fail
- * closed with `VAULT_ENVELOPE_INVALID`). The envelope view is what unlock,
- * export and backup consume — runtime fields (revision/lockEpoch/timestamps)
- * never enter it.
- */
+/** Extract the portable envelope; local concurrency fields never enter backups. */
 export function vaultRecordToEnvelope(record: VaultRecordV1): VaultEnvelopeV1 {
   return validateVaultEnvelope({
     version: record.version,
     vaultName: record.vaultName,
     salt: record.salt,
-    iv: record.iv,
-    ciphertext: record.ciphertext,
+    accounts: record.accounts,
   });
 }
 
@@ -218,7 +254,7 @@ function normalizeLookupName(vaultName: string): string {
 }
 
 /**
- * Fail-closed validation of a raw stored row into a `VaultRecordV1`: the five
+ * Fail-closed validation of a raw stored row into a `VaultRecordV1`: the four
  * envelope fields run through the shared envelope validator and the runtime
  * fields must be non-negative integers (`lastBackupAt` may be null).
  */
@@ -231,8 +267,7 @@ function asRecord(value: unknown): VaultRecordV1 {
     version: raw['version'],
     vaultName: raw['vaultName'],
     salt: raw['salt'],
-    iv: raw['iv'],
-    ciphertext: raw['ciphertext'],
+    accounts: raw['accounts'],
   };
   const envelope = validateVaultEnvelope(candidate);
   const runtimeShape =
@@ -279,6 +314,60 @@ function findByComparisonKey(
     }
   }
   return null;
+}
+
+/** A raw stored row together with its primary key (getAll/getAllKeys pair). */
+interface RawVaultRow {
+  key: IDBValidKey;
+  value: unknown;
+}
+
+/**
+ * Read every raw row of the `vaults` store WITH its primary key. Real
+ * IndexedDB returns `getAll`/`getAllKeys` in the same order; a length
+ * mismatch would be a storage anomaly and fails closed.
+ */
+async function readRawVaultRows(store: IDBObjectStore): Promise<RawVaultRow[]> {
+  const values = await requestToPromise(store.getAll());
+  const keys = await requestToPromise(store.getAllKeys());
+  if (values.length !== keys.length) {
+    throw storageUnavailable('getAll/getAllKeys returned misaligned results');
+  }
+  return values.map((value, index) => ({ key: keys[index] as IDBValidKey, value }));
+}
+
+/**
+ * The raw `vaultName` of a stored row, when it is a readable string. Invalid
+ * rows are precisely the ones whose shape cannot be trusted, so callers must
+ * treat this as display-only information (never a lookup key).
+ */
+function rawVaultName(value: unknown): string | null {
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    const name = (value as Record<string, unknown>)['vaultName'];
+    if (typeof name === 'string') {
+      return name;
+    }
+  }
+  return null;
+}
+
+/**
+ * The per-row purge verdict: run the EXACT validation the normal load path
+ * uses (`asRecord`). True when `getRecord`/`listRecords` would reject the
+ * row — those, and only those, are the rows the purge may delete. Anything
+ * that is not a VaultError is not a data verdict; rethrow it so storage-layer
+ * failures keep failing closed.
+ */
+function isUnreadableRecord(value: unknown): boolean {
+  try {
+    asRecord(value);
+    return false;
+  } catch (error) {
+    if (error instanceof VaultError) {
+      return true;
+    }
+    throw error;
+  }
 }
 
 function isSettingsShape(value: unknown): value is VaultSettingsV1 {
@@ -440,25 +529,12 @@ export async function openVaultRegistry(dbName: string = VAULT_DB_NAME): Promise
         throw nameExists();
       }
       const salt = generateVaultSalt();
-      const iv = generateVaultIv();
-      const kek = await deriveVaultKek(params.password, salt);
-      let ciphertext: string;
-      try {
-        ciphertext = encodeBase64Url(await encryptVaultText(kek, iv, EMPTY_PAYLOAD_TEXT));
-      } finally {
-        // The registry never retains the KEK: zeroize the bytes and let the
-        // reference go out of scope. (The password string itself cannot be
-        // physically zeroed — dropping the argument reference is the best
-        // JavaScript can do.)
-        kek.fill(0);
-      }
       const now = Date.now();
       const record: VaultRecordV1 = {
         version: 1,
         vaultName: displayName,
         salt: encodeBase64Url(salt),
-        iv: encodeBase64Url(iv),
-        ciphertext,
+        accounts: [],
         revision: 0,
         lockEpoch: 0,
         createdAt: now,
@@ -623,6 +699,75 @@ export async function openVaultRegistry(dbName: string = VAULT_DB_NAME): Promise
               );
             }
           }
+        },
+      );
+    },
+
+    async listInvalidVaultRecords(): Promise<
+      Array<{ key: IDBValidKey; vaultName: string | null; record: unknown }>
+    > {
+      return runInTransaction(db, [VAULT_STORE_VAULTS], 'readonly', async (transaction) => {
+        const rows = await readRawVaultRows(transaction.objectStore(VAULT_STORE_VAULTS));
+        const invalid: Array<{
+          key: IDBValidKey;
+          vaultName: string | null;
+          record: unknown;
+        }> = [];
+        for (const row of rows) {
+          // Isolated per row: one unreadable record must not hide the rest.
+          if (isUnreadableRecord(row.value)) {
+            invalid.push({
+              key: row.key,
+              vaultName: rawVaultName(row.value),
+              // Verbatim stored value — the archival copy, not a reshaped one.
+              record: row.value,
+            });
+          }
+        }
+        return invalid;
+      });
+    },
+
+    async purgeInvalidVaultRecords(): Promise<{ removed: Array<string | null> }> {
+      return runInTransaction(
+        db,
+        [VAULT_STORE_VAULTS, VAULT_STORE_SETTINGS],
+        'readwrite',
+        async (transaction) => {
+          const vaults = transaction.objectStore(VAULT_STORE_VAULTS);
+          const rows = await readRawVaultRows(vaults);
+          // Partition BEFORE issuing any delete: a non-VaultError throw during
+          // the scan then cannot leave partial deletes behind.
+          const unreadable: RawVaultRow[] = [];
+          const survivors: VaultRecordV1[] = [];
+          for (const row of rows) {
+            if (isUnreadableRecord(row.value)) {
+              unreadable.push(row);
+            } else {
+              survivors.push(asRecord(row.value));
+            }
+          }
+          const removed: Array<string | null> = [];
+          for (const row of unreadable) {
+            await requestToPromise(vaults.delete(row.key));
+            removed.push(rawVaultName(row.value));
+          }
+          // A dangling active pointer must never survive its record; the same
+          // comparison-key rule as removeVault decides "dangling" here.
+          const settingsStore = transaction.objectStore(VAULT_STORE_SETTINGS);
+          const settingsRaw = await requestToPromise(settingsStore.get(SETTINGS_KEY));
+          if (settingsRaw !== null && settingsRaw !== undefined) {
+            const settings = asSettings(settingsRaw);
+            if (
+              settings.activeVaultName !== null &&
+              findByComparisonKey(survivors, settings.activeVaultName) === null
+            ) {
+              await requestToPromise(
+                settingsStore.put({ ...settings, activeVaultName: null }, SETTINGS_KEY),
+              );
+            }
+          }
+          return { removed };
         },
       );
     },

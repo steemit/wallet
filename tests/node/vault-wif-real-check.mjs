@@ -36,7 +36,7 @@ function check(label, ok, detail = '') {
 }
 
 // --- Fixture WIFs -----------------------------------------------------------
-const mainWif = vectors.vault.payload.keys[0].privateKey;
+const mainWif = vectors.vault.keys[0].privateKey;
 const dappWif = vectors.dappRequest.dappWif;
 const dappPublicKey = vectors.dappRequest.dappPublicKey;
 

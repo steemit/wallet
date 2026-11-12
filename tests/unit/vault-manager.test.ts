@@ -1,6 +1,7 @@
-// Vault manager tests (A4). Storage runs on the hand-written fake IndexedDB
-// (tests/mocks/fake-indexeddb.ts — see its FIDELITY BOUNDARY header); the
-// seeded vaults decrypt REAL fixture ciphertexts under the fixture password.
+// Vault manager tests (hierarchical per-key era). Storage runs on the
+// hand-written fake IndexedDB (tests/mocks/fake-indexeddb.ts — see its
+// FIDELITY BOUNDARY header); the seeded vaults are the fixed V1 fixture
+// envelope (per-key iv/ciphertext/note) under the fixture password.
 //
 // ORDER INDEPENDENCE: every test rebuilds its own fake database, registry and
 // manager in beforeEach and tears them down in afterEach — shuffle- and
@@ -9,28 +10,33 @@
 // Performance: PBKDF2 600k costs ~0.5-0.8s per derivation. Exactly ONE is
 // paid in beforeAll (the KEK that seals the shared import/merge source
 // envelope); each test then pays only for the derivations its own calls
-// perform (measured counts: create 1; unlock 1 — also 1 when the password
-// is wrong, derivation precedes authentication; independent import 3 per
-// success — backup-envelope open 1 + registry createVault 1 + the import's
-// internal session unlock 1 — or 1 on a wrong source password; merge 1
-// after its pre-unlock (the post-merge lock derives nothing) plus the
-// re-unlock; changePassword 2 plus verification re-unlocks; probe
-// authentications 1). The review-r2 C2 race tests inject via a REAL second
-// service/manager (its unlock counts 1, a removeVault adds its probe 1 and
-// a recreate's createVault 1) and verify through one re-unlock each.
-// Whole-file budget: 48 derivations (1 beforeAll + 47 in-test); per-test
-// budgets are set as timeouts.
-// Do not add unlock-happy tests without pruning.
+// perform (measured counts: create 0 — the registry stores an EMPTY accounts
+// list, no crypto at all, only a test's own verification unlock costs 1;
+// unlock 1 — also 1 when the password is wrong, derivation precedes
+// authentication; independent import 2 per success (source KEK 1 + target
+// KEK 1 — createVault itself derives nothing) or 1 on a wrong source
+// password; merge without pre-unlock 3 (manager's targetPassword unlock
+// probe 1 + merge target/source KEKs 2), 1 on a wrong target password;
+// changePassword 3 (authenticating unlock 1 + old KEK 1 + new KEK 1) plus
+// verification derivations; the C2 race tests inject via a REAL second
+// service/manager (its unlock counts 1, an addKey adds 1, a remove+recreate
+// path adds 3) and verify through one re-unlock each). Per-test budgets are
+// set as timeouts. Do not add unlock-happy tests without pruning.
 //
 // The BLUEPRINT HARD CONTRACT acceptance lives here: a successful merge
 // orchestration must leave the target locked with lockEpoch +1 versus
 // pre-merge, and a lock() persistence failure must still have cleared memory
 // and propagate.
+//
+// MERGE CONTRACT (per-key era): importVaultDetailed(merge) authenticates the
+// target with `targetPassword` itself — NO pre-unlock is imposed on the
+// caller. The backup primitive's own session requirement (VAULT_LOCKED when
+// the target is not selected) stays pinned in vault-backup.test.ts.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import vectors from '../fixtures/vault-development-test-vectors.json';
 import { installFakeIndexedDB, type FakeIndexedDBHandle } from '../mocks/fake-indexeddb';
-import { deriveVaultKek, encryptVaultText, generateVaultIv } from '@/lib/vault/crypto';
-import { decodeBase64Url, encodeBase64Url, validateVaultPayloadText } from '@/lib/vault/envelope';
+import { decryptVaultKey, deriveVaultKek, encryptVaultKeyRecord } from '@/lib/vault/crypto';
+import { decodeBase64Url } from '@/lib/vault/envelope';
 import { VaultError } from '@/lib/vault/errors';
 import {
   createVaultManager,
@@ -38,21 +44,16 @@ import {
 } from '@/lib/vault/manager';
 import { VAULT_DB_NAME, openVaultRegistry, type VaultRegistry } from '@/lib/vault/registry';
 import { createVaultService } from '@/lib/vault/service';
-import type { VaultEnvelopeV1, VaultKeyEntry, VaultRecordV1 } from '@/lib/vault/types';
+import type { VaultEnvelopeV1, VaultKeyInput, VaultRecordV1 } from '@/lib/vault/types';
 import { vaultNameComparisonKey } from '@/lib/vault/validation';
 
 const v = vectors.vault;
+const posting = v.keys[0];
+const active = v.keys[1];
+if (!posting || !active) throw new Error('fixture needs two keys');
 
-const fixtureKeys = validateVaultPayloadText(v.payloadText).keys;
-const aliceEntry: VaultKeyEntry | undefined = fixtureKeys[0];
-if (!aliceEntry) {
-  throw new Error('fixture payload has no key entry');
-}
-const aliceWif = aliceEntry.privateKey;
-const alicePublicKey = `STM${aliceWif.slice(-8)}`; // mock getPublicKey: 'STM' + last 8
-const BOB_ENTRY: VaultKeyEntry = { accountName: 'bob', role: 'active', privateKey: '5Ktest-wif-bob-0001' };
-const bobPublicKey = `STM${BOB_ENTRY.privateKey.slice(-8)}`;
-
+const BOB_WIF = '5Ktest-wif-bob-0001';
+const SOURCE_PASSWORD = 'a-different-source-passphrase';
 const NEW_PASSWORD = 'a-perfectly-fine-new-passphrase';
 
 /** Async rejection-code assertion helper (accepts a promise or a thunk). */
@@ -103,24 +104,24 @@ const waitBroadcast = (): Promise<void> =>
     setTimeout(resolve, 25);
   });
 
-// changePassword's reads of the target record through a gated registry, in
-// order: unlock's initial read + born-stale recheck (2), the payload
-// capture's requireFreshSession read (1) — so the 4th read is
-// requireRecord's, the deterministic point BETWEEN the capture and the
-// freshness guard where review-r2's C2 interleavings land.
-const REQUIRE_RECORD_READ_INDEX = 4;
+// changePassword's reads of the target vault through a gated registry, in
+// order: unlock's initial read + born-stale recheck (2), the capture's
+// requireRecord read (1) — so the 4th read is the getStatus guard's
+// requireFreshSession re-read, the deterministic point BETWEEN the capture
+// and the freshness guard where the C2 interleavings land. If the
+// implementation changes the read order, these tests fail loudly rather than
+// silently stop covering the window.
+const GUARD_READ_INDEX = 4;
 
 /**
- * Wrap a registry so the `getRecord` call changePassword's `requireRecord`
+ * Wrap a registry so the `getRecord` call changePassword's freshness guard
  * makes for the target vault first runs `interleave()` to completion and
  * settles BroadcastChannel delivery, then re-reads and returns the
  * POST-interleave record (what the real flow would observe). The concurrent
  * "other tab" must write through the RAW registry so the gate never
- * re-enters. Pinned to the current changePassword read sequence — if the
- * implementation changes the read order, these tests fail loudly rather
- * than silently stop covering the window.
+ * re-enters.
  */
-function gateRequireRecord(
+function gateGuardRead(
   base: VaultRegistry,
   targetVaultName: string,
   interleave: () => Promise<void>,
@@ -132,7 +133,7 @@ function gateRequireRecord(
     async getRecord(vaultName: string) {
       if (vaultNameComparisonKey(vaultName) === targetKey) {
         targetReads += 1;
-        if (targetReads === REQUIRE_RECORD_READ_INDEX) {
+        if (targetReads === GUARD_READ_INDEX) {
           await interleave();
           await waitBroadcast();
         }
@@ -144,58 +145,66 @@ function gateRequireRecord(
 
 function makeRecord(
   vaultName: string,
-  envelope: { salt: string; iv: string; ciphertext: string },
+  overrides: Partial<VaultRecordV1> = {},
 ): VaultRecordV1 {
   return {
+    ...v.envelope,
     version: 1,
     vaultName,
-    salt: envelope.salt,
-    iv: envelope.iv,
-    ciphertext: envelope.ciphertext,
     revision: 0,
     lockEpoch: 0,
     createdAt: fakeClock++,
     updatedAt: fakeClock++,
     lastBackupAt: null,
+    ...overrides,
   };
 }
 
-describe('vault manager (A4)', () => {
+describe('vault manager (per-key hierarchy)', () => {
   let fake: FakeIndexedDBHandle;
   let registry: VaultRegistry;
   let manager: VaultManagerExtended;
-  // Shared source backup for the independent import AND the merge migration
-  // (one payload — bob's active key — sealed once under the fixture password).
+  // Shared source backup for the independent import AND the merge (bob's
+  // active key sealed once under SOURCE_PASSWORD with a fresh per-key IV).
   let sourceEnvelope: VaultEnvelopeV1;
+  let bobSourceIv: string;
 
   beforeAll(async () => {
-    const kek = await deriveVaultKek(v.password, decodeBase64Url(v.salt));
-    const iv = generateVaultIv();
+    const sourceKek = await deriveVaultKek(SOURCE_PASSWORD, decodeBase64Url(v.salt));
+    const bobKey = await encryptVaultKeyRecord(sourceKek, BOB_WIF, 'bob public label', []);
+    bobSourceIv = bobKey.iv;
     sourceEnvelope = {
       version: 1,
       vaultName: 'source-backup',
       salt: v.salt,
-      iv: encodeBase64Url(iv),
-      ciphertext: encodeBase64Url(
-        await encryptVaultText(kek, iv, JSON.stringify({ keys: [BOB_ENTRY] })),
-      ),
+      accounts: [
+        { accountName: 'bob', keys: { owner: [], active: [bobKey], posting: [], memo: [] } },
+      ],
     };
+    sourceKek.fill(0);
   }, 30000);
 
   beforeEach(async () => {
     fake = installFakeIndexedDB();
     registry = await openVaultRegistry();
-    fake.seed(VAULT_DB_NAME, 'vaults', makeRecord('demo', { salt: v.salt, iv: v.iv, ciphertext: v.ciphertext }));
+    fake.seed(VAULT_DB_NAME, 'vaults', makeRecord('demo'));
+    // alpha carries the same posting WIF under the fixture re-encryption IV.
     fake.seed(
       VAULT_DB_NAME,
       'vaults',
-      makeRecord('alpha', { salt: v.salt, iv: v.reencryption.iv, ciphertext: v.reencryption.ciphertext }),
+      makeRecord('alpha', {
+        accounts: [
+          {
+            accountName: 'alice',
+            keys: {
+              owner: [], active: [], memo: [],
+              posting: [{ iv: v.reencryption.iv, ciphertext: v.reencryption.ciphertext, note: 'alpha key' }],
+            },
+          },
+        ],
+      }),
     );
-    fake.seed(
-      VAULT_DB_NAME,
-      'vaults',
-      makeRecord('beta', { salt: v.salt, iv: v.emptyPayload.iv, ciphertext: v.emptyPayload.ciphertext }),
-    );
+    fake.seed(VAULT_DB_NAME, 'vaults', makeRecord('beta', { accounts: [] }));
     manager = createVaultManager(registry);
   });
 
@@ -204,6 +213,7 @@ describe('vault manager (A4)', () => {
     registry.close();
     fake.uninstall();
     fake.reset();
+    restoreBroadcastChannel();
   });
 
   const currentRecord = async (name: string): Promise<VaultRecordV1> => {
@@ -214,15 +224,33 @@ describe('vault manager (A4)', () => {
     return record;
   };
 
+  /** Decrypt every key of a record under a password (verification helper). */
+  const decryptRecord = async (record: VaultRecordV1, password: string): Promise<string[]> => {
+    const kek = await deriveVaultKek(password, decodeBase64Url(record.salt));
+    const result: string[] = [];
+    try {
+      for (const account of record.accounts) {
+        for (const role of ['owner', 'active', 'posting', 'memo'] as const) {
+          for (const key of account.keys[role]) {
+            result.push(await decryptVaultKey(kek, decodeBase64Url(key.iv), decodeBase64Url(key.ciphertext)));
+          }
+        }
+      }
+    } finally {
+      kek.fill(0);
+    }
+    return result;
+  };
+
   describe('createVault / listVaults / activateVault', () => {
-    it('creates a locked, inactive vault with the empty payload', async () => {
+    it('creates a locked, inactive vault with an empty account list', async () => {
       const summary = await manager.createVault({ vaultName: 'Work', password: v.password });
       expect(summary).toMatchObject({ vaultName: 'Work', active: false, locked: true });
       const record = await currentRecord('Work');
       expect(record.revision).toBe(0);
-      // Decrypting the stored ciphertext is NOT needed to prove emptiness —
-      // unlocking the new vault yields zero accounts (1 derivation).
-      await manager.unlockVault('Work', v.password);
+      expect(record.accounts).toEqual([]);
+      // The new vault's directory is readable while locked (public metadata).
+      await manager.activateVault('Work');
       await expect(manager.getAccounts()).resolves.toEqual([]);
     }, 30000);
 
@@ -266,13 +294,34 @@ describe('vault manager (A4)', () => {
   });
 
   describe('getAccounts / unlockVault', () => {
-    it('exposes session-bound account summaries; locked → VAULT_LOCKED', async () => {
-      await expectRejectedBy(manager.getAccounts(), 'VAULT_LOCKED');
-      await manager.unlockVault('demo', v.password);
+    it('serves the public per-key directory locked; unlock authenticates; errors map', async () => {
+      // No session and no active vault: nothing to resolve.
+      await expectRejectedBy(manager.getAccounts(), 'VAULT_EMPTY');
+      // The active vault's directory is readable WITHOUT an unlock — outer
+      // metadata (account, role, IV, note) is public by design.
+      await manager.activateVault('demo');
       await expect(manager.getAccounts()).resolves.toEqual([
         {
           accountName: 'alice',
-          keys: [{ accountName: 'alice', role: 'posting', publicKey: alicePublicKey }],
+          keys: [
+            { role: 'active', iv: active.iv, note: 'backup active key', publicKey: null },
+            { role: 'posting', iv: posting.iv, note: 'desktop posting key', publicKey: null },
+          ],
+          balances: null,
+        },
+      ]);
+      // Unlock authenticates the password (one probe key) and binds a session.
+      await expect(manager.unlockVault('demo', v.password)).resolves.toMatchObject({
+        locked: false,
+        vaultName: 'demo',
+      });
+      await expect(manager.getAccounts()).resolves.toEqual([
+        {
+          accountName: 'alice',
+          keys: [
+            { role: 'active', iv: active.iv, note: 'backup active key', publicKey: null },
+            { role: 'posting', iv: posting.iv, note: 'desktop posting key', publicKey: null },
+          ],
           balances: null,
         },
       ]);
@@ -286,16 +335,17 @@ describe('vault manager (A4)', () => {
       const detailed = await manager.importVaultDetailed({
         mode: 'independent',
         envelope: sourceEnvelope,
-        password: v.password,
+        password: SOURCE_PASSWORD,
         vaultName: 'Imported',
       });
       expect(detailed.preMergeBackup).toBeNull();
       expect(detailed.summary).toMatchObject({ vaultName: 'Imported', active: false, locked: true });
+      expect((await currentRecord('Imported')).salt).not.toBe(v.salt);
       // The A0-shaped importVault returns just the summary.
       const summary = await manager.importVault({
         mode: 'independent',
         envelope: sourceEnvelope,
-        password: v.password,
+        password: SOURCE_PASSWORD,
         vaultName: 'Second',
       });
       expect(summary).toMatchObject({ vaultName: 'Second', locked: true });
@@ -320,56 +370,55 @@ describe('vault manager (A4)', () => {
     }, 60000);
   });
 
-  describe('importVault (merge) — blueprint hard contract', () => {
-    it('locks the target after a successful merge: locked:true, lockEpoch +1, preMergeBackup delivered', async () => {
-      await manager.unlockVault('demo', v.password);
+  describe('importVault (merge) — blueprint hard contract, target-password era', () => {
+    it('merges WITHOUT a pre-unlock via targetPassword; locks the target: locked:true, lockEpoch +1, preMergeBackup delivered', async () => {
       const before = await currentRecord('demo');
       const detailed = await manager.importVaultDetailed({
         mode: 'merge',
         envelope: sourceEnvelope,
-        password: v.password,
+        password: SOURCE_PASSWORD,
         targetVaultName: 'demo',
+        targetPassword: v.password,
       });
       // The hard-contract acceptance: locked after merge, epoch advanced.
       expect(detailed.summary).toMatchObject({ vaultName: 'demo', locked: true });
       const after = await currentRecord('demo');
       expect(after.lockEpoch).toBe(before.lockEpoch + 1);
       expect(after.revision).toBe(before.revision + 1);
-      // The pre-merge snapshot is exactly the pre-merge five-field envelope.
-      expect(detailed.preMergeBackup).not.toBeNull();
+      // The pre-merge snapshot is exactly the pre-merge four-field envelope.
       expect(detailed.preMergeBackup).toEqual({
-        version: before.version,
-        vaultName: before.vaultName,
+        version: 1,
+        vaultName: 'demo',
         salt: before.salt,
-        iv: before.iv,
-        ciphertext: before.ciphertext,
+        accounts: before.accounts,
       });
-      // The session is really gone: signing-grade reads require a re-unlock.
-      await expectRejectedBy(manager.getAccounts(), 'VAULT_LOCKED');
-      // And the merged content is intact under the re-unlock (bob merged in).
-      await manager.unlockVault('demo', v.password);
-      const accounts = await manager.getAccounts();
-      expect(accounts.map((a) => a.accountName).sort()).toEqual(['alice', 'bob']);
-      expect(accounts[1]).toMatchObject({
-        accountName: 'bob',
-        keys: [{ accountName: 'bob', role: 'active', publicKey: bobPublicKey }],
-      });
+      // The session is really gone: with no active vault selected there is
+      // nothing left to resolve — signing-grade flows need a fresh selection.
+      await expectRejectedBy(manager.getAccounts(), 'VAULT_EMPTY');
+      // Merged content is visible in the public directory (bob merged in —
+      // re-encrypted under the target KEK with a fresh IV, his public note
+      // carried over).
+      const accounts = await manager.getAccounts('demo');
+      expect(accounts.map((a) => a.accountName)).toEqual(['alice', 'bob']);
+      const bobKey = accounts[1]?.keys[0];
+      expect(bobKey).toMatchObject({ role: 'active', note: 'bob public label' });
+      expect(bobKey?.iv).not.toBe(bobSourceIv);
     }, 60000);
 
-    it('requires the target unlocked in this manager (VAULT_LOCKED otherwise)', async () => {
+    it('a wrong targetPassword is refused before any write leaves the record byte-identical', async () => {
+      const before = await currentRecord('demo');
       await expectRejectedBy(
         manager.importVault({
           mode: 'merge',
           envelope: sourceEnvelope,
-          password: v.password,
+          password: SOURCE_PASSWORD,
           targetVaultName: 'demo',
+          targetPassword: 'wrong-password-123456',
         }),
-        'VAULT_LOCKED',
+        'VAULT_PASSWORD_INVALID',
       );
-      // Nothing was written.
-      const record = await currentRecord('demo');
-      expect(record.revision).toBe(0);
-    });
+      expect(await currentRecord('demo')).toEqual(before);
+    }, 30000);
 
     it('a lock() persistence failure after the merge still clears memory and propagates', async () => {
       // bumpLockEpoch — the registry primitive only service.lock() uses — is
@@ -381,19 +430,19 @@ describe('vault manager (A4)', () => {
       };
       const doomed = createVaultManager(failing);
       try {
-        await doomed.unlockVault('demo', v.password);
         await expectRejectedBy(
           doomed.importVault({
             mode: 'merge',
             envelope: sourceEnvelope,
-            password: v.password,
+            password: SOURCE_PASSWORD,
             targetVaultName: 'demo',
+            targetPassword: v.password,
           }),
           'VAULT_STORAGE_UNAVAILABLE',
         );
-        // Memory was cleared BEFORE the failed persist: the manager reports
-        // plain VAULT_LOCKED, not a stale session.
-        await expectRejectedBy(doomed.getAccounts(), 'VAULT_LOCKED');
+        // Memory was cleared BEFORE the failed persist: with no session and
+        // no active vault the manager reports VAULT_EMPTY, not a stale session.
+        await expectRejectedBy(doomed.getAccounts(), 'VAULT_EMPTY');
         // The merge write itself was durable (CAS succeeded pre-lock).
         const record = await currentRecord('demo');
         expect(record.revision).toBe(1);
@@ -404,51 +453,91 @@ describe('vault manager (A4)', () => {
   });
 
   describe('changePassword', () => {
-    it('re-encrypts under a new salt; new password unlocks, old fails; ends locked', async () => {
+    it('re-encrypts every key under a fresh salt with fresh IVs; new password unlocks, old fails; ends locked', async () => {
       // Hide BroadcastChannel BEFORE creating the second manager so its
       // invalidation is proven through the HARD LINE only (the acceleration
-      // layer would turn the final assertion into LOCKED — valid, but
+      // layer would turn the final assertion into EMPTY — valid, but
       // timing-dependent; see the A2 service suite's no-BC pattern).
-      const broadcastDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'BroadcastChannel');
-      Object.defineProperty(globalThis, 'BroadcastChannel', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
+      hideBroadcastChannel();
       const registryB = await openVaultRegistry();
-      const other = createVaultManager(registryB);
+      // A raw second service (not a manager): the cross-tab hard line is a
+      // session-status contract, and the manager surface resolves directory
+      // reads without consulting the session (public data by design).
+      const other = createVaultService(registryB);
       try {
-        await other.unlockVault('demo', v.password);
-        // The manager starts WITHOUT a session: changePassword authenticates
-        // on its own (unlocking an already-unlocked vault would first switch
-        // — lock + re-unlock — and bump the epoch twice; the switch-clears
-        // semantics are the A2 service contract, not this flow's target).
+        await other.unlock('demo', v.password);
         const before = await currentRecord('demo');
         await manager.changePassword('demo', v.password, NEW_PASSWORD);
         const after = await currentRecord('demo');
-        // Fresh salt + fresh ciphertext, revision +1, lockEpoch +1 (post-change lock).
+        // Fresh salt + fresh per-key IVs/ciphertexts, revision +1, lockEpoch
+        // +1 (post-change lock).
         expect(after.salt).not.toBe(before.salt);
-        expect(after.ciphertext).not.toBe(before.ciphertext);
         expect(after.revision).toBe(before.revision + 1);
         expect(after.lockEpoch).toBe(before.lockEpoch + 1);
+        expect(after.accounts[0]?.keys.posting[0]?.iv).not.toBe(posting.iv);
+        expect(after.accounts[0]?.keys.active[0]?.iv).not.toBe(active.iv);
+        // Every WIF survived the re-encryption under the new password.
+        expect(await decryptRecord(after, NEW_PASSWORD)).toEqual([
+          active.privateKey,
+          posting.privateKey,
+        ]);
         // Locked after the change…
-        await expectRejectedBy(manager.getAccounts(), 'VAULT_LOCKED');
-        // …the new password unlocks and the payload survived…
+        await expectRejectedBy(manager.getAccounts(), 'VAULT_EMPTY');
+        // …the new password unlocks and the directory survived…
         await manager.unlockVault('demo', NEW_PASSWORD);
-        await expect(manager.getAccounts()).resolves.toBeTruthy();
+        await expect(manager.getAccounts('demo')).resolves.toBeTruthy();
         // …and the old password no longer authenticates.
         await expectRejectedBy(manager.unlockVault('demo', v.password), 'VAULT_PASSWORD_INVALID');
         // Another tab's pre-change session is stale (the revision moved).
-        await expectRejectedBy(other.getAccounts(), 'VAULT_SESSION_STALE');
+        await expectRejectedBy(other.getStatus(), 'VAULT_SESSION_STALE');
       } finally {
         other.destroy();
         registryB.close();
-        if (broadcastDescriptor) {
-          Object.defineProperty(globalThis, 'BroadcastChannel', broadcastDescriptor);
-        } else {
-          delete (globalThis as { BroadcastChannel?: unknown }).BroadcastChannel;
-        }
       }
+    }, 60000);
+
+    it('carries each stored publicKey across the re-encryption instead of dropping it', async () => {
+      // The re-encrypted entry wraps the SAME WIF, so its outer publicKey
+      // must survive verbatim. Seeded entries DECLARE the field; a drop
+      // during the per-key re-encrypt would silently erase it (data loss).
+      const declaredPosting = 'STMpinned-posting-key-1';
+      const declaredActive = 'STMpinned-active-key-2';
+      fake.seed(
+        VAULT_DB_NAME,
+        'vaults',
+        makeRecord('keyed', {
+          accounts: [
+            {
+              accountName: 'alice',
+              keys: {
+                owner: [],
+                active: [
+                  { iv: active.iv, ciphertext: active.ciphertext, note: 'backup active key', publicKey: declaredActive },
+                ],
+                memo: [],
+                posting: [
+                  { iv: posting.iv, ciphertext: posting.ciphertext, note: 'desktop posting key', publicKey: declaredPosting },
+                ],
+              },
+            },
+          ],
+        }),
+      );
+      const before = await currentRecord('keyed');
+      await manager.changePassword('keyed', v.password, NEW_PASSWORD);
+      const after = await currentRecord('keyed');
+      // Real re-encryption happened (fresh salt, fresh IVs)…
+      expect(after.salt).not.toBe(before.salt);
+      expect(after.accounts[0]?.keys.posting[0]?.iv).not.toBe(posting.iv);
+      expect(after.accounts[0]?.keys.active[0]?.iv).not.toBe(active.iv);
+      // …the WIFs survived…
+      expect(await decryptRecord(after, NEW_PASSWORD)).toEqual([
+        active.privateKey,
+        posting.privateKey,
+      ]);
+      // …and every declared publicKey carried over.
+      expect(after.accounts[0]?.keys.posting[0]?.publicKey).toBe(declaredPosting);
+      expect(after.accounts[0]?.keys.active[0]?.publicKey).toBe(declaredActive);
     }, 60000);
 
     it('authentication first, policy second: wrong old / weak new are rejected untouched', async () => {
@@ -472,34 +561,71 @@ describe('vault manager (A4)', () => {
       expect(record.revision).toBe(0);
       expect(record.lockEpoch).toBe(0);
     }, 30000);
+
+    it('rejects changing the password of an empty vault (VAULT_EMPTY) — no key exists to anchor the old password', async () => {
+      // 2026-11-05 ruling: with zero key ciphertext the old password cannot
+      // be authenticated (unlock accepts ANY password for an empty vault),
+      // so changePassword is meaningless — the password of the NEXT addKey is
+      // the real anchor. The rejection must fire for ANY input pair.
+      const before = await currentRecord('beta');
+      await expectRejectedBy(
+        manager.changePassword('beta', v.password, NEW_PASSWORD),
+        'VAULT_EMPTY',
+      );
+      // Nothing was written: unlock alone cannot move the counters.
+      expect(await currentRecord('beta')).toEqual(before);
+      // A WRONG old password surfaces the same code — PASSWORD_INVALID is
+      // unknowable without a key to probe. Second manager so the first call's
+      // surviving session cannot bump lockEpoch on switch-lock.
+      const second = createVaultManager(registry);
+      try {
+        await expectRejectedBy(
+          second.changePassword('beta', 'wrong-password-123456', NEW_PASSWORD),
+          'VAULT_EMPTY',
+        );
+      } finally {
+        second.destroy();
+      }
+      expect(await currentRecord('beta')).toEqual(before);
+    }, 30000);
   });
 
-  describe('changePassword cross-tab races in the capture→guard window (review r2 C2)', () => {
-    // C2 regression: a cross-tab write landing between the payload capture
-    // and the pre-CAS freshness guard. changePassword must CHECK the value
-    // getStatus returns — the service answers a CLEARED session with
-    // `{ locked: true }` and does NOT throw (the hard line inside it never
-    // runs without a session to compare) — otherwise the stale captured
-    // plaintext gets re-encrypted over the concurrent write: the swap's CAS
-    // pointer comes from the POST-mutation requireRecord read, so the CAS
-    // itself cannot catch it.
+  describe('changePassword cross-tab races in the capture→CAS window (review r2 C2)', () => {
+    // C2 regression: a cross-tab write landing while changePassword is
+    // between its capture and its CAS. Two independent guards must catch it:
+    // (a) the CAS pointer comes from the CAPTURE (not a post-mutation
+    // re-read), so the swap itself rejects a concurrent revision bump;
+    // (b) the pre-CAS freshness guard re-reads the record through the
+    // session's hard line and clears + rejects on pointer drift (the
+    // `status.locked` return-value check converges on the same STALE outcome
+    // whenever the broadcast acceleration beats the guard to it).
 
-    it('a cross-tab mutation clearing the session mid-flow → STALE; the concurrent key survives, no new envelope', async () => {
-      // Tab B (a real second service over the same storage) bumps the
-      // revision and its vault-mutate acceleration event clears tab A's
-      // freshly-unlocked session — the exact interleaving where an unchecked
-      // getStatus guard is a no-op.
+    const bobKeyInput = (): VaultKeyInput => ({
+      vaultName: 'demo',
+      accountName: 'bob',
+      role: 'active',
+      privateKey: BOB_WIF,
+      note: 'concurrent write',
+      password: v.password,
+    });
+
+    it('a cross-tab mutation landing after the guard but before the CAS → STALE; the concurrent key survives, no new envelope', async () => {
       let injected = false;
       let concurrentRecord: VaultRecordV1 | null = null;
       const tabB = createVaultService(registry);
-      const gated = gateRequireRecord(registry, 'demo', async () => {
-        injected = true;
-        await tabB.unlock('demo', v.password);
-        await tabB.mutatePayload((draft) => {
-          draft.keys.push({ ...BOB_ENTRY });
-        });
-        concurrentRecord = await registry.getRecord('demo');
-      });
+      const gated: VaultRegistry = {
+        ...registry,
+        async swapRecord(expected, next) {
+          if (vaultNameComparisonKey(expected.vaultName) === vaultNameComparisonKey('demo') && !injected) {
+            injected = true;
+            await tabB.unlock('demo', v.password);
+            await tabB.addKey(bobKeyInput());
+            concurrentRecord = await registry.getRecord('demo');
+            await waitBroadcast();
+          }
+          return registry.swapRecord(expected, next);
+        },
+      };
       const tabA = createVaultManager(gated);
       try {
         await expectRejectedBy(
@@ -509,41 +635,31 @@ describe('vault manager (A4)', () => {
         expect(injected).toBe(true);
         // Storage keeps the concurrent write byte-for-byte: bob's mutation at
         // revision 1, epoch 0, the ORIGINAL salt (no fresh-salt re-encryption
-        // — a password change mints one) and B's IV/ciphertext untouched.
+        // — a password change mints one).
         const after = await currentRecord('demo');
         expect(after).toEqual(concurrentRecord);
         expect(after.revision).toBe(1);
         expect(after.lockEpoch).toBe(0);
         expect(after.salt).toBe(v.salt);
-        // And the payload really still carries both keys: the rollback shape
-        // would leave only alice.
-        await tabA.unlockVault('demo', v.password);
-        const accounts = await tabA.getAccounts();
+        // And the directory really still carries both accounts.
+        const accounts = await tabA.getAccounts('demo');
         expect(accounts.map((a) => a.accountName).sort()).toEqual(['alice', 'bob']);
-        const bob = accounts.find((a) => a.accountName === 'bob');
-        expect(bob?.keys).toEqual([
-          { accountName: 'bob', role: 'active', publicKey: bobPublicKey },
-        ]);
       } finally {
         tabA.destroy();
         tabB.destroy();
       }
     }, 60000);
 
-    it('same interleave with BroadcastChannel hidden → the hard line catches the revision drift (deterministic backstop)', async () => {
-      // Belt-and-suspenders for the broadcast-timing-dependent test above:
-      // with no acceleration layer at all, the session survives in memory
-      // and the guard's getStatus runs the four-field hard line, sees the
-      // revision drift and clears + rejects. STALE either way.
-      hideBroadcastChannel();
+    it('a cross-tab mutation landing between the capture and the guard → the hard line catches the revision drift', async () => {
+      // Same interleaving, earlier window: the guard's requireFreshSession
+      // re-read observes the post-mutation record and rejects — belt and
+      // suspenders for the CAS-only path above.
       let injected = false;
       const tabB = createVaultService(registry);
-      const gated = gateRequireRecord(registry, 'demo', async () => {
+      const gated = gateGuardRead(registry, 'demo', async () => {
         injected = true;
         await tabB.unlock('demo', v.password);
-        await tabB.mutatePayload((draft) => {
-          draft.keys.push({ ...BOB_ENTRY });
-        });
+        await tabB.addKey(bobKeyInput());
       });
       const tabA = createVaultManager(gated);
       try {
@@ -556,30 +672,27 @@ describe('vault manager (A4)', () => {
         expect(after.revision).toBe(1);
         expect(after.lockEpoch).toBe(0);
         expect(after.salt).toBe(v.salt);
-        await tabA.unlockVault('demo', v.password);
-        const accounts = await tabA.getAccounts();
+        const accounts = await tabA.getAccounts('demo');
         expect(accounts.map((a) => a.accountName).sort()).toEqual(['alice', 'bob']);
       } finally {
         tabA.destroy();
         tabB.destroy();
-        restoreBroadcastChannel();
       }
     }, 60000);
 
     it('a same-count remove+recreate in the same window → STALE; the recreated instance is not overwritten', async () => {
       // Second C2 shape: another tab removes the vault and recreates the
       // SAME name. The recreated record's counters restart at 0/0 — exactly
-      // what the seeded original had — and the removal flow's lock broadcast
-      // clears tab A's session, so only the guard's return-value check
-      // stands between the stale captured plaintext and the recreated
-      // instance.
+      // what the seeded original had — so only the pointer's createdAt
+      // binding stands between the stale captured plaintext and the
+      // recreated instance.
       let injected = false;
       let recreatedSnapshot: VaultRecordV1 | null = null;
       const tabB = createVaultManager(registry);
-      const gated = gateRequireRecord(registry, 'demo', async () => {
+      const gated = gateGuardRead(registry, 'demo', async () => {
         injected = true;
-        // B holds the session, so its removeVault locks first (broadcast —
-        // clears tab A's session) after the probe authentication.
+        // B holds the session, so its removeVault locks first after the
+        // probe authentication, then the recreate mints a fresh salt.
         await tabB.unlockVault('demo', v.password);
         await tabB.removeVault('demo', v.password);
         await tabB.createVault({ vaultName: 'demo', password: v.password });
@@ -617,7 +730,7 @@ describe('vault manager (A4)', () => {
       const before = await currentRecord('demo');
       await manager.lockVault();
       expect((await currentRecord('demo')).lockEpoch).toBe(before.lockEpoch + 1);
-      await expectRejectedBy(manager.getAccounts(), 'VAULT_LOCKED');
+      await expectRejectedBy(manager.getAccounts(), 'VAULT_EMPTY');
     }, 30000);
 
     it('naming the current session vault is a local lock', async () => {
@@ -625,22 +738,22 @@ describe('vault manager (A4)', () => {
       const before = await currentRecord('demo');
       await manager.lockVault('demo');
       expect((await currentRecord('demo')).lockEpoch).toBe(before.lockEpoch + 1);
-      await expectRejectedBy(manager.getAccounts(), 'VAULT_LOCKED');
+      await expectRejectedBy(manager.getAccounts(), 'VAULT_EMPTY');
     }, 30000);
 
     it('naming another vault remote-locks it: epoch bump, other sessions go STALE, local session untouched', async () => {
       const registryB = await openVaultRegistry();
-      const other = createVaultManager(registryB);
+      const other = createVaultService(registryB);
       try {
-        await other.unlockVault('alpha', v.password);
+        await other.unlock('alpha', v.password);
         await manager.unlockVault('demo', v.password); // an unrelated live session
         const before = await currentRecord('alpha');
         await manager.lockVault('alpha');
         expect((await currentRecord('alpha')).lockEpoch).toBe(before.lockEpoch + 1);
-        // The tab holding alpha unlocked is stale on its next operation —
-        // deterministic: the remote path bumps the registry directly and
-        // never broadcasts, so only the hard line can catch it.
-        await expectRejectedBy(other.getAccounts(), 'VAULT_SESSION_STALE');
+        // The tab holding alpha unlocked is stale on its next session-bound
+        // operation — deterministic: the remote path bumps the registry
+        // directly and never broadcasts, so only the hard line can catch it.
+        await expectRejectedBy(other.getStatus(), 'VAULT_SESSION_STALE');
         // …while the locking tab's own session (demo) is untouched.
         await expect(manager.getAccounts()).resolves.toBeTruthy();
         // Unknown names still surface VAULT_NOT_FOUND.
@@ -662,8 +775,15 @@ describe('vault manager (A4)', () => {
       expect(record.revision).toBe(0);
       // The active pointer followed the rename.
       expect((await registry.getSettings()).activeVaultName).toBe('Renamed');
-      // The old session cannot operate — the record is gone from its name.
-      await expectRejectedBy(manager.getAccounts(), 'VAULT_SESSION_STALE');
+      // The old session cannot operate — the record is gone from its old
+      // name, so the session-bound resolution fails closed (NOT_FOUND; the
+      // session never silently follows the rename).
+      await expectRejectedBy(manager.getAccounts(), 'VAULT_NOT_FOUND');
+      // KNOWN WRINKLE (pinned, not endorsed): the lingering session's next
+      // unlock first tries to lock the renamed-away record and fails with
+      // NOT_FOUND — but lock() clears memory BEFORE the persist, so the
+      // stale session is gone and the retry succeeds.
+      await expectRejectedBy(manager.unlockVault('Renamed', v.password), 'VAULT_NOT_FOUND');
       await expect(manager.unlockVault('Renamed', v.password)).resolves.toMatchObject({
         locked: false,
         vaultName: 'Renamed',
@@ -691,10 +811,10 @@ describe('vault manager (A4)', () => {
       await manager.unlockVault('demo', v.password);
       await manager.removeVault('demo', v.password);
       expect(await registry.getRecord('demo')).toBeNull();
-      await expectRejectedBy(manager.getAccounts(), 'VAULT_LOCKED');
+      await expectRejectedBy(manager.getAccounts(), 'VAULT_EMPTY');
     }, 30000);
 
-    it('export returns the five-field envelope and stamps lastBackupAt; the session is locked first', async () => {
+    it('export returns the four-field envelope and stamps lastBackupAt; the session is locked first', async () => {
       await manager.unlockVault('demo', v.password);
       const before = await currentRecord('demo');
       const envelope = await manager.exportVault('demo');
@@ -702,9 +822,9 @@ describe('vault manager (A4)', () => {
         version: 1,
         vaultName: 'demo',
         salt: before.salt,
-        iv: before.iv,
-        ciphertext: before.ciphertext,
+        accounts: before.accounts,
       });
+      expect(Object.keys(envelope).sort()).toEqual(['accounts', 'salt', 'vaultName', 'version']);
       const after = await currentRecord('demo');
       expect(after.lastBackupAt).not.toBeNull();
       // lock() bumps only the epoch; the export CAS bumps the revision.
@@ -712,7 +832,7 @@ describe('vault manager (A4)', () => {
       expect(after.lockEpoch).toBe(before.lockEpoch + 1);
       // The pre-export lock cleared the session (no zombie left behind by the
       // export's revision bump).
-      await expectRejectedBy(manager.getAccounts(), 'VAULT_LOCKED');
+      await expectRejectedBy(manager.getAccounts(), 'VAULT_EMPTY');
       await expectRejectedBy(manager.exportVault('ghost'), 'VAULT_NOT_FOUND');
     }, 30000);
   });

@@ -6,11 +6,16 @@
  *  - vault list rendering (name / active / lock state / backup time);
  *  - the three-option empty-vault dialog (create / import / continue);
  *  - create flow with validation errors mapped through VaultError codes;
- *  - merge flow: unlock requirement, post-merge LOCK notice and the
+ *  - merge flow: reachable on a LOCKED target with the target-password
+ *    field (per-key contract), post-merge LOCK notice and the
  *    preMergeBackup delivery contract (download or EXPLICIT discard before
  *    "Continue" unlocks — never claims the backup is done while pending);
  *  - export produces a client-side blob download;
- *  - the storage-unavailable fallback with retry.
+ *  - the storage-unavailable fallback with retry;
+ *  - the R1 cleanup escape hatch: when the list load fails with
+ *    VAULT_ENVELOPE_INVALID (records left by the never-shipped A5
+ *    whole-vault format), the panel offers the confirmed purge and only
+ *    then; other load failures stay Retry-only.
  *
  * Assertions check RENDERED OUTPUT only — no component ever sees WIF/KEK/
  * payload, and these tests assert the rendered tree contains none.
@@ -129,6 +134,14 @@ function makeManager(initial: VaultSummary[]): ManagerState {
     removeVault: vi.fn(async (...args: unknown[]) => {
       record('removeVault')(args);
     }),
+    listUnreadableVaultRecords: vi.fn(async (...args: unknown[]) => {
+      record('listUnreadableVaultRecords')(args);
+      return [];
+    }),
+    cleanupUnreadableVaults: vi.fn(async (...args: unknown[]) => {
+      record('cleanupUnreadableVaults')(args);
+      return { removed: [] };
+    }),
     exportVault: vi.fn(async (name: string) => {
       record('exportVault')(name);
       // Export bumps the vault revision, ending this tab's unlock session
@@ -159,13 +172,29 @@ function makeManager(initial: VaultSummary[]): ManagerState {
 }
 
 function envelopeFor(name: string): VaultEnvelopeV1 {
+  // V1 hierarchical envelope: version/vaultName/salt/accounts with per-key
+  // iv/ciphertext/note entries. Empty accounts keep the mock shape minimal
+  // while still passing the real parseVaultEnvelopeJson gate on import.
   return {
     version: 1,
     vaultName: name,
-    salt: 'AAAAAAAAAAAAAAAAAAAAAA',
-    iv: 'AAAAAAAAAAAAAAAA',
-    ciphertext: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+    salt: 'AAECAwQFBgcICQoLDA0ODw',
+    accounts: [],
   };
+}
+
+/** Read a Blob's text via FileReader (jsdom Blob does not implement .text()). */
+function readBlobText(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve(typeof reader.result === 'string' ? reader.result : '');
+    };
+    reader.onerror = () => {
+      reject(reader.error ?? new Error('reading the blob failed'));
+    };
+    reader.readAsText(blob);
+  });
 }
 
 /** Open a row's Manage dropdown and click a menu item.
@@ -190,8 +219,10 @@ function renderPanel(state: ManagerState, facade = makeFacade()) {
 }
 
 /**
- * Drive an unlocked 'Main' vault through a successful merge and resolve once
- * the completion dialog (with a preMergeBackup present) is mounted.
+ * Drive a (possibly locked) 'Main' vault through a successful merge and
+ * resolve once the completion dialog (with a preMergeBackup present) is
+ * mounted. Under the per-key contract the merge form is reachable while the
+ * target is LOCKED — the target password field authenticates it.
  */
 async function mergeToComplete(state: ManagerState) {
   const importVaultDetailed = state.manager.importVaultDetailed as unknown as AnyMock;
@@ -213,6 +244,9 @@ async function mergeToComplete(state: ManagerState) {
   fireEvent.change(document.getElementById('vault-merge-password') as HTMLInputElement, {
     target: { value: 'source-password-1234' },
   });
+  fireEvent.change(document.getElementById('vault-merge-target-password') as HTMLInputElement, {
+    target: { value: 'target-password-1234' },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'mergeButton' }));
   return screen.findByTestId('vault-merge-complete');
 }
@@ -232,6 +266,7 @@ const SECRET_SUBSTRINGS = [
   'different-passphrase',
   'the-vault-password-1',
   'source-password-1234',
+  'target-password-1234',
   'wrong-but-nonempty',
 ] as const;
 
@@ -418,7 +453,7 @@ describe('VaultManagerPanel', () => {
     });
   });
 
-  it('export downloads the five-field envelope client-side; the revision bump locks the row again', async () => {
+  it('export downloads the four-field envelope client-side; the revision bump locks the row again', async () => {
     // Start UNLOCKED so the post-export lock assertion cannot pass trivially.
     const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
     renderPanel(state);
@@ -467,6 +502,195 @@ describe('VaultManagerPanel', () => {
     errorSpy.mockRestore();
   });
 
+  // ---------------------------------------------------------------------
+  // R1 cleanup escape hatch: a device that ran the never-shipped A5
+  // whole-vault build keeps records the per-key format cannot read; the list
+  // load fails with VAULT_ENVELOPE_INVALID and (only then) the panel offers
+  // the confirmed purge.
+  // ---------------------------------------------------------------------
+
+  it('list load failure with VAULT_ENVELOPE_INVALID offers the cleanup escape hatch', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_ENVELOPE_INVALID', 'stored vault record failed validation'),
+    );
+    renderPanel(state);
+
+    expect(await screen.findByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
+    const cleanupButton = screen.getByTestId('vault-cleanup-incompatible');
+    expect(cleanupButton).toHaveTextContent('cleanupIncompatible');
+    // Retry stays available next to it.
+    expect(screen.getByRole('button', { name: 'retry' })).toBeInTheDocument();
+    // No purge has run yet — the hatch only opens the confirmation dialog.
+    expect(state.manager.cleanupUnreadableVaults).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('other list load failures keep the panel Retry-only (no cleanup button)', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_STORAGE_UNAVAILABLE', 'no idb'),
+    );
+    renderPanel(state);
+
+    expect(await screen.findByText('errors.VAULT_STORAGE_UNAVAILABLE')).toBeInTheDocument();
+    expect(screen.queryByTestId('vault-cleanup-incompatible')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'retry' })).toBeInTheDocument();
+    errorSpy.mockRestore();
+  });
+
+  it('cleanup flow: confirm downloads the raw records BEFORE the purge, then refreshes and reports the count', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_ENVELOPE_INVALID', 'stored vault record failed validation'),
+    );
+    // The raw row exactly as the old build stored it (unknown shape to this
+    // version) — the archival copy must carry it verbatim.
+    const rawRecord = {
+      version: 1,
+      vaultName: 'Old Vault',
+      salt: 'AAECAwQFBgcICQoLDA0ODw',
+      iv: 'EBESExQVFhcYGRob',
+      ciphertext: 'AAAAAAAAAAAAAAAAAAAAAA',
+      revision: 0,
+      lockEpoch: 0,
+      createdAt: 1_700_000_000_000,
+      updatedAt: 1_700_000_000_000,
+      lastBackupAt: null,
+    };
+    const order: string[] = [];
+    (state.manager.listUnreadableVaultRecords as unknown as AnyMock).mockImplementation(async () => {
+      order.push('list');
+      return [{ key: 'Old Vault', vaultName: 'Old Vault', record: rawRecord }];
+    });
+    (state.manager.cleanupUnreadableVaults as unknown as AnyMock).mockImplementation(async () => {
+      order.push('purge');
+      return { removed: ['Old Vault', null] };
+    });
+    // Capture the anchor download names at click time (the anchor is removed
+    // right after, so this spy is the only way to observe the filename).
+    const downloadedNames: string[] = [];
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        downloadedNames.push(this.download);
+      });
+    renderPanel(state);
+    expect(await screen.findByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('vault-cleanup-incompatible'));
+    expect(await screen.findByText('cleanupTitle')).toBeInTheDocument();
+    // The dialog states scope (only unrecognized records), the new
+    // download-first contract (copy is NOT re-importable) and
+    // irreversibility (no recovery, no migration for old exports) before the
+    // destructive button is clicked.
+    expect(screen.getByText('cleanupDescription')).toBeInTheDocument();
+    expect(screen.getByText('cleanupWarning')).toBeInTheDocument();
+    expect(screen.getByText('cleanupScopeNote')).toBeInTheDocument();
+    expect(screen.getByText('cleanupDownloadNote')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'cleanupConfirm' }));
+    await waitFor(() => {
+      expect(state.manager.cleanupUnreadableVaults).toHaveBeenCalled();
+    });
+    // Call ORDER, not just presence: the archival copy is delivered before
+    // the purge runs.
+    expect(order).toEqual(['list', 'purge']);
+    // The downloaded file: expected name prefix and the verbatim record array.
+    expect(downloadedNames).toHaveLength(1);
+    expect(downloadedNames[0]).toMatch(/^steem-wallet-incompatible-vault-records-\d{4}/);
+    const blob = (createObjectURLMock.mock.calls.at(-1) as unknown as [Blob])?.[0];
+    expect(JSON.parse(await readBlobText(blob))).toEqual([
+      { key: 'Old Vault', vaultName: 'Old Vault', record: rawRecord },
+    ]);
+    // The list recovers, the error is gone and a one-line info banner reports
+    // the removed-record count.
+    expect(await screen.findByText('cleanupDone')).toBeInTheDocument();
+    expect(await screen.findByText('Main')).toBeInTheDocument();
+    expect(screen.queryByText('errors.VAULT_ENVELOPE_INVALID')).not.toBeInTheDocument();
+    expect(screen.queryByText('cleanupTitle')).not.toBeInTheDocument();
+    expectNoSecrets(document.body);
+    clickSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it('cleanup flow: a download failure aborts BEFORE the purge and surfaces the error', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_ENVELOPE_INVALID', 'stored vault record failed validation'),
+    );
+    (state.manager.listUnreadableVaultRecords as unknown as AnyMock).mockResolvedValueOnce([
+      { key: 'Old', vaultName: 'Old', record: { broken: true } },
+    ]);
+    renderPanel(state);
+    expect(await screen.findByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('vault-cleanup-incompatible'));
+    expect(await screen.findByText('cleanupTitle')).toBeInTheDocument();
+    // The blob-URL factory fails → the archival copy cannot be delivered.
+    URL.createObjectURL = (() => {
+      throw new Error('blob unavailable');
+    }) as unknown as typeof URL.createObjectURL;
+    fireEvent.click(screen.getByRole('button', { name: 'cleanupConfirm' }));
+
+    // Purge is aborted (nothing deleted), the failure renders in context and
+    // the dialog stays open for a retry.
+    expect(await screen.findByText('errors.unexpected')).toBeInTheDocument();
+    expect(state.manager.cleanupUnreadableVaults).not.toHaveBeenCalled();
+    expect(screen.getByText('cleanupTitle')).toBeInTheDocument();
+    expect(screen.queryByText('cleanupDone')).not.toBeInTheDocument();
+    errorSpy.mockRestore();
+  });
+
+  it('cleanup flow: cancel closes the dialog without calling the manager', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_ENVELOPE_INVALID', 'stored vault record failed validation'),
+    );
+    renderPanel(state);
+    expect(await screen.findByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('vault-cleanup-incompatible'));
+    expect(await screen.findByText('cleanupTitle')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'cancelAction' }));
+    await waitFor(() => {
+      expect(screen.queryByText('cleanupTitle')).not.toBeInTheDocument();
+    });
+    // Cancel touches neither the snapshot nor the purge.
+    expect(state.manager.cleanupUnreadableVaults).not.toHaveBeenCalled();
+    expect(state.manager.listUnreadableVaultRecords).not.toHaveBeenCalled();
+    expect(screen.getByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
+    errorSpy.mockRestore();
+  });
+
+  it('cleanup flow: a purge failure maps the code inside the dialog and keeps it open', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_ENVELOPE_INVALID', 'stored vault record failed validation'),
+    );
+    (state.manager.cleanupUnreadableVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_STORAGE_UNAVAILABLE', 'idb gone'),
+    );
+    renderPanel(state);
+    expect(await screen.findByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('vault-cleanup-incompatible'));
+    expect(await screen.findByText('cleanupTitle')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'cleanupConfirm' }));
+    expect(await screen.findByText('errors.VAULT_STORAGE_UNAVAILABLE')).toBeInTheDocument();
+    // The dialog stays open so the failure is read in context; nothing was
+    // reported as done.
+    expect(screen.getByText('cleanupTitle')).toBeInTheDocument();
+    expect(screen.queryByText('cleanupDone')).not.toBeInTheDocument();
+    errorSpy.mockRestore();
+  });
+
   it('delete asks for the vault password and calls removeVault', async () => {
     const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);
@@ -490,25 +714,54 @@ describe('VaultManagerPanel', () => {
     });
   });
 
-  it('merge requires an unlocked target and offers the unlock step', async () => {
+  it('merge form is reachable on a LOCKED target and submits the target password (per-key contract)', async () => {
     const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);
     await waitFor(() => {
-      expect(screen.getByText('Main')).toBeInTheDocument();
+      expect(screen.getByText('lockedBadge')).toBeInTheDocument();
     });
 
     await chooseRowAction('actionMerge');
     expect(await screen.findByText('mergeTitle')).toBeInTheDocument();
-    expect(screen.getByText('mergeRequiresUnlock')).toBeInTheDocument();
-    // No file/password form while locked.
-    expect(document.getElementById('vault-merge-file')).toBeNull();
+    // No pre-unlock step: the file, source-password and target-password
+    // inputs are all offered directly on the locked vault.
+    expect(document.getElementById('vault-merge-file')).not.toBeNull();
+    expect(document.getElementById('vault-merge-password')).not.toBeNull();
+    expect(document.getElementById('vault-merge-target-password')).not.toBeNull();
+
+    const file = new File([JSON.stringify(envelopeFor('Source'))], 'source-backup.json', {
+      type: 'application/json',
+    });
+    fireEvent.change(document.getElementById('vault-merge-file') as HTMLInputElement, {
+      target: { files: [file] },
+    });
+    fireEvent.change(document.getElementById('vault-merge-password') as HTMLInputElement, {
+      target: { value: 'source-password-1234' },
+    });
+    fireEvent.change(document.getElementById('vault-merge-target-password') as HTMLInputElement, {
+      target: { value: 'target-password-1234' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'mergeButton' }));
+
+    await waitFor(() => {
+      expect(state.manager.importVaultDetailed).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: 'merge',
+          targetVaultName: 'Main',
+          password: 'source-password-1234',
+          targetPassword: 'target-password-1234',
+        }),
+      );
+    });
+    // The typed passwords never render into the tree.
+    expectNoSecrets(document.body);
   });
 
   it('merge completion: the pre-merge backup must be downloaded or explicitly discarded before continuing', async () => {
-    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);
     await waitFor(() => {
-      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+      expect(screen.getByText('lockedBadge')).toBeInTheDocument();
     });
 
     // Completion dialog: locked notice + pending backup warning.
@@ -532,10 +785,10 @@ describe('VaultManagerPanel', () => {
   });
 
   it('merge completion: explicit discard also unlocks Continue', async () => {
-    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);
     await waitFor(() => {
-      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+      expect(screen.getByText('lockedBadge')).toBeInTheDocument();
     });
 
     await mergeToComplete(state);
@@ -545,10 +798,10 @@ describe('VaultManagerPanel', () => {
   });
 
   it('merge completion: pending delivery is dismiss-proof (Esc and the X button keep the dialog open)', async () => {
-    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);
     await waitFor(() => {
-      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+      expect(screen.getByText('lockedBadge')).toBeInTheDocument();
     });
 
     await mergeToComplete(state);
@@ -568,10 +821,10 @@ describe('VaultManagerPanel', () => {
   });
 
   it('merge completion: after the explicit choice, Esc closes like Continue', async () => {
-    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    const state = makeManager([summary({ vaultName: 'Main' })]);
     renderPanel(state);
     await waitFor(() => {
-      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+      expect(screen.getByText('lockedBadge')).toBeInTheDocument();
     });
 
     await mergeToComplete(state);
@@ -596,6 +849,103 @@ describe('VaultManagerPanel', () => {
 
     await chooseRowAction('actionActivate');
     expect(await screen.findByText('errors.VAULT_SESSION_STALE')).toBeInTheDocument();
+  });
+
+  it('change password on an EMPTY vault routes VAULT_EMPTY to the scene message (changePasswordEmpty)', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    (state.manager.changePassword as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_EMPTY', 'internal detail'),
+    );
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('Main')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionChangePassword');
+    expect(await screen.findByText('changePasswordTitle')).toBeInTheDocument();
+    fireEvent.change(document.getElementById('vault-password-old') as HTMLInputElement, {
+      target: { value: 'the-vault-password-1' },
+    });
+    fireEvent.change(document.getElementById('vault-password-new') as HTMLInputElement, {
+      target: { value: 'a-strong-passphrase-1' },
+    });
+    fireEvent.change(document.getElementById('vault-password-confirm') as HTMLInputElement, {
+      target: { value: 'a-strong-passphrase-1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'changePasswordButton' }));
+
+    // The scene-level copy, NOT the generic "no vault is available" message.
+    expect(await screen.findByText('changePasswordEmpty')).toBeInTheDocument();
+    expect(screen.queryByText('errors.VAULT_EMPTY')).not.toBeInTheDocument();
+    expect(screen.queryByText('internal detail')).not.toBeInTheDocument();
+    // The dialog stays open so the user can read the guidance (the typed
+    // passwords stay in their inputs for correction); the error box itself
+    // never echoes them.
+    expect(screen.getByText('changePasswordTitle')).toBeInTheDocument();
+    const alert = screen.getByText('changePasswordEmpty').closest('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expectNoSecrets(alert as HTMLElement);
+  });
+
+  it('merge into an EMPTY target routes VAULT_EMPTY to the scene message (mergeTargetEmpty)', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    (state.manager.importVaultDetailed as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_EMPTY', 'internal detail'),
+    );
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('Main')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionMerge');
+    await waitFor(() => {
+      expect(document.getElementById('vault-merge-file')).not.toBeNull();
+    });
+    const file = new File([JSON.stringify(envelopeFor('Source'))], 'source-backup.json', {
+      type: 'application/json',
+    });
+    fireEvent.change(document.getElementById('vault-merge-file') as HTMLInputElement, {
+      target: { files: [file] },
+    });
+    fireEvent.change(document.getElementById('vault-merge-password') as HTMLInputElement, {
+      target: { value: 'source-password-1234' },
+    });
+    fireEvent.change(document.getElementById('vault-merge-target-password') as HTMLInputElement, {
+      target: { value: 'target-password-1234' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'mergeButton' }));
+
+    expect(await screen.findByText('mergeTargetEmpty')).toBeInTheDocument();
+    expect(screen.queryByText('errors.VAULT_EMPTY')).not.toBeInTheDocument();
+    expect(screen.queryByText('internal detail')).not.toBeInTheDocument();
+    // No completion dialog: nothing was merged.
+    expect(screen.queryByTestId('vault-merge-complete')).not.toBeInTheDocument();
+    const alert = screen.getByText('mergeTargetEmpty').closest('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expectNoSecrets(alert as HTMLElement);
+  });
+
+  it('row menu "Manage keys" opens the locked-state key manager view and back returns to the list', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('Main')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionManageKeys');
+    expect(await screen.findByTestId('vault-key-manager')).toBeInTheDocument();
+    // The directory is served by the public getAccounts API — locked-state
+    // browsing, no unlock call.
+    await waitFor(() => {
+      expect(state.manager.getAccounts).toHaveBeenCalledWith('Main');
+    });
+    expect(state.manager.unlockVault).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'backToList' }));
+    await waitFor(() => {
+      expect(screen.queryByTestId('vault-key-manager')).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('vault-section')).toBeInTheDocument();
   });
 
   it('renders no key material anywhere in the tree', async () => {

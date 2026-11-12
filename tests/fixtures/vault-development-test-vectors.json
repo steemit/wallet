@@ -12,34 +12,72 @@
   "vault": {
     "password": "demo-password-123456",
     "salt": "AAECAwQFBgcICQoLDA0ODw",
-    "iv": "EBESExQVFhcYGRob",
-    "payload": {
-      "keys": [
+    "kekHex": "710b0dc492120ad6996015c45cd4de5594e17afc2bffc8c6410e86f29f73f085",
+    "envelope": {
+      "version": 1,
+      "vaultName": "work",
+      "salt": "AAECAwQFBgcICQoLDA0ODw",
+      "accounts": [
         {
           "accountName": "alice",
-          "role": "posting",
-          "privateKey": "5J5Fyoy7FDUn57R7efAL9F7k5h64krJTFEoQJzbBeQqQEhD3jpx"
+          "keys": {
+            "owner": [],
+            "active": [
+              {
+                "iv": "ICEiIyQlJicoKSor",
+                "ciphertext": "cUdTlcA1-6ObSrwmQXzhbDA8G-d3nJOvFytG4AoBu-cin2gBquPax32Pe1VyBuFfPVOv48AazSV8n9lDk2HxWzQT_w",
+                "note": "backup active key"
+              }
+            ],
+            "posting": [
+              {
+                "iv": "EBESExQVFhcYGRob",
+                "ciphertext": "KY7ndcB5-cEyCbpGnCjRTdEwUlDfkXaSO7yvAphdJ5A9pvzp2IauP553-NPuSZhP1jDU3qQgycUTU6TpLBqr0J4UFw",
+                "note": "desktop posting key"
+              }
+            ],
+            "memo": []
+          }
         }
       ]
     },
-    "payloadText": "{\"keys\":[{\"accountName\":\"alice\",\"role\":\"posting\",\"privateKey\":\"5J5Fyoy7FDUn57R7efAL9F7k5h64krJTFEoQJzbBeQqQEhD3jpx\"}]}",
-    "kekHex": "710b0dc492120ad6996015c45cd4de5594e17afc2bffc8c6410e86f29f73f085",
-    "ciphertext": "Z-a5VsBloswvNs1JynzsD9oiXX2LsmPDLLX1X5BKT-hZkfzU9972X4tJ-vbCT7tekGLczkyNBEXVbPT-4EeW5PPgU8e0ESOmniNNQbHxGhyyxx-bgWGBV3HgduXVOsXcjU6XZ3ACeTXxIqfYMTLbp62a1gXpGc--5CArB5FGIqt5eGW4gPA",
-    "plaintextBytes": 118,
-    "ciphertextBytes": 134,
-    "decryptMatchesPayload": true,
-    "wrongPasswordRejected": true,
-    "tamperRejected": true,
+    "keys": [
+      {
+        "accountName": "alice",
+        "role": "posting",
+        "privateKey": "5J5Fyoy7FDUn57R7efAL9F7k5h64krJTFEoQJzbBeQqQEhD3jpx",
+        "publicKey": "STM7Y3tmCZvomT2NKZvWNEmBdEQaiViaysPNc1LRrxc88bUvNQuGu",
+        "iv": "EBESExQVFhcYGRob",
+        "ciphertext": "KY7ndcB5-cEyCbpGnCjRTdEwUlDfkXaSO7yvAphdJ5A9pvzp2IauP553-NPuSZhP1jDU3qQgycUTU6TpLBqr0J4UFw",
+        "note": "desktop posting key",
+        "plaintextBytes": 51,
+        "ciphertextBytes": 67
+      },
+      {
+        "accountName": "alice",
+        "role": "active",
+        "privateKey": "5JD8wjy6Vw4AAzQZeWKRr1A3Sy2zWLhnkbF99T7VFfFRtEX8E7M",
+        "publicKey": "STM7zHuCU4pfJFasWWtby1zus7oDJKEQNpdnNiVdHizLHF5hVbUAW",
+        "iv": "ICEiIyQlJicoKSor",
+        "ciphertext": "cUdTlcA1-6ObSrwmQXzhbDA8G-d3nJOvFytG4AoBu-cin2gBquPax32Pe1VyBuFfPVOv48AazSV8n9lDk2HxWzQT_w",
+        "note": "backup active key",
+        "plaintextBytes": 51,
+        "ciphertextBytes": 67
+      }
+    ],
     "reencryption": {
       "iv": "GxoZGBcWFRQTEhEQ",
-      "ciphertext": "buWQrvgmSZ7-ZIpPa6Yx4Vv9RAOlwxDlVputYIszoWrNOrh_2xXSNHWrQCkdyFCDkI0OIaPQvolXWgrresgk45_9MTap3WR1oH736giDce0jJC0dO_u0InHQMnGMsMcb1f1pVCnCAT1nzxi2hPY-eChtWEKBQ6O_q-kSApOWXwvkWJtVKSM",
+      "ciphertext": "II3Ojfg6EpPjW_1APfIMo1DvSy7x4AW0QZL3PYMkyRKpDbhC9E2KVGCVQgwxznOS1t8GduzELM0RXg76jjxFk0fqCQ",
       "differsFromOriginal": true
     },
-    "emptyPayload": {
-      "payloadText": "{\"keys\":[]}",
-      "iv": "ICEiIyQlJicoKSor",
-      "ciphertext": "Py98yM4soK-WYPXNLTPFFVQXwgKWTRHrAswR"
-    }
+    "emptyEnvelope": {
+      "version": 1,
+      "vaultName": "empty",
+      "salt": "AAECAwQFBgcICQoLDA0ODw",
+      "accounts": []
+    },
+    "wrongPasswordRejected": true,
+    "tamperRejected": true
   },
   "dappRequest": {
     "note": "Synthetic parser and signature fixture only; the declaration transaction id is not a live-chain claim.",

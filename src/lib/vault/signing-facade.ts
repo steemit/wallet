@@ -23,9 +23,9 @@
 //     legacySigner: createLegacyPrivateKeySigner(readKeyFromLoginState),
 //   });
 //
-// Error pass-through contract: `VAULT_LOCKED` (vault mode, nothing unlocked),
-// `VAULT_OPERATION_UNSUPPORTED` and every other backend error reach the
-// caller untouched — the facade adds no interpretation of its own.
+// Error pass-through contract: `VAULT_EMPTY` (vault mode, no vault selected
+// or active), `VAULT_OPERATION_UNSUPPORTED` and every other backend error
+// reach the caller untouched — the facade adds no interpretation of its own.
 import type { VaultRegistry } from './registry';
 import type {
   SignOperationsRequest,

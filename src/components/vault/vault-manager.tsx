@@ -24,7 +24,10 @@
 // state without reset effects.
 //
 // UX contracts digested from the A2–A4 layers (see docs/AI-driver/09-vault.md):
-//   - merge success LOCKS the target (manager hard contract): the completion
+//   - merge asks for the TARGET vault password in the dialog and never
+//     requires pre-unlocking the target (per-key contract: the password
+//     re-encrypts/derives per key, no global unlocked state is formed);
+//     merge success LOCKS the target (manager hard contract): the completion
 //     dialog says so and the refreshed list shows the locked state;
 //   - the merge's preMergeBackup is a MEMORY-ONLY snapshot — the completion
 //     dialog forces an explicit Download or Discard before it lets the user
@@ -52,6 +55,7 @@ import {
   Download,
   GitMerge,
   KeyRound,
+  KeySquare,
   Loader2,
   Lock,
   Pencil,
@@ -97,6 +101,7 @@ import type {
 import { KeyConfirmationDialog } from './key-confirmation-dialog';
 import { UnlockVaultDialog } from './unlock-vault-dialog';
 import { VaultEmptyDialog } from './vault-empty-dialog';
+import { VaultKeyManager } from './vault-key-manager';
 import { WorkModeSwitcher } from './work-mode-switcher';
 
 // ---------------------------------------------------------------------------
@@ -254,6 +259,20 @@ function vaultErrorKey(error: unknown): string {
   return 'errors.unexpected';
 }
 
+/**
+ * Scene-level refinement for `VAULT_EMPTY`: the generic errors-table message
+ * ("no vault is available") fits the no-vault-to-resolve scenario, but the
+ * merge and change-password forms can only see VAULT_EMPTY as the
+ * empty-vault password-anchor rejection (both name their target explicitly,
+ * so a missing vault surfaces as VAULT_NOT_FOUND instead). Those two scenes
+ * get dedicated `vault.*` i18n keys with actionable copy — the errors table
+ * itself stays locked to VAULT_ERROR_CODES by vault-i18n-errors.test.ts.
+ */
+function sceneErrorKey(error: unknown, emptySceneKey: string): string {
+  if (error instanceof VaultError && error.code === 'VAULT_EMPTY') return emptySceneKey;
+  return vaultErrorKey(error);
+}
+
 function formatVaultTimestamp(timestamp: number): string {
   return new Date(timestamp).toLocaleString();
 }
@@ -277,14 +296,12 @@ function readFileText(file: File): Promise<string> {
 }
 
 /**
- * Download an envelope as a JSON file. Browser-side only — the backup never
- * touches the server (the relay architecture keeps vault data device-local).
+ * Trigger a client-side download of a JSON payload as a blob file. Browser
+ * side only — vault data never touches the server (the relay architecture
+ * keeps vault data device-local).
  */
-function downloadVaultBackupFile(envelope: VaultEnvelopeV1, hint: 'backup' | 'pre-merge'): void {
-  const safeName = envelope.vaultName.replace(/[^a-zA-Z0-9._-]+/g, '_');
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = `steem-wallet-vault-${safeName}-${hint}-${stamp}.json`;
-  const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: 'application/json' });
+function downloadJsonFile(payload: unknown, filename: string): void {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -294,6 +311,30 @@ function downloadVaultBackupFile(envelope: VaultEnvelopeV1, hint: 'backup' | 'pr
   anchor.remove();
   // Revoke only after the click had a chance to start the download.
   setTimeout(() => URL.revokeObjectURL(url), 5_000);
+}
+
+/**
+ * Download an envelope as a JSON file (export / pre-merge backup).
+ */
+function downloadVaultBackupFile(envelope: VaultEnvelopeV1, hint: 'backup' | 'pre-merge'): void {
+  const safeName = envelope.vaultName.replace(/[^a-zA-Z0-9._-]+/g, '_');
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  downloadJsonFile(envelope, `steem-wallet-vault-${safeName}-${hint}-${stamp}.json`);
+}
+
+/**
+ * Download the raw unreadable vault rows as an archival JSON file. Entries
+ * are verbatim ({@link downloadJsonFile} receives the
+ * `listUnreadableVaultRecords` result unchanged): the stored value is
+ * preserved exactly as IndexedDB returned it (unknown shape — this build
+ * cannot read it, so it must not be reshaped). The copy exists for
+ * record-keeping/debugging only; this version cannot re-import it.
+ */
+function downloadIncompatibleVaultRecordsFile(
+  records: Array<{ key: IDBValidKey; vaultName: string | null; record: unknown }>,
+): void {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  downloadJsonFile(records, `steem-wallet-incompatible-vault-records-${stamp}.json`);
 }
 
 /** Inline destructive error box (the transfer-form pattern). */
@@ -319,7 +360,7 @@ function PendingRow({ label }: { label: string }) {
 // VaultManagerPanel
 // ---------------------------------------------------------------------------
 
-type PanelView = 'list' | 'create' | 'import';
+type PanelView = 'list' | 'create' | 'import' | 'keys';
 
 export interface VaultManagerPanelProps {
   /** Injected by tests; normally comes from useVaultRuntime via VaultWorkModeContent. */
@@ -335,7 +376,13 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
   const [modeLoadFailed, setModeLoadFailed] = useState(false);
   const [vaults, setVaults] = useState<VaultSummary[] | null>(null);
   const [listErrorKey, setListErrorKey] = useState<string | null>(null);
+  // The load failure's raw VaultError code (null when non-VaultError). The
+  // cleanup escape hatch is offered ONLY for VAULT_ENVELOPE_INVALID — the
+  // code that incompatible (old-format) stored records produce.
+  const [listErrorCode, setListErrorCode] = useState<VaultErrorCode | null>(null);
   const [view, setView] = useState<PanelView>('list');
+  // Vault whose key directory the 'keys' view shows (display name).
+  const [keysTarget, setKeysTarget] = useState<string | null>(null);
   const [emptyDialogOpen, setEmptyDialogOpen] = useState(false);
   const emptyPromptShownRef = useRef(false);
   // Current mode for async callbacks (set through the switcher callback).
@@ -358,6 +405,15 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
     vaultName: string;
     context: 'created' | 'imported';
   } | null>(null);
+  // Explicit "clear incompatible vault data" escape hatch (R1): when the list
+  // fails with VAULT_ENVELOPE_INVALID because this device still holds records
+  // written by the never-shipped whole-vault format, the user can purge them
+  // after confirming. No migration layer exists by design, so this is the
+  // sanctioned way to make the panel usable again.
+  const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
+  // Removed-record count from a successful cleanup, rendered once as an info
+  // banner (null = nothing to show).
+  const [cleanupDoneCount, setCleanupDoneCount] = useState<number | null>(null);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -369,6 +425,7 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
       const list = await manager.listVaults();
       setVaults(list);
       setListErrorKey(null);
+      setListErrorCode(null);
       // Empty state: entering Vault Mode with zero vaults prompts the three
       // options once per drawer session ("continue browsing" just closes it).
       if (
@@ -382,6 +439,7 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
     } catch (error) {
       console.error('Failed to list vaults', error);
       setListErrorKey(vaultErrorKey(error));
+      setListErrorCode(error instanceof VaultError ? error.code : null);
     }
   }, [manager]);
 
@@ -397,6 +455,7 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
   const clearFeedback = () => {
     setActionErrorKey(null);
     setActionInfoKey(null);
+    setCleanupDoneCount(null);
   };
 
   /** Run a simple (no-dialog) row action with busy + error/info feedback. */
@@ -477,10 +536,15 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
                   <p className="text-sm">{t(actionInfoKey)}</p>
                 </div>
               )}
+              {cleanupDoneCount !== null && (
+                <div className="bg-muted/40 rounded-md border p-3">
+                  <p className="text-sm">{t('cleanupDone', { count: cleanupDoneCount })}</p>
+                </div>
+              )}
               {listErrorKey && (
                 <div className="flex flex-col gap-2">
                   <ErrorBox messageKey={listErrorKey} />
-                  <div>
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       size="sm"
@@ -490,6 +554,20 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
                       <RotateCcw data-icon="inline-start" aria-hidden />
                       {t('retry')}
                     </Button>
+                    {/* Escape hatch ONLY for unreadable-record load failures:
+                        other codes (e.g. storage unavailable) stay Retry-only. */}
+                    {listErrorCode === 'VAULT_ENVELOPE_INVALID' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setCleanupDialogOpen(true)}
+                        data-testid="vault-cleanup-incompatible"
+                      >
+                        <Trash2 data-icon="inline-start" aria-hidden />
+                        {t('cleanupIncompatible')}
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -564,6 +642,11 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
                         onLock={() =>
                           void runRowAction(vault, () => manager.lockVault(vault.vaultName))
                         }
+                        onManageKeys={() => {
+                          clearFeedback();
+                          setKeysTarget(vault.vaultName);
+                          setView('keys');
+                        }}
                         onRename={() => setRenameTarget(vault.vaultName)}
                         onChangePassword={() => setPasswordTarget(vault.vaultName)}
                         onExport={() =>
@@ -600,6 +683,16 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
               manager={manager}
               onCancel={() => setView('list')}
               onImported={(summary) => onCreatedOrImported(summary, 'imported')}
+            />
+          )}
+          {view === 'keys' && keysTarget !== null && (
+            <VaultKeyManager
+              vaultName={keysTarget}
+              manager={manager}
+              onBack={() => {
+                setView('list');
+                setKeysTarget(null);
+              }}
             />
           )}
         </div>
@@ -653,17 +746,23 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
         onDeleted={() => void refreshVaults()}
       />
 
+      <CleanupIncompatibleVaultsDialog
+        open={cleanupDialogOpen}
+        onOpenChange={setCleanupDialogOpen}
+        manager={manager}
+        onCleaned={(count) => {
+          setCleanupDialogOpen(false);
+          clearFeedback();
+          setCleanupDoneCount(count);
+          void refreshVaults();
+        }}
+      />
+
       <MergeBackupDialog
         open={mergeTarget !== null}
         onOpenChange={(next) => !next && setMergeTarget(null)}
         vaultName={mergeTarget ?? ''}
-        locked={
-          mergeTarget === null
-            ? true
-            : (vaults?.find((vault) => vault.vaultName === mergeTarget)?.locked ?? true)
-        }
         manager={manager}
-        onRequestUnlock={() => mergeTarget !== null && setUnlockTarget(mergeTarget)}
         onMerged={(result) => {
           setMergeResult(result);
           void refreshVaults();
@@ -700,6 +799,7 @@ interface VaultRowMenuProps {
   onActivate: () => void;
   onUnlock: () => void;
   onLock: () => void;
+  onManageKeys: () => void;
   onRename: () => void;
   onChangePassword: () => void;
   onExport: () => void;
@@ -713,6 +813,7 @@ function VaultRowMenu({
   onActivate,
   onUnlock,
   onLock,
+  onManageKeys,
   onRename,
   onChangePassword,
   onExport,
@@ -743,6 +844,10 @@ function VaultRowMenu({
             {t('actionLock')}
           </DropdownMenuItem>
         )}
+        <DropdownMenuItem onClick={onManageKeys}>
+          <KeySquare aria-hidden />
+          {t('actionManageKeys')}
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={onRename}>
           <Pencil aria-hidden />
           {t('actionRename')}
@@ -896,7 +1001,7 @@ function ImportBackupForm({
     setBusy(true);
     setErrorKey(null);
     try {
-      // parseVaultEnvelopeJson owns the raw-JSON size gate and the five-field
+      // parseVaultEnvelopeJson owns the raw-JSON size gate and the four-field
       // fail-closed validation (single-password contract: the backup password
       // also becomes the new vault's password and must pass the current
       // policy — a weak source password is rejected by design).
@@ -1150,7 +1255,7 @@ function ChangeVaultPasswordForm({
       await manager.changePassword(vaultName, oldPassword, newPassword);
       onChanged();
     } catch (error) {
-      setErrorKey(vaultErrorKey(error));
+      setErrorKey(sceneErrorKey(error, 'changePasswordEmpty'));
       setBusy(false);
     }
   };
@@ -1330,24 +1435,136 @@ function DeleteVaultForm({
 }
 
 // ---------------------------------------------------------------------------
-// Merge dialog (target must be unlocked on this tab first)
+// Cleanup dialog — the explicit "clear incompatible vault data" escape hatch
+// ---------------------------------------------------------------------------
+
+/**
+ * Confirmation dialog for purging records this build cannot read (R1). The
+ * old whole-vault format never shipped publicly and has NO migration layer by
+ * design, so the panel offers this escape hatch only where it is actually
+ * needed: when the vault list failed to load with VAULT_ENVELOPE_INVALID.
+ * The dialog must state, before the destructive button is reachable, that
+ * (a) only unrecognized records are removed — readable vaults and settings
+ * are unaffected — and (b) the removal is unrecoverable, and backups exported
+ * by the old version cannot be imported here either.
+ *
+ * Confirming is a DOWNLOAD-THEN-PURGE sequence: the raw rows are snapshotted
+ * (`listUnreadableVaultRecords`) and delivered as a JSON file first, and the
+ * purge runs only after that copy exists — a failed download aborts the
+ * whole operation, since purging without a surviving copy would leave the
+ * loss without a trace.
+ */
+function CleanupIncompatibleVaultsDialog({
+  open,
+  onOpenChange,
+  manager,
+  onCleaned,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  manager: VaultManagerExtended | null;
+  onCleaned: (removedCount: number) => void;
+}) {
+  const t = useTranslations('vault');
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="z-[60] sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t('cleanupTitle')}</DialogTitle>
+          <DialogDescription>{t('cleanupDescription')}</DialogDescription>
+        </DialogHeader>
+        {open && (
+          <CleanupIncompatibleVaultsForm
+            manager={manager}
+            onCleaned={onCleaned}
+            onCancel={() => onOpenChange(false)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CleanupIncompatibleVaultsForm({
+  manager,
+  onCleaned,
+  onCancel,
+}: {
+  manager: VaultManagerExtended | null;
+  onCleaned: (removedCount: number) => void;
+  onCancel: () => void;
+}) {
+  const t = useTranslations('vault');
+  const [busy, setBusy] = useState(false);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!manager || busy) return;
+    setBusy(true);
+    setErrorKey(null);
+    try {
+      // DOWNLOAD-THEN-PURGE: snapshot the raw rows while they still exist and
+      // deliver the archival JSON copy FIRST. A snapshot or download failure
+      // aborts the whole operation — the purge only runs once the copy has
+      // been handed to the browser, so "cleared with no trace" cannot happen.
+      const records = await manager.listUnreadableVaultRecords();
+      downloadIncompatibleVaultRecordsFile(records);
+      const result = await manager.cleanupUnreadableVaults();
+      onCleaned(result.removed.length);
+    } catch (error) {
+      setErrorKey(vaultErrorKey(error));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3">
+      <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
+        <p className="text-destructive text-sm font-medium">{t('cleanupWarning')}</p>
+      </div>
+      <p className="text-muted-foreground text-sm">{t('cleanupScopeNote')}</p>
+      <p className="text-muted-foreground text-sm">{t('cleanupDownloadNote')}</p>
+      <p className="text-muted-foreground text-sm">{t('cleanupNoPassword')}</p>
+      {errorKey && <ErrorBox messageKey={errorKey} />}
+      <DialogFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={busy}
+          className={modalFormActionButtonClassName}
+        >
+          {t('cancelAction')}
+        </Button>
+        <Button
+          type="submit"
+          variant="destructive"
+          disabled={busy}
+          className={modalFormActionButtonClassName}
+        >
+          {busy ? t('cleaning') : t('cleanupConfirm')}
+        </Button>
+      </DialogFooter>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Merge dialog (target password authenticates the target per key)
 // ---------------------------------------------------------------------------
 
 function MergeBackupDialog({
   open,
   onOpenChange,
   vaultName,
-  locked,
   manager,
-  onRequestUnlock,
   onMerged,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vaultName: string;
-  locked: boolean;
   manager: VaultManagerExtended | null;
-  onRequestUnlock: () => void;
   onMerged: (result: { vaultName: string; preMergeBackup: VaultEnvelopeV1 | null }) => void;
 }) {
   const t = useTranslations('vault');
@@ -1361,9 +1578,7 @@ function MergeBackupDialog({
         {open && (
           <MergeBackupForm
             vaultName={vaultName}
-            locked={locked}
             manager={manager}
-            onRequestUnlock={onRequestUnlock}
             onMerged={(result) => {
               onMerged(result);
               onOpenChange(false);
@@ -1378,26 +1593,23 @@ function MergeBackupDialog({
 
 function MergeBackupForm({
   vaultName,
-  locked,
   manager,
-  onRequestUnlock,
   onMerged,
   onCancel,
 }: {
   vaultName: string;
-  locked: boolean;
   manager: VaultManagerExtended | null;
-  onRequestUnlock: () => void;
   onMerged: (result: { vaultName: string; preMergeBackup: VaultEnvelopeV1 | null }) => void;
   onCancel: () => void;
 }) {
   const t = useTranslations('vault');
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState('');
+  const [targetPassword, setTargetPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
 
-  const canSubmit = file !== null && password !== '' && !busy && !locked;
+  const canSubmit = file !== null && password !== '' && targetPassword !== '' && !busy;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -1406,66 +1618,60 @@ function MergeBackupForm({
     setErrorKey(null);
     try {
       const envelope = parseVaultEnvelopeJson(await readFileText(file));
-      // importVaultDetailed (merge mode) locks the target on success (A4 hard
-      // contract) and returns the memory-only preMergeBackup that the
-      // completion dialog must deliver before claiming anything is done.
+      // Per-key merge contract: the target stays locked — targetPassword
+      // authenticates the target inside the merge (the manager derives the
+      // target KEK per key and never opens a global unlocked state). Success
+      // still LOCKS the target (A4 hard contract) and returns the
+      // memory-only preMergeBackup that the completion dialog must deliver
+      // before claiming anything is done.
       const result = await manager.importVaultDetailed({
         mode: 'merge',
         envelope,
         password,
         targetVaultName: vaultName,
+        targetPassword,
       });
       onMerged({ vaultName: result.summary.vaultName, preMergeBackup: result.preMergeBackup });
     } catch (error) {
-      setErrorKey(vaultErrorKey(error));
+      setErrorKey(sceneErrorKey(error, 'mergeTargetEmpty'));
       setBusy(false);
     }
   };
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      {locked ? (
-        <div className="bg-muted/40 rounded-md border border-dashed p-3">
-          <p className="text-muted-foreground text-sm">
-            {t('mergeRequiresUnlock', { name: vaultName })}
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="mt-2"
-            onClick={onRequestUnlock}
-            disabled={busy}
-          >
-            <Unlock data-icon="inline-start" aria-hidden />
-            {t('mergeUnlockFirst')}
-          </Button>
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="vault-merge-file">{t('mergeFileLabel')}</Label>
-            <Input
-              id="vault-merge-file"
-              type="file"
-              accept="application/json,.json"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              disabled={busy}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="vault-merge-password">{t('mergePasswordLabel')}</Label>
-            <Input
-              id="vault-merge-password"
-              type="password"
-              autoComplete="off"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              disabled={busy}
-            />
-          </div>
-        </>
-      )}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="vault-merge-file">{t('mergeFileLabel')}</Label>
+        <Input
+          id="vault-merge-file"
+          type="file"
+          accept="application/json,.json"
+          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          disabled={busy}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="vault-merge-password">{t('mergePasswordLabel')}</Label>
+        <Input
+          id="vault-merge-password"
+          type="password"
+          autoComplete="off"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          disabled={busy}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="vault-merge-target-password">{t('mergeTargetPasswordLabel')}</Label>
+        <Input
+          id="vault-merge-target-password"
+          type="password"
+          autoComplete="off"
+          value={targetPassword}
+          onChange={(event) => setTargetPassword(event.target.value)}
+          disabled={busy}
+        />
+      </div>
       {errorKey && <ErrorBox messageKey={errorKey} />}
       <DialogFooter>
         <Button

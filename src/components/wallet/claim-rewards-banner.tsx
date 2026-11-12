@@ -11,6 +11,7 @@ import {
   REMEMBERED_USERNAME_KEY,
 } from '@/lib/auth/browser-storage';
 import { sameSteemAccount } from '@/lib/steem/username';
+import { sessionKindOf } from '@/lib/store/slices/auth';
 import { ClaimRewardsReauthDialog } from '@/components/wallet/claim-rewards-reauth-dialog';
 import type { RootState } from '@/lib/store';
 import type { WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
@@ -84,8 +85,9 @@ export function ClaimRewardsBanner({
   // (steem/protocol transaction_util.hpp verify_authority; claims signed
   // with active keys are accepted on chain), so ANY session key can sign
   // the claim. Resolution prefers the least-privileged key first:
-  //   session posting key -> device-remembered posting key (chain-verified)
-  //   -> session active key -> session owner key -> posting re-auth dialog.
+  //   session posting key -> device-remembered posting key (chain-verified,
+  //   privateKey sessions only) -> session active key -> session owner key
+  //   -> posting re-auth dialog.
   // The dialog's copy still recommends a posting key or the password
   // (least-privilege habit for manual input), but an active/owner key
   // entered there works on chain just the same.
@@ -99,7 +101,13 @@ export function ClaimRewardsBanner({
     setClaimError(null);
     try {
       let key = postingKey;
-      if (!key) {
+      // The Legacy remembered posting key is a privateKey-session affordance
+      // ONLY. A vault session is identity-only (vault invariant 21,
+      // docs/AI-driver/09-vault.md): it holds no key material and must not
+      // borrow the Legacy device-stored key either, so skip the restore and
+      // fall through to the re-auth dialog, which Vault Mode answers with the
+      // "not available in Vault Mode" notice.
+      if (!key && sessionKindOf(store.getState().auth) !== 'vault') {
         key = await tryRestoreRememberedPostingKey();
       }
       if (!key) key = activeKey;
