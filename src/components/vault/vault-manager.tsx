@@ -1490,6 +1490,7 @@ function CleanupIncompatibleVaultsForm({
         <p className="text-destructive text-sm font-medium">{t('cleanupWarning')}</p>
       </div>
       <p className="text-muted-foreground text-sm">{t('cleanupScopeNote')}</p>
+      <p className="text-muted-foreground text-sm">{t('cleanupNoPassword')}</p>
       {errorKey && <ErrorBox messageKey={errorKey} />}
       <DialogFooter>
         <Button

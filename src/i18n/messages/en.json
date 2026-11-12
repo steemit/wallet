@@ -842,6 +842,7 @@
       "VAULT_AUTHORITY_UNAVAILABLE": "On-chain account data is unavailable, so the signing authority cannot be verified right now.",
       "unexpected": "An unexpected error occurred."
     },
-    "verifyAuthorityDiffers": "This key matches the account's on-chain {authority} key, not the selected role ({role}). It will still be stored as {role}, but on chain it can only act as a {authority} key."
+    "verifyAuthorityDiffers": "This key matches the account's on-chain {authority} key, not the selected role ({role}). It will still be stored as {role}, but on chain it can only act as a {authority} key.",
+    "cleanupNoPassword": "These records cannot be read by this version, so their password cannot be verified — that is why clearing needs no password."
   }
 }

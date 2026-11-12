@@ -842,6 +842,7 @@
       "VAULT_AUTHORITY_UNAVAILABLE": "链上账户数据当前不可用，暂时无法验证签名权限。",
       "unexpected": "发生意外错误。"
     },
-    "verifyAuthorityDiffers": "该密钥匹配的是账户链上的 {authority} 密钥，而不是所选角色（{role}）。它仍会按 {role} 存储，但在链上只能作为 {authority} 密钥使用。"
+    "verifyAuthorityDiffers": "该密钥匹配的是账户链上的 {authority} 密钥，而不是所选角色（{role}）。它仍会按 {role} 存储，但在链上只能作为 {authority} 密钥使用。",
+    "cleanupNoPassword": "这些记录已无法被当前版本读取，无法验证密码，因此清除无需输入密码。"
   }
 }
