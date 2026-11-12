@@ -844,6 +844,7 @@
       "unexpected": "예기치 않은 오류가 발생했습니다."
     },
     "verifyAuthorityDiffers": "이 키는 계정의 온체인 {authority} 키와 일치하며, 선택한 역할({role})과 다릅니다. {role}(으)로 저장되지만, 온체인에서는 {authority} 키로만 사용할 수 있습니다.",
-    "cleanupNoPassword": "이 기록들은 현재 버전에서 읽을 수 없어 비밀번호를 검증할 수 없습니다 — 그래서 삭제에 비밀번호가 필요하지 않습니다."
+    "cleanupNoPassword": "이 기록들은 현재 버전에서 읽을 수 없어 비밀번호를 검증할 수 없습니다 — 그래서 삭제에 비밀번호가 필요하지 않습니다.",
+    "openVaultManagement": "볼트 관리 열기"
   }
 }

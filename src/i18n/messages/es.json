@@ -844,6 +844,7 @@
       "unexpected": "Ocurrió un error inesperado."
     },
     "verifyAuthorityDiffers": "Esta clave coincide con la clave {authority} de la cuenta en la cadena, no con el rol seleccionado ({role}). Se guardará igualmente como {role}, pero en la cadena solo puede actuar como clave {authority}.",
-    "cleanupNoPassword": "Estos registros no pueden leerse en esta versión, por lo que su contraseña no puede verificarse: por eso la limpieza no requiere contraseña."
+    "cleanupNoPassword": "Estos registros no pueden leerse en esta versión, por lo que su contraseña no puede verificarse: por eso la limpieza no requiere contraseña.",
+    "openVaultManagement": "Abrir la gestión de bóvedas"
   }
 }

@@ -84,13 +84,21 @@ function PendingRow({ label }: { label: string }) {
   );
 }
 
-/** Inline error box + retry, in place of the selects (never a PrivateKey fallback). */
+/**
+ * Inline error box + retry, in place of the selects (never a PrivateKey
+ * fallback). `onOpenWorkMode` adds the management escape hatch: the Work Mode
+ * modal is where the user can clear records this version cannot read (e.g. a
+ * vault written by an older envelope format), so a directory load failure is
+ * never a dead end.
+ */
 function ErrorRetryBox({
   messageKey,
   onRetry,
+  onOpenWorkMode,
 }: {
   messageKey: string;
   onRetry: () => void;
+  onOpenWorkMode: () => void;
 }) {
   const t = useTranslations('vault');
   return (
@@ -98,10 +106,14 @@ function ErrorRetryBox({
       <div className="border-destructive/20 bg-destructive/10 rounded-md border p-4" role="alert">
         <p className="text-destructive text-sm font-medium">{t(messageKey)}</p>
       </div>
-      <div>
+      <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" size="sm" onClick={onRetry}>
           <RotateCcw data-icon="inline-start" aria-hidden />
           {t('retry')}
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={onOpenWorkMode}>
+          <KeySquare data-icon="inline-start" aria-hidden />
+          {t('openVaultManagement')}
         </Button>
       </div>
     </div>
@@ -277,6 +289,7 @@ export function VaultLoginForm({ embedded = false, onLoginSuccess }: VaultLoginF
         <ErrorRetryBox
           messageKey={accountsErrorKey}
           onRetry={() => setGeneration((value) => value + 1)}
+          onOpenWorkMode={openWorkMode}
         />
       );
     }
@@ -345,6 +358,7 @@ export function VaultLoginForm({ embedded = false, onLoginSuccess }: VaultLoginF
         <ErrorRetryBox
           messageKey={`errors.${runtime.code}`}
           onRetry={runtime.retry}
+          onOpenWorkMode={openWorkMode}
         />
       );
     }
@@ -359,6 +373,7 @@ export function VaultLoginForm({ embedded = false, onLoginSuccess }: VaultLoginF
             setListErrorKey(null);
             void refreshVaults();
           }}
+          onOpenWorkMode={openWorkMode}
         />
       );
     }
