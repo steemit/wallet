@@ -157,6 +157,43 @@ export interface VaultRegistry {
   removeVault(vaultName: string): Promise<void>;
 
   /**
+   * Scan the raw `vaults` store and report every row the standard validation
+   * path (`asRecord` — the exact `validateVaultEnvelope` route
+   * `getRecord`/`listRecords` run) REJECTS. This exists for INCOMPATIBLE
+   * ENVELOPE VERSIONS: devices that ran the never-shipped A5 whole-vault
+   * build still hold records the per-key format cannot read, and by design
+   * there is NO migration layer (2026-11-05 ruling — the old format was never
+   * publicly released). Instead of migrating, the UI offers an explicit purge
+   * (see {@link purgeInvalidVaultRecords}) once the user confirms; this
+   * read-only primitive lets the UI describe the damage first.
+   *
+   * Per-record failures are isolated: each row gets its own try/catch around
+   * the shared validation, so one unreadable row never fails the whole scan —
+   * and the validation logic is REUSED, never re-implemented. Genuine
+   * storage-layer failures (request errors, a closed connection) still fail
+   * closed with `VAULT_STORAGE_UNAVAILABLE`. Read-only (`readonly`
+   * transaction). `vaultName` is the raw stored string when the row carries
+   * one, `null` otherwise (the UI filters those out when listing names).
+   */
+  listInvalidVaultRecords(): Promise<Array<{ key: IDBValidKey; vaultName: string | null }>>;
+
+  /**
+   * Delete every record that fails the standard validation path (the same
+   * verdict as {@link listInvalidVaultRecords}) inside ONE `readwrite`
+   * transaction, then reset `activeVaultName` to `null` when it points at a
+   * record that is gone or still fails validation. Callers MUST have EXPLICIT
+   * USER CONFIRMATION before calling: this is the sanctioned "clear
+   * incompatible vault data" escape hatch for the no-migration ruling above —
+   * not a routine cleanup — and it deletes ONLY records the normal load path
+   * rejects, so readable vaults and every other settings field are untouched.
+   * Removed records are unrecoverable. Returns the removed rows' `vaultName`
+   * as read from the raw record (`null` when the row carries none). A corrupt
+   * settings row still fails closed (`VAULT_PAYLOAD_INVALID`, aborting the
+   * transaction) — same discipline as `removeVault`.
+   */
+  purgeInvalidVaultRecords(): Promise<{ removed: Array<string | null> }>;
+
+  /**
    * Read the settings row; returns defaults
    * (`schemaVersion: 1, signingMode: 'privateKey', activeVaultName: null`)
    * when none is stored yet. A corrupt/unknown-version row rejects with
@@ -271,6 +308,60 @@ function findByComparisonKey(
     }
   }
   return null;
+}
+
+/** A raw stored row together with its primary key (getAll/getAllKeys pair). */
+interface RawVaultRow {
+  key: IDBValidKey;
+  value: unknown;
+}
+
+/**
+ * Read every raw row of the `vaults` store WITH its primary key. Real
+ * IndexedDB returns `getAll`/`getAllKeys` in the same order; a length
+ * mismatch would be a storage anomaly and fails closed.
+ */
+async function readRawVaultRows(store: IDBObjectStore): Promise<RawVaultRow[]> {
+  const values = await requestToPromise(store.getAll());
+  const keys = await requestToPromise(store.getAllKeys());
+  if (values.length !== keys.length) {
+    throw storageUnavailable('getAll/getAllKeys returned misaligned results');
+  }
+  return values.map((value, index) => ({ key: keys[index] as IDBValidKey, value }));
+}
+
+/**
+ * The raw `vaultName` of a stored row, when it is a readable string. Invalid
+ * rows are precisely the ones whose shape cannot be trusted, so callers must
+ * treat this as display-only information (never a lookup key).
+ */
+function rawVaultName(value: unknown): string | null {
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    const name = (value as Record<string, unknown>)['vaultName'];
+    if (typeof name === 'string') {
+      return name;
+    }
+  }
+  return null;
+}
+
+/**
+ * The per-row purge verdict: run the EXACT validation the normal load path
+ * uses (`asRecord`). True when `getRecord`/`listRecords` would reject the
+ * row — those, and only those, are the rows the purge may delete. Anything
+ * that is not a VaultError is not a data verdict; rethrow it so storage-layer
+ * failures keep failing closed.
+ */
+function isUnreadableRecord(value: unknown): boolean {
+  try {
+    asRecord(value);
+    return false;
+  } catch (error) {
+    if (error instanceof VaultError) {
+      return true;
+    }
+    throw error;
+  }
 }
 
 function isSettingsShape(value: unknown): value is VaultSettingsV1 {
@@ -602,6 +693,66 @@ export async function openVaultRegistry(dbName: string = VAULT_DB_NAME): Promise
               );
             }
           }
+        },
+      );
+    },
+
+    async listInvalidVaultRecords(): Promise<
+      Array<{ key: IDBValidKey; vaultName: string | null }>
+    > {
+      return runInTransaction(db, [VAULT_STORE_VAULTS], 'readonly', async (transaction) => {
+        const rows = await readRawVaultRows(transaction.objectStore(VAULT_STORE_VAULTS));
+        const invalid: Array<{ key: IDBValidKey; vaultName: string | null }> = [];
+        for (const row of rows) {
+          // Isolated per row: one unreadable record must not hide the rest.
+          if (isUnreadableRecord(row.value)) {
+            invalid.push({ key: row.key, vaultName: rawVaultName(row.value) });
+          }
+        }
+        return invalid;
+      });
+    },
+
+    async purgeInvalidVaultRecords(): Promise<{ removed: Array<string | null> }> {
+      return runInTransaction(
+        db,
+        [VAULT_STORE_VAULTS, VAULT_STORE_SETTINGS],
+        'readwrite',
+        async (transaction) => {
+          const vaults = transaction.objectStore(VAULT_STORE_VAULTS);
+          const rows = await readRawVaultRows(vaults);
+          // Partition BEFORE issuing any delete: a non-VaultError throw during
+          // the scan then cannot leave partial deletes behind.
+          const unreadable: RawVaultRow[] = [];
+          const survivors: VaultRecordV1[] = [];
+          for (const row of rows) {
+            if (isUnreadableRecord(row.value)) {
+              unreadable.push(row);
+            } else {
+              survivors.push(asRecord(row.value));
+            }
+          }
+          const removed: Array<string | null> = [];
+          for (const row of unreadable) {
+            await requestToPromise(vaults.delete(row.key));
+            removed.push(rawVaultName(row.value));
+          }
+          // A dangling active pointer must never survive its record; the same
+          // comparison-key rule as removeVault decides "dangling" here.
+          const settingsStore = transaction.objectStore(VAULT_STORE_SETTINGS);
+          const settingsRaw = await requestToPromise(settingsStore.get(SETTINGS_KEY));
+          if (settingsRaw !== null && settingsRaw !== undefined) {
+            const settings = asSettings(settingsRaw);
+            if (
+              settings.activeVaultName !== null &&
+              findByComparisonKey(survivors, settings.activeVaultName) === null
+            ) {
+              await requestToPromise(
+                settingsStore.put({ ...settings, activeVaultName: null }, SETTINGS_KEY),
+              );
+            }
+          }
+          return { removed };
         },
       );
     },

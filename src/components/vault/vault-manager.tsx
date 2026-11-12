@@ -354,6 +354,10 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
   const [modeLoadFailed, setModeLoadFailed] = useState(false);
   const [vaults, setVaults] = useState<VaultSummary[] | null>(null);
   const [listErrorKey, setListErrorKey] = useState<string | null>(null);
+  // The load failure's raw VaultError code (null when non-VaultError). The
+  // cleanup escape hatch is offered ONLY for VAULT_ENVELOPE_INVALID — the
+  // code that incompatible (old-format) stored records produce.
+  const [listErrorCode, setListErrorCode] = useState<VaultErrorCode | null>(null);
   const [view, setView] = useState<PanelView>('list');
   // Vault whose key directory the 'keys' view shows (display name).
   const [keysTarget, setKeysTarget] = useState<string | null>(null);
@@ -379,6 +383,15 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
     vaultName: string;
     context: 'created' | 'imported';
   } | null>(null);
+  // Explicit "clear incompatible vault data" escape hatch (R1): when the list
+  // fails with VAULT_ENVELOPE_INVALID because this device still holds records
+  // written by the never-shipped whole-vault format, the user can purge them
+  // after confirming. No migration layer exists by design, so this is the
+  // sanctioned way to make the panel usable again.
+  const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
+  // Removed-record count from a successful cleanup, rendered once as an info
+  // banner (null = nothing to show).
+  const [cleanupDoneCount, setCleanupDoneCount] = useState<number | null>(null);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -390,6 +403,7 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
       const list = await manager.listVaults();
       setVaults(list);
       setListErrorKey(null);
+      setListErrorCode(null);
       // Empty state: entering Vault Mode with zero vaults prompts the three
       // options once per drawer session ("continue browsing" just closes it).
       if (
@@ -403,6 +417,7 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
     } catch (error) {
       console.error('Failed to list vaults', error);
       setListErrorKey(vaultErrorKey(error));
+      setListErrorCode(error instanceof VaultError ? error.code : null);
     }
   }, [manager]);
 
@@ -418,6 +433,7 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
   const clearFeedback = () => {
     setActionErrorKey(null);
     setActionInfoKey(null);
+    setCleanupDoneCount(null);
   };
 
   /** Run a simple (no-dialog) row action with busy + error/info feedback. */
@@ -498,10 +514,15 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
                   <p className="text-sm">{t(actionInfoKey)}</p>
                 </div>
               )}
+              {cleanupDoneCount !== null && (
+                <div className="bg-muted/40 rounded-md border p-3">
+                  <p className="text-sm">{t('cleanupDone', { count: cleanupDoneCount })}</p>
+                </div>
+              )}
               {listErrorKey && (
                 <div className="flex flex-col gap-2">
                   <ErrorBox messageKey={listErrorKey} />
-                  <div>
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       size="sm"
@@ -511,6 +532,20 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
                       <RotateCcw data-icon="inline-start" aria-hidden />
                       {t('retry')}
                     </Button>
+                    {/* Escape hatch ONLY for unreadable-record load failures:
+                        other codes (e.g. storage unavailable) stay Retry-only. */}
+                    {listErrorCode === 'VAULT_ENVELOPE_INVALID' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setCleanupDialogOpen(true)}
+                        data-testid="vault-cleanup-incompatible"
+                      >
+                        <Trash2 data-icon="inline-start" aria-hidden />
+                        {t('cleanupIncompatible')}
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -687,6 +722,18 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
         vaultName={deleteTarget ?? ''}
         manager={manager}
         onDeleted={() => void refreshVaults()}
+      />
+
+      <CleanupIncompatibleVaultsDialog
+        open={cleanupDialogOpen}
+        onOpenChange={setCleanupDialogOpen}
+        manager={manager}
+        onCleaned={(count) => {
+          setCleanupDialogOpen(false);
+          clearFeedback();
+          setCleanupDoneCount(count);
+          void refreshVaults();
+        }}
       />
 
       <MergeBackupDialog
@@ -1359,6 +1406,108 @@ function DeleteVaultForm({
           className={modalFormActionButtonClassName}
         >
           {busy ? t('deleting') : t('deleteButton')}
+        </Button>
+      </DialogFooter>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Cleanup dialog — the explicit "clear incompatible vault data" escape hatch
+// ---------------------------------------------------------------------------
+
+/**
+ * Confirmation dialog for purging records this build cannot read (R1). The
+ * old whole-vault format never shipped publicly and has NO migration layer by
+ * design, so the panel offers this escape hatch only where it is actually
+ * needed: when the vault list failed to load with VAULT_ENVELOPE_INVALID.
+ * The dialog must state, before the destructive button is reachable, that
+ * (a) only unrecognized records are removed — readable vaults and settings
+ * are unaffected — and (b) the removal is unrecoverable, and backups exported
+ * by the old version cannot be imported here either.
+ */
+function CleanupIncompatibleVaultsDialog({
+  open,
+  onOpenChange,
+  manager,
+  onCleaned,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  manager: VaultManagerExtended | null;
+  onCleaned: (removedCount: number) => void;
+}) {
+  const t = useTranslations('vault');
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="z-[60] sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t('cleanupTitle')}</DialogTitle>
+          <DialogDescription>{t('cleanupDescription')}</DialogDescription>
+        </DialogHeader>
+        {open && (
+          <CleanupIncompatibleVaultsForm
+            manager={manager}
+            onCleaned={onCleaned}
+            onCancel={() => onOpenChange(false)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CleanupIncompatibleVaultsForm({
+  manager,
+  onCleaned,
+  onCancel,
+}: {
+  manager: VaultManagerExtended | null;
+  onCleaned: (removedCount: number) => void;
+  onCancel: () => void;
+}) {
+  const t = useTranslations('vault');
+  const [busy, setBusy] = useState(false);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!manager || busy) return;
+    setBusy(true);
+    setErrorKey(null);
+    try {
+      const result = await manager.cleanupUnreadableVaults();
+      onCleaned(result.removed.length);
+    } catch (error) {
+      setErrorKey(vaultErrorKey(error));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3">
+      <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
+        <p className="text-destructive text-sm font-medium">{t('cleanupWarning')}</p>
+      </div>
+      <p className="text-muted-foreground text-sm">{t('cleanupScopeNote')}</p>
+      {errorKey && <ErrorBox messageKey={errorKey} />}
+      <DialogFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={busy}
+          className={modalFormActionButtonClassName}
+        >
+          {t('cancelAction')}
+        </Button>
+        <Button
+          type="submit"
+          variant="destructive"
+          disabled={busy}
+          className={modalFormActionButtonClassName}
+        >
+          {busy ? t('cleaning') : t('cleanupConfirm')}
         </Button>
       </DialogFooter>
     </form>

@@ -810,6 +810,16 @@ into, or changePassword on, a vault with zero key ciphertext).
   `Storage` global, so `vi.spyOn(Storage.prototype, ...)` may not intercept
   jsdom's `localStorage`. Spy on `Object.getPrototypeOf(localStorage)` instead
   (use-auth / home-redirect R3 tests).
+- **A cleanup exit exists for unreadable stored records (R1).** Devices that
+  ran the never-shipped A5 whole-vault build keep records the per-key format
+  rejects (`VAULT_ENVELOPE_INVALID` on load). There is still NO migration
+  layer (2026-11-05 ruling); the sanctioned recovery path is
+  `registry.purgeInvalidVaultRecords` / `manager.cleanupUnreadableVaults`,
+  offered by the panel ONLY on a `VAULT_ENVELOPE_INVALID` load failure and
+  gated behind an explicit user confirmation. It deletes only rows the
+  standard validation rejects and resets a dangling `activeVaultName`; do not
+  wire it into normal flows or widen the deletion verdict beyond the shared
+  validation path.
 
 ## Extension checklist
 

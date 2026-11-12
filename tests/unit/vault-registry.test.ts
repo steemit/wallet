@@ -245,6 +245,95 @@ describe('hierarchical vault registry', () => {
     await expect(registry.getRecord('Half')).rejects.toMatchObject({ code: 'VAULT_ENVELOPE_INVALID' });
   });
 
+  describe('incompatible record scan + purge (R1)', () => {
+    /**
+     * The A5-era whole-vault record shape: five envelope fields (iv +
+     * ciphertext, no `accounts`) plus runtime fields. Structurally invalid
+     * for the per-key format — the standard validation rejects it at the
+     * exact-fields check, so no real crypto is needed to build the fixture.
+     */
+    function makeLegacyRecord(vaultName: string): Record<string, unknown> {
+      return {
+        version: 1,
+        vaultName,
+        salt: v.salt,
+        iv: v.keys[0]!.iv,
+        ciphertext: v.keys[0]!.ciphertext,
+        revision: 0,
+        lockEpoch: 0,
+        createdAt: clock++,
+        updatedAt: clock++,
+        lastBackupAt: null,
+      };
+    }
+
+    it('reports exactly the unreadable rows with their primary keys and raw names', async () => {
+      fake.seed(VAULT_DB_NAME, 'vaults', makeLegacyRecord('Legacy Vault'));
+      fake.seed(VAULT_DB_NAME, 'vaults', makeRecord('Readable'));
+      const invalid = await registry.listInvalidVaultRecords();
+      expect(invalid.map((entry) => entry.key)).toEqual(['Legacy Vault']);
+      expect(invalid.map((entry) => entry.vaultName)).toEqual(['Legacy Vault']);
+      // The very shape that breaks the normal load path (VAULT_ENVELOPE_INVALID
+      // is what the panel's load failure surfaces to the user).
+      await expect(registry.getRecord('Legacy Vault')).rejects.toMatchObject({
+        code: 'VAULT_ENVELOPE_INVALID',
+      });
+      await expect(registry.getRecord('Readable')).resolves.toBeTruthy();
+    });
+
+    it('purges unreadable rows, keeps valid rows intact and clears a dangling active pointer', async () => {
+      fake.seed(VAULT_DB_NAME, 'vaults', makeLegacyRecord('Legacy'));
+      const kept = makeRecord('Kept');
+      fake.seed(VAULT_DB_NAME, 'vaults', kept);
+      await registry.putSettings({ schemaVersion: 1, signingMode: 'vault', activeVaultName: 'Legacy' });
+      const result = await registry.purgeInvalidVaultRecords();
+      expect(result.removed).toEqual(['Legacy']);
+      expect(await registry.getRecord('Legacy')).toBeNull();
+      expect(await registry.getRecord('Kept')).toEqual(kept);
+      expect((await registry.getSettings()).activeVaultName).toBeNull();
+    });
+
+    it('keeps the active pointer when it names a surviving record', async () => {
+      fake.seed(VAULT_DB_NAME, 'vaults', makeLegacyRecord('Legacy'));
+      fake.seed(VAULT_DB_NAME, 'vaults', makeRecord('Kept'));
+      await registry.putSettings({ schemaVersion: 1, signingMode: 'vault', activeVaultName: 'kept' });
+      const result = await registry.purgeInvalidVaultRecords();
+      expect(result.removed).toEqual(['Legacy']);
+      expect((await registry.getSettings()).activeVaultName).toBe('kept');
+    });
+
+    it('is a no-op on an empty store or an all-valid store', async () => {
+      expect(await registry.listInvalidVaultRecords()).toEqual([]);
+      expect(await registry.purgeInvalidVaultRecords()).toEqual({ removed: [] });
+      const valid = makeRecord('Valid');
+      fake.seed(VAULT_DB_NAME, 'vaults', valid);
+      await registry.putSettings({ schemaVersion: 1, signingMode: 'vault', activeVaultName: 'Valid' });
+      expect(await registry.purgeInvalidVaultRecords()).toEqual({ removed: [] });
+      expect((await registry.getSettings()).activeVaultName).toBe('Valid');
+      expect(await registry.getRecord('Valid')).toEqual(valid);
+    });
+
+    it('aborts the purge when the settings row is corrupt (fail closed)', async () => {
+      fake.seed(VAULT_DB_NAME, 'vaults', makeLegacyRecord('Legacy'));
+      fake.seed(VAULT_DB_NAME, VAULT_STORE_SETTINGS, { schemaVersion: 9 }, 'settings');
+      const aborts = fake.abortCount();
+      await expect(registry.purgeInvalidVaultRecords()).rejects.toMatchObject({
+        code: 'VAULT_PAYLOAD_INVALID',
+      });
+      expect(fake.abortCount() - aborts).toBe(1);
+    });
+
+    it('fails closed after close', async () => {
+      registry.close();
+      await expect(registry.listInvalidVaultRecords()).rejects.toMatchObject({
+        code: 'VAULT_STORAGE_UNAVAILABLE',
+      });
+      await expect(registry.purgeInvalidVaultRecords()).rejects.toMatchObject({
+        code: 'VAULT_STORAGE_UNAVAILABLE',
+      });
+    });
+  });
+
   it('fails closed after close', async () => {
     registry.close();
     await expect(registry.listRecords()).rejects.toMatchObject({ code: 'VAULT_STORAGE_UNAVAILABLE' });

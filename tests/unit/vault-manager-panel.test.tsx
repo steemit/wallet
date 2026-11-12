@@ -11,7 +11,11 @@
  *    preMergeBackup delivery contract (download or EXPLICIT discard before
  *    "Continue" unlocks — never claims the backup is done while pending);
  *  - export produces a client-side blob download;
- *  - the storage-unavailable fallback with retry.
+ *  - the storage-unavailable fallback with retry;
+ *  - the R1 cleanup escape hatch: when the list load fails with
+ *    VAULT_ENVELOPE_INVALID (records left by the never-shipped A5
+ *    whole-vault format), the panel offers the confirmed purge and only
+ *    then; other load failures stay Retry-only.
  *
  * Assertions check RENDERED OUTPUT only — no component ever sees WIF/KEK/
  * payload, and these tests assert the rendered tree contains none.
@@ -129,6 +133,10 @@ function makeManager(initial: VaultSummary[]): ManagerState {
     }),
     removeVault: vi.fn(async (...args: unknown[]) => {
       record('removeVault')(args);
+    }),
+    cleanupUnreadableVaults: vi.fn(async (...args: unknown[]) => {
+      record('cleanupUnreadableVaults')(args);
+      return { removed: [] };
     }),
     exportVault: vi.fn(async (name: string) => {
       record('exportVault')(name);
@@ -473,6 +481,123 @@ describe('VaultManagerPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'retry' }));
     expect(await screen.findByText('legacyActiveTitle')).toBeInTheDocument();
     expect(screen.queryByTestId('mode-unavailable')).not.toBeInTheDocument();
+    errorSpy.mockRestore();
+  });
+
+  // ---------------------------------------------------------------------
+  // R1 cleanup escape hatch: a device that ran the never-shipped A5
+  // whole-vault build keeps records the per-key format cannot read; the list
+  // load fails with VAULT_ENVELOPE_INVALID and (only then) the panel offers
+  // the confirmed purge.
+  // ---------------------------------------------------------------------
+
+  it('list load failure with VAULT_ENVELOPE_INVALID offers the cleanup escape hatch', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_ENVELOPE_INVALID', 'stored vault record failed validation'),
+    );
+    renderPanel(state);
+
+    expect(await screen.findByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
+    const cleanupButton = screen.getByTestId('vault-cleanup-incompatible');
+    expect(cleanupButton).toHaveTextContent('cleanupIncompatible');
+    // Retry stays available next to it.
+    expect(screen.getByRole('button', { name: 'retry' })).toBeInTheDocument();
+    // No purge has run yet — the hatch only opens the confirmation dialog.
+    expect(state.manager.cleanupUnreadableVaults).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('other list load failures keep the panel Retry-only (no cleanup button)', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_STORAGE_UNAVAILABLE', 'no idb'),
+    );
+    renderPanel(state);
+
+    expect(await screen.findByText('errors.VAULT_STORAGE_UNAVAILABLE')).toBeInTheDocument();
+    expect(screen.queryByTestId('vault-cleanup-incompatible')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'retry' })).toBeInTheDocument();
+    errorSpy.mockRestore();
+  });
+
+  it('cleanup flow: confirm purges, refreshes the list and reports the removed count', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_ENVELOPE_INVALID', 'stored vault record failed validation'),
+    );
+    (state.manager.cleanupUnreadableVaults as unknown as AnyMock).mockResolvedValueOnce({
+      removed: ['Old Vault', null],
+    });
+    renderPanel(state);
+    expect(await screen.findByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('vault-cleanup-incompatible'));
+    expect(await screen.findByText('cleanupTitle')).toBeInTheDocument();
+    // The dialog states scope (only unrecognized records) and irreversibility
+    // (no recovery, no migration for old exports) before the destructive
+    // button is clicked.
+    expect(screen.getByText('cleanupDescription')).toBeInTheDocument();
+    expect(screen.getByText('cleanupWarning')).toBeInTheDocument();
+    expect(screen.getByText('cleanupScopeNote')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'cleanupConfirm' }));
+    await waitFor(() => {
+      expect(state.manager.cleanupUnreadableVaults).toHaveBeenCalled();
+    });
+    // The list recovers, the error is gone and a one-line info banner reports
+    // the removed-record count.
+    expect(await screen.findByText('cleanupDone')).toBeInTheDocument();
+    expect(await screen.findByText('Main')).toBeInTheDocument();
+    expect(screen.queryByText('errors.VAULT_ENVELOPE_INVALID')).not.toBeInTheDocument();
+    expect(screen.queryByText('cleanupTitle')).not.toBeInTheDocument();
+    expectNoSecrets(document.body);
+    errorSpy.mockRestore();
+  });
+
+  it('cleanup flow: cancel closes the dialog without calling the manager', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_ENVELOPE_INVALID', 'stored vault record failed validation'),
+    );
+    renderPanel(state);
+    expect(await screen.findByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('vault-cleanup-incompatible'));
+    expect(await screen.findByText('cleanupTitle')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'cancelAction' }));
+    await waitFor(() => {
+      expect(screen.queryByText('cleanupTitle')).not.toBeInTheDocument();
+    });
+    expect(state.manager.cleanupUnreadableVaults).not.toHaveBeenCalled();
+    expect(screen.getByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
+    errorSpy.mockRestore();
+  });
+
+  it('cleanup flow: a purge failure maps the code inside the dialog and keeps it open', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_ENVELOPE_INVALID', 'stored vault record failed validation'),
+    );
+    (state.manager.cleanupUnreadableVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_STORAGE_UNAVAILABLE', 'idb gone'),
+    );
+    renderPanel(state);
+    expect(await screen.findByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('vault-cleanup-incompatible'));
+    expect(await screen.findByText('cleanupTitle')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'cleanupConfirm' }));
+    expect(await screen.findByText('errors.VAULT_STORAGE_UNAVAILABLE')).toBeInTheDocument();
+    // The dialog stays open so the failure is read in context; nothing was
+    // reported as done.
+    expect(screen.getByText('cleanupTitle')).toBeInTheDocument();
+    expect(screen.queryByText('cleanupDone')).not.toBeInTheDocument();
     errorSpy.mockRestore();
   });
 

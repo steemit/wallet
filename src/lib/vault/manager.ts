@@ -50,6 +50,20 @@ export interface VaultManagerExtended extends VaultManager {
   addKey(input: VaultKeyInput): Promise<VaultRecordV1>;
   removeKey(pointer: VaultKeyPointer): Promise<VaultRecordV1>;
   updateKeyNote(pointer: VaultKeyPointer, note: string): Promise<VaultRecordV1>;
+  /**
+   * Remove every stored vault record the current code can no longer read
+   * (incompatible envelope versions — e.g. whole-vault-format rows left by
+   * the never-shipped A5 build, which has no migration layer by design) and
+   * clear the active-vault pointer when it names one of them.
+   *
+   * UI CONTRACT: call this ONLY after the user has explicitly confirmed the
+   * purge in the cleanup dialog (the panel offers it when the vault list
+   * fails to load with `VAULT_ENVELOPE_INVALID`). Removed records are
+   * unrecoverable; readable vaults and every other settings field are never
+   * touched. Returns the removed rows' names (`null` when a raw row carries
+   * none — the UI filters those out when listing names).
+   */
+  cleanupUnreadableVaults(): Promise<{ removed: Array<string | null> }>;
   createSigner(): {
     signOperations(request: SignOperationsRequest): Promise<SignResult>;
     signResolvedTransaction(request: SignResolvedTransactionRequest): Promise<SignResult>;
@@ -182,6 +196,13 @@ export function createVaultManager(registry: VaultRegistry): VaultManagerExtende
       const status = await tolerantStatus(service);
       if (statusMatchesVault(status, vaultName)) await service.lock();
       await registry.removeVault(vaultName);
+    },
+
+    cleanupUnreadableVaults(): Promise<{ removed: Array<string | null> }> {
+      // Thin orchestration: the verdict (which rows are unreadable), the
+      // atomic delete + pointer reset, and the user-confirmation contract
+      // live in the registry primitive.
+      return registry.purgeInvalidVaultRecords();
     },
 
     async exportVault(vaultName: string): Promise<VaultEnvelopeV1> {
