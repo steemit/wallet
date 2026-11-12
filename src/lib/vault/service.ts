@@ -274,7 +274,12 @@ export function createVaultService(registry: VaultRegistry): VaultService {
       return record.accounts.map((account) => ({
         accountName: account.accountName,
         keys: (['owner', 'active', 'posting', 'memo'] as const).flatMap((role) =>
-          account.keys[role].map((key) => ({ role, iv: key.iv, note: key.note })),
+          account.keys[role].map((key) => ({
+            role,
+            iv: key.iv,
+            note: key.note,
+            publicKey: key.publicKey ?? null,
+          })),
         ),
         balances: null,
       }));
@@ -300,6 +305,14 @@ export function createVaultService(registry: VaultRegistry): VaultService {
       if (!['owner', 'active', 'posting', 'memo'].includes(input.role)) {
         throw new VaultError('VAULT_KEY_INVALID', 'key role is not supported');
       }
+      // The caller (add-key dialog) already derived this from the same WIF;
+      // when absent, the locally derived key is persisted. One value is used
+      // for both dedupe and storage so the outer field always matches the
+      // ciphertext it annotates.
+      const publicKey = input.publicKey ?? check.publicKey;
+      if (typeof publicKey !== 'string' || publicKey.length === 0) {
+        throw new VaultError('VAULT_KEY_INVALID', 'key publicKey must be a non-empty string');
+      }
       const accountName = normalizeSteemUsername(check.accountName);
       const record = await requireRecord(input.vaultName);
       const kek = await deriveVaultKek(input.password, decodeBase64Url(record.salt));
@@ -314,12 +327,20 @@ export function createVaultService(registry: VaultRegistry): VaultService {
           accounts.push(account);
         }
         for (const existing of account.keys[input.role]) {
+          // Entries carrying the outer publicKey field dedupe by plain string
+          // comparison — no decryption probe needed (the field was derived
+          // from that entry's own WIF when it was stored). Legacy entries
+          // without the field keep the transient decrypt probe.
+          if (existing.publicKey !== undefined) {
+            if (existing.publicKey === publicKey) return record;
+            continue;
+          }
           const wif = await decryptVaultKey(
             kek,
             decodeBase64Url(existing.iv),
             decodeBase64Url(existing.ciphertext),
           );
-          if (validateVaultWif(wif, accountName).publicKey === check.publicKey) return record;
+          if (validateVaultWif(wif, accountName).publicKey === publicKey) return record;
         }
         const encrypted = await encryptVaultKeyRecord(
           kek,
@@ -327,7 +348,7 @@ export function createVaultService(registry: VaultRegistry): VaultService {
           input.note,
           usedIvs(record),
         );
-        account.keys[input.role].push(encrypted);
+        account.keys[input.role].push({ ...encrypted, publicKey });
         return await commitAccounts(record, accounts);
       } finally {
         kek.fill(0);

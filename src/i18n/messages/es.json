@@ -801,6 +801,8 @@
     "keysRemoveConfirm": "Quitar clave",
     "keysRemoving": "Quitando…",
     "keysRemoved": "Clave eliminada de la bóveda.",
+    "keysPublicKeyCopy": "Copiar clave pública",
+    "keysPublicKeyCopied": "Clave pública copiada",
     "keyAdded": "Clave añadida a la bóveda.",
     "keyAlreadyExists": "Esta clave ya está guardada para esa cuenta y rol — no se añadió nada.",
     "addKeyTitle": "Añadir una clave a {name}",

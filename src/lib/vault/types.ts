@@ -6,11 +6,23 @@ export type VaultKeyRole = 'owner' | 'active' | 'posting' | 'memo';
 export type SigningRole = Exclude<VaultKeyRole, 'memo'>;
 export type SigningMode = 'privateKey' | 'vault';
 
-/** PUBLIC: account names, roles, IVs and notes are visible while locked. */
+/**
+ * PUBLIC: account names, roles, IVs and notes are visible while locked —
+ * and so is `publicKey` (a Steem public key is inherently public; after any
+ * on-chain verification it is world-visible on the chain anyway).
+ *
+ * `publicKey` is OPTIONAL outer data: entries written before it existed (and
+ * entries re-encrypted from such entries) simply omit it. It is persisted by
+ * the add/import paths (derived from the WIF at entry time or carried from a
+ * source entry that already had it) so the key manager can display and
+ * deduplicate keys while the vault stays LOCKED — decryption is never needed
+ * to know a stored entry's public key.
+ */
 export interface VaultKeyCiphertext {
   iv: string;
   ciphertext: string;
   note: string;
+  publicKey?: string;
 }
 
 export type VaultRoleKeys = Record<VaultKeyRole, VaultKeyCiphertext[]>;
@@ -56,6 +68,8 @@ export interface VaultKeySummary {
   role: VaultKeyRole;
   iv: string;
   note: string;
+  /** Outer public key when the stored entry carries one; `null` for legacy entries. */
+  publicKey: string | null;
 }
 
 export interface VaultAccountSummary {
@@ -132,6 +146,12 @@ export interface VaultKeyInput {
   privateKey: string;
   note: string;
   password: string;
+  /**
+   * Public key the caller derived from `privateKey` (e.g. during the add-key
+   * dialog's on-chain verification). OPTIONAL — when absent, `addKey` derives
+   * and persists the public key from the WIF itself.
+   */
+  publicKey?: string;
 }
 
 export interface VaultKeyPointer {

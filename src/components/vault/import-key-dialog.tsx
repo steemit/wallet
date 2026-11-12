@@ -219,6 +219,10 @@ function ImportKeyForm({
         privateKey: wif,
         note,
         password,
+        // Persist the public key derived during verification so the key
+        // manager can show it while the vault stays LOCKED. (Public data —
+        // the WIF below remains the only sensitive field in this call.)
+        publicKey: verification.publicKey,
       });
       const after = await manager.getAccounts(vaultName);
       const afterCount = countRoleKeys(after, verification.accountName, verification.role);

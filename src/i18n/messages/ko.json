@@ -801,6 +801,8 @@
     "keysRemoveConfirm": "키 제거",
     "keysRemoving": "제거 중…",
     "keysRemoved": "키가 볼트에서 제거되었습니다.",
+    "keysPublicKeyCopy": "공개 키 복사",
+    "keysPublicKeyCopied": "공개 키 복사됨",
     "keyAdded": "키가 볼트에 추가되었습니다.",
     "keyAlreadyExists": "이 키는 해당 계정과 역할에 이미 저장되어 있습니다 — 아무것도 추가되지 않았습니다.",
     "addKeyTitle": "{name}에 키 추가",

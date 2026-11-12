@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import vectors from '../fixtures/vault-development-test-vectors.json';
 import { installFakeIndexedDB, type FakeIndexedDBHandle } from '../mocks/fake-indexeddb';
 import { decryptVaultKey, deriveVaultKek } from '@/lib/vault/crypto';
@@ -14,6 +14,13 @@ import {
   type VaultRegistry,
 } from '@/lib/vault/registry';
 import type { VaultKeyInput, VaultRecordV1 } from '@/lib/vault/types';
+
+// Wrap (not replace) decryptVaultKey so decryption probes are COUNTABLE —
+// the real implementation still runs for every call; the spy only records it.
+vi.mock('@/lib/vault/crypto', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/vault/crypto')>();
+  return { ...actual, decryptVaultKey: vi.fn(actual.decryptVaultKey) };
+});
 
 const v = vectors.vault;
 const posting = v.keys[0];
@@ -82,8 +89,8 @@ describe('per-key vault service', () => {
       {
         accountName: 'alice',
         keys: [
-          { role: 'active', iv: active.iv, note: 'backup active key' },
-          { role: 'posting', iv: posting.iv, note: 'desktop posting key' },
+          { role: 'active', iv: active.iv, note: 'backup active key', publicKey: null },
+          { role: 'posting', iv: posting.iv, note: 'desktop posting key', publicKey: null },
         ],
         balances: null,
       },
@@ -165,6 +172,111 @@ describe('per-key vault service', () => {
     expect(result).toEqual(before);
     service.destroy();
   }, 20000);
+
+  it('persists the outer publicKey: caller-supplied verbatim, derived when omitted', async () => {
+    const service = createVaultService(registry);
+    await service.addKey({
+      vaultName: 'demo',
+      accountName: 'alice',
+      role: 'memo',
+      privateKey: NEW_WIF,
+      note: 'declared by the caller',
+      password: v.password,
+      publicKey: 'STMcustom-key-9',
+    });
+    expect((await current()).accounts[0]?.keys.memo[0]?.publicKey).toBe('STMcustom-key-9');
+    // No caller value: the WIF-derived key (vitest mock: STM + last 8 chars)
+    // is persisted so the stored field always matches the ciphertext.
+    await service.addKey({
+      vaultName: 'demo',
+      accountName: 'alice',
+      role: 'owner',
+      privateKey: NEW_WIF,
+      note: 'derived fallback',
+      password: v.password,
+    });
+    expect((await current()).accounts[0]?.keys.owner[0]?.publicKey).toBe(
+      `STM${NEW_WIF.slice(-8)}`,
+    );
+    service.destroy();
+  }, 30000);
+
+  it('dedupes through the stored publicKey field without an extra decryption probe', async () => {
+    // A seeded posting entry DECLARING a publicKey that differs from the new
+    // WIF's derived key: the field comparison must decide (no decryption) and
+    // the genuinely different key is stored.
+    fake.seed(
+      VAULT_DB_NAME,
+      'vaults',
+      makeRecord('declared', {
+        accounts: [
+          {
+            accountName: 'alice',
+            keys: {
+              owner: [], active: [], memo: [],
+              posting: [
+                { iv: posting.iv, ciphertext: posting.ciphertext, note: 'desktop posting key', publicKey: 'STMother-key1' },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+    const service = createVaultService(registry);
+    const decryptsBefore = vi.mocked(decryptVaultKey).mock.calls.length;
+    const result = await service.addKey({
+      vaultName: 'declared',
+      accountName: 'alice',
+      role: 'posting',
+      privateKey: NEW_WIF,
+      note: 'second key',
+      password: v.password,
+    });
+    expect(result.accounts[0]?.keys.posting).toHaveLength(2);
+    expect(result.accounts[0]?.keys.posting[1]?.publicKey).toBe(`STM${NEW_WIF.slice(-8)}`);
+    // Exactly ONE decryption ran — the unlock-authentication probe of the
+    // first key. The dedupe loop compared the outer fields instead of
+    // decrypting the existing entry (pre-field behavior would be 2).
+    expect(vi.mocked(decryptVaultKey).mock.calls.length - decryptsBefore).toBe(1);
+    service.destroy();
+  }, 30000);
+
+  it('a declared publicKey equal to the derived key turns the add into a no-op without probing', async () => {
+    const derived = `STM${posting.privateKey.slice(-8)}`;
+    fake.seed(
+      VAULT_DB_NAME,
+      'vaults',
+      makeRecord('declared', {
+        accounts: [
+          {
+            accountName: 'alice',
+            keys: {
+              owner: [], active: [], memo: [],
+              posting: [
+                { iv: posting.iv, ciphertext: posting.ciphertext, note: 'desktop posting key', publicKey: derived },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+    const service = createVaultService(registry);
+    const before = await current('declared');
+    const decryptsBefore = vi.mocked(decryptVaultKey).mock.calls.length;
+    const result = await service.addKey({
+      vaultName: 'declared',
+      accountName: 'alice',
+      role: 'posting',
+      privateKey: posting.privateKey,
+      note: 'ignored duplicate note',
+      password: v.password,
+    });
+    expect(result).toEqual(before);
+    // One decryption (the authentication probe only); the field comparison
+    // detected the duplicate without decrypting the stored entry again.
+    expect(vi.mocked(decryptVaultKey).mock.calls.length - decryptsBefore).toBe(1);
+    service.destroy();
+  }, 30000);
 
   it('wrong-password add and failed CAS leave the original record byte-identical', async () => {
     const service = createVaultService(registry);

@@ -304,8 +304,8 @@ describe('vault manager (per-key hierarchy)', () => {
         {
           accountName: 'alice',
           keys: [
-            { role: 'active', iv: active.iv, note: 'backup active key' },
-            { role: 'posting', iv: posting.iv, note: 'desktop posting key' },
+            { role: 'active', iv: active.iv, note: 'backup active key', publicKey: null },
+            { role: 'posting', iv: posting.iv, note: 'desktop posting key', publicKey: null },
           ],
           balances: null,
         },
@@ -319,8 +319,8 @@ describe('vault manager (per-key hierarchy)', () => {
         {
           accountName: 'alice',
           keys: [
-            { role: 'active', iv: active.iv, note: 'backup active key' },
-            { role: 'posting', iv: posting.iv, note: 'desktop posting key' },
+            { role: 'active', iv: active.iv, note: 'backup active key', publicKey: null },
+            { role: 'posting', iv: posting.iv, note: 'desktop posting key', publicKey: null },
           ],
           balances: null,
         },
@@ -494,6 +494,50 @@ describe('vault manager (per-key hierarchy)', () => {
         other.destroy();
         registryB.close();
       }
+    }, 60000);
+
+    it('carries each stored publicKey across the re-encryption instead of dropping it', async () => {
+      // The re-encrypted entry wraps the SAME WIF, so its outer publicKey
+      // must survive verbatim. Seeded entries DECLARE the field; a drop
+      // during the per-key re-encrypt would silently erase it (data loss).
+      const declaredPosting = 'STMpinned-posting-key-1';
+      const declaredActive = 'STMpinned-active-key-2';
+      fake.seed(
+        VAULT_DB_NAME,
+        'vaults',
+        makeRecord('keyed', {
+          accounts: [
+            {
+              accountName: 'alice',
+              keys: {
+                owner: [],
+                active: [
+                  { iv: active.iv, ciphertext: active.ciphertext, note: 'backup active key', publicKey: declaredActive },
+                ],
+                memo: [],
+                posting: [
+                  { iv: posting.iv, ciphertext: posting.ciphertext, note: 'desktop posting key', publicKey: declaredPosting },
+                ],
+              },
+            },
+          ],
+        }),
+      );
+      const before = await currentRecord('keyed');
+      await manager.changePassword('keyed', v.password, NEW_PASSWORD);
+      const after = await currentRecord('keyed');
+      // Real re-encryption happened (fresh salt, fresh IVs)…
+      expect(after.salt).not.toBe(before.salt);
+      expect(after.accounts[0]?.keys.posting[0]?.iv).not.toBe(posting.iv);
+      expect(after.accounts[0]?.keys.active[0]?.iv).not.toBe(active.iv);
+      // …the WIFs survived…
+      expect(await decryptRecord(after, NEW_PASSWORD)).toEqual([
+        active.privateKey,
+        posting.privateKey,
+      ]);
+      // …and every declared publicKey carried over.
+      expect(after.accounts[0]?.keys.posting[0]?.publicKey).toBe(declaredPosting);
+      expect(after.accounts[0]?.keys.active[0]?.publicKey).toBe(declaredActive);
     }, 60000);
 
     it('authentication first, policy second: wrong old / weak new are rejected untouched', async () => {

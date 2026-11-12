@@ -4,6 +4,7 @@ import {
   deriveVaultKek,
   encryptVaultKeyRecord,
   generateVaultSalt,
+  withVaultPublicKey,
 } from './crypto';
 import { VaultError } from './errors';
 import { exportVaultBackup, importVaultBackup, mergeVaultBackup } from './backup';
@@ -294,7 +295,10 @@ export function createVaultManager(registry: VaultRegistry): VaultManagerExtende
               const encrypted = await encryptVaultKeyRecord(newKek, privateKey, key.note, ivs);
               privateKey = '';
               ivs.push(encrypted.iv);
-              nextAccount.keys[role].push(encrypted);
+              // The re-encrypted entry wraps the SAME WIF, so its outer
+              // publicKey carries over verbatim. Dropping it here would
+              // silently erase the field on every password change.
+              nextAccount.keys[role].push(withVaultPublicKey(encrypted, key.publicKey));
             }
           }
         }

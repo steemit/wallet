@@ -3,6 +3,7 @@ import {
   decryptVaultKey,
   deriveVaultKek,
   encryptVaultKeyRecord,
+  withVaultPublicKey,
 } from './crypto';
 import { VaultError } from './errors';
 import {
@@ -153,7 +154,11 @@ export async function importVaultBackup(
     const ivs: string[] = [];
     for (const ref of keyRefs(source.accounts)) {
       const opened = await decryptAndValidate(sourceKek, ref);
-      const identity = dedupeKey(ref.accountName, ref.role, opened.publicKey);
+      // The source entry's declared publicKey (outer public data) rides along
+      // as-is; a legacy entry without the field is backfilled with the
+      // public key derived from the mandatory WIF validation above.
+      const publicKey = ref.key.publicKey ?? opened.publicKey;
+      const identity = dedupeKey(ref.accountName, ref.role, publicKey);
       if (seen.has(identity)) {
         opened.privateKey = '';
         continue;
@@ -167,7 +172,7 @@ export async function importVaultBackup(
       );
       opened.privateKey = '';
       ivs.push(encrypted.iv);
-      addEncryptedKey(accounts, ref.accountName, ref.role, encrypted);
+      addEncryptedKey(accounts, ref.accountName, ref.role, withVaultPublicKey(encrypted, publicKey));
     }
     const next: VaultRecordV1 = {
       ...created,
@@ -235,14 +240,22 @@ export async function mergeVaultBackup(
       ivs.push(ref.key.iv);
       const opened = await decryptAndValidate(targetKek, ref);
       opened.privateKey = '';
-      const identity = dedupeKey(ref.accountName, ref.role, opened.publicKey);
+      // Target decryption doubles as authentication; the dedupe identity
+      // prefers the declared outer publicKey when the entry carries one.
+      // The winning entry itself is preserved byte-identically (publicKey
+      // included — it is part of the stored object).
+      const identity = dedupeKey(ref.accountName, ref.role, ref.key.publicKey ?? opened.publicKey);
       if (seen.has(identity)) continue;
       seen.add(identity);
       addEncryptedKey(accounts, ref.accountName, ref.role, ref.key);
     }
     for (const ref of keyRefs(source.accounts)) {
       const opened = await decryptAndValidate(sourceKek, ref);
-      const identity = dedupeKey(ref.accountName, ref.role, opened.publicKey);
+      // The source entry's declared publicKey (outer public data) rides along
+      // as-is; a legacy entry without the field is backfilled with the
+      // public key derived from the mandatory WIF validation above.
+      const publicKey = ref.key.publicKey ?? opened.publicKey;
+      const identity = dedupeKey(ref.accountName, ref.role, publicKey);
       if (seen.has(identity)) {
         opened.privateKey = '';
         continue;
@@ -256,7 +269,7 @@ export async function mergeVaultBackup(
       );
       opened.privateKey = '';
       ivs.push(encrypted.iv);
-      addEncryptedKey(accounts, ref.accountName, ref.role, encrypted);
+      addEncryptedKey(accounts, ref.accountName, ref.role, withVaultPublicKey(encrypted, publicKey));
     }
     await service.commitAccounts(record, accounts);
     return { status: await service.getStatus(), preMergeBackup };

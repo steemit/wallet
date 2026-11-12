@@ -72,7 +72,11 @@ function vaultSummary(vaultName: string, active = false): VaultSummary {
 }
 
 function account(accountName: string, iv: string, note: string): VaultAccountSummary {
-  return { accountName, keys: [{ role: 'posting', iv, note }], balances: null };
+  return {
+    accountName,
+    keys: [{ role: 'posting', iv, note, publicKey: null }],
+    balances: null,
+  };
 }
 
 /** Public directories per vault (IVs/notes present — they must not render). */

@@ -141,3 +141,15 @@ export async function encryptVaultKeyRecord(
   const ciphertext = await encryptVaultKey(kek, iv, privateKey);
   return { iv: encodeBase64Url(iv), ciphertext: encodeBase64Url(ciphertext), note };
 }
+
+/**
+ * Attach the outer public key to a freshly encrypted key record. An absent
+ * (undefined) publicKey leaves the record without the optional field, so
+ * legacy entries are carried forward without an empty placeholder.
+ */
+export function withVaultPublicKey(
+  record: VaultKeyCiphertext,
+  publicKey: string | undefined,
+): VaultKeyCiphertext {
+  return publicKey === undefined ? record : { ...record, publicKey };
+}

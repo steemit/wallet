@@ -157,6 +157,36 @@ describe('hierarchical V1 envelope validation', () => {
     );
   });
 
+  it('treats key publicKey as optional outer data: present/absent pass, junk is rejected', async () => {
+    // Present: a non-empty string is preserved verbatim (format truth is the
+    // add/import path's job, not the envelope's).
+    const declared = 'STM7Y3tmCZvomT2NKZvWNEmBdEQaiViaysPNc1LRrxc88bUvNQuGu';
+    const withKey = envelopeWithAccounts([
+      account('alice', [{ ...encryptedKey(1), publicKey: declared }]),
+    ]);
+    const validated = validateVaultEnvelope(withKey);
+    expect(validated.accounts[0]?.keys.posting[0]?.publicKey).toBe(declared);
+    // Absent: legacy entries keep validating and stay field-free.
+    const withoutKey = validateVaultEnvelope(
+      envelopeWithAccounts([account('alice', [encryptedKey(2)])]),
+    );
+    expect(withoutKey.accounts[0]?.keys.posting[0]?.publicKey).toBeUndefined();
+    expect('publicKey' in (withoutKey.accounts[0]?.keys.posting[0] ?? {})).toBe(false);
+    // Junk: empty string, non-strings and unknown extra fields all reject.
+    const junkKeys: unknown[] = [
+      { ...encryptedKey(3), publicKey: '' },
+      { ...encryptedKey(4), publicKey: 42 },
+      { ...encryptedKey(5), publicKey: null },
+      { ...encryptedKey(6), publicKey: declared, extra: 'nope' },
+    ];
+    for (const junk of junkKeys) {
+      await expectCode(
+        () => validateVaultEnvelope(envelopeWithAccounts([account('alice', [junk as VaultKeyCiphertext])])),
+        'VAULT_ENVELOPE_INVALID',
+      );
+    }
+  });
+
   it('does not echo sensitive or public field values in errors', async () => {
     const bad = envelopeWithAccounts([account('alice', [{ ...encryptedKey(), note: 42 as unknown as string }])]);
     let caught: unknown;

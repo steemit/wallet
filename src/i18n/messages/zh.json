@@ -801,6 +801,8 @@
     "keysRemoveConfirm": "移除密钥",
     "keysRemoving": "移除中…",
     "keysRemoved": "密钥已从保险库移除。",
+    "keysPublicKeyCopy": "复制公钥",
+    "keysPublicKeyCopied": "公钥已复制",
     "keyAdded": "密钥已添加到保险库。",
     "keyAlreadyExists": "该密钥已存在于相同账户与角色下——未做任何添加。",
     "addKeyTitle": "向 {name} 添加密钥",

@@ -801,6 +801,8 @@
     "keysRemoveConfirm": "Remove key",
     "keysRemoving": "Removing…",
     "keysRemoved": "Key removed from the vault.",
+    "keysPublicKeyCopy": "Copy public key",
+    "keysPublicKeyCopied": "Public key copied",
     "keyAdded": "Key added to the vault.",
     "keyAlreadyExists": "This key is already stored for that account and role — nothing was added.",
     "addKeyTitle": "Add a key to {name}",

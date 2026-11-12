@@ -10,7 +10,10 @@ import type {
 
 const ENVELOPE_FIELDS = ['version', 'vaultName', 'salt', 'accounts'] as const;
 const ACCOUNT_FIELDS = ['accountName', 'keys'] as const;
-const KEY_FIELDS = ['iv', 'ciphertext', 'note'] as const;
+const KEY_REQUIRED_FIELDS = ['iv', 'ciphertext', 'note'] as const;
+// `publicKey` is outer public data (optional for pre-field legacy entries);
+// every other extra field stays rejected.
+const KEY_ALL_FIELDS = [...KEY_REQUIRED_FIELDS, 'publicKey'] as const;
 
 export const VAULT_KEY_ROLES: readonly VaultKeyRole[] = ['owner', 'active', 'posting', 'memo'];
 export const VAULT_ENVELOPE_SALT_BYTES = 16;
@@ -90,6 +93,18 @@ function hasExactFields(value: Record<string, unknown>, fields: readonly string[
   return actual.length === expected.length && expected.every((field, i) => actual[i] === field);
 }
 
+/**
+ * Key-level field check: the three required fields must all be present, no
+ * unknown field is tolerated, and the optional `publicKey` may be absent.
+ */
+function hasValidKeyFields(value: Record<string, unknown>): boolean {
+  const actual = Object.keys(value);
+  return (
+    actual.every((field) => (KEY_ALL_FIELDS as readonly string[]).includes(field)) &&
+    (KEY_REQUIRED_FIELDS as readonly string[]).every((field) => field in value)
+  );
+}
+
 function decodeEnvelopeField(
   field: 'salt' | 'iv' | 'ciphertext',
   value: unknown,
@@ -114,10 +129,19 @@ function validateKey(value: unknown, usedIvs: Set<string>): VaultKeyCiphertext {
     throw envelopeInvalid('every encrypted key must be an object');
   }
   const record = value as Record<string, unknown>;
-  if (!hasExactFields(record, KEY_FIELDS)) {
-    throw envelopeInvalid('every encrypted key must have exactly iv, ciphertext and note');
+  if (!hasValidKeyFields(record)) {
+    throw envelopeInvalid(
+      'every encrypted key must have iv, ciphertext and note, with an optional publicKey',
+    );
   }
   const { iv, ciphertext, note } = record;
+  const declaredPublicKey = record['publicKey'];
+  if (
+    declaredPublicKey !== undefined &&
+    (typeof declaredPublicKey !== 'string' || declaredPublicKey.length === 0)
+  ) {
+    throw envelopeInvalid('key publicKey must be a non-empty string when present');
+  }
   const ivBytes = decodeEnvelopeField('iv', iv);
   if (ivBytes.length !== VAULT_ENVELOPE_IV_BYTES) {
     throw envelopeInvalid(`key IV must decode to exactly ${VAULT_ENVELOPE_IV_BYTES} bytes`);
@@ -142,7 +166,11 @@ function validateKey(value: unknown, usedIvs: Set<string>): VaultKeyCiphertext {
   if (typeof note !== 'string') {
     throw envelopeInvalid('key note must be a string');
   }
-  return { iv: iv as string, ciphertext, note };
+  const key: VaultKeyCiphertext = { iv: iv as string, ciphertext, note };
+  if (declaredPublicKey !== undefined) {
+    key.publicKey = declaredPublicKey;
+  }
+  return key;
 }
 
 function validateAccount(value: unknown, usedIvs: Set<string>): VaultAccountEntry {

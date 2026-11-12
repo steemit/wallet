@@ -18,9 +18,16 @@
 // UI conventions: secondary dialogs are z-[60]; button pairs sit in a
 // two-column grid; VaultErrors map to `vault.errors.<CODE>` i18n keys — raw
 // English messages never render.
+//
+// Each key row is TWO lines: the first keeps the badge + note + actions, the
+// second (only when the stored entry carries the outer publicKey field —
+// legacy entries without it render no second line at all) shows the
+// truncated public key in monospace with a small copy-to-clipboard button.
+// A Steem public key is inherently public, so displaying it while LOCKED is
+// free of privacy cost; the private key never appears anywhere.
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, Loader2, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Check, Copy, Loader2, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -36,7 +43,7 @@ import { Label } from '@/components/ui/label';
 import { modalFormActionButtonClassName } from '@/components/ui/modal-form-actions';
 import { VaultError } from '@/lib/vault/errors';
 import type { VaultManagerExtended } from '@/lib/vault/manager';
-import type { VaultAccountSummary, VaultKeyRole } from '@/lib/vault/types';
+import type { VaultAccountSummary, VaultKeyRole, VaultKeySummary } from '@/lib/vault/types';
 import { ImportKeyDialog, type AddKeyOutcome } from './import-key-dialog';
 
 const ROLE_ORDER: readonly VaultKeyRole[] = ['owner', 'active', 'posting', 'memo'];
@@ -47,6 +54,13 @@ const ROLE_LABEL_KEYS: Record<VaultKeyRole, string> = {
   posting: 'keysRolePosting',
   memo: 'keysRoleMemo',
 };
+
+/** `STM` + first 4 + ellipsis + last 4; short values render as-is. */
+function shortPublicKey(publicKey: string): string {
+  return publicKey.length <= 12
+    ? publicKey
+    : `${publicKey.slice(0, 7)}…${publicKey.slice(-4)}`;
+}
 
 /** A key the note/remove dialogs currently target (IV = unique pointer). */
 interface KeyTarget {
@@ -81,6 +95,10 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
   const [addKeyOpen, setAddKeyOpen] = useState(false);
   const [noteTarget, setNoteTarget] = useState<KeyTarget | null>(null);
   const [removeTarget, setRemoveTarget] = useState<KeyTarget | null>(null);
+  // IV of the key whose public key was just copied — drives the brief
+  // check-icon feedback. Public data only; nothing sensitive in this state.
+  const [copiedIv, setCopiedIv] = useState<string | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -98,6 +116,25 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
     // on early-return paths — the vault-manager panel's established pattern).
     void Promise.resolve().then(refresh);
   }, [refresh]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) window.clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
+  const copyPublicKey = useCallback(async (key: VaultKeySummary) => {
+    if (!key.publicKey) return;
+    try {
+      await navigator.clipboard.writeText(key.publicKey);
+    } catch {
+      // Clipboard unavailable or denied — the truncated key stays visible.
+      return;
+    }
+    setCopiedIv(key.iv);
+    if (copyTimerRef.current !== null) window.clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = window.setTimeout(() => setCopiedIv(null), 2000);
+  }, []);
 
   const roleLabel = (role: VaultKeyRole): string => t(ROLE_LABEL_KEYS[role]);
 
@@ -182,56 +219,81 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
               {account.keys.map((key) => (
                 <li
                   key={key.iv}
-                  className="bg-muted/30 flex items-center justify-between gap-2 rounded-md border px-2 py-1.5"
+                  className="bg-muted/30 flex flex-col gap-0.5 rounded-md border px-2 py-1.5"
                   data-testid="vault-key-row"
                   data-key-iv={key.iv}
                 >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
-                      {roleLabel(key.role)}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                        {roleLabel(key.role)}
+                      </span>
+                      <span
+                        className="text-muted-foreground truncate text-xs"
+                        title={key.note === '' ? undefined : key.note}
+                      >
+                        {key.note === '' ? t('keysNoNote') : key.note}
+                      </span>
                     </span>
-                    <span
-                      className="text-muted-foreground truncate text-xs"
-                      title={key.note === '' ? undefined : key.note}
-                    >
-                      {key.note === '' ? t('keysNoNote') : key.note}
+                    <span className="flex shrink-0 gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setNoteTarget({
+                            accountName: account.accountName,
+                            role: key.role,
+                            iv: key.iv,
+                            note: key.note,
+                          })
+                        }
+                      >
+                        <Pencil aria-hidden />
+                        {t('keysEditNote')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() =>
+                          setRemoveTarget({
+                            accountName: account.accountName,
+                            role: key.role,
+                            iv: key.iv,
+                            note: key.note,
+                          })
+                        }
+                      >
+                        <Trash2 aria-hidden />
+                        {t('keysRemoveKey')}
+                      </Button>
                     </span>
-                  </span>
-                  <span className="flex shrink-0 gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setNoteTarget({
-                          accountName: account.accountName,
-                          role: key.role,
-                          iv: key.iv,
-                          note: key.note,
-                        })
-                      }
+                  </div>
+                  {key.publicKey !== null && (
+                    <div
+                      className="flex items-center gap-1 pl-1"
+                      data-testid="vault-key-public-key"
                     >
-                      <Pencil aria-hidden />
-                      {t('keysEditNote')}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() =>
-                        setRemoveTarget({
-                          accountName: account.accountName,
-                          role: key.role,
-                          iv: key.iv,
-                          note: key.note,
-                        })
-                      }
-                    >
-                      <Trash2 aria-hidden />
-                      {t('keysRemoveKey')}
-                    </Button>
-                  </span>
+                      <code
+                        className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-xs"
+                        title={key.publicKey}
+                      >
+                        {shortPublicKey(key.publicKey)}
+                      </code>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={copiedIv === key.iv ? t('keysPublicKeyCopied') : t('keysPublicKeyCopy')}
+                        title={copiedIv === key.iv ? t('keysPublicKeyCopied') : t('keysPublicKeyCopy')}
+                        onClick={() => void copyPublicKey(key)}
+                      >
+                        {copiedIv === key.iv ? <Check aria-hidden /> : <Copy aria-hidden />}
+                      </Button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

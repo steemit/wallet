@@ -22,7 +22,7 @@
  * expected public key is computed the same way here; branch coverage only —
  * real crypto evidence lives in tests/node/vault-wif-real-check.mjs.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { VaultKeyManager } from '@/components/vault/vault-key-manager';
 import { VaultError } from '@/lib/vault/errors';
@@ -65,6 +65,9 @@ const VAULT = 'Main';
 const WIF = '5Jtest-alice-posting-key';
 // The vitest steem-js mock derives 'STM' + the last 8 characters of the WIF.
 const DERIVED_PUBLIC_KEY = `STM${WIF.slice(-8)}`;
+// A public key already persisted on a stored entry (public data — shown
+// truncated with a copy button in the key manager's second row).
+const STORED_PUBLIC_KEY = 'STMABCD1234EFGH5678';
 const VAULT_PASSWORD = 'the-vault-password-1';
 
 /** Matched, threshold-satisfying posting result (happy path default). */
@@ -81,14 +84,16 @@ function directory(): VaultAccountSummary[] {
     {
       accountName: 'alice',
       keys: [
-        { role: 'posting', iv: 'ivalicepost', note: 'desktop key' },
-        { role: 'memo', iv: 'ivalicememo', note: '' },
+        // Carries the outer publicKey field: the manager renders its second row.
+        { role: 'posting', iv: 'ivalicepost', note: 'desktop key', publicKey: STORED_PUBLIC_KEY },
+        // Legacy entry without the field: no second row renders.
+        { role: 'memo', iv: 'ivalicememo', note: '', publicKey: null },
       ],
       balances: null,
     },
     {
       accountName: 'bob',
-      keys: [{ role: 'owner', iv: 'ivbobowner', note: 'cold backup' }],
+      keys: [{ role: 'owner', iv: 'ivbobowner', note: 'cold backup', publicKey: null }],
       balances: null,
     },
   ];
@@ -109,7 +114,10 @@ function makeManager(initial: VaultAccountSummary[] = directory()): ManagerState
         ...state.directory.filter((account) => account.accountName !== input.accountName),
         {
           accountName: input.accountName,
-          keys: [...(state.directory.find((a) => a.accountName === input.accountName)?.keys ?? []), { role: input.role, iv: `ivnew${state.directory.length}`, note: input.note }],
+          keys: [
+            ...(state.directory.find((a) => a.accountName === input.accountName)?.keys ?? []),
+            { role: input.role, iv: `ivnew${state.directory.length}`, note: input.note, publicKey: input.publicKey ?? null },
+          ],
           balances: null,
         },
       ];
@@ -224,6 +232,9 @@ describe('VaultKeyManager (R2 key management)', () => {
           privateKey: WIF,
           note: '',
           password: VAULT_PASSWORD,
+          // The key derived during verification rides along so the locked
+          // key manager can display it.
+          publicKey: DERIVED_PUBLIC_KEY,
         }),
       );
     });
@@ -584,7 +595,7 @@ describe('VaultKeyManager (R2 key management)', () => {
       directory: [
         {
           accountName: 'ALICE',
-          keys: [{ role: 'posting', iv: 'ivalicepost', note: 'desktop key' }],
+          keys: [{ role: 'posting', iv: 'ivalicepost', note: 'desktop key', publicKey: null }],
           balances: null,
         },
       ],
@@ -596,7 +607,10 @@ describe('VaultKeyManager (R2 key management)', () => {
           normalizeSteemUsername(account.accountName) === normalizeSteemUsername(input.accountName)
             ? {
                 ...account,
-                keys: [...account.keys, { role: input.role, iv: 'ivnewkey', note: input.note }],
+                keys: [
+                  ...account.keys,
+                  { role: input.role, iv: 'ivnewkey', note: input.note, publicKey: input.publicKey ?? null },
+                ],
               }
             : account,
         );
@@ -614,5 +628,110 @@ describe('VaultKeyManager (R2 key management)', () => {
     fireEvent.click(screen.getByTestId('vault-add-key-primary'));
     expect(await screen.findByText('keyAdded')).toBeInTheDocument();
     expect(screen.queryByText('keyAlreadyExists')).not.toBeInTheDocument();
+  });
+});
+
+// -----------------------------------------------------------------------------
+// Public-key second row (outer publicKey display + copy)
+// -----------------------------------------------------------------------------
+
+describe('VaultKeyManager public-key rows', () => {
+  const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  let writeText: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    if (originalClipboard) {
+      Object.defineProperty(navigator, 'clipboard', originalClipboard);
+    } else {
+      delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+  });
+
+  it('renders a truncated monospace public key with a copy button; legacy rows get no second line', async () => {
+    const state = makeManager();
+    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    const alice = (await screen.findAllByTestId('vault-key-account'))[0] as HTMLElement;
+    const postingRow = within(alice).getAllByTestId('vault-key-row')[0] as HTMLElement;
+
+    // Truncated display: STM + first 4 + ellipsis + last 4. The FULL key is
+    // exposed only via the hover title, never as rendered text.
+    const line = within(postingRow).getByTestId('vault-key-public-key');
+    expect(line).toHaveTextContent('STMABCD…5678');
+    expect(line.querySelector('code')).toHaveAttribute('title', STORED_PUBLIC_KEY);
+    expect(line).not.toHaveTextContent(STORED_PUBLIC_KEY);
+    expect(within(line).getByRole('button', { name: 'keysPublicKeyCopy' })).toBeInTheDocument();
+
+    // A legacy entry without the outer field renders NO second line (no
+    // placeholder — the row stays compact).
+    const memoRow = within(alice).getAllByTestId('vault-key-row')[1] as HTMLElement;
+    expect(within(memoRow).queryByTestId('vault-key-public-key')).not.toBeInTheDocument();
+    const bob = document.querySelectorAll('[data-testid="vault-key-account"]')[1] as HTMLElement;
+    expect(within(bob).queryByTestId('vault-key-public-key')).not.toBeInTheDocument();
+    expectNoSecrets();
+  });
+
+  it('the copy button writes the FULL public key and flips to the copied state', async () => {
+    const state = makeManager();
+    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    const alice = (await screen.findAllByTestId('vault-key-account'))[0] as HTMLElement;
+    const postingRow = within(alice).getAllByTestId('vault-key-row')[0] as HTMLElement;
+    const line = within(postingRow).getByTestId('vault-key-public-key');
+
+    fireEvent.click(within(line).getByRole('button', { name: 'keysPublicKeyCopy' }));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
+    // The clipboard receives the COMPLETE key, not the truncated form.
+    expect(writeText).toHaveBeenCalledWith(STORED_PUBLIC_KEY);
+    // Brief copied feedback replaces the copy affordance.
+    expect(await within(line).findByRole('button', { name: 'keysPublicKeyCopied' })).toBeInTheDocument();
+    expect(within(line).queryByRole('button', { name: 'keysPublicKeyCopy' })).not.toBeInTheDocument();
+    expectNoSecrets();
+  });
+
+  it('a clipboard rejection keeps the copy affordance without crashing', async () => {
+    writeText.mockRejectedValueOnce(new Error('denied'));
+    const state = makeManager();
+    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    const alice = (await screen.findAllByTestId('vault-key-account'))[0] as HTMLElement;
+    const postingRow = within(alice).getAllByTestId('vault-key-row')[0] as HTMLElement;
+    const line = within(postingRow).getByTestId('vault-key-public-key');
+
+    fireEvent.click(within(line).getByRole('button', { name: 'keysPublicKeyCopy' }));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
+    // No copied flip; the row still renders.
+    expect(within(line).getByRole('button', { name: 'keysPublicKeyCopy' })).toBeInTheDocument();
+    expect(within(line).queryByRole('button', { name: 'keysPublicKeyCopied' })).not.toBeInTheDocument();
+  });
+
+  it('a freshly added key (publicKey passed through addKey) renders its second row after refresh', async () => {
+    const state = makeManager();
+    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    await screen.findAllByTestId('vault-key-account');
+
+    await verifyAddKey(MATCHED);
+    fireEvent.click(screen.getByTestId('vault-add-key-primary'));
+    await screen.findByText('keyAdded');
+    // The refreshed directory lists the new posting key with the verified
+    // public key; the vitest steem-js mock truncation shows it un-truncated
+    // (≤ 12 chars render as-is).
+    await waitFor(() => {
+      expect(state.manager.addKey).toHaveBeenCalled();
+    });
+    const newIvRow = document.querySelector('[data-key-iv="ivnew2"]');
+    expect(newIvRow).not.toBeNull();
+    const line = within(newIvRow as HTMLElement).getByTestId('vault-key-public-key');
+    expect(line).toHaveTextContent(DERIVED_PUBLIC_KEY);
   });
 });

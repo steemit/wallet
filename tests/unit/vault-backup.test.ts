@@ -219,6 +219,41 @@ describe('hierarchical vault backup', () => {
     expect(imported.accounts[0]?.keys.active[0]?.note).toBe('backup active key');
   }, 40000);
 
+  it('carries a declared source publicKey as-is and backfills the derived key for legacy entries', async () => {
+    // A source entry DECLARING the outer publicKey: carried verbatim onto the
+    // re-encrypted record (public outer data, not re-derived).
+    const declared = 'STMimport-declared-key-1';
+    const source: VaultEnvelopeV1 = {
+      ...v.envelope,
+      version: 1,
+      accounts: [
+        {
+          accountName: 'alice',
+          keys: {
+            owner: [], active: [], memo: [],
+            posting: [{ ...encryptedFromVector(posting), publicKey: declared }],
+          },
+        },
+      ],
+    };
+    const imported = await importVaultBackup(registry, {
+      mode: 'independent', envelope: source, password: v.password, vaultName: 'Carry',
+    });
+    expect(imported.accounts[0]?.keys.posting[0]?.publicKey).toBe(declared);
+    // Legacy entries WITHOUT the field (old exports): the public key derived
+    // during the mandatory WIF validation is backfilled (vitest steem-js
+    // mock: STM + last 8 characters of the WIF).
+    const backfilled = await importVaultBackup(registry, {
+      mode: 'independent', envelope: demoEnvelope, password: v.password, vaultName: 'Backfill',
+    });
+    expect(backfilled.accounts[0]?.keys.posting[0]?.publicKey).toBe(
+      `STM${posting.privateKey.slice(-8)}`,
+    );
+    expect(backfilled.accounts[0]?.keys.active[0]?.publicKey).toBe(
+      `STM${active.privateKey.slice(-8)}`,
+    );
+  }, 40000);
+
   it('rejects a wrong source password or weak import password without leaving a vault', async () => {
     await expect(importVaultBackup(registry, {
       mode: 'independent', envelope: duplicateSource, password: 'wrong-password-123456', vaultName: 'Nope',
@@ -372,6 +407,36 @@ describe('hierarchical vault backup', () => {
     expect(after.accounts).toEqual(before.accounts);
     service.destroy();
   }, 30000);
+
+  it('carries a declared source publicKey into the merged record; winning target entries keep theirs byte-identically', async () => {
+    const declaredBob = 'STMmerge-declared-bob-1';
+    const bobDeclared = await encryptVaultKeyRecord(sourceKek, BOB_WIF, 'bob declared label', []);
+    const source: VaultEnvelopeV1 = {
+      version: 1,
+      vaultName: 'merge-source-declared',
+      salt: v.salt,
+      accounts: [
+        {
+          accountName: 'bob',
+          keys: { owner: [], active: [{ ...bobDeclared, publicKey: declaredBob }], posting: [], memo: [] },
+        },
+      ],
+    };
+    const service = createVaultService(registry);
+    await service.unlock('demo', v.password);
+    await mergeVaultBackup(registry, service, {
+      mode: 'merge', envelope: source, password: SOURCE_PASSWORD,
+      targetVaultName: 'demo', targetPassword: v.password,
+    });
+    const after = await current();
+    // The winning target entry (fixture posting key, no field) is preserved
+    // byte-identically — including its ABSENT publicKey.
+    expect('publicKey' in (after.accounts[0]?.keys.posting[0] ?? {})).toBe(false);
+    // The source entry's declared publicKey rides onto the re-encrypted copy.
+    const bob = after.accounts.find((account) => account.accountName === 'bob');
+    expect(bob?.keys.active[0]?.publicKey).toBe(declaredBob);
+    service.destroy();
+  }, 40000);
 
   it('wrong passwords, locked target and CAS failure leave target byte-identical', async () => {
     const service = createVaultService(registry);

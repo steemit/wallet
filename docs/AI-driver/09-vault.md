@@ -30,17 +30,20 @@
 ```
 src/lib/vault/types.ts     Type contracts only — zero runtime code. V1 shapes:
                            VaultEnvelopeV1 = { version, vaultName, salt, accounts }
-                           with per-key VaultKeyCiphertext { iv, ciphertext, note }
-                           under four role arrays (VaultRoleKeys); PUBLIC summaries
-                           (VaultSummary / VaultAccountSummary / VaultKeySummary —
-                           role + iv + note, no key material); SENSITIVE
+                           with per-key VaultKeyCiphertext { iv, ciphertext, note,
+                           publicKey? } under four role arrays (VaultRoleKeys);
+                           PUBLIC summaries (VaultSummary / VaultAccountSummary /
+                           VaultKeySummary — role + iv + note + publicKey | null,
+                           no key material); SENSITIVE
                            VaultSigningSession (per-operation only); signing
                            requests carry keyIv + vaultPassword; ImportVaultParams
                            merge variant carries targetPassword; the 17 error codes
 src/lib/vault/errors.ts    VaultError (code + English message); codes come from types.ts
 src/lib/vault/envelope.ts  base64url codec (canonical-only) + V1 HIERARCHICAL
-                           validation: exact field sets at all three levels
-                           (root / account / key), exactly four role arrays,
+                           validation: exact field sets at root / account, key
+                           level = iv/ciphertext/note REQUIRED + optional
+                           non-empty-string publicKey (unknown fields still
+                           rejected), exactly four role arrays,
                            unique normalized account names, IV uniqueness across
                            the whole vault, canonical base64url, salt = 16 B,
                            key IV = 12 B, ciphertext >= 16 B GCM-tag floor;
@@ -77,14 +80,19 @@ src/lib/vault/service.ts   Session service, per-key era: the session is a
                            getAccounts / getEnvelope / getRecordSnapshot are
                            LOCKED-READABLE (resolve session vault -> active
                            vault -> VAULT_EMPTY): the public directory
-                           (accountName / role / iv / note) needs no password.
+                           (accountName / role / iv / note / publicKey | null)
+                           needs no password.
                            commitAccounts = full-envelope-validate + CAS payload
                            write; addKey (password-authenticated insert, fresh IV,
-                           duplicate publicKey detected by decrypting the role's
-                           existing keys — no write on duplicate); removeKey
+                           persists the outer publicKey — caller-supplied or
+                           WIF-derived; duplicate detection FIRST compares the
+                           stored publicKey field of the role's existing keys
+                           without decrypting, falling back to the transient
+                           decrypt probe for legacy field-less entries — no write
+                           on duplicate); removeKey
                            (located by account + role + IV); updateKeyNote (note
-                           edit, ciphertext untouched); BroadcastChannel as
-                           acceleration layer only
+                           edit, ciphertext and publicKey untouched);
+                           BroadcastChannel as acceleration layer only
 src/lib/vault/manager.ts    VaultManager orchestration: the VaultManager surface
                            plus unlockVault / importVaultDetailed (preMergeBackup
                            handoff) / addKey / removeKey / updateKeyNote /
@@ -173,7 +181,11 @@ src/components/vault/vault-manager.tsx  A5+R1 composition root + panel:
 src/components/vault/vault-key-manager.tsx  R2 key-manager view (locked-state
                            browsing): renders the public directory from
                            manager.getAccounts — account groups, per-role key
-                           counts, outer notes — with NO unlock; per-key
+                           counts, outer notes, plus a SECOND indented row per
+                           key entry that carries the outer publicKey (truncated
+                           STM…STM monospace + copy-to-clipboard button for the
+                           full key; legacy entries without the field render no
+                           second row) — with NO unlock; per-key
                            operations ride manager.updateKeyNote / removeKey
                            (account + role + IV pointer, explicit confirm
                            dialog, no password — removal only deletes
@@ -429,7 +441,11 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
 1. **V1 hierarchical envelope, per-key ciphertext.** The root carries exactly
    `version / vaultName / salt / accounts` (`ENVELOPE_FIELDS`); every account
    exactly `accountName / keys`; `keys` exactly the four role arrays
-   `owner / active / posting / memo`; every key exactly `iv / ciphertext / note`.
+   `owner / active / posting / memo`; every key `iv / ciphertext / note`
+   REQUIRED plus an OPTIONAL `publicKey` (non-empty string when present —
+   outer PUBLIC data persisted since 2026-11-13 so the locked key manager can
+   display and dedupe keys without decrypting; entries written before the
+   field existed stay valid without it, and no unknown field is tolerated).
    No root `iv`/`ciphertext`, no flat `keys[]` payload, no `wrappedDataKey`, no
    hidden `vaultId`, no public `accountNames` sidecar, no "unlock an old vault
    to build a directory" step. The retired whole-payload envelope is REJECTED by
@@ -438,7 +454,8 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
    `normalizeSteemUsername`; key IVs are unique across the ENTIRE vault (the IV
    is the key-selection pointer).
 2. **Outer metadata is public — and never authority.** Account names, roles,
-   IVs and notes are visible while LOCKED (`service.getAccounts` /
+   IVs, notes and the outer `publicKey` are visible while LOCKED
+   (`service.getAccounts` /
    `getEnvelope` / `getRecordSnapshot` resolve session vault → active vault
    with no password) and appear in cleartext in every backup. The UI must keep
    warning users never to put secrets in a note (four locales,
@@ -469,11 +486,14 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
    Two further decryption surfaces exist and are DELIBERATE — know them
    before "optimizing" them away: `addKey` and `mergeVaultBackup` transiently
    decrypt existing keys one at a time solely to derive public keys for
-   authentication/dedupe (these probes never rewrite the winning ciphertext),
-   and `changePassword` decrypts each key only to immediately re-encrypt it
-   under the fresh-salt KEK. Every such path clears each plaintext before
-   touching the next key and must never form a state where all WIFs are
-   simultaneously in memory.
+   authentication/dedupe (these probes never rewrite the winning ciphertext;
+   entries already carrying the outer publicKey field are compared as plain
+   strings instead of being decrypted), and `changePassword` decrypts each
+   key only to immediately re-encrypt it under the fresh-salt KEK (carrying
+   the key's outer publicKey over verbatim — dropping it there would erase
+   the field on every password change). Every such path clears each
+   plaintext before touching the next key and must never form a state where
+   all WIFs are simultaneously in memory.
 5. **Signing carries `keyIv` + `vaultPassword`; everything is cleared before
    broadcast.** `SignOperationsRequest` / `SignResolvedTransactionRequest`
    select the exact encrypted key by `(accountName, role, keyIv)` and carry the
@@ -498,7 +518,9 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
    SENSITIVE: they may only exist inside one operation's scope — never in
    Redux, logs, analytics, network requests or caller components.
    `VaultSummary` / `VaultAccountSummary` / `VaultKeySummary` (`role`, `iv`,
-   `note`) / `SignResult` are PUBLIC and must stay free of key material.
+   `note`, `publicKey | null`) / `SignResult` are PUBLIC and must stay free
+   of key material (an outer `publicKey` is inherently public — the chain
+   publishes it at verification time).
    Error messages never contain password, ciphertext, KEK or WIF fragments
    (tests assert this).
 8. **`memo` is stored but never signs.** `SigningRole =
