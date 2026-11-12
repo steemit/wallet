@@ -816,10 +816,16 @@ into, or changePassword on, a vault with zero key ciphertext).
   layer (2026-11-05 ruling); the sanctioned recovery path is
   `registry.purgeInvalidVaultRecords` / `manager.cleanupUnreadableVaults`,
   offered by the panel ONLY on a `VAULT_ENVELOPE_INVALID` load failure and
-  gated behind an explicit user confirmation. It deletes only rows the
-  standard validation rejects and resets a dangling `activeVaultName`; do not
-  wire it into normal flows or widen the deletion verdict beyond the shared
-  validation path.
+  gated behind an explicit user confirmation. Confirming is a
+  DOWNLOAD-THEN-PURGE sequence: the dialog first snapshots the raw rows via
+  `manager.listUnreadableVaultRecords` (each entry carries the primary key,
+  the raw display name and the VERBATIM stored value) and delivers them as a
+  `steem-wallet-incompatible-vault-records-<timestamp>.json` download — a
+  failed snapshot or download ABORTS the purge — and only then deletes. The
+  copy is archival/debugging only: this version cannot re-import it. The
+  purge deletes only rows the standard validation rejects and resets a
+  dangling `activeVaultName`; do not wire it into normal flows or widen the
+  deletion verdict beyond the shared validation path.
 
 ## Extension checklist
 

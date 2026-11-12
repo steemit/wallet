@@ -296,14 +296,12 @@ function readFileText(file: File): Promise<string> {
 }
 
 /**
- * Download an envelope as a JSON file. Browser-side only — the backup never
- * touches the server (the relay architecture keeps vault data device-local).
+ * Trigger a client-side download of a JSON payload as a blob file. Browser
+ * side only — vault data never touches the server (the relay architecture
+ * keeps vault data device-local).
  */
-function downloadVaultBackupFile(envelope: VaultEnvelopeV1, hint: 'backup' | 'pre-merge'): void {
-  const safeName = envelope.vaultName.replace(/[^a-zA-Z0-9._-]+/g, '_');
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = `steem-wallet-vault-${safeName}-${hint}-${stamp}.json`;
-  const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: 'application/json' });
+function downloadJsonFile(payload: unknown, filename: string): void {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -313,6 +311,30 @@ function downloadVaultBackupFile(envelope: VaultEnvelopeV1, hint: 'backup' | 'pr
   anchor.remove();
   // Revoke only after the click had a chance to start the download.
   setTimeout(() => URL.revokeObjectURL(url), 5_000);
+}
+
+/**
+ * Download an envelope as a JSON file (export / pre-merge backup).
+ */
+function downloadVaultBackupFile(envelope: VaultEnvelopeV1, hint: 'backup' | 'pre-merge'): void {
+  const safeName = envelope.vaultName.replace(/[^a-zA-Z0-9._-]+/g, '_');
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  downloadJsonFile(envelope, `steem-wallet-vault-${safeName}-${hint}-${stamp}.json`);
+}
+
+/**
+ * Download the raw unreadable vault rows as an archival JSON file. Entries
+ * are verbatim ({@link downloadJsonFile} receives the
+ * `listUnreadableVaultRecords` result unchanged): the stored value is
+ * preserved exactly as IndexedDB returned it (unknown shape — this build
+ * cannot read it, so it must not be reshaped). The copy exists for
+ * record-keeping/debugging only; this version cannot re-import it.
+ */
+function downloadIncompatibleVaultRecordsFile(
+  records: Array<{ key: IDBValidKey; vaultName: string | null; record: unknown }>,
+): void {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  downloadJsonFile(records, `steem-wallet-incompatible-vault-records-${stamp}.json`);
 }
 
 /** Inline destructive error box (the transfer-form pattern). */
@@ -1425,6 +1447,12 @@ function DeleteVaultForm({
  * (a) only unrecognized records are removed — readable vaults and settings
  * are unaffected — and (b) the removal is unrecoverable, and backups exported
  * by the old version cannot be imported here either.
+ *
+ * Confirming is a DOWNLOAD-THEN-PURGE sequence: the raw rows are snapshotted
+ * (`listUnreadableVaultRecords`) and delivered as a JSON file first, and the
+ * purge runs only after that copy exists — a failed download aborts the
+ * whole operation, since purging without a surviving copy would leave the
+ * loss without a trace.
  */
 function CleanupIncompatibleVaultsDialog({
   open,
@@ -1476,6 +1504,12 @@ function CleanupIncompatibleVaultsForm({
     setBusy(true);
     setErrorKey(null);
     try {
+      // DOWNLOAD-THEN-PURGE: snapshot the raw rows while they still exist and
+      // deliver the archival JSON copy FIRST. A snapshot or download failure
+      // aborts the whole operation — the purge only runs once the copy has
+      // been handed to the browser, so "cleared with no trace" cannot happen.
+      const records = await manager.listUnreadableVaultRecords();
+      downloadIncompatibleVaultRecordsFile(records);
       const result = await manager.cleanupUnreadableVaults();
       onCleaned(result.removed.length);
     } catch (error) {
@@ -1490,6 +1524,7 @@ function CleanupIncompatibleVaultsForm({
         <p className="text-destructive text-sm font-medium">{t('cleanupWarning')}</p>
       </div>
       <p className="text-muted-foreground text-sm">{t('cleanupScopeNote')}</p>
+      <p className="text-muted-foreground text-sm">{t('cleanupDownloadNote')}</p>
       <p className="text-muted-foreground text-sm">{t('cleanupNoPassword')}</p>
       {errorKey && <ErrorBox messageKey={errorKey} />}
       <DialogFooter>

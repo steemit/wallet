@@ -267,12 +267,17 @@ describe('hierarchical vault registry', () => {
       };
     }
 
-    it('reports exactly the unreadable rows with their primary keys and raw names', async () => {
-      fake.seed(VAULT_DB_NAME, 'vaults', makeLegacyRecord('Legacy Vault'));
+    it('reports exactly the unreadable rows with their primary keys, raw names and verbatim records', async () => {
+      const legacy = makeLegacyRecord('Legacy Vault');
+      fake.seed(VAULT_DB_NAME, 'vaults', legacy);
       fake.seed(VAULT_DB_NAME, 'vaults', makeRecord('Readable'));
       const invalid = await registry.listInvalidVaultRecords();
       expect(invalid.map((entry) => entry.key)).toEqual(['Legacy Vault']);
       expect(invalid.map((entry) => entry.vaultName)).toEqual(['Legacy Vault']);
+      // `record` is the verbatim stored value (unknown shape) — the archival
+      // copy the cleanup dialog downloads before the purge, not a reshaped or
+      // re-importable one.
+      expect(invalid.map((entry) => entry.record)).toEqual([legacy]);
       // The very shape that breaks the normal load path (VAULT_ENVELOPE_INVALID
       // is what the panel's load failure surfaces to the user).
       await expect(registry.getRecord('Legacy Vault')).rejects.toMatchObject({

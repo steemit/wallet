@@ -51,6 +51,21 @@ export interface VaultManagerExtended extends VaultManager {
   removeKey(pointer: VaultKeyPointer): Promise<VaultRecordV1>;
   updateKeyNote(pointer: VaultKeyPointer, note: string): Promise<VaultRecordV1>;
   /**
+   * Read-only snapshot of the stored records the current code cannot read —
+   * the exact rows {@link VaultManagerExtended.cleanupUnreadableVaults}
+   * deletes. Each entry carries the row's primary key, its raw display name
+   * (`null` when the row carries none) and the VERBATIM stored value
+   * (`record`, unknown shape: this version cannot interpret it — it is an
+   * as-is archival copy, not a re-importable backup).
+   *
+   * UI CONTRACT: call this BEFORE `cleanupUnreadableVaults` — the cleanup
+   * dialog snapshots and downloads these rows first, and only purges once
+   * the copy has been delivered. After the purge the rows are gone.
+   */
+  listUnreadableVaultRecords(): Promise<
+    Array<{ key: IDBValidKey; vaultName: string | null; record: unknown }>
+  >;
+  /**
    * Remove every stored vault record the current code can no longer read
    * (incompatible envelope versions — e.g. whole-vault-format rows left by
    * the never-shipped A5 build, which has no migration layer by design) and
@@ -58,10 +73,12 @@ export interface VaultManagerExtended extends VaultManager {
    *
    * UI CONTRACT: call this ONLY after the user has explicitly confirmed the
    * purge in the cleanup dialog (the panel offers it when the vault list
-   * fails to load with `VAULT_ENVELOPE_INVALID`). Removed records are
-   * unrecoverable; readable vaults and every other settings field are never
-   * touched. Returns the removed rows' names (`null` when a raw row carries
-   * none — the UI filters those out when listing names).
+   * fails to load with `VAULT_ENVELOPE_INVALID`), and only AFTER the raw rows
+   * have been snapshotted via `listUnreadableVaultRecords` and downloaded —
+   * a failed download aborts the purge. Removed records are unrecoverable;
+   * readable vaults and every other settings field are never touched.
+   * Returns the removed rows' names (`null` when a raw row carries none —
+   * the UI filters those out when listing names).
    */
   cleanupUnreadableVaults(): Promise<{ removed: Array<string | null> }>;
   createSigner(): {
@@ -196,6 +213,14 @@ export function createVaultManager(registry: VaultRegistry): VaultManagerExtende
       const status = await tolerantStatus(service);
       if (statusMatchesVault(status, vaultName)) await service.lock();
       await registry.removeVault(vaultName);
+    },
+
+    listUnreadableVaultRecords(): Promise<
+      Array<{ key: IDBValidKey; vaultName: string | null; record: unknown }>
+    > {
+      // Thin pass-through, same division of labor as cleanupUnreadableVaults:
+      // the verdict (which rows are unreadable) lives in the registry.
+      return registry.listInvalidVaultRecords();
     },
 
     cleanupUnreadableVaults(): Promise<{ removed: Array<string | null> }> {

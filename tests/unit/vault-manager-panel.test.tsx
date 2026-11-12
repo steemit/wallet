@@ -134,6 +134,10 @@ function makeManager(initial: VaultSummary[]): ManagerState {
     removeVault: vi.fn(async (...args: unknown[]) => {
       record('removeVault')(args);
     }),
+    listUnreadableVaultRecords: vi.fn(async (...args: unknown[]) => {
+      record('listUnreadableVaultRecords')(args);
+      return [];
+    }),
     cleanupUnreadableVaults: vi.fn(async (...args: unknown[]) => {
       record('cleanupUnreadableVaults')(args);
       return { removed: [] };
@@ -177,6 +181,20 @@ function envelopeFor(name: string): VaultEnvelopeV1 {
     salt: 'AAECAwQFBgcICQoLDA0ODw',
     accounts: [],
   };
+}
+
+/** Read a Blob's text via FileReader (jsdom Blob does not implement .text()). */
+function readBlobText(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve(typeof reader.result === 'string' ? reader.result : '');
+    };
+    reader.onerror = () => {
+      reject(reader.error ?? new Error('reading the blob failed'));
+    };
+    reader.readAsText(blob);
+  });
 }
 
 /** Open a row's Manage dropdown and click a menu item.
@@ -523,31 +541,71 @@ describe('VaultManagerPanel', () => {
     errorSpy.mockRestore();
   });
 
-  it('cleanup flow: confirm purges, refreshes the list and reports the removed count', async () => {
+  it('cleanup flow: confirm downloads the raw records BEFORE the purge, then refreshes and reports the count', async () => {
     const state = makeManager([summary({ vaultName: 'Main' })]);
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
       new VaultError('VAULT_ENVELOPE_INVALID', 'stored vault record failed validation'),
     );
-    (state.manager.cleanupUnreadableVaults as unknown as AnyMock).mockResolvedValueOnce({
-      removed: ['Old Vault', null],
+    // The raw row exactly as the old build stored it (unknown shape to this
+    // version) — the archival copy must carry it verbatim.
+    const rawRecord = {
+      version: 1,
+      vaultName: 'Old Vault',
+      salt: 'AAECAwQFBgcICQoLDA0ODw',
+      iv: 'EBESExQVFhcYGRob',
+      ciphertext: 'AAAAAAAAAAAAAAAAAAAAAA',
+      revision: 0,
+      lockEpoch: 0,
+      createdAt: 1_700_000_000_000,
+      updatedAt: 1_700_000_000_000,
+      lastBackupAt: null,
+    };
+    const order: string[] = [];
+    (state.manager.listUnreadableVaultRecords as unknown as AnyMock).mockImplementation(async () => {
+      order.push('list');
+      return [{ key: 'Old Vault', vaultName: 'Old Vault', record: rawRecord }];
     });
+    (state.manager.cleanupUnreadableVaults as unknown as AnyMock).mockImplementation(async () => {
+      order.push('purge');
+      return { removed: ['Old Vault', null] };
+    });
+    // Capture the anchor download names at click time (the anchor is removed
+    // right after, so this spy is the only way to observe the filename).
+    const downloadedNames: string[] = [];
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        downloadedNames.push(this.download);
+      });
     renderPanel(state);
     expect(await screen.findByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('vault-cleanup-incompatible'));
     expect(await screen.findByText('cleanupTitle')).toBeInTheDocument();
-    // The dialog states scope (only unrecognized records) and irreversibility
-    // (no recovery, no migration for old exports) before the destructive
-    // button is clicked.
+    // The dialog states scope (only unrecognized records), the new
+    // download-first contract (copy is NOT re-importable) and
+    // irreversibility (no recovery, no migration for old exports) before the
+    // destructive button is clicked.
     expect(screen.getByText('cleanupDescription')).toBeInTheDocument();
     expect(screen.getByText('cleanupWarning')).toBeInTheDocument();
     expect(screen.getByText('cleanupScopeNote')).toBeInTheDocument();
+    expect(screen.getByText('cleanupDownloadNote')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'cleanupConfirm' }));
     await waitFor(() => {
       expect(state.manager.cleanupUnreadableVaults).toHaveBeenCalled();
     });
+    // Call ORDER, not just presence: the archival copy is delivered before
+    // the purge runs.
+    expect(order).toEqual(['list', 'purge']);
+    // The downloaded file: expected name prefix and the verbatim record array.
+    expect(downloadedNames).toHaveLength(1);
+    expect(downloadedNames[0]).toMatch(/^steem-wallet-incompatible-vault-records-\d{4}/);
+    const blob = (createObjectURLMock.mock.calls.at(-1) as unknown as [Blob])?.[0];
+    expect(JSON.parse(await readBlobText(blob))).toEqual([
+      { key: 'Old Vault', vaultName: 'Old Vault', record: rawRecord },
+    ]);
     // The list recovers, the error is gone and a one-line info banner reports
     // the removed-record count.
     expect(await screen.findByText('cleanupDone')).toBeInTheDocument();
@@ -555,6 +613,36 @@ describe('VaultManagerPanel', () => {
     expect(screen.queryByText('errors.VAULT_ENVELOPE_INVALID')).not.toBeInTheDocument();
     expect(screen.queryByText('cleanupTitle')).not.toBeInTheDocument();
     expectNoSecrets(document.body);
+    clickSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it('cleanup flow: a download failure aborts BEFORE the purge and surfaces the error', async () => {
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (state.manager.listVaults as unknown as AnyMock).mockRejectedValueOnce(
+      new VaultError('VAULT_ENVELOPE_INVALID', 'stored vault record failed validation'),
+    );
+    (state.manager.listUnreadableVaultRecords as unknown as AnyMock).mockResolvedValueOnce([
+      { key: 'Old', vaultName: 'Old', record: { broken: true } },
+    ]);
+    renderPanel(state);
+    expect(await screen.findByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('vault-cleanup-incompatible'));
+    expect(await screen.findByText('cleanupTitle')).toBeInTheDocument();
+    // The blob-URL factory fails → the archival copy cannot be delivered.
+    URL.createObjectURL = (() => {
+      throw new Error('blob unavailable');
+    }) as unknown as typeof URL.createObjectURL;
+    fireEvent.click(screen.getByRole('button', { name: 'cleanupConfirm' }));
+
+    // Purge is aborted (nothing deleted), the failure renders in context and
+    // the dialog stays open for a retry.
+    expect(await screen.findByText('errors.unexpected')).toBeInTheDocument();
+    expect(state.manager.cleanupUnreadableVaults).not.toHaveBeenCalled();
+    expect(screen.getByText('cleanupTitle')).toBeInTheDocument();
+    expect(screen.queryByText('cleanupDone')).not.toBeInTheDocument();
     errorSpy.mockRestore();
   });
 
@@ -573,7 +661,9 @@ describe('VaultManagerPanel', () => {
     await waitFor(() => {
       expect(screen.queryByText('cleanupTitle')).not.toBeInTheDocument();
     });
+    // Cancel touches neither the snapshot nor the purge.
     expect(state.manager.cleanupUnreadableVaults).not.toHaveBeenCalled();
+    expect(state.manager.listUnreadableVaultRecords).not.toHaveBeenCalled();
     expect(screen.getByText('errors.VAULT_ENVELOPE_INVALID')).toBeInTheDocument();
     errorSpy.mockRestore();
   });

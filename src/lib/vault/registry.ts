@@ -174,8 +174,14 @@ export interface VaultRegistry {
    * closed with `VAULT_STORAGE_UNAVAILABLE`. Read-only (`readonly`
    * transaction). `vaultName` is the raw stored string when the row carries
    * one, `null` otherwise (the UI filters those out when listing names).
+   * `record` is the stored value VERBATIM (unknown shape — this version
+   * cannot interpret it): an as-is archival copy for the cleanup dialog to
+   * download before {@link purgeInvalidVaultRecords} deletes the rows, never
+   * a re-importable backup and never a lookup key.
    */
-  listInvalidVaultRecords(): Promise<Array<{ key: IDBValidKey; vaultName: string | null }>>;
+  listInvalidVaultRecords(): Promise<
+    Array<{ key: IDBValidKey; vaultName: string | null; record: unknown }>
+  >;
 
   /**
    * Delete every record that fails the standard validation path (the same
@@ -698,15 +704,24 @@ export async function openVaultRegistry(dbName: string = VAULT_DB_NAME): Promise
     },
 
     async listInvalidVaultRecords(): Promise<
-      Array<{ key: IDBValidKey; vaultName: string | null }>
+      Array<{ key: IDBValidKey; vaultName: string | null; record: unknown }>
     > {
       return runInTransaction(db, [VAULT_STORE_VAULTS], 'readonly', async (transaction) => {
         const rows = await readRawVaultRows(transaction.objectStore(VAULT_STORE_VAULTS));
-        const invalid: Array<{ key: IDBValidKey; vaultName: string | null }> = [];
+        const invalid: Array<{
+          key: IDBValidKey;
+          vaultName: string | null;
+          record: unknown;
+        }> = [];
         for (const row of rows) {
           // Isolated per row: one unreadable record must not hide the rest.
           if (isUnreadableRecord(row.value)) {
-            invalid.push({ key: row.key, vaultName: rawVaultName(row.value) });
+            invalid.push({
+              key: row.key,
+              vaultName: rawVaultName(row.value),
+              // Verbatim stored value — the archival copy, not a reshaped one.
+              record: row.value,
+            });
           }
         }
         return invalid;
