@@ -277,7 +277,7 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
                       data-testid="vault-key-public-key"
                     >
                       <code
-                        className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-xs"
+                        className="text-muted-foreground truncate font-mono text-xs"
                         title={key.publicKey}
                       >
                         {shortPublicKey(key.publicKey)}
