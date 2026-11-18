@@ -21,8 +21,9 @@
 //
 // Each key row is TWO lines: the first keeps the badge + note + actions, the
 // second (only when the stored entry carries the outer publicKey field —
-// legacy entries without it render no second line at all) shows the
-// truncated public key in monospace with a small copy-to-clipboard button.
+// legacy entries without it render no second line at all) shows the FULL
+// public key in monospace, soft-wrapping at any character so it fits narrow
+// viewports, with a small copy-to-clipboard button right after it.
 // A Steem public key is inherently public, so displaying it while LOCKED is
 // free of privacy cost; the private key never appears anywhere.
 import { useTranslations } from 'next-intl';
@@ -54,13 +55,6 @@ const ROLE_LABEL_KEYS: Record<VaultKeyRole, string> = {
   posting: 'keysRolePosting',
   memo: 'keysRoleMemo',
 };
-
-/** `STM` + first 4 + ellipsis + last 4; short values render as-is. */
-function shortPublicKey(publicKey: string): string {
-  return publicKey.length <= 12
-    ? publicKey
-    : `${publicKey.slice(0, 7)}…${publicKey.slice(-4)}`;
-}
 
 /** A key the note/remove dialogs currently target (IV = unique pointer). */
 interface KeyTarget {
@@ -128,7 +122,7 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
     try {
       await navigator.clipboard.writeText(key.publicKey);
     } catch {
-      // Clipboard unavailable or denied — the truncated key stays visible.
+      // Clipboard unavailable or denied — the full key stays visible.
       return;
     }
     setCopiedIv(key.iv);
@@ -223,19 +217,19 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
                   data-testid="vault-key-row"
                   data-key-iv={key.iv}
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 max-sm:flex-wrap">
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
                         {roleLabel(key.role)}
                       </span>
                       <span
-                        className="text-muted-foreground truncate text-xs"
+                        className="text-muted-foreground min-w-0 truncate text-xs"
                         title={key.note === '' ? undefined : key.note}
                       >
                         {key.note === '' ? t('keysNoNote') : key.note}
                       </span>
                     </span>
-                    <span className="flex shrink-0 gap-1">
+                    <span className="ml-auto flex shrink-0 gap-1">
                       <Button
                         type="button"
                         variant="ghost"
@@ -273,14 +267,14 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
                   </div>
                   {key.publicKey !== null && (
                     <div
-                      className="flex items-center gap-1 pl-1"
+                      className="flex flex-wrap items-center gap-x-1 gap-y-1 pl-1"
                       data-testid="vault-key-public-key"
                     >
                       <code
-                        className="text-muted-foreground truncate font-mono text-xs"
+                        className="text-muted-foreground min-w-0 break-all font-mono text-xs"
                         title={key.publicKey}
                       >
-                        {shortPublicKey(key.publicKey)}
+                        {key.publicKey}
                       </code>
                       <Button
                         type="button"

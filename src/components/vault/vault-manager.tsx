@@ -480,7 +480,7 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
   };
 
   return (
-    <div className="flex flex-col gap-4 px-4 pb-6">
+    <div className="flex min-w-0 flex-col gap-4 px-4 pb-6">
       <WorkModeSwitcher
         facade={facade}
         onModeChange={setMode}

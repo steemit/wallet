@@ -656,18 +656,18 @@ describe('VaultKeyManager public-key rows', () => {
     }
   });
 
-  it('renders a truncated monospace public key with a copy button; legacy rows get no second line', async () => {
+  it('renders the FULL monospace public key with a copy button; legacy rows get no second line', async () => {
     const state = makeManager();
     render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
     const alice = (await screen.findAllByTestId('vault-key-account'))[0] as HTMLElement;
     const postingRow = within(alice).getAllByTestId('vault-key-row')[0] as HTMLElement;
 
-    // Truncated display: STM + first 4 + ellipsis + last 4. The FULL key is
-    // exposed only via the hover title, never as rendered text.
+    // Full display: the COMPLETE public key is rendered text (soft-wrapping
+    // at any character so it fits narrow viewports); the hover title carries
+    // the same value for pointer devices.
     const line = within(postingRow).getByTestId('vault-key-public-key');
-    expect(line).toHaveTextContent('STMABCD…5678');
+    expect(line).toHaveTextContent(STORED_PUBLIC_KEY);
     expect(line.querySelector('code')).toHaveAttribute('title', STORED_PUBLIC_KEY);
-    expect(line).not.toHaveTextContent(STORED_PUBLIC_KEY);
     expect(within(line).getByRole('button', { name: 'keysPublicKeyCopy' })).toBeInTheDocument();
 
     // A legacy entry without the outer field renders NO second line (no
@@ -724,8 +724,7 @@ describe('VaultKeyManager public-key rows', () => {
     fireEvent.click(screen.getByTestId('vault-add-key-primary'));
     await screen.findByText('keyAdded');
     // The refreshed directory lists the new posting key with the verified
-    // public key; the vitest steem-js mock truncation shows it un-truncated
-    // (≤ 12 chars render as-is).
+    // public key rendered in full.
     await waitFor(() => {
       expect(state.manager.addKey).toHaveBeenCalled();
     });

@@ -118,7 +118,7 @@ export function WorkModeSwitcher({
         role="radiogroup"
         aria-label={t('workModeTitle')}
         aria-busy={switching || loading}
-        className="mt-2 grid grid-cols-2 gap-2"
+        className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"
       >
         {options.map(({ value, titleKey, badgeKey, descriptionKey, icon: Icon }) => {
           const selected = mode === value;

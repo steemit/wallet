@@ -92,7 +92,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               onInteractOutside={(event) => event.preventDefault()}
               data-testid="work-mode-modal"
             >
-              <DialogHeader className="p-4">
+              <DialogHeader className="min-w-0 p-4">
                 <DialogTitle>{t('workModeTitle')}</DialogTitle>
               </DialogHeader>
               <VaultWorkModeContent focusId={WORK_MODE_SWITCHER_FOCUS_ID} />

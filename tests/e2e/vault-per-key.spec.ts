@@ -343,6 +343,47 @@ async function selectValues(select: Locator): Promise<string[]> {
     .evaluateAll((options) => options.map((o) => (o as HTMLOptionElement).value));
 }
 
+/**
+ * Narrow-viewport variant of the overflow check for the Work Mode modal: the
+ * page must not scroll horizontally, the modal box must sit inside the
+ * viewport, and every descendant must stay within the modal box (the grid
+ * item min-content chain that used to stretch the modal to 597px at 375px is
+ * regression-pinned here).
+ */
+async function expectNoModalOverflow(page: Page) {
+  const offenders = await page.evaluate(() => {
+    const bad: string[] = [];
+    const root = document.documentElement;
+    const vw = root.clientWidth;
+    if (root.scrollWidth > vw + 0.5) {
+      bad.push(`documentElement (scrollWidth ${root.scrollWidth} > ${vw})`);
+    }
+    const modal = document.querySelector('[data-testid="work-mode-modal"]');
+    if (modal === null) {
+      bad.push('work-mode-modal (missing)');
+      return bad;
+    }
+    const box = modal.getBoundingClientRect();
+    if (box.left < -0.5 || box.right > vw + 0.5) {
+      bad.push(`modal box (left ${box.left.toFixed(1)}, right ${box.right.toFixed(1)}, viewport ${vw})`);
+    }
+    for (const node of modal.querySelectorAll('*')) {
+      if (node.tagName === 'OPTION' || node.tagName === 'OPTGROUP') continue;
+      const rect = node.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) continue;
+      if (rect.left < box.left - 0.5 || rect.right > box.right + 0.5) {
+        bad.push(
+          `${node.tagName.toLowerCase()}[data-testid=${node.getAttribute('data-testid') ?? '-'}] ` +
+            `outside the modal (left ${rect.left.toFixed(1)}, right ${rect.right.toFixed(1)})`,
+        );
+        break;
+      }
+    }
+    return bad;
+  });
+  expect(offenders, `unexpected horizontal overflow: ${offenders.join(', ')}`).toEqual([]);
+}
+
 /** Record every request to the server-side auth endpoints (must stay empty). */
 function trackAuthEndpoints(page: Page): string[] {
   const urls: string[] = [];
@@ -389,9 +430,15 @@ test.describe('Vault per-key hierarchy (R1-R3)', () => {
     await expectNoHorizontalOverflow(page, '[data-testid="vault-key-manager"]');
     const aliceGroup = view.getByTestId('vault-key-account').filter({ hasText: 'alice' });
     await expect(aliceGroup.getByText('Owner 0 · Active 0 · Posting 1 · Memo 0')).toBeVisible();
-    await expect(
-      aliceGroup.getByTestId('vault-key-row').filter({ hasText: 'desktop posting key' }),
-    ).toBeVisible();
+    const postingRow = aliceGroup
+      .getByTestId('vault-key-row')
+      .filter({ hasText: 'desktop posting key' });
+    await expect(postingRow).toBeVisible();
+    // The key row renders the COMPLETE public key (no truncation), with the
+    // hover title carrying the same full value.
+    const publicKeyLine = postingRow.getByTestId('vault-key-public-key');
+    await expect(publicKeyLine).toHaveText(postingKey.publicKey);
+    await expect(publicKeyLine.locator('code')).toHaveAttribute('title', postingKey.publicKey);
     await view.getByRole('button', { name: 'Back', exact: true }).click();
     await expect(row.getByText('Locked', { exact: true })).toBeVisible();
 
@@ -728,5 +775,78 @@ test.describe('Vault per-key hierarchy (R1-R3)', () => {
       page.getByRole('menuitem').filter({ hasText: 'Wallet' }),
     ).toHaveAttribute('href', '/@bob/transfers');
     expect(authEndpoints).toEqual([]);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// Narrow viewport (iPhone SE width): Work Mode modal must never overflow
+// -----------------------------------------------------------------------------
+
+test.describe('Work Mode modal on a 375px viewport (iPhone SE width)', () => {
+  test.use({ viewport: { width: 375, height: 667 } });
+
+  test.setTimeout(150_000);
+
+  test('mode cards, vault list and key manager with a full public key never overflow horizontally', async ({
+    page,
+  }) => {
+    const postingKey = fixtureKey('posting');
+    await abortAllQueries(page);
+    await fulfillAccountsRoute(page, {
+      alice: chainAccount('alice', { posting: [[postingKey.publicKey, 1]] }),
+    });
+
+    await page.goto('/');
+    const modal = await openWorkModeModal(page);
+
+    // State 1: mode switcher only (the two mode cards stack vertically).
+    await expectNoModalOverflow(page);
+
+    await switchToVaultMode(modal);
+    // Dismiss the empty-state prompt so the list header is reachable.
+    const emptyDialog = emptyVaultsDialog(page);
+    await expect(emptyDialog).toBeVisible({ timeout: 15_000 });
+    await emptyDialog.getByRole('button', { name: 'Continue browsing' }).click();
+    await expect(emptyDialog).toBeHidden();
+
+    // State 2: vault list with its header button row.
+    await expectNoModalOverflow(page);
+
+    const row = await createVault(page, modal, 'Mobile Vault', false);
+    const view = await openKeyManager(page, modal, 'Mobile Vault');
+    await addKeyThroughDialog(
+      page,
+      view,
+      {
+        account: 'alice',
+        wif: postingKey.privateKey,
+        note: 'a fairly long mobile note to exercise row wrapping',
+      },
+      /Verified: this key matches the on-chain Posting authority \(weight 1 of 1\)/,
+      /Key added to the vault\./,
+    );
+
+    // State 3: key manager with a FULL 53-character public key row — the
+    // combination that used to stretch the modal to 597px. The key wraps
+    // instead of scrolling; page, modal box and all descendants stay inside
+    // the 375px viewport.
+    await expectNoModalOverflow(page);
+    await expectNoHorizontalOverflow(page, '[data-testid="vault-key-manager"]');
+    const aliceGroup = view.getByTestId('vault-key-account').filter({ hasText: 'alice' });
+    const publicKeyLine = aliceGroup
+      .getByTestId('vault-key-row')
+      .filter({ hasText: 'a fairly long mobile note to exercise row wrapping' })
+      .getByTestId('vault-key-public-key');
+    await expect(publicKeyLine).toHaveText(postingKey.publicKey);
+    await expect(publicKeyLine.locator('code')).toHaveAttribute('title', postingKey.publicKey);
+
+    // Desktop-style structure assertions at mobile width: the copy button is
+    // still reachable next to the key.
+    await expect(
+      publicKeyLine.getByRole('button', { name: 'Copy public key' }),
+    ).toBeVisible();
+
+    await view.getByRole('button', { name: 'Back', exact: true }).click();
+    await expect(row.getByText('Locked', { exact: true })).toBeVisible();
   });
 });
