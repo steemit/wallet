@@ -25,6 +25,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { VaultKeyManager } from '@/components/vault/vault-key-manager';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { VaultError } from '@/lib/vault/errors';
 import type { VaultKeyChainMatch } from '@/lib/vault/key-management';
 import type { VaultManagerExtended } from '@/lib/vault/manager';
@@ -103,6 +104,16 @@ type ManagerState = {
   manager: VaultManagerExtended;
   directory: VaultAccountSummary[];
 };
+
+// Radix Tooltip requires a Provider ancestor; the app mounts one in
+// app-layout, so tests wrap the manager the same way (balance-rows pattern).
+function renderManager(state: ManagerState) {
+  return render(
+    <TooltipProvider>
+      <VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />
+    </TooltipProvider>,
+  );
+}
 
 /** A manager mock whose getAccounts serves a mutable directory. */
 function makeManager(initial: VaultAccountSummary[] = directory()): ManagerState {
@@ -186,7 +197,7 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('renders the public directory locked (no unlock): accounts, role counts and notes', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
 
     const alice = (await screen.findAllByTestId('vault-key-account'))[0] as HTMLElement;
     expect(alice).toHaveAttribute('data-account', 'alice');
@@ -205,13 +216,13 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('empty directory shows the empty hint', async () => {
     const state = makeManager([]);
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     expect(await screen.findByText('keysEmpty')).toBeInTheDocument();
   });
 
   it('add flow (matched): verify then confirm stores the key; success banner; no leaks', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     await verifyAddKey(MATCHED);
@@ -249,7 +260,7 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('add flow (sub-threshold): warning shown, confirm still stores the key', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     await verifyAddKey({
@@ -272,7 +283,7 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('add flow (not on chain): warning shown, confirm still stores the key', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     await verifyAddKey({
@@ -299,7 +310,7 @@ describe('VaultKeyManager (R2 key management)', () => {
     mockVerifyKeysOnChain.mockRejectedValueOnce(
       new VaultError('VAULT_AUTHORITY_UNAVAILABLE', 'chain down'),
     );
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     fireEvent.click(screen.getByRole('button', { name: 'keysAddKey' }));
@@ -322,7 +333,7 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('a locally invalid account name is rejected before any chain query', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     fireEvent.click(screen.getByRole('button', { name: 'keysAddKey' }));
@@ -359,7 +370,7 @@ describe('VaultKeyManager (R2 key management)', () => {
       unlockVault: vi.fn(),
     } as unknown as VaultManagerExtended;
 
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     await verifyAddKey(MATCHED);
@@ -371,9 +382,22 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('removal asks for confirmation and locates the key by account + role + IV', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     const alice = (await screen.findAllByTestId('vault-key-account'))[0] as HTMLElement;
     const postingRow = within(alice).getAllByTestId('vault-key-row')[0] as HTMLElement;
+
+    // Icon-only actions: the labels surface as aria-label (the accessible
+    // name) with no visible text next to the icons.
+    expect(within(postingRow).getByRole('button', { name: 'keysRemoveKey' })).toHaveAttribute(
+      'aria-label',
+      'keysRemoveKey',
+    );
+    expect(within(postingRow).getByRole('button', { name: 'keysEditNote' })).toHaveAttribute(
+      'aria-label',
+      'keysEditNote',
+    );
+    expect(within(postingRow).queryByText('keysRemoveKey')).not.toBeInTheDocument();
+    expect(within(postingRow).queryByText('keysEditNote')).not.toBeInTheDocument();
 
     fireEvent.click(within(postingRow).getByRole('button', { name: 'keysRemoveKey' }));
     expect(await screen.findByTestId('vault-remove-key-dialog')).toHaveTextContent(
@@ -400,7 +424,7 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('note editing is prefilled and saves through updateKeyNote', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     const alice = (await screen.findAllByTestId('vault-key-account'))[0] as HTMLElement;
     const postingRow = within(alice).getAllByTestId('vault-key-row')[0] as HTMLElement;
 
@@ -450,7 +474,7 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('cancel scrubs the WIF and password: dialog closes, nothing leaks, reopening starts empty', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     await openAndFillAddKey();
@@ -471,7 +495,7 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('dismissing the dialog (Esc unmounts the form) also leaves no WIF behind', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     // Mid-flow: verified but NOT confirmed — the WIF sits in the form state.
@@ -492,9 +516,7 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('unmounting the whole key manager with a typed WIF leaves nothing in the document', async () => {
     const state = makeManager();
-    const { unmount } = render(
-      <VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />,
-    );
+    const { unmount } = renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     await openAndFillAddKey();
@@ -517,7 +539,7 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('authority differs from the selected role (memo selected, posting matched): WARN tone + stored-as-selected copy', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     const box = await verifyWithRole('memo', MATCHED);
@@ -539,7 +561,7 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('authority differs the other way (posting selected, memo key matched): WARN, not the green memo verdict', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     const box = await verifyWithRole('posting', {
@@ -555,7 +577,7 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('memo selected and memo matched keeps the green memo verdict', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     const box = await verifyWithRole('memo', {
@@ -571,7 +593,7 @@ describe('VaultKeyManager (R2 key management)', () => {
 
   it('sub-threshold outranks authority-differs (the signer-rejection warning wins)', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     const box = await verifyWithRole('posting', {
@@ -621,7 +643,7 @@ describe('VaultKeyManager (R2 key management)', () => {
       unlockVault: vi.fn(),
     } as unknown as VaultManagerExtended;
 
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     await verifyAddKey(MATCHED);
@@ -656,17 +678,18 @@ describe('VaultKeyManager public-key rows', () => {
     }
   });
 
-  it('renders the FULL monospace public key with a copy button; legacy rows get no second line', async () => {
+  it('renders a TRUNCATED monospace public key with a copy button; legacy rows get no second line', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     const alice = (await screen.findAllByTestId('vault-key-account'))[0] as HTMLElement;
     const postingRow = within(alice).getAllByTestId('vault-key-row')[0] as HTMLElement;
 
-    // Full display: the COMPLETE public key is rendered text (soft-wrapping
-    // at any character so it fits narrow viewports); the hover title carries
-    // the same value for pointer devices.
+    // Truncated display (`STM` + first 4 + ellipsis + last 4) so the row fits
+    // narrow viewports in one line; the hover title carries the FULL value
+    // and the copy button always copies the complete key.
     const line = within(postingRow).getByTestId('vault-key-public-key');
-    expect(line).toHaveTextContent(STORED_PUBLIC_KEY);
+    expect(line).toHaveTextContent('STMABCD…5678');
+    expect(line).not.toHaveTextContent(STORED_PUBLIC_KEY);
     expect(line.querySelector('code')).toHaveAttribute('title', STORED_PUBLIC_KEY);
     expect(within(line).getByRole('button', { name: 'keysPublicKeyCopy' })).toBeInTheDocument();
 
@@ -681,7 +704,7 @@ describe('VaultKeyManager public-key rows', () => {
 
   it('the copy button writes the FULL public key and flips to the copied state', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     const alice = (await screen.findAllByTestId('vault-key-account'))[0] as HTMLElement;
     const postingRow = within(alice).getAllByTestId('vault-key-row')[0] as HTMLElement;
     const line = within(postingRow).getByTestId('vault-key-public-key');
@@ -701,7 +724,7 @@ describe('VaultKeyManager public-key rows', () => {
   it('a clipboard rejection keeps the copy affordance without crashing', async () => {
     writeText.mockRejectedValueOnce(new Error('denied'));
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     const alice = (await screen.findAllByTestId('vault-key-account'))[0] as HTMLElement;
     const postingRow = within(alice).getAllByTestId('vault-key-row')[0] as HTMLElement;
     const line = within(postingRow).getByTestId('vault-key-public-key');
@@ -717,7 +740,7 @@ describe('VaultKeyManager public-key rows', () => {
 
   it('a freshly added key (publicKey passed through addKey) renders its second row after refresh', async () => {
     const state = makeManager();
-    render(<VaultKeyManager vaultName={VAULT} manager={state.manager} onBack={() => undefined} />);
+    renderManager(state);
     await screen.findAllByTestId('vault-key-account');
 
     await verifyAddKey(MATCHED);

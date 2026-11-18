@@ -19,11 +19,13 @@
 // two-column grid; VaultErrors map to `vault.errors.<CODE>` i18n keys — raw
 // English messages never render.
 //
-// Each key row is TWO lines: the first keeps the badge + note + actions, the
-// second (only when the stored entry carries the outer publicKey field —
-// legacy entries without it render no second line at all) shows the FULL
-// public key in monospace, soft-wrapping at any character so it fits narrow
-// viewports, with a small copy-to-clipboard button right after it.
+// Each key row is TWO lines: the first keeps the badge + note + icon-only
+// actions (edit note / remove, labelled via tooltip + aria-label), the second
+// (only when the stored entry carries the outer publicKey field — legacy
+// entries without it render no second line at all) shows a TRUNCATED public
+// key in monospace (`STM` + first 4 + ellipsis + last 4) with a small
+// copy-to-clipboard button right after it; the hover title carries the full
+// value, and copying always copies the full key.
 // A Steem public key is inherently public, so displaying it while LOCKED is
 // free of privacy cost; the private key never appears anywhere.
 import { useTranslations } from 'next-intl';
@@ -42,6 +44,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { modalFormActionButtonClassName } from '@/components/ui/modal-form-actions';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { VaultError } from '@/lib/vault/errors';
 import type { VaultManagerExtended } from '@/lib/vault/manager';
 import type { VaultAccountSummary, VaultKeyRole, VaultKeySummary } from '@/lib/vault/types';
@@ -55,6 +62,13 @@ const ROLE_LABEL_KEYS: Record<VaultKeyRole, string> = {
   posting: 'keysRolePosting',
   memo: 'keysRoleMemo',
 };
+
+/** `STM` + first 4 + ellipsis + last 4; short values render as-is. */
+function shortPublicKey(publicKey: string): string {
+  return publicKey.length <= 12
+    ? publicKey
+    : `${publicKey.slice(0, 7)}…${publicKey.slice(-4)}`;
+}
 
 /** A key the note/remove dialogs currently target (IV = unique pointer). */
 interface KeyTarget {
@@ -122,7 +136,7 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
     try {
       await navigator.clipboard.writeText(key.publicKey);
     } catch {
-      // Clipboard unavailable or denied — the full key stays visible.
+      // Clipboard unavailable or denied — the truncated key stays visible.
       return;
     }
     setCopiedIv(key.iv);
@@ -230,39 +244,49 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
                       </span>
                     </span>
                     <span className="ml-auto flex shrink-0 gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setNoteTarget({
-                            accountName: account.accountName,
-                            role: key.role,
-                            iv: key.iv,
-                            note: key.note,
-                          })
-                        }
-                      >
-                        <Pencil aria-hidden />
-                        {t('keysEditNote')}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() =>
-                          setRemoveTarget({
-                            accountName: account.accountName,
-                            role: key.role,
-                            iv: key.iv,
-                            note: key.note,
-                          })
-                        }
-                      >
-                        <Trash2 aria-hidden />
-                        {t('keysRemoveKey')}
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={t('keysEditNote')}
+                            onClick={() =>
+                              setNoteTarget({
+                                accountName: account.accountName,
+                                role: key.role,
+                                iv: key.iv,
+                                note: key.note,
+                              })
+                            }
+                          >
+                            <Pencil aria-hidden />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t('keysEditNote')}</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-destructive hover:text-destructive"
+                            aria-label={t('keysRemoveKey')}
+                            onClick={() =>
+                              setRemoveTarget({
+                                accountName: account.accountName,
+                                role: key.role,
+                                iv: key.iv,
+                                note: key.note,
+                              })
+                            }
+                          >
+                            <Trash2 aria-hidden />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t('keysRemoveKey')}</TooltipContent>
+                      </Tooltip>
                     </span>
                   </div>
                   {key.publicKey !== null && (
@@ -271,10 +295,10 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
                       data-testid="vault-key-public-key"
                     >
                       <code
-                        className="text-muted-foreground min-w-0 break-all font-mono text-xs"
+                        className="text-muted-foreground min-w-0 font-mono text-xs"
                         title={key.publicKey}
                       >
-                        {key.publicKey}
+                        {shortPublicKey(key.publicKey)}
                       </code>
                       <Button
                         type="button"

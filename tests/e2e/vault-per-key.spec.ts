@@ -51,6 +51,13 @@ function fixtureKey(role: 'posting' | 'active') {
   return key;
 }
 
+/** Mirror of the UI truncation: `STM` + first 4 + ellipsis + last 4. */
+function shortPublicKey(publicKey: string): string {
+  return publicKey.length <= 12
+    ? publicKey
+    : `${publicKey.slice(0, 7)}…${publicKey.slice(-4)}`;
+}
+
 // ---------------------------------------------------------------------------
 // Controlled /api/query/accounts responses
 // ---------------------------------------------------------------------------
@@ -434,10 +441,10 @@ test.describe('Vault per-key hierarchy (R1-R3)', () => {
       .getByTestId('vault-key-row')
       .filter({ hasText: 'desktop posting key' });
     await expect(postingRow).toBeVisible();
-    // The key row renders the COMPLETE public key (no truncation), with the
-    // hover title carrying the same full value.
+    // The key row renders the TRUNCATED public key; the hover title carries
+    // the full value.
     const publicKeyLine = postingRow.getByTestId('vault-key-public-key');
-    await expect(publicKeyLine).toHaveText(postingKey.publicKey);
+    await expect(publicKeyLine).toHaveText(shortPublicKey(postingKey.publicKey));
     await expect(publicKeyLine.locator('code')).toHaveAttribute('title', postingKey.publicKey);
     await view.getByRole('button', { name: 'Back', exact: true }).click();
     await expect(row.getByText('Locked', { exact: true })).toBeVisible();
@@ -826,10 +833,10 @@ test.describe('Work Mode modal on a 375px viewport (iPhone SE width)', () => {
       /Key added to the vault\./,
     );
 
-    // State 3: key manager with a FULL 53-character public key row — the
-    // combination that used to stretch the modal to 597px. The key wraps
-    // instead of scrolling; page, modal box and all descendants stay inside
-    // the 375px viewport.
+    // State 3: key manager with a long wrapped note row + a truncated
+    // 53-character public key — the combination that used to stretch the
+    // modal to 597px. The row wraps instead of scrolling; page, modal box
+    // and all descendants stay inside the 375px viewport.
     await expectNoModalOverflow(page);
     await expectNoHorizontalOverflow(page, '[data-testid="vault-key-manager"]');
     const aliceGroup = view.getByTestId('vault-key-account').filter({ hasText: 'alice' });
@@ -837,7 +844,7 @@ test.describe('Work Mode modal on a 375px viewport (iPhone SE width)', () => {
       .getByTestId('vault-key-row')
       .filter({ hasText: 'a fairly long mobile note to exercise row wrapping' })
       .getByTestId('vault-key-public-key');
-    await expect(publicKeyLine).toHaveText(postingKey.publicKey);
+    await expect(publicKeyLine).toHaveText(shortPublicKey(postingKey.publicKey));
     await expect(publicKeyLine.locator('code')).toHaveAttribute('title', postingKey.publicKey);
 
     // Desktop-style structure assertions at mobile width: the copy button is
