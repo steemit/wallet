@@ -5,7 +5,9 @@
 import { describe, it, expect } from 'vitest';
 import authReducer, {
   setCredentials,
+  setVaultIdentity,
   logout,
+  sessionKindOf,
   type AuthState,
 } from '@/lib/store/slices/auth';
 
@@ -19,6 +21,7 @@ describe('Auth Slice', () => {
     privateKey: null,
     publicKey: null,
     isAuthenticated: false,
+    sessionKind: 'privateKey',
   };
 
   describe('Initial State', () => {
@@ -135,6 +138,78 @@ describe('Auth Slice', () => {
       const state = authReducer(loggedInState, logout());
 
       expect(state).toEqual(initialState);
+    });
+  });
+
+  describe('sessionKind + setVaultIdentity (vault R3)', () => {
+    const KEY_FIELDS = [
+      'ownerKey',
+      'activeKey',
+      'postingKey',
+      'memoKey',
+      'privateKey',
+      'publicKey',
+    ] as const;
+
+    it('setCredentials marks the session as privateKey', () => {
+      const state = authReducer(
+        initialState,
+        setCredentials({ username: 'alice', activeKey: 'active-key-value' })
+      );
+      expect(state.sessionKind).toBe('privateKey');
+    });
+
+    it('setVaultIdentity records the username with sessionKind vault and NO key material', () => {
+      const state = authReducer(initialState, setVaultIdentity({ username: 'alice' }));
+
+      expect(state.username).toBe('alice');
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.sessionKind).toBe('vault');
+      for (const field of KEY_FIELDS) {
+        expect(state[field], `${field} must be null in a vault session`).toBeNull();
+      }
+    });
+
+    it('setVaultIdentity wipes key material left by a previous privateKey session', () => {
+      const privateKeySession = authReducer(
+        initialState,
+        setCredentials({
+          username: 'bob',
+          ownerKey: 'owner-key-value',
+          activeKey: 'active-key-value',
+          postingKey: 'posting-key-value',
+          memoKey: 'memo-key-value',
+          publicKey: 'public-key-value',
+        })
+      );
+
+      const state = authReducer(privateKeySession, setVaultIdentity({ username: 'alice' }));
+
+      expect(state.username).toBe('alice');
+      expect(state.sessionKind).toBe('vault');
+      for (const field of KEY_FIELDS) {
+        expect(state[field], `${field} must be wiped by setVaultIdentity`).toBeNull();
+      }
+    });
+
+    it('logout from a vault session returns to the initial privateKey state', () => {
+      const vaultSession = authReducer(initialState, setVaultIdentity({ username: 'alice' }));
+      expect(authReducer(vaultSession, logout())).toEqual(initialState);
+    });
+
+    it('sessionKindOf treats an absent field as privateKey (pre-R3 state shape)', () => {
+      const legacyShape: AuthState = {
+        username: 'carol',
+        ownerKey: null,
+        activeKey: 'active-key-value',
+        postingKey: null,
+        memoKey: null,
+        privateKey: 'active-key-value',
+        publicKey: null,
+        isAuthenticated: true,
+      };
+      expect(sessionKindOf(legacyShape)).toBe('privateKey');
+      expect(sessionKindOf({ sessionKind: 'vault' })).toBe('vault');
     });
   });
 });

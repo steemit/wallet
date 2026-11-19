@@ -258,6 +258,19 @@ class FakeObjectStore {
     return request;
   }
 
+  /**
+   * Primary keys in the same order as getAll() (both read the same Map,
+   * mirroring real IDB's index-aligned getAll/getAllKeys contract; the
+   * registry's invalid-record scan relies on that alignment).
+   */
+  getAllKeys(): FakeIDBRequest {
+    const request = new FakeIDBRequest();
+    this.tx._submit(request, () => {
+      request.fulfill([...this.data().keys()]);
+    });
+    return request;
+  }
+
   put(value: unknown, key?: FakeKey): FakeIDBRequest {
     const request = new FakeIDBRequest();
     this.tx._submit(request, () => {

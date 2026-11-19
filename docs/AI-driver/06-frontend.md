@@ -81,8 +81,10 @@ canonical lowercase.
   fallback, see the "Steem authority semantics" section in 02-auth.md; do NOT consult
   `get_required_signatures`, it is strict per-class and misleads). Reference implementation:
   `ClaimRewardsBanner.handleClaim` (#378) resolves session posting → device-remembered posting
-  (chain-verified) → session active → session owner → re-auth dialog, and only shows the
-  keyless hint when NO signing key exists.
+  (chain-verified; privateKey sessions only — skipped when `sessionKindOf(auth)` is `'vault'`,
+  09-vault.md invariant 21) → session active → session owner → re-auth dialog, and only shows
+  the keyless hint when NO signing key exists. Never copy the device-remembered step into a
+  path a vault session can reach; vault signing is the per-key password path (A6).
 
 ## Legacy-parity watchlist (verified drifts from `wallet-legacy`)
 

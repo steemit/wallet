@@ -24,6 +24,8 @@ import type {
 const REQUEST: SignOperationsRequest = {
   accountName: 'alice',
   role: 'posting',
+  keyIv: 'AAECAwQFBgcICQoLDA0ODw',
+  vaultPassword: 'facade-dispatch-only-password',
   operations: [
     ['custom_json', { required_posting_auths: ['alice'], id: 'x', json: '[]' }],
   ],
@@ -31,6 +33,8 @@ const REQUEST: SignOperationsRequest = {
 const RESOLVED_REQUEST: SignResolvedTransactionRequest = {
   accountName: 'alice',
   role: 'active',
+  keyIv: 'AAECAwQFBgcICQoLDA0ODw',
+  vaultPassword: 'facade-dispatch-only-password',
   transaction: {
     ref_block_num: 1,
     ref_block_prefix: 2,
