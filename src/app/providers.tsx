@@ -17,7 +17,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   // src/lib/auth/session-key-source.ts). An effect, not the state
   // initializer, so StrictMode's double-invoked initializer can never leave a
   // discarded store bound; the effect never runs during SSR, so no
-  // server-side request state is retained.
+  // server-side request state is retained. The effect deliberately has NO
+  // cleanup (nothing unbinds on unmount): Providers never unmounts in
+  // practice, and a StrictMode cleanup pass would open an unbound window
+  // between the simulated unmount and remount.
   useEffect(() => {
     bindSessionKeyStore(store);
   }, [store]);

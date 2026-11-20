@@ -24,6 +24,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { steem } from '@steemit/steem-js';
 import vectors from '../fixtures/vault-development-test-vectors.json';
 import { installFakeIndexedDB, type FakeIndexedDBHandle } from '../mocks/fake-indexeddb';
+import { REMEMBERED_POSTING_KEY_KEY } from '@/lib/auth/browser-storage';
 import { createLegacyPrivateKeySigner } from '@/lib/auth/legacy-private-key-signer';
 import {
   bindSessionKeyStore,
@@ -113,6 +114,9 @@ describe('session key source (A6-T1)', () => {
 
   afterEach(() => {
     resetSessionKeyStore();
+    // Drop any decoy remembered key a test seeded (nothing else in this file
+    // touches localStorage).
+    localStorage.removeItem(REMEMBERED_POSTING_KEY_KEY);
     vi.unstubAllGlobals();
     vi.mocked(steem.auth.signTransaction).mockClear();
   });
@@ -272,6 +276,39 @@ describe('session key source (A6-T1)', () => {
       });
       expect(vault.signOperations).toHaveBeenCalledTimes(1);
       expect(vi.mocked(steem.auth.signTransaction)).not.toHaveBeenCalled();
+    });
+
+    it('never falls back to the remembered localStorage posting key (red line)', async () => {
+      // A decoy sits in the REAL browser-storage slot for remembered posting
+      // keys. The session key source must read ONLY the Redux session: the
+      // remembered-key restore stays the claim-banner-specific affordance
+      // (invariant 21), so the getter/facade must fail closed to
+      // VAULT_KEY_INVALID even with a perfectly usable WIF in localStorage.
+      const decoy = '5Jdecoy-remembered-posting-key';
+      localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, decoy);
+      const getter = createSessionKeyGetter();
+      const facade = buildFacade(mockBackend().backend);
+
+      // Session holds an active key but NO posting key.
+      store.dispatch(setCredentials({ username: 'alice', activeKey: aliceActiveWif }));
+      expect(getter('alice', 'posting')).toBeUndefined();
+      await expect(facade.signOperations(signRequest())).rejects.toMatchObject({
+        code: 'VAULT_KEY_INVALID',
+      });
+
+      // A session that DID hold the posting key loses it on logout — the
+      // decoy is still ignored.
+      store.dispatch(setCredentials({ username: 'alice', postingKey: alicePostingWif }));
+      expect(getter('alice', 'posting')).toBe(alicePostingWif);
+      store.dispatch(logout());
+      expect(getter('alice', 'posting')).toBeUndefined();
+      await expect(facade.signOperations(signRequest())).rejects.toMatchObject({
+        code: 'VAULT_KEY_INVALID',
+      });
+
+      expect(vi.mocked(steem.auth.signTransaction)).not.toHaveBeenCalled();
+      // The decoy was never consumed or cleared by the signing path.
+      expect(localStorage.getItem(REMEMBERED_POSTING_KEY_KEY)).toBe(decoy);
     });
   });
 
