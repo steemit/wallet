@@ -84,7 +84,11 @@ canonical lowercase.
   (chain-verified; privateKey sessions only — skipped when `sessionKindOf(auth)` is `'vault'`,
   09-vault.md invariant 21) → session active → session owner → re-auth dialog, and only shows
   the keyless hint when NO signing key exists. Never copy the device-remembered step into a
-  path a vault session can reach; vault signing is the per-key password path (A6).
+  path a vault session can reach. Since A6-T2 the preferred pattern for NEW signing callers is
+  `useSessionSigning` (09-vault.md module map): it applies this lowest-at-or-above-the-floor
+  rule for privateKey sessions itself (active → owner for an active floor) and routes vault
+  identity sessions through the per-key password dialog; `transfer-form` is the pilot —
+  claim/witness/delegate/market/proposals still sign the old way until T3/T4 migrate them.
 
 ## Legacy-parity watchlist (verified drifts from `wallet-legacy`)
 

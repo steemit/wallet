@@ -44,7 +44,13 @@ function facadeWithMode(mode: SigningMode | Error): SigningFacade {
 }
 
 function readyRuntime(mode: SigningMode | Error): VaultRuntime {
-  return { state: 'ready', manager: {} as never, facade: facadeWithMode(mode) };
+  return {
+    state: 'ready',
+    manager: {} as never,
+    facade: facadeWithMode(mode),
+    vaultSigner: {} as never,
+    legacySigner: {} as never,
+  };
 }
 
 describe('HomeRedirectOrLogin + signing mode (R3)', () => {

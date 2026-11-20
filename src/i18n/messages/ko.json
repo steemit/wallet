@@ -847,6 +847,17 @@
     },
     "verifyAuthorityDiffers": "이 키는 계정의 온체인 {authority} 키와 일치하며, 선택한 역할({role})과 다릅니다. {role}(으)로 저장되지만, 온체인에서는 {authority} 키로만 사용할 수 있습니다.",
     "cleanupNoPassword": "이 기록들은 현재 버전에서 읽을 수 없어 비밀번호를 검증할 수 없습니다 — 그래서 삭제에 비밀번호가 필요하지 않습니다.",
-    "openVaultManagement": "볼트 관리 열기"
+    "openVaultManagement": "볼트 관리 열기",
+    "signDialogTitle": "볼트 키로 서명",
+    "signDialogDescription": "{account}의 {role} 키로 서명하려면 볼트 비밀번호를 입력하세요.",
+    "signDialogLoading": "볼트 키를 불러오는 중…",
+    "signDialogKeyLabel": "키",
+    "signDialogPasswordLabel": "볼트 비밀번호",
+    "signDialogPasswordHint": "비밀번호는 이번 서명에만 사용되며 저장되지 않습니다.",
+    "signDialogSubmit": "서명",
+    "signDialogSigning": "서명 중…",
+    "signDialogRetryHint": "비밀번호를 확인하고 다시 시도하세요.",
+    "signDialogNoKeys": "이 볼트에는 이 작업에 서명할 수 있는 {account}의 키가 없습니다.",
+    "signDialogNoKeysHint": "먼저 볼트 관리에서 {role} 키를 추가한 후 다시 시도하세요."
   }
 }

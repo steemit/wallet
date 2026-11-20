@@ -98,6 +98,7 @@ import type {
   SigningMode,
   VaultErrorCode,
   VaultEnvelopeV1,
+  VaultSigner,
   VaultSummary,
 } from '@/lib/vault/types';
 import { KeyConfirmationDialog } from './key-confirmation-dialog';
@@ -113,6 +114,17 @@ import { WorkModeSwitcher } from './work-mode-switcher';
 interface VaultRuntimeReady {
   manager: VaultManagerExtended;
   facade: SigningFacade;
+  /**
+   * The exact signer instances wired into the facade (A6-T2). Business
+   * signing routes on the SESSION kind (who is authenticated in this tab),
+   * not the persisted device mode the facade dispatches on — the two can
+   * diverge after a mid-session mode switch, and each session kind has
+   * exactly one backend that can serve it (vault sessions hold no Redux
+   * keys, privateKey sessions carry no vault password). Consumers get the
+   * same instances the facade would use; never build another signer.
+   */
+  vaultSigner: VaultSigner;
+  legacySigner: VaultSigner;
 }
 
 let runtimePromise: Promise<VaultRuntimeReady> | null = null;
@@ -125,13 +137,13 @@ async function initializeVaultRuntime(): Promise<VaultRuntimeReady> {
   // logged-in account's Redux session keys at signing time via the session
   // key source (see src/lib/auth/session-key-source.ts for the store-access
   // decision); when the session holds no key for the requested role the
-  // legacy signer fails closed with VAULT_KEY_INVALID. No business component
-  // signs through the facade yet (that is the A6 caller migration).
-  const facade = createSigningFacade(registry, {
-    vaultSigner: manager.createSigner(),
-    legacySigner: createLegacyPrivateKeySigner(createSessionKeyGetter()),
-  });
-  return { manager, facade };
+  // legacy signer fails closed with VAULT_KEY_INVALID. Business callers sign
+  // through useSessionSigning (A6-T2+), which picks the backend by session
+  // kind from the exposed instances.
+  const vaultSigner = manager.createSigner();
+  const legacySigner = createLegacyPrivateKeySigner(createSessionKeyGetter());
+  const facade = createSigningFacade(registry, { vaultSigner, legacySigner });
+  return { manager, facade, vaultSigner, legacySigner };
 }
 
 /**
@@ -156,7 +168,15 @@ export function resetVaultRuntime(): void {
 
 export type VaultRuntime =
   | { state: 'loading' }
-  | { state: 'ready'; manager: VaultManagerExtended; facade: SigningFacade }
+  | {
+      state: 'ready';
+      manager: VaultManagerExtended;
+      facade: SigningFacade;
+      /** The facade's vault backend (session-kind routing — see above). */
+      vaultSigner: VaultSigner;
+      /** The facade's privateKey backend (session-kind routing — see above). */
+      legacySigner: VaultSigner;
+    }
   | { state: 'unavailable'; code: VaultErrorCode; retry: () => void };
 
 const VaultRuntimeContext = createContext<VaultRuntime>({ state: 'loading' });
@@ -174,7 +194,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     getVaultRuntime()
       .then((ready) => {
         if (!cancelled) {
-          setRuntime({ state: 'ready', manager: ready.manager, facade: ready.facade });
+          setRuntime({
+            state: 'ready',
+            manager: ready.manager,
+            facade: ready.facade,
+            vaultSigner: ready.vaultSigner,
+            legacySigner: ready.legacySigner,
+          });
         }
       })
       .catch((error) => {

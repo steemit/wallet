@@ -5,6 +5,11 @@
  * compare at the precision that will actually be sent — "1.0005" against a
  * "1.0005 STEEM" balance previously passed the check, then rounded UP to
  * "1.001 STEEM" on chain.
+ *
+ * A6-T2: signing moved from SteemSigner.signTransfer* to the unified
+ * useSessionSigning entry — the assertions below were updated mechanically
+ * to the new boundary (the form still builds the exact same operation
+ * tuples and still broadcasts through apiClient.broadcastTransfer).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -29,25 +34,22 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
 }));
 
-vi.mock('@/hooks/use-auth', () => ({
-  useActiveSigningKey: () => '5J-test-active',
-}));
-
 const mockFetchAccounts = vi.fn();
 vi.mock('@/lib/steem/accounts-client', () => ({
   fetchAccounts: (...args: unknown[]) => mockFetchAccounts(...args),
 }));
 
+// The unified signing entry is mocked at the hook boundary; its own routing
+// matrix lives in use-session-signing.test.tsx.
 const mocks = vi.hoisted(() => ({
-  signToSavings: vi.fn(),
-  signTransfer: vi.fn(),
+  sign: vi.fn(),
   broadcast: vi.fn(),
 }));
+vi.mock('@/hooks/use-session-signing', () => ({
+  useSessionSigning: () => ({ sign: mocks.sign, dialog: null }),
+}));
+
 vi.mock('@/lib/steem/client', () => ({
-  SteemSigner: {
-    signTransferToSavings: (...args: unknown[]) => mocks.signToSavings(...args),
-    signTransfer: (...args: unknown[]) => mocks.signTransfer(...args),
-  },
   apiClient: {
     broadcastTransfer: (...args: unknown[]) => mocks.broadcast(...args),
   },
@@ -136,12 +138,12 @@ describe('TransferForm — amount validation parity (G-14)', () => {
     await waitFor(() => {
       expect(screen.getByText('errors.precision_error')).toBeInTheDocument();
     });
-    expect(mocks.signToSavings).not.toHaveBeenCalled();
+    expect(mocks.sign).not.toHaveBeenCalled();
     expect(mocks.broadcast).not.toHaveBeenCalled();
   });
 
   it('keeps the valid-input path unchanged (signs and broadcasts 3-decimal amount)', async () => {
-    mocks.signToSavings.mockResolvedValue({ id: 'tx' });
+    mocks.sign.mockResolvedValue({ status: 'signed', result: { signedTx: { id: 'tx' } } });
     mocks.broadcast.mockResolvedValue({ success: true });
     await renderSavingsForm('5.000 STEEM');
     await setAmount('1.001');
@@ -151,24 +153,27 @@ describe('TransferForm — amount validation parity (G-14)', () => {
     expect(await screen.findByText('confirmDescription')).toBeInTheDocument();
     // Empty memo renders as an explicit "—" row, not a missing field.
     expect(screen.getByText('—')).toBeInTheDocument();
-    expect(mocks.signToSavings).not.toHaveBeenCalled();
+    expect(mocks.sign).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'confirmButton' }));
 
     await waitFor(() => {
-      expect(mocks.signToSavings).toHaveBeenCalledWith(
-        'alice',
-        'alice',
-        '1.001 STEEM',
-        '',
-        '5J-test-active'
-      );
+      expect(mocks.sign).toHaveBeenCalledWith({
+        operations: [
+          [
+            'transfer_to_savings',
+            { from: 'alice', to: 'alice', amount: '1.001 STEEM', memo: '' },
+          ],
+        ],
+        accountName: 'alice',
+        role: 'active',
+      });
     });
     expect(mocks.broadcast).toHaveBeenCalledTimes(1);
   });
 
   it('direct transfer flow: validates recipient and broadcasts on confirm', async () => {
-    mocks.signTransfer.mockResolvedValue({ id: 'tx' });
+    mocks.sign.mockResolvedValue({ status: 'signed', result: { signedTx: { id: 'tx' } } });
     mocks.broadcast.mockResolvedValue({ success: true });
     const onSuccess = vi.fn();
     mockFetchAccounts.mockResolvedValue(balancesApiResponse('5.000 STEEM'));
@@ -190,25 +195,25 @@ describe('TransferForm — amount validation parity (G-14)', () => {
     // The review shows the recipient before anything is signed.
     expect(await screen.findByText('confirmDescription')).toBeInTheDocument();
     expect(screen.getByText('bob')).toBeInTheDocument();
-    expect(mocks.signTransfer).not.toHaveBeenCalled();
+    expect(mocks.sign).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'confirmButton' }));
 
     await waitFor(() => {
-      expect(mocks.signTransfer).toHaveBeenCalledWith(
-        'alice',
-        'bob',
-        '1.500 STEEM',
-        '',
-        '5J-test-active'
-      );
+      expect(mocks.sign).toHaveBeenCalledWith({
+        operations: [
+          ['transfer', { from: 'alice', to: 'bob', amount: '1.500 STEEM', memo: '' }],
+        ],
+        accountName: 'alice',
+        role: 'active',
+      });
     });
     expect(mocks.broadcast).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(onSuccess).toHaveBeenCalled());
   });
 
   it('verified-exchange recipient: memo required, warnings acknowledged, then sends', async () => {
-    mocks.signTransfer.mockResolvedValue({ id: 'tx' });
+    mocks.sign.mockResolvedValue({ status: 'signed', result: { signedTx: { id: 'tx' } } });
     mocks.broadcast.mockResolvedValue({ success: true });
     mockFetchAccounts.mockResolvedValue(balancesApiResponse('5.000 STEEM'));
     render(
@@ -225,7 +230,7 @@ describe('TransferForm — amount validation parity (G-14)', () => {
     // No memo -> verified exchanges require one; the review never opens.
     fireEvent.click(screen.getByRole('button', { name: 'continueButton' }));
     expect(await screen.findByText('errors.verified_exchange_no_memo')).toBeInTheDocument();
-    expect(mocks.signTransfer).not.toHaveBeenCalled();
+    expect(mocks.sign).not.toHaveBeenCalled();
 
     // Memo + acknowledging the exchange warnings opens the review, then confirm sends.
     fireEvent.change(screen.getByLabelText('memo'), { target: { value: 'deposit-123' } });
@@ -237,18 +242,18 @@ describe('TransferForm — amount validation parity (G-14)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'confirmButton' }));
 
     await waitFor(() => {
-      expect(mocks.signTransfer).toHaveBeenCalledWith(
-        'alice',
-        'bittrex',
-        '1.500 STEEM',
-        'deposit-123',
-        '5J-test-active'
-      );
+      expect(mocks.sign).toHaveBeenCalledWith({
+        operations: [
+          ['transfer', { from: 'alice', to: 'bittrex', amount: '1.500 STEEM', memo: 'deposit-123' }],
+        ],
+        accountName: 'alice',
+        role: 'active',
+      });
     });
   });
 
   it('confirm signs the reviewed snapshot even if form state moves on afterwards', async () => {
-    mocks.signToSavings.mockResolvedValue({ id: 'tx' });
+    mocks.sign.mockResolvedValue({ status: 'signed', result: { signedTx: { id: 'tx' } } });
     mocks.broadcast.mockResolvedValue({ success: true });
     mockFetchAccounts.mockResolvedValue(balancesApiResponse('5.000 STEEM'));
     const view = render(
@@ -276,15 +281,18 @@ describe('TransferForm — amount validation parity (G-14)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'confirmButton' }));
 
     await waitFor(() => {
-      expect(mocks.signToSavings).toHaveBeenCalledWith(
-        'alice',
-        'alice',
-        '1.001 STEEM',
-        '',
-        '5J-test-active'
-      );
+      expect(mocks.sign).toHaveBeenCalledWith({
+        operations: [
+          [
+            'transfer_to_savings',
+            { from: 'alice', to: 'alice', amount: '1.001 STEEM', memo: '' },
+          ],
+        ],
+        accountName: 'alice',
+        role: 'active',
+      });
     });
-    expect(mocks.signTransfer).not.toHaveBeenCalled();
+    expect(mocks.sign).toHaveBeenCalledTimes(1);
     expect(mocks.broadcast).toHaveBeenCalledTimes(1);
   });
 });

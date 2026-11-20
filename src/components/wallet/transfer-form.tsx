@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
-import { useActiveSigningKey } from '@/hooks/use-auth';
-import { SteemSigner, apiClient } from '@/lib/steem/client';
-import type { SignedTransaction } from '@/lib/steem/types';
+import { useSessionSigning } from '@/hooks/use-session-signing';
+import { LoginForm } from '@/components/auth/login-form';
+import { apiClient } from '@/lib/steem/client';
+import type { Operation } from '@/lib/steem/types';
 import { Button } from '@/components/ui/button';
 import {
   ModalFormActions,
@@ -92,9 +93,13 @@ export function TransferForm({
 }: TransferFormProps) {
   const t = useTranslations('transfer');
   const tCommon = useTranslations('common');
+  const tWallet = useTranslations('wallet');
   const router = useRouter();
   const username = useSelector((state: RootState) => state.auth.username);
-  const signingKey = useActiveSigningKey();
+  // Unified signing entry (A6-T2): privateKey sessions sign through the
+  // facade's legacy backend exactly as before; vault identity sessions get
+  // the per-key password dialog. `signing.dialog` mounts it.
+  const signing = useSessionSigning();
   const [isPending, startTransition] = useTransition();
 
   const [transferType, setTransferType] = useState<WalletTransferType>(initialTransferType);
@@ -118,6 +123,8 @@ export function TransferForm({
   const [warningsAcknowledged, setWarningsAcknowledged] = useState(false);
   const [draft, setDraft] = useState<TransferDraft | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  /** Classic re-auth for a privateKey session that lacks an active/owner key. */
+  const [reauthOpen, setReauthOpen] = useState(false);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => {
@@ -271,7 +278,7 @@ export function TransferForm({
     e.preventDefault();
     setError('');
 
-    if (!username || !signingKey) {
+    if (!username) {
       setError('Not authenticated');
       return;
     }
@@ -347,7 +354,7 @@ export function TransferForm({
   };
 
   const handleConfirm = async () => {
-    if (!username || !signingKey || !draft) {
+    if (!username || !draft) {
       setError('Not authenticated');
       return;
     }
@@ -355,40 +362,83 @@ export function TransferForm({
     setIsLoading(true);
 
     try {
-      let signedTx: SignedTransaction;
-
+      // Build the exact operation tuples SteemSigner.signTransfer* used to
+      // build internally — the signing itself now goes through the unified
+      // session signing entry (A6-T2).
+      let operations: Operation[];
       if (draft.transferType === 'transfer') {
-        signedTx = await SteemSigner.signTransfer(
-          username,
-          draft.recipient,
-          draft.amountStr,
-          draft.memo,
-          signingKey
-        );
+        operations = [
+          [
+            'transfer',
+            {
+              from: username,
+              to: draft.recipient,
+              amount: draft.amountStr,
+              memo: draft.memo,
+            },
+          ],
+        ];
       } else if (draft.transferType === 'savings') {
-        signedTx = await SteemSigner.signTransferToSavings(
-          username,
-          username,
-          draft.amountStr,
-          draft.memo,
-          signingKey
-        );
+        operations = [
+          [
+            'transfer_to_savings',
+            {
+              from: username,
+              to: username,
+              amount: draft.amountStr,
+              memo: draft.memo || '',
+            },
+          ],
+        ];
       } else if (draft.transferType === 'savings_withdraw') {
         const requestId = Date.now() >>> 0;
-        signedTx = await SteemSigner.signTransferFromSavings(
-          username,
-          username,
-          draft.amountStr,
-          draft.memo,
-          requestId,
-          signingKey
-        );
+        operations = [
+          [
+            'transfer_from_savings',
+            {
+              from: username,
+              to: username,
+              amount: draft.amountStr,
+              memo: draft.memo || '',
+              request_id: requestId,
+            },
+          ],
+        ];
       } else {
         setError('Unsupported operation');
         setIsLoading(false);
         return;
       }
 
+      // All three transfer flavors are active-class operations. privateKey
+      // sessions sign through the facade's legacy backend (active key, owner
+      // fallback — the useActiveSigningKey rule); vault sessions get the
+      // per-key password dialog.
+      const outcome = await signing.sign({
+        operations,
+        accountName: username,
+        role: 'active',
+      });
+
+      if (outcome.status === 'cancelled') {
+        // User aborted the vault dialog — back to the review, no error.
+        setIsLoading(false);
+        return;
+      }
+      if (outcome.status === 'needsClassicReauth') {
+        // privateKey session without an active/owner key: the existing
+        // classic re-auth dialog (unchanged behavior for that path).
+        setIsLoading(false);
+        setReauthOpen(true);
+        return;
+      }
+      if (outcome.status === 'error') {
+        setIsLoading(false);
+        setError('Failed to process transfer');
+        return;
+      }
+
+      const signedTx = outcome.result.signedTx;
       const response = await apiClient.broadcastTransfer(signedTx, username);
 
       if (!response.success) {
@@ -671,12 +721,31 @@ export function TransferForm({
     </Dialog>
   );
 
+  const reauthDialog = (
+    <Dialog open={reauthOpen} onOpenChange={setReauthOpen}>
+      <DialogContent className="z-[60] max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{tWallet('reauthTitle')}</DialogTitle>
+          <DialogDescription>{tWallet('reauthDescription')}</DialogDescription>
+        </DialogHeader>
+        <LoginForm
+          embedded
+          fixedUsername={username ?? ''}
+          requiredAuthTypes={['active']}
+          onLoginSuccess={() => setReauthOpen(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+
   if (variant === 'dialog') {
     return (
       <div className="px-1 py-1">
         <h2 className="mb-4 text-lg font-semibold">{titleKey}</h2>
         {formBody}
         {confirmDialog}
+        {reauthDialog}
+        {signing.dialog}
       </div>
     );
   }
@@ -690,6 +759,8 @@ export function TransferForm({
         <CardContent>{formBody}</CardContent>
       </Card>
       {confirmDialog}
+      {reauthDialog}
+      {signing.dialog}
     </div>
   );
 }

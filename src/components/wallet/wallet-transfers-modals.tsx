@@ -3,6 +3,9 @@
 import { useCallback, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/lib/store';
+import { sessionKindOf } from '@/lib/store/slices/auth';
 import { usePathname, useRouter } from '@/i18n/routing';
 import { useAuth, useActiveSigningKey } from '@/hooks/use-auth';
 import {
@@ -92,11 +95,25 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
     }
   }, [walletAction, isPowerUpLegacyUrl, accountUsername, canManageBalance, clearWalletQuery]);
 
+  // A vault identity session acting AS the page account signs the TRANSFER
+  // action through the per-key password path (A6-T2, useSessionSigning inside
+  // TransferForm) — classic re-auth can never provide a key for it, so the
+  // form is shown directly. Every other action (and a session NOT matching
+  // the page account) keeps the re-auth gate until its caller migrates
+  // (T3/T4); the `vaultUnsupported*` notice those consumers show in Vault
+  // Mode stays theirs.
+  const isPlainTransfer = walletAction === 'transfer' && !isPowerUpLegacyUrl;
+  const vaultSessionSignsTransfer =
+    useSelector((state: RootState) => sessionKindOf(state.auth)) === 'vault' &&
+    isPlainTransfer &&
+    sessionMatchesPage;
+
   const needsWalletReauth =
     open &&
     canManageBalance &&
     accountUsername &&
-    (!sessionMatchesPage || activeSigningKey === null);
+    (!sessionMatchesPage || activeSigningKey === null) &&
+    !vaultSessionSignsTransfer;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

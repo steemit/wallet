@@ -253,10 +253,24 @@ export function VaultLoginForm({ embedded = false, onLoginSuccess }: VaultLoginF
     window.dispatchEvent(new CustomEvent(VAULT_WORK_MODE_OPEN_EVENT));
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (selectedAccount === '') return;
     const username = normalizeSteemUsername(selectedAccount);
+    // Persist the selected vault as the device's ACTIVE vault (A6-T2): the
+    // per-operation signing path resolves its record through session vault
+    // -> ACTIVE vault, so acting as an identity of vault V must make V the
+    // active one — otherwise the first signing operation would dead-end on
+    // VAULT_EMPTY. Still NO unlock, NO decryption, NO network: this is a
+    // settings-row write in IndexedDB. A failure does not block the login
+    // (the identity is still recorded); signing surfaces map the failure.
+    if (selectedVault !== null && manager) {
+      try {
+        await manager.activateVault(selectedVault);
+      } catch (error) {
+        console.error('Failed to activate the selected vault', error);
+      }
+    }
     // The whole "login": record the identity locally. No unlock, no
     // challenge, no login request — the vault session is client-side only.
     dispatch(setVaultIdentity({ username }));

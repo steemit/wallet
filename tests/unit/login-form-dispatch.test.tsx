@@ -84,7 +84,13 @@ function facadeWithMode(mode: SigningMode | Error): SigningFacade {
 }
 
 function readyRuntime(mode: SigningMode | Error): VaultRuntime {
-  return { state: 'ready', manager: {} as never, facade: facadeWithMode(mode) };
+  return {
+    state: 'ready',
+    manager: {} as never,
+    facade: facadeWithMode(mode),
+    vaultSigner: {} as never,
+    legacySigner: {} as never,
+  };
 }
 
 function renderLogin(props: Parameters<typeof LoginForm>[0] = {}) {
@@ -110,7 +116,7 @@ describe('LoginForm mode dispatch (R3)', () => {
 
   it("'privateKey' mode renders the classic form unchanged", async () => {
     const facade = facadeWithMode('privateKey');
-    mockRuntime = { state: 'ready', manager: {} as never, facade };
+    mockRuntime = { state: 'ready', manager: {} as never, facade, vaultSigner: {} as never, legacySigner: {} as never };
     renderLogin();
 
     expect(privateKeyInput()).toBeInTheDocument();
@@ -179,7 +185,7 @@ describe('LoginForm mode dispatch (R3)', () => {
 
   it('embedded re-auth in privateKey mode keeps the classic locked-username form', async () => {
     const facade = facadeWithMode('privateKey');
-    mockRuntime = { state: 'ready', manager: {} as never, facade };
+    mockRuntime = { state: 'ready', manager: {} as never, facade, vaultSigner: {} as never, legacySigner: {} as never };
     renderLogin({ embedded: true, fixedUsername: 'alice', requiredAuthTypes: ['active'] });
 
     expect(privateKeyInput()).toBeInTheDocument();
@@ -238,7 +244,7 @@ describe('LoginForm mode dispatch (R3)', () => {
       signOperations: vi.fn(),
       signResolvedTransaction: vi.fn(),
     } as unknown as SigningFacade;
-    mockRuntime = { state: 'ready', manager: {} as never, facade };
+    mockRuntime = { state: 'ready', manager: {} as never, facade, vaultSigner: {} as never, legacySigner: {} as never };
     renderLogin();
 
     expect(await screen.findByTestId('vault-login-form-stub')).toBeInTheDocument();
