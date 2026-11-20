@@ -3,15 +3,21 @@
  * password dialog behavior.
  *
  * Routing (session kind, not persisted mode — see the hook header):
- *   - privateKey session with a key  -> the runtime's legacySigner, NO
- *     dialog, role = the LOWEST session key at-or-above the floor;
+ *   - privateKey session with a key  -> the hook module's STATIC legacy
+ *     signer (round-1 review P2: privateKey signing is INDEPENDENT of the
+ *     vault runtime — it works while the runtime is loading AND when storage
+ *     is unavailable), NO dialog, role = the LOWEST session key at-or-above
+ *     the floor;
  *   - privateKey session without key -> `needsClassicReauth` (no sign call);
  *   - vault session                  -> VaultSigningDialog over the runtime's
  *     vaultSigner: candidates from the locked-readable directory, one-shot
  *     password, mapped `vault.errors.*` surfaces, cancel = typed cancel.
  *
- * The runtime is injected by mocking `useVaultRuntime` (the login-form
- * dispatch pattern); the dialog itself is the REAL component.
+ * Injection seams: `useVaultRuntime` is mocked (the login-form dispatch
+ * pattern — only the DIALOG consumes the runtime now) and the privateKey
+ * backend is observed by mocking the `createLegacyPrivateKeySigner` factory
+ * the hook builds its static instance from; the dialog itself is the REAL
+ * component.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
@@ -39,6 +45,20 @@ vi.mock('next-intl', () => ({
 let mockRuntime: VaultRuntime = { state: 'loading' };
 vi.mock('@/components/vault/vault-manager', () => ({
   useVaultRuntime: () => mockRuntime,
+}));
+
+// The hook's STATIC privateKey backend is built at hook-module load from
+// this factory — mocking the factory swaps the singleton for an observable
+// spy-backed signer (the module-level instance pattern itself is pinned by
+// the runtime-state tests: signing must succeed with the runtime NOT ready).
+const statics = vi.hoisted(() => ({
+  legacySigner: {
+    signOperations: vi.fn(),
+    signResolvedTransaction: vi.fn(),
+  } satisfies Partial<VaultSigner>,
+}));
+vi.mock('@/lib/auth/legacy-private-key-signer', () => ({
+  createLegacyPrivateKeySigner: () => statics.legacySigner,
 }));
 
 class ResizeObserverStub {
@@ -238,16 +258,16 @@ describe('resolveSessionSigningRole (lowest key at-or-above the floor)', () => {
 });
 
 describe('useSessionSigning — privateKey sessions (dialogless)', () => {
-  it('signs through the legacy backend with the lowest session key, no dialog', async () => {
-    const { legacySigner } = readyRuntime({});
-    vi.mocked(legacySigner.signOperations).mockResolvedValue(signResult({ locked: false }));
+  it('signs through the static legacy backend with the lowest session key, no dialog', async () => {
+    readyRuntime({});
+    vi.mocked(statics.legacySigner.signOperations).mockResolvedValue(signResult({ locked: false }));
     renderHarness(privateKeyAuth());
 
     startSign();
     await waitFor(() => expect(outcomes).toHaveLength(1));
 
-    expect(legacySigner.signOperations).toHaveBeenCalledTimes(1);
-    expect(legacySigner.signOperations).toHaveBeenCalledWith({
+    expect(statics.legacySigner.signOperations).toHaveBeenCalledTimes(1);
+    expect(statics.legacySigner.signOperations).toHaveBeenCalledWith({
       accountName: 'alice',
       role: 'active',
       keyIv: '',
@@ -260,30 +280,30 @@ describe('useSessionSigning — privateKey sessions (dialogless)', () => {
   });
 
   it('falls back to the owner key when the session holds no active key', async () => {
-    const { legacySigner } = readyRuntime({});
-    vi.mocked(legacySigner.signOperations).mockResolvedValue(signResult());
+    readyRuntime({});
+    vi.mocked(statics.legacySigner.signOperations).mockResolvedValue(signResult());
     renderHarness(privateKeyAuth({ activeKey: null, ownerKey: '5J-test-owner' }));
 
     startSign();
     await waitFor(() => expect(outcomes).toHaveLength(1));
-    expect(legacySigner.signOperations).toHaveBeenCalledWith(
+    expect(statics.legacySigner.signOperations).toHaveBeenCalledWith(
       expect.objectContaining({ role: 'owner' }),
     );
   });
 
   it('resolves needsClassicReauth without a signing round-trip when no key is held', async () => {
-    const { legacySigner } = readyRuntime({});
+    readyRuntime({});
     renderHarness(privateKeyAuth({ activeKey: null, ownerKey: null }));
 
     startSign();
     await waitFor(() => expect(outcomes).toHaveLength(1));
     expect(outcomes[0]).toEqual({ status: 'needsClassicReauth' });
-    expect(legacySigner.signOperations).not.toHaveBeenCalled();
+    expect(statics.legacySigner.signOperations).not.toHaveBeenCalled();
   });
 
   it('maps a legacy VAULT_KEY_INVALID to needsClassicReauth (the signer re-reads keys at signing time)', async () => {
-    const { legacySigner } = readyRuntime({});
-    vi.mocked(legacySigner.signOperations).mockRejectedValue(
+    readyRuntime({});
+    vi.mocked(statics.legacySigner.signOperations).mockRejectedValue(
       new VaultError('VAULT_KEY_INVALID', 'no private key is available'),
     );
     renderHarness(privateKeyAuth());
@@ -294,8 +314,8 @@ describe('useSessionSigning — privateKey sessions (dialogless)', () => {
   });
 
   it('surfaces other legacy signer errors as typed error codes', async () => {
-    const { legacySigner } = readyRuntime({});
-    vi.mocked(legacySigner.signOperations).mockRejectedValue(
+    readyRuntime({});
+    vi.mocked(statics.legacySigner.signOperations).mockRejectedValue(
       new VaultError('VAULT_CRYPTO_UNAVAILABLE', 'subtle missing'),
     );
     renderHarness(privateKeyAuth());
@@ -305,27 +325,72 @@ describe('useSessionSigning — privateKey sessions (dialogless)', () => {
     expect(outcomes[0]).toEqual({ status: 'error', code: 'VAULT_CRYPTO_UNAVAILABLE' });
   });
 
-  it('fails closed when the runtime is not ready (loading / unavailable)', async () => {
+  it('signs with the runtime still LOADING (round-1 P2: privateKey signing needs no vault runtime)', async () => {
     mockRuntime = { state: 'loading' };
+    vi.mocked(statics.legacySigner.signOperations).mockResolvedValue(signResult({ locked: false }));
     renderHarness(privateKeyAuth());
+
     startSign();
     await waitFor(() => expect(outcomes).toHaveLength(1));
-    expect(outcomes[0]).toEqual({ status: 'error', code: 'VAULT_STORAGE_UNAVAILABLE' });
+    expect(outcomes[0]).toMatchObject({ status: 'signed' });
+    expect(statics.legacySigner.signOperations).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('vault-signing-dialog')).not.toBeInTheDocument();
   });
 
-  it('reports the unavailable runtime code when storage failed', async () => {
-    mockRuntime = { state: 'unavailable', code: 'VAULT_ENVELOPE_INVALID', retry: vi.fn() };
+  it('signs with the runtime UNAVAILABLE (storage-blocked environments keep signing)', async () => {
+    mockRuntime = {
+      state: 'unavailable',
+      code: 'VAULT_STORAGE_UNAVAILABLE',
+      retry: vi.fn(),
+    };
+    vi.mocked(statics.legacySigner.signOperations).mockResolvedValue(signResult({ locked: false }));
     renderHarness(privateKeyAuth());
+
     startSign();
     await waitFor(() => expect(outcomes).toHaveLength(1));
-    expect(outcomes[0]).toEqual({ status: 'error', code: 'VAULT_ENVELOPE_INVALID' });
+    expect(outcomes[0]).toMatchObject({ status: 'signed' });
+    expect(statics.legacySigner.signOperations).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('vault-signing-dialog')).not.toBeInTheDocument();
+  });
+
+  it('the single in-flight guard covers the privateKey path too, then resets', async () => {
+    readyRuntime({});
+    // A pending (deferred) signing call holds the in-flight slot: a second
+    // sign() resolves cancelled immediately, and the guard releases after
+    // the first call settles so signing works again.
+    let resolveFirst!: (value: ReturnType<typeof signResult>) => void;
+    vi.mocked(statics.legacySigner.signOperations).mockImplementationOnce(
+      () => new Promise((resolve) => (resolveFirst = resolve)),
+    );
+    vi.mocked(statics.legacySigner.signOperations).mockResolvedValueOnce(signResult());
+    renderHarness(privateKeyAuth());
+
+    startSign();
+    startSign();
+    await waitFor(() => expect(outcomes).toEqual([{ status: 'cancelled' }]));
+    expect(statics.legacySigner.signOperations).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveFirst(signResult());
+    });
+    await waitFor(() =>
+      expect(outcomes[1]).toMatchObject({ status: 'signed' }),
+    );
+
+    startSign();
+    await waitFor(() =>
+      expect(outcomes[2]).toMatchObject({ status: 'signed' }),
+    );
+    // Two real signer calls: the deferred first attempt + the post-reset
+    // third one; the guarded second attempt never reached the signer.
+    expect(statics.legacySigner.signOperations).toHaveBeenCalledTimes(2);
   });
 });
 
 describe('useSessionSigning — vault sessions (dialog path)', () => {
   it('lists candidates from the locked directory, auto-selects the single one, signs with the password', async () => {
     const getAccounts = vi.fn().mockResolvedValue(directoryFixture());
-    const { vaultSigner, legacySigner } = readyRuntime({ getAccounts });
+    const { vaultSigner } = readyRuntime({ getAccounts });
     vi.mocked(vaultSigner.signOperations).mockResolvedValue(signResult());
     renderHarness(vaultAuth());
 
@@ -351,7 +416,8 @@ describe('useSessionSigning — vault sessions (dialog path)', () => {
       operations: OPERATIONS,
     });
     expect(outcomes[0]).toMatchObject({ status: 'signed' });
-    expect(legacySigner.signOperations).not.toHaveBeenCalled();
+    // The vault path never touches the privateKey backend.
+    expect(statics.legacySigner.signOperations).not.toHaveBeenCalled();
     // Success closes the dialog.
     expect(screen.queryByTestId('vault-signing-dialog')).not.toBeInTheDocument();
   });
@@ -547,8 +613,8 @@ describe('useSessionSigning — vault sessions (dialog path)', () => {
 describe('useSessionSigning — outcome discrimination', () => {
   it('signed outcomes carry the SignResult verbatim', async () => {
     const result = signResult();
-    const { legacySigner } = readyRuntime({});
-    vi.mocked(legacySigner.signOperations).mockResolvedValue(result);
+    readyRuntime({});
+    vi.mocked(statics.legacySigner.signOperations).mockResolvedValue(result);
     renderHarness(privateKeyAuth());
 
     startSign();

@@ -50,11 +50,12 @@ import { VaultError } from '@/lib/vault/errors';
 import { sameSteemAccount } from '@/lib/steem/username';
 import { VAULT_WORK_MODE_OPEN_EVENT } from '@/components/vault/work-mode-events';
 import { useVaultRuntime } from '@/components/vault/vault-manager';
+import { shortPublicKey } from '@/components/vault/vault-key-manager';
 import type { Operation } from '@/lib/steem/types';
 import type { SignResult, SigningRole, VaultAccountSummary } from '@/lib/vault/types';
 
 /** Privilege rank of a signing role (posting < active < owner). */
-export const SIGNING_ROLE_RANK: Record<SigningRole, number> = {
+const SIGNING_ROLE_RANK: Record<SigningRole, number> = {
   posting: 0,
   active: 1,
   owner: 2,
@@ -444,13 +445,6 @@ function CandidateLine({
       </span>
     </span>
   );
-}
-
-/** `STM` + first 4 + ellipsis + last 4 (the key-manager truncation). */
-function shortPublicKey(publicKey: string): string {
-  return publicKey.length <= 12
-    ? publicKey
-    : `${publicKey.slice(0, 7)}…${publicKey.slice(-4)}`;
 }
 
 function PendingRow({ label }: { label: string }) {

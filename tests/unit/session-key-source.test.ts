@@ -344,18 +344,21 @@ describe('session key source (A6-T1)', () => {
 
     it('exposes the legacy and vault backends for session-kind routing (A6-T2)', async () => {
       const { facade, legacySigner, vaultSigner } = await getVaultRuntime();
-      // The exposed backends are the exact instances the facade dispatches
-      // to — useSessionSigning routes on session kind through them.
-      const legacyResult = await legacySigner.signOperations(signRequest());
-      expect(legacyResult.publicKey).toBe(alicePostingPublicKey);
-      expect(legacyResult.locked).toBe(false);
-      // Same instance identity as the facade's privateKey backend (mode row
-      // reads 'privateKey' in this fake registry).
-      const mode = await facade.getSigningMode();
-      expect(mode).toBe('privateKey');
-      const vaultKeys = Object.keys(vaultSigner);
-      expect(vaultKeys).toContain('signOperations');
-      expect(vaultKeys).toContain('signResolvedTransaction');
+      // Instance identity, actually pinned: spy on the EXPOSED legacy
+      // signer and sign through the FACADE (the mode row reads 'privateKey'
+      // in this fake registry, so the facade dispatches to its privateKey
+      // backend) — the spy firing proves the facade dispatches to the very
+      // instance the runtime exposes.
+      const legacySpy = vi.spyOn(legacySigner, 'signOperations');
+      const result = await facade.signOperations(signRequest());
+      expect(legacySpy).toHaveBeenCalledTimes(1);
+      expect(result.publicKey).toBe(alicePostingPublicKey);
+      expect(result.locked).toBe(false);
+      legacySpy.mockRestore();
+      // The exposed vault backend carries the signer surface.
+      expect(Object.keys(vaultSigner)).toEqual(
+        expect.arrayContaining(['signOperations', 'signResolvedTransaction']),
+      );
     });
 
     it('fails closed to VAULT_KEY_INVALID when no session store is bound', async () => {

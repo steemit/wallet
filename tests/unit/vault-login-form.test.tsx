@@ -411,6 +411,32 @@ describe('VaultLoginForm (R3 identity selection without unlocking)', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it('submit stays non-blocking when vault ACTIVATION fails (identity + navigation still happen)', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const manager = makeManager([vaultSummary('Personal', true)]);
+    vi.mocked(manager.activateVault).mockRejectedValueOnce(new Error('idb write failed'));
+    mockRuntime = ready(manager);
+    const { store } = renderForm();
+
+    await waitFor(() => {
+      expect(optionValues(accountSelect())).toEqual(['', 'alice']);
+    });
+    fireEvent.change(accountSelect(), { target: { value: 'alice' } });
+    fireEvent.click(screen.getByTestId('vault-login-submit'));
+
+    // Activation is best-effort by design: the identity dispatch and the
+    // navigation still happen (signing surfaces map the later VAULT_EMPTY).
+    await waitFor(() => {
+      expect(store.getState().auth.sessionKind).toBe('vault');
+      expect(store.getState().auth.username).toBe('alice');
+    });
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/@alice/transfers');
+    });
+    expect(manager.activateVault).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
+  });
+
   it('embedded: submit calls onLoginSuccess instead of navigating', async () => {
     mockRuntime = ready(makeManager([vaultSummary('Personal', true)]));
     const onLoginSuccess = vi.fn();

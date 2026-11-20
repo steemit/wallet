@@ -227,16 +227,26 @@ src/hooks/use-session-signing.tsx  A6-T2 unified consumer signing entry — the
                            (privateKey session lacks a key at-or-above the floor
                            — open the EXISTING classic re-auth dialog) |
                            `error` (dialogless-path failure). Routing is by
-                           SESSION KIND through the runtime's exposed backends:
-                           'privateKey' → legacySigner with NO dialog, NO
-                           pre-check, NO extra network calls (effective role =
-                           the LOWEST session key at-or-above the floor,
-                           mirroring useActiveSigningKey — active then owner
-                           for an active floor); 'vault' → vaultSigner through
-                           `<VaultSigningDialog>` (returned as `signing.dialog`,
-                           mount it once per surface). One in-flight request per
-                           surface; host unmount resolves `cancelled`. Never
-                           build a signer at a component; never query
+                           SESSION KIND: 'privateKey' → the hook module's
+                           STATIC legacy signer (built once at module load —
+                           the signer is stateless: WIF getter + steem-js, ZERO
+                           registry dependency) with NO dialog, NO pre-check,
+                           NO extra network calls, and RUNTIME-INDEPENDENT by
+                           contract (round-1 review P2): privateKey signing
+                           must keep working while the vault runtime is loading
+                           AND when IndexedDB is unavailable, exactly like the
+                           pre-T2 SteemSigner path — do NOT reintroduce a
+                           runtime dependency here and do NOT add a silent
+                           SteemSigner fallback (effective role = the LOWEST
+                           session key at-or-above the floor, mirroring
+                           useActiveSigningKey — active then owner for an
+                           active floor); 'vault' → the runtime's vaultSigner
+                           through `<VaultSigningDialog>` (returned as
+                           `signing.dialog`, mount it once per surface — this
+                           path DOES need the runtime/IndexedDB by design).
+                           ONE in-flight request per surface across BOTH
+                           paths; host unmount resolves `cancelled`. Never
+                           build another signer at a component; never query
                            /api/query/accounts outside the vault signer
 src/components/vault/import-key-dialog.tsx  R2 add-key dialog: account / role
                            (four options, native select) / WIF / note / vault
@@ -979,8 +989,13 @@ into, or changePassword on, a vault with zero key ciphertext).
   - Embedded re-auth (`fixedUsername` / `requiredAuthTypes`) + Vault Mode =
     the explicit `vaultUnsupported*` notice with a Work Mode shortcut —
     chosen over "silently guide to identity selection" because identity
-    selection cannot satisfy an authority requirement. A6 replaces this
-    notice with the per-key password + signing path; plain embedded usage
+    selection cannot satisfy an authority requirement. Status after A6-T2:
+    the TRANSFER re-auth gate no longer reaches the notice (a vault session
+    gets the form directly and signs through the per-key password path);
+    the witness-vote and claim-rewards notices retire when those callers
+    migrate to `useSessionSigning` (T3/T4); the permissions key-reveal
+    notice stays PERMANENTLY (revealing a key must display the raw WIF,
+    which the signing path never exposes). Plain embedded usage
     (header / market / proposals login modals) already gets VaultLoginForm.
   - `sessionKind` is OPTIONAL on `AuthState` (absent = 'privateKey') so every
     pre-R3 AuthState value stays valid; read it via `sessionKindOf`.
@@ -1006,9 +1021,10 @@ into, or changePassword on, a vault with zero key ciphertext).
   logged-in account's Redux session keys — see
   `src/lib/auth/session-key-source.ts`), and since A6-T2:
   (a) `useSessionSigning` (see the module map) is the ONE consumer signing
-  entry — `transfer-form` is the pilot caller (its privateKey path now signs
-  through the facade's legacy backend with NO pre-check and NO extra network
-  calls; its vault path opens the per-key password dialog). Remaining
+  entry — `transfer-form` is the pilot caller (its privateKey path signs
+  through the hook's STATIC legacy signer — NO pre-check, NO extra network
+  calls, and NO vault-runtime/IndexedDB dependency, a round-1-review hard
+  contract; its vault path opens the per-key password dialog). Remaining
   callers (delegate / market / proposals / witnesses / claim /
   permissions) still sign via `src/lib/steem/client.ts` and migrate in
   T3/T4 — never build a signer at a component; never query
