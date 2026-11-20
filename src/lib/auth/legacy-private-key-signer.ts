@@ -5,8 +5,10 @@
 // A6 WIRING CONTRACT: the caller injects the key source at creation time —
 //
 //   const legacySigner = createLegacyPrivateKeySigner((accountName, role) => {
-//     // read from the login state (Redux auth slice / remembered posting key),
-//     // return undefined when this session cannot sign for that role
+//     // read from the login state (Redux auth slice ONLY — the remembered
+//     // posting key in localStorage deliberately stays OUTSIDE the getter; it
+//     // remains the claim-banner-specific affordance), return undefined when
+//     // this session cannot sign for that role
 //   });
 //   const facade = createSigningFacade(registry, {
 //     vaultSigner: manager.createSigner(),

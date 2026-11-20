@@ -86,6 +86,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { modalFormActionButtonClassName } from '@/components/ui/modal-form-actions';
+import { createLegacyPrivateKeySigner } from '@/lib/auth/legacy-private-key-signer';
+import { createSessionKeyGetter } from '@/lib/auth/session-key-source';
 import { parseVaultEnvelopeJson } from '@/lib/vault/envelope';
 import { VaultError } from '@/lib/vault/errors';
 import { createVaultManager, type VaultManagerExtended } from '@/lib/vault/manager';
@@ -119,11 +121,16 @@ async function initializeVaultRuntime(): Promise<VaultRuntimeReady> {
   const registry = await openVaultRegistry();
   const manager = createVaultManager(registry);
   // The vault backend shares the manager's session service (one tab = one
-  // manager = one service). The privateKey backend is NOT wired yet: A6
-  // injects the login-state WIF getter. Until then the facade fails loudly
-  // (TypeError) on privateKey signing calls — no signing traffic routes
-  // through the facade before A6, so nothing regresses.
-  const facade = createSigningFacade(registry, { vaultSigner: manager.createSigner() });
+  // manager = one service). The privateKey backend (A6-T1) reads the
+  // logged-in account's Redux session keys at signing time via the session
+  // key source (see src/lib/auth/session-key-source.ts for the store-access
+  // decision); when the session holds no key for the requested role the
+  // legacy signer fails closed with VAULT_KEY_INVALID. No business component
+  // signs through the facade yet (that is the A6 caller migration).
+  const facade = createSigningFacade(registry, {
+    vaultSigner: manager.createSigner(),
+    legacySigner: createLegacyPrivateKeySigner(createSessionKeyGetter()),
+  });
   return { manager, facade };
 }
 
