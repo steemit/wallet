@@ -847,6 +847,17 @@
     },
     "verifyAuthorityDiffers": "This key matches the account's on-chain {authority} key, not the selected role ({role}). It will still be stored as {role}, but on chain it can only act as a {authority} key.",
     "cleanupNoPassword": "These records cannot be read by this version, so their password cannot be verified — that is why clearing needs no password.",
-    "openVaultManagement": "Open vault management"
+    "openVaultManagement": "Open vault management",
+    "signDialogTitle": "Sign with a vault key",
+    "signDialogDescription": "Enter the vault password to sign as {account} with a {role} key.",
+    "signDialogLoading": "Loading vault keys…",
+    "signDialogKeyLabel": "Key",
+    "signDialogPasswordLabel": "Vault password",
+    "signDialogPasswordHint": "The password is used only for this signing and is never stored.",
+    "signDialogSubmit": "Sign",
+    "signDialogSigning": "Signing…",
+    "signDialogRetryHint": "Check the password and try again.",
+    "signDialogNoKeys": "This vault holds no key for {account} that can sign this operation.",
+    "signDialogNoKeysHint": "Add a {role} key in the vault manager first, then try again."
   }
 }

@@ -99,6 +99,7 @@ function makeManager(
       (directories[vaultName ?? ''] ?? []).map((entry) => ({ ...entry })),
     ),
     unlockVault: vi.fn(),
+    activateVault: vi.fn(async () => undefined),
     addKey: vi.fn(),
     removeKey: vi.fn(),
     updateKeyNote: vi.fn(),
@@ -107,7 +108,7 @@ function makeManager(
 }
 
 function ready(manager: VaultManagerExtended): VaultRuntime {
-  return { state: 'ready', manager, facade: {} as never };
+  return { state: 'ready', manager, facade: {} as never, vaultSigner: {} as never, legacySigner: {} as never };
 }
 
 function renderForm(props: Parameters<typeof VaultLoginForm>[0] = {}) {
@@ -363,7 +364,7 @@ describe('VaultLoginForm (R3 identity selection without unlocking)', () => {
     expect(retry).toHaveBeenCalledTimes(1);
   });
 
-  it('submit records the vault identity (sessionKind vault, no key material) with no unlock and no network', async () => {
+  it('submit records the vault identity (sessionKind vault, no key material), ACTIVATES the selected vault, no unlock and no network', async () => {
     const manager = makeManager([vaultSummary('Personal'), vaultSummary('Work', true)]);
     mockRuntime = ready(manager);
     const { store } = renderForm();
@@ -374,10 +375,20 @@ describe('VaultLoginForm (R3 identity selection without unlocking)', () => {
     fireEvent.change(accountSelect(), { target: { value: 'carol' } });
     fireEvent.click(screen.getByTestId('vault-login-submit'));
 
-    const auth = store.getState().auth;
+    // A6-T2: the selected vault is ACTIVATED first (a settings-row write, so
+    // the signer's session-vault -> active-vault resolution finds it) — the
+    // identity dispatch follows the awaited write.
+    await waitFor(() => {
+      expect(manager.activateVault).toHaveBeenCalledWith('Work');
+    });
+
+    const auth = await waitFor(() => {
+      const state = store.getState().auth;
+      expect(state.sessionKind).toBe('vault');
+      return state;
+    });
     expect(auth.username).toBe('carol');
     expect(auth.isAuthenticated).toBe(true);
-    expect(auth.sessionKind).toBe('vault');
     for (const field of [
       'ownerKey',
       'activeKey',
@@ -388,7 +399,9 @@ describe('VaultLoginForm (R3 identity selection without unlocking)', () => {
     ] as const) {
       expect(auth[field], `${field} must stay null`).toBeNull();
     }
-    expect(mockPush).toHaveBeenCalledWith('/@carol/transfers');
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/@carol/transfers');
+    });
 
     // No unlock, no decryption entry point, no server authentication.
     expect(manager.unlockVault).not.toHaveBeenCalled();
@@ -409,9 +422,11 @@ describe('VaultLoginForm (R3 identity selection without unlocking)', () => {
     fireEvent.change(accountSelect(), { target: { value: 'alice' } });
     fireEvent.click(screen.getByTestId('vault-login-submit'));
 
-    expect(onLoginSuccess).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(onLoginSuccess).toHaveBeenCalledTimes(1);
+      expect(store.getState().auth.sessionKind).toBe('vault');
+    });
     expect(mockPush).not.toHaveBeenCalled();
-    expect(store.getState().auth.sessionKind).toBe('vault');
   });
 
   it('renders account names only — no IVs, no notes, no key material', async () => {

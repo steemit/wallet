@@ -847,6 +847,17 @@
     },
     "verifyAuthorityDiffers": "Esta clave coincide con la clave {authority} de la cuenta en la cadena, no con el rol seleccionado ({role}). Se guardará igualmente como {role}, pero en la cadena solo puede actuar como clave {authority}.",
     "cleanupNoPassword": "Estos registros no pueden leerse en esta versión, por lo que su contraseña no puede verificarse: por eso la limpieza no requiere contraseña.",
-    "openVaultManagement": "Abrir la gestión de bóvedas"
+    "openVaultManagement": "Abrir la gestión de bóvedas",
+    "signDialogTitle": "Firmar con una clave de la bóveda",
+    "signDialogDescription": "Introduce la contraseña de la bóveda para firmar como {account} con una clave {role}.",
+    "signDialogLoading": "Cargando las claves de la bóveda…",
+    "signDialogKeyLabel": "Clave",
+    "signDialogPasswordLabel": "Contraseña de la bóveda",
+    "signDialogPasswordHint": "La contraseña se usa solo para esta firma y nunca se guarda.",
+    "signDialogSubmit": "Firmar",
+    "signDialogSigning": "Firmando…",
+    "signDialogRetryHint": "Comprueba la contraseña e inténtalo de nuevo.",
+    "signDialogNoKeys": "Esta bóveda no contiene ninguna clave de {account} que pueda firmar esta operación.",
+    "signDialogNoKeysHint": "Añade primero una clave {role} en el gestor de bóvedas y vuelve a intentarlo."
   }
 }

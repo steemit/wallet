@@ -847,6 +847,17 @@
     },
     "verifyAuthorityDiffers": "该密钥匹配的是账户链上的 {authority} 密钥，而不是所选角色（{role}）。它仍会按 {role} 存储，但在链上只能作为 {authority} 密钥使用。",
     "cleanupNoPassword": "这些记录已无法被当前版本读取，无法验证密码，因此清除无需输入密码。",
-    "openVaultManagement": "打开保险库管理界面"
+    "openVaultManagement": "打开保险库管理界面",
+    "signDialogTitle": "使用保险库密钥签名",
+    "signDialogDescription": "输入保险库密码，以使用 {account} 的 {role} 密钥进行签名。",
+    "signDialogLoading": "正在加载保险库密钥…",
+    "signDialogKeyLabel": "密钥",
+    "signDialogPasswordLabel": "保险库密码",
+    "signDialogPasswordHint": "密码仅用于本次签名，不会被保存。",
+    "signDialogSubmit": "签名",
+    "signDialogSigning": "正在签名…",
+    "signDialogRetryHint": "请检查密码后重试。",
+    "signDialogNoKeys": "此保险库中没有可为 {account} 签署该操作的密钥。",
+    "signDialogNoKeysHint": "请先在保险库管理界面添加 {role} 密钥，然后重试。"
   }
 }

@@ -165,7 +165,15 @@ src/components/vault/vault-manager.tsx  A5+R1 composition root + panel:
                            registry + manager + facade — one tab = one session
                            service), VaultManagerPanel (vault list / create /
                            import / merge / rename / change-password / delete /
-                           export). MERGE FORM SEMANTICS (R1): the dialog asks
+                           export). A6-T2: the ready runtime ALSO exposes the
+                           facade's two backend signer instances
+                           (`vaultSigner` = manager.createSigner(),
+                           `legacySigner` = createLegacyPrivateKeySigner(...))
+                           for session-kind routing — useSessionSigning picks
+                           the backend by who is logged in, not by the
+                           persisted mode (a mid-session mode switch leaves
+                           each session kind with exactly one usable backend).
+                           MERGE FORM SEMANTICS (R1): the dialog asks
                            for the backup password AND the TARGET vault
                            password, is reachable and submittable on a LOCKED
                            target (no pre-unlock step; the retired
@@ -190,6 +198,46 @@ src/components/vault/vault-key-manager.tsx  R2 key-manager view (locked-state
                            (account + role + IV pointer, explicit confirm
                            dialog, no password — removal only deletes
                            ciphertext); "Add key" opens ImportKeyDialog
+src/components/vault/vault-signing-dialog.tsx  A6-T2 per-operation password
+                           dialog for vault identity sessions: candidates =
+                           the locked-readable public directory entries stored
+                           at roles AT-OR-ABOVE the request's floor (each
+                           candidate keeps its own STORAGE role — the request
+                           sends that role with the key's IV, matching
+                           `selectEncryptedKey`'s `keys[role]` binding);
+                           exactly one candidate auto-selects, several require
+                           an explicit radio choice (no silent default);
+                           directory = manager.getAccounts() with NO argument
+                           (the same session-vault -> active-vault resolution
+                           the signer's getRecordSnapshot applies — never a
+                           separate /api/query/accounts call); wrong password
+                           (`VAULT_PASSWORD_INVALID`) keeps the dialog open
+                           with the mapped error + retry hint and a CLEARED
+                           field; every other VaultError also surfaces in-dialog
+                           (`vault.errors.<CODE>`), so the host promise only
+                           settles with `signed` / `cancelled`; the password
+                           lives only in the form's transient state, cleared on
+                           success / cancel / failed attempt / unmount (the
+                           import-key-dialog discipline)
+src/hooks/use-session-signing.tsx  A6-T2 unified consumer signing entry — the
+                           ONE pattern business callers use (transfer-form is
+                           the pilot; T3/T4 migrate the rest): `sign({ operations,
+                           accountName, role })` → discriminated outcome
+                           `signed` (SignResult) | `cancelled` | `needsClassicReauth`
+                           (privateKey session lacks a key at-or-above the floor
+                           — open the EXISTING classic re-auth dialog) |
+                           `error` (dialogless-path failure). Routing is by
+                           SESSION KIND through the runtime's exposed backends:
+                           'privateKey' → legacySigner with NO dialog, NO
+                           pre-check, NO extra network calls (effective role =
+                           the LOWEST session key at-or-above the floor,
+                           mirroring useActiveSigningKey — active then owner
+                           for an active floor); 'vault' → vaultSigner through
+                           `<VaultSigningDialog>` (returned as `signing.dialog`,
+                           mount it once per surface). One in-flight request per
+                           surface; host unmount resolves `cancelled`. Never
+                           build a signer at a component; never query
+                           /api/query/accounts outside the vault signer
 src/components/vault/import-key-dialog.tsx  R2 add-key dialog: account / role
                            (four options, native select) / WIF / note / vault
                            password (encrypts THAT ONE key only). Two-phase
@@ -234,11 +282,17 @@ src/components/auth/login-form.tsx  R3 MODE DISPATCHER (`LoginForm`): reads the
                            useSigningMode. 'vault' -> VaultLoginForm; 'vault' +
                            embedded re-auth (fixedUsername / requiredAuthTypes)
                            -> explicit "not available in Vault Mode yet" notice
-                           + Work Mode shortcut; EVERY other state (privateKey,
-                           mode still loading, failed read, runtime unavailable,
-                           no provider) -> the module-private
-                           PrivateKeyLoginForm, whose body is byte-identical to
-                           the pre-R3 LoginForm (the R3 diff is insert-only)
+                           + Work Mode shortcut. A6-T2 narrowing: the notice now
+                           covers only the consumers whose callers have NOT
+                           migrated to useSessionSigning (witness vote, claim
+                           rewards, permissions key reveal) — the transfer
+                           re-auth gate no longer fires for a vault session at
+                           all (wallet-transfers-modals hands it the form
+                           directly); EVERY other state (privateKey, mode still
+                           loading, failed read, runtime unavailable, no
+                           provider) -> the module-private PrivateKeyLoginForm,
+                           whose body is byte-identical to the pre-R3 LoginForm
+                           (the R3 diff is insert-only)
 src/components/auth/vault-login-form.tsx  R3 identity selection: two NATIVE
                            selects — vaults (manager.listVaults) and the
                            selected vault's account names (manager.getAccounts,
@@ -263,10 +317,12 @@ src/components/auth/vault-login-form.tsx  R3 identity selection: two NATIVE
                            the read WITHOUT entering the result key, so no
                            loading flash; still-valid choices survive, a
                            removed account / vault drops its choice). Submit =
-                           dispatch
-                           setVaultIdentity + navigate (or onLoginSuccess when
-                           embedded): no unlock, no decryption, no challenge/
-                           login, no network
+                           ACTIVATE the selected vault (A6-T2: a settings-row
+                           write so the signer's session-vault -> active-vault
+                           resolution finds the identity's vault; failure only
+                           logs) + dispatch setVaultIdentity + navigate (or
+                           onLoginSuccess when embedded): no unlock, no
+                           decryption, no challenge/login, no network
 src/lib/store/slices/auth.ts  R3: `sessionKind?: 'privateKey' | 'vault'` (OPTIONAL
                            — absent = 'privateKey', so every pre-R3 AuthState
                            value stays valid; read via sessionKindOf);
@@ -673,6 +729,9 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
       per-key password path (invariant 5) and the on-chain pre-check
       (invariant 19). Nothing may treat `isAuthenticated` of a vault session
       as "keys are available" — `useActiveSigningKey()` correctly returns null.
+      Since A6-T2 a vault session SIGNS through `useSessionSigning`
+      (`sessionKind`-routed; see the module map) — the transfer flow is the
+      pilot; nothing else may hand-roll a parallel path.
     - The login surface is chosen by the persisted mode (`LoginForm`
       dispatcher). Only a POSITIVELY read `'vault'` mode renders vault
       surfaces; every other state renders the PrivateKey form (persisted
@@ -681,9 +740,15 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
       PrivateKey fallback.
     - Embedded re-auth callers (`fixedUsername` / `requiredAuthTypes`) cannot
       be satisfied by identity selection and get an explicit "not available
-      in Vault Mode yet" notice with a Work Mode shortcut until A6 wires the
-      per-key password + signing path into them — never a silently degraded
-      form.
+      in Vault Mode yet" notice with a Work Mode shortcut. Since A6-T2 the
+      notice is the TEMPORARY state of consumers whose callers have not
+      migrated to useSessionSigning (witness vote, claim rewards, and the
+      permissions key reveal — which needs the raw WIF displayed and can never
+      be covered by the signing path); the transfer re-auth gate no longer
+      fires for a vault session (wallet-transfers-modals shows the form
+      directly, and the form itself signs through the per-key password path).
+      Migrating a caller = routing its action through useSessionSigning and
+      dropping its notice reachability — never a silently degraded form.
     - The claim-rewards banner's device-remembered posting-key restore
       (#375/#378) is a privateKey-session affordance ONLY: `handleClaim` skips
       it when `sessionKindOf(auth)` reads `'vault'`, so a vault session never
@@ -700,12 +765,14 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
       form may READ the remembered USERNAME to prefill (no key read, no
       write); (b) a successful change-password clears the remembered posting
       key because the chain just invalidated it — a removal, never a borrow.
-    - Known pre-A6 UX gaps (no key exposure, recorded for A6): login dialogs
-      opened from the market and proposals pages pass neither
-      `fixedUsername` nor `requiredAuthTypes`, so in Vault Mode they show
-      identity selection and a later order/vote finds no key and reopens the
-      dialog; `transfer-form` / `delegate-form` show their pre-existing
-      hard-coded "Not authenticated" text for a keyless vault session.
+    - Known UX gaps still open (no key exposure; T3/T4 will close them): the
+      `delegate-form` shows its pre-existing hard-coded "Not authenticated"
+      text for a keyless vault session (the transfer-form's copy of that gap
+      CLOSED in A6-T2 — a vault session now signs it through the password
+      dialog); login dialogs opened from the market and proposals pages pass
+      neither `fixedUsername` nor `requiredAuthTypes`, so in Vault Mode they
+      show identity selection and a later order/vote finds no key and reopens
+      the dialog.
 
 ## Error taxonomy (17 codes, types.ts order)
 
@@ -932,22 +999,31 @@ into, or changePassword on, a vault with zero key ciphertext).
   - New i18n surface: `auth.vault*` (16 keys: selects, helper, loading,
     no-vault / empty-vault / unsupported copy) plus `vault.verifyAuthorityDiffers`
     (R2 batch), all four locales.
-- **A6 (caller migration) still pending** — the privateKey backend IS wired
-  into the facade since A6-T1 (`vault-manager.tsx` composes
+- **A6 progress — the vault-session signing path EXISTS (A6-T2)** — the
+  privateKey backend has been wired into the facade since A6-T1
+  (`vault-manager.tsx` composes
   `createLegacyPrivateKeySigner(createSessionKeyGetter())`, which reads the
   logged-in account's Redux session keys — see
-  `src/lib/auth/session-key-source.ts`), so facade privateKey signing now
-  routes through the legacy signer and fails closed with
-  `VAULT_KEY_INVALID` when the session holds no key for the requested
-  (account, role). Still pending from A6: (a) NO business component signs
-  through the facade yet — callers still sign via `src/lib/steem/client.ts`;
-  the facade stays the ONE entry point they migrate to. Never build a signer
-  at a component; never query `/api/query/accounts` outside the vault signer.
-  (b) R3 vault sessions (`sessionKind: 'vault'`, zero keys in Redux) still
-  need their signing path: per operation, select the encrypted key by
-  `(accountName, role, keyIv)` from the public directory and ask for the
-  vault password — and replace the embedded re-auth `vaultUnsupported*`
-  notice with that path.
+  `src/lib/auth/session-key-source.ts`), and since A6-T2:
+  (a) `useSessionSigning` (see the module map) is the ONE consumer signing
+  entry — `transfer-form` is the pilot caller (its privateKey path now signs
+  through the facade's legacy backend with NO pre-check and NO extra network
+  calls; its vault path opens the per-key password dialog). Remaining
+  callers (delegate / market / proposals / witnesses / claim /
+  permissions) still sign via `src/lib/steem/client.ts` and migrate in
+  T3/T4 — never build a signer at a component; never query
+  `/api/query/accounts` outside the vault signer.
+  (b) R3 vault sessions (`sessionKind: 'vault'`, zero keys in Redux) sign per
+  operation through `VaultSigningDialog`: the encrypted key is selected by
+  `(accountName, role, keyIv)` from the public directory, the vault password
+  is asked once per operation, and the transfer re-auth gate no longer shows
+  the embedded `vaultUnsupported*` notice for a vault session (the remaining
+  notice consumers are listed under invariant 21).
+  (c) VaultLoginForm submit now ACTIVATES the selected vault (settings-row
+  write, no unlock/decrypt/network) — the signer resolves its record through
+  session vault -> ACTIVE vault, so the identity's vault must be the active
+  one for signing to work; a settings-write failure does not block the login
+  (signing surfaces map the later VAULT_EMPTY).
 - **Work-mode UI wiring rules (A5, still current):** the composition root is
   `getVaultRuntime()` in `vault-manager.tsx` — a MODULE-LEVEL SINGLETON
   (registry + manager + facade); consume `useVaultRuntime()` /
