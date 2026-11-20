@@ -546,6 +546,7 @@
     "confirmButton": "确认",
     "backButton": "返回",
     "transferError": "转账失败",
+    "notAuthenticated": "未登录",
     "availableBalance": "可用余额：{amount} {asset}",
     "exchangeAlertTitle": "检测到交易所账户",
     "exchangeAlertMemo": "请使用交易所提供的正确 memo 和充值地址。",

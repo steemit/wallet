@@ -546,6 +546,7 @@
     "confirmButton": "Confirmar",
     "backButton": "Volver",
     "transferError": "Transferencia fallida",
+    "notAuthenticated": "No autenticado",
     "availableBalance": "Disponible: {amount} {asset}",
     "exchangeAlertTitle": "Cuenta de exchange detectada",
     "exchangeAlertMemo": "Use el memo y la dirección de depósito correctos proporcionados por el exchange.",

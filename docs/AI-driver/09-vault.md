@@ -295,13 +295,19 @@ src/components/auth/login-form.tsx  R3 MODE DISPATCHER (`LoginForm`): reads the
                            useSigningMode. 'vault' -> VaultLoginForm; 'vault' +
                            embedded re-auth (fixedUsername / requiredAuthTypes)
                            -> explicit "not available in Vault Mode yet" notice
-                           + Work Mode shortcut. A6-T2 narrowing: the notice now
+                           + Work Mode shortcut. A6-T3a narrowing: the notice now
                            covers only the consumers whose callers have NOT
-                           migrated to useSessionSigning (witness vote, claim
-                           rewards, permissions key reveal) — the transfer
-                           re-auth gate no longer fires for a vault session at
-                           all (wallet-transfers-modals hands it the form
-                           directly); EVERY other state (privateKey, mode still
+                           migrated to useSessionSigning (witness vote and claim
+                           rewards until T3b/T4; the permissions key reveal
+                           permanently — showing the raw WIF can never be served
+                           by the signing path). Since A6-T3a NO wallet-action
+                           re-auth gate fires for a page-matching vault session
+                           (wallet-transfers-modals hands it every hosted form
+                           directly); the migrated wallet forms' own in-form
+                           re-auth dialogs (delegate / power up / power down)
+                           remain as the defensive path for the divergent
+                           mode/session edge (a privateKey session that lost its
+                           key); EVERY other state (privateKey, mode still
                            loading, failed read, runtime unavailable, no
                            provider) -> the module-private PrivateKeyLoginForm,
                            whose body is byte-identical to the pre-R3 LoginForm

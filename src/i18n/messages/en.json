@@ -546,6 +546,7 @@
     "confirmButton": "Confirm",
     "backButton": "Back",
     "transferError": "Transfer failed",
+    "notAuthenticated": "Not authenticated",
     "availableBalance": "Available: {amount} {asset}",
     "exchangeAlertTitle": "Exchange Account Detected",
     "exchangeAlertMemo": "Use the correct memo and deposit address provided by the exchange.",

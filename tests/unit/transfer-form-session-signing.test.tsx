@@ -116,8 +116,8 @@ describe('TransferForm — vault identity session (no Redux keys)', () => {
     mocks.broadcast.mockResolvedValue({ success: true });
     await renderAndOpenPreview();
 
-    // The preview is open with no "Not authenticated" dead-end.
-    expect(screen.queryByText('Not authenticated')).not.toBeInTheDocument();
+    // The preview is open with no "notAuthenticated" dead-end.
+    expect(screen.queryByText('notAuthenticated')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'confirmButton' }));
 
@@ -131,7 +131,7 @@ describe('TransferForm — vault identity session (no Redux keys)', () => {
       });
     });
     await waitFor(() => expect(mocks.broadcast).toHaveBeenCalledTimes(1));
-    expect(screen.queryByText('Not authenticated')).not.toBeInTheDocument();
+    expect(screen.queryByText('notAuthenticated')).not.toBeInTheDocument();
   });
 
   it('a user cancel in the signing dialog is a silent no-op (no error, no broadcast)', async () => {

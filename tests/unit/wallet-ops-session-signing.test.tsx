@@ -28,6 +28,8 @@ import { PowerUpForm } from '@/components/wallet/power-up-form';
 import { PowerDownForm } from '@/components/wallet/power-down-form';
 import { CancelPowerDownHandler } from '@/components/wallet/cancel-power-down-handler';
 import { SavingsWithdrawHistory } from '@/components/wallet/savings-withdraw-history';
+import { ConvertSbdForm } from '@/components/wallet/convert-sbd-form';
+import { WithdrawRoutesForm } from '@/components/wallet/withdraw-routes-form';
 
 class ResizeObserverStub {
   observe() {}
@@ -95,6 +97,15 @@ vi.mock('@/lib/steem/client', () => ({
     broadcastTransfer: vi.fn().mockResolvedValue({ success: true }),
     broadcastPowerDown: vi.fn().mockResolvedValue({ success: true }),
     broadcastCancelTransferFromSavings: vi.fn().mockResolvedValue({ success: true }),
+    broadcastConvert: vi.fn().mockResolvedValue({ success: true }),
+    broadcastSetWithdrawVestingRoute: vi.fn().mockResolvedValue({ success: true }),
+    getMedianHistoryPrice: vi
+      .fn()
+      .mockResolvedValue({ base: '1.000 SBD', quote: '1.000 STEEM' }),
+    getAccounts: vi
+      .fn()
+      .mockResolvedValue({ accounts: [{ name: 'alice', sbd_balance: '10.000 SBD' }] }),
+    getWithdrawRoutes: vi.fn().mockResolvedValue({ routes: [] }),
   },
 }));
 
@@ -117,6 +128,10 @@ const broadcastTransfer = vi.mocked(apiClient.broadcastTransfer);
 const broadcastPowerDown = vi.mocked(apiClient.broadcastPowerDown);
 const broadcastCancelTransferFromSavings = vi.mocked(
   apiClient.broadcastCancelTransferFromSavings
+);
+const broadcastConvert = vi.mocked(apiClient.broadcastConvert);
+const broadcastSetWithdrawVestingRoute = vi.mocked(
+  apiClient.broadcastSetWithdrawVestingRoute
 );
 
 const BASE_AUTH: AuthState = {
@@ -470,4 +485,100 @@ describe('SavingsWithdrawHistory × session signing (A6-T3a)', () => {
     await waitFor(() => expect(mocks.sign).toHaveBeenCalledTimes(1));
     expect(screen.queryByText('cancelFailed')).not.toBeInTheDocument();
   });
+
+  it('consoles the raw error and shows the localized message when broadcast throws', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const raw = new Error('network went away');
+    mocks.sign.mockResolvedValueOnce(signedOutcome());
+    broadcastCancelTransferFromSavings.mockRejectedValueOnce(raw);
+
+    await openAndConfirmCancel(vaultStore());
+
+    await waitFor(() => expect(screen.getByText('cancelFailed')).toBeInTheDocument());
+    expect(consoleError).toHaveBeenCalledWith('Cancel savings withdrawal error:', raw);
+    // The raw message must never reach the user.
+    expect(screen.queryByText('network went away')).not.toBeInTheDocument();
+    consoleError.mockRestore();
+  });
+});
+
+/* ───────── Typed error outcome across all six callers (round-1 review) ───────── */
+
+async function submitConvert(store: ReturnType<typeof privateKeyStore>) {
+  render(
+    <Provider store={store}>
+      <ConvertSbdForm variant="page" accountUsername="alice" isMyAccount />
+    </Provider>
+  );
+  fireEvent.change(await screen.findByLabelText('amountLabel'), { target: { value: '2' } });
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'convertButton' }));
+}
+
+async function submitWithdrawRoute(store: ReturnType<typeof privateKeyStore>) {
+  render(
+    <Provider store={store}>
+      <WithdrawRoutesForm variant="page" accountUsername="alice" isMyAccount />
+    </Provider>
+  );
+  await screen.findByText('addRoute');
+  fireEvent.change(screen.getByLabelText('routeTo'), { target: { value: '@Bob' } });
+  fireEvent.change(screen.getByLabelText(/percentLabel/), { target: { value: '10' } });
+  fireEvent.click(screen.getByRole('button', { name: 'submit' }));
+}
+
+describe('typed {status:"error"} outcome: existing error surface, never a broadcast (all six migrated callers)', () => {
+  const errorCases = [
+    {
+      name: 'PowerUpForm',
+      errorText: 'powerUpError',
+      run: () => submitPowerUp(vaultStore()),
+      broadcast: () => broadcastTransfer,
+    },
+    {
+      name: 'PowerDownForm',
+      // The form renders the message through the t('error', {message}) note,
+      // so the surfaced copy is the generic error note key.
+      errorText: 'error',
+      run: () => submitPowerDown(vaultStore()),
+      broadcast: () => broadcastPowerDown,
+    },
+    {
+      name: 'CancelPowerDownHandler',
+      errorText: 'cancelError',
+      run: () =>
+        renderCancelHandler(vaultStore(), vi.fn(), vi.fn()),
+      broadcast: () => broadcastPowerDown,
+    },
+    {
+      name: 'SavingsWithdrawHistory',
+      errorText: 'cancelFailed',
+      run: () => openAndConfirmCancel(vaultStore()),
+      broadcast: () => broadcastCancelTransferFromSavings,
+    },
+    {
+      name: 'ConvertSbdForm',
+      errorText: 'broadcastFailed',
+      run: () => submitConvert(vaultStore()),
+      broadcast: () => broadcastConvert,
+    },
+    {
+      name: 'WithdrawRoutesForm',
+      errorText: 'broadcastFailed',
+      run: () => submitWithdrawRoute(vaultStore()),
+      broadcast: () => broadcastSetWithdrawVestingRoute,
+    },
+  ] as const;
+
+  it.each(errorCases)(
+    '$name surfaces "$errorText" and never broadcasts',
+    async ({ errorText, run, broadcast }) => {
+      mocks.sign.mockResolvedValueOnce({ status: 'error', code: 'unexpected' });
+      await run();
+
+      await waitFor(() => expect(screen.getByText(errorText)).toBeInTheDocument());
+      expect(mocks.sign).toHaveBeenCalledTimes(1);
+      expect(broadcast()).not.toHaveBeenCalled();
+    },
+  );
 });

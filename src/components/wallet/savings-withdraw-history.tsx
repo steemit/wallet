@@ -138,8 +138,12 @@ export function SavingsWithdrawHistory({
       await load();
       onChanged?.();
     } catch (err) {
+      // Align with delegations-section: the raw library/transport error is
+      // English and meaningless to the user — keep it in the console for
+      // diagnosis, show the localized copy here.
+      console.error('Cancel savings withdrawal error:', err);
       setCancelling(false);
-      setCancelError(err instanceof Error ? err.message : t('cancelFailed'));
+      setCancelError(t('cancelFailed'));
     }
   };
 

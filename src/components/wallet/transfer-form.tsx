@@ -279,7 +279,7 @@ export function TransferForm({
     setError('');
 
     if (!username) {
-      setError('Not authenticated');
+      setError(t('notAuthenticated'));
       return;
     }
 
@@ -355,7 +355,7 @@ export function TransferForm({
 
   const handleConfirm = async () => {
     if (!username || !draft) {
-      setError('Not authenticated');
+      setError(t('notAuthenticated'));
       return;
     }
     setError('');
