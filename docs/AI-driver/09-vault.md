@@ -284,8 +284,19 @@ src/components/home/home-redirect-or-login.tsx  R3: waits for the signing mode;
                            unavailable runtime and failed reads keep the
                            historical jump
 src/lib/auth/legacy-private-key-signer.ts  privateKey-mode signer (A4): injected WIF
-                           getter (A6 wiring point), deliberately NO authority pre-check
+                           getter (WIRED since A6-T1 — see session-key-source.ts),
+                           deliberately NO authority pre-check
                            (A6 acceptance: default privateKey behavior unchanged)
+src/lib/auth/session-key-source.ts  A6-T1 login-state WIF getter for the legacy signer:
+                           reads ONLY the Redux auth slice's per-role key fields
+                           (owner/active/posting — NO fallback to the `privateKey`
+                           compat field) for the logged-in account (sameSteemAccount
+                           match), at signing time; vault sessions hold no keys by
+                           construction so they fail closed to VAULT_KEY_INVALID;
+                           never reads the Legacy remembered (localStorage) keys;
+                           no store singleton exists, so providers.tsx binds the app
+                           store via bindSessionKeyStore (store-access decision
+                           documented in the module header)
 src/lib/vault/backup.ts    Backup layer, four-field envelope era: exportVaultBackup
                            (portable envelope + lastBackupAt CAS), importVaultBackup
                            (single-password contract, per-key re-encryption — each
@@ -921,16 +932,19 @@ into, or changePassword on, a vault with zero key ciphertext).
   - New i18n surface: `auth.vault*` (16 keys: selects, helper, loading,
     no-vault / empty-vault / unsupported copy) plus `vault.verifyAuthorityDiffers`
     (R2 batch), all four locales.
-- **A6 (caller migration) still pending** — the privateKey backend is NOT
-  wired into the facade yet (`vault-manager.tsx` injects only
-  `manager.createSigner()`); until A6, facade privateKey signing fails with a
-  TypeError and nothing routes signing through the facade. Components get ONE
-  entry point when it happens: the `SigningFacade`, composed via
-  `createVaultManager(registry)` + `manager.createSigner()` + the legacy
-  signer with a login-state WIF getter. Never build a signer at a component;
-  never query `/api/query/accounts` outside the vault signer. A6 must also
-  give R3 vault sessions (`sessionKind: 'vault'`, zero keys in Redux) their
-  signing path: per operation, select the encrypted key by
+- **A6 (caller migration) still pending** — the privateKey backend IS wired
+  into the facade since A6-T1 (`vault-manager.tsx` composes
+  `createLegacyPrivateKeySigner(createSessionKeyGetter())`, which reads the
+  logged-in account's Redux session keys — see
+  `src/lib/auth/session-key-source.ts`), so facade privateKey signing now
+  routes through the legacy signer and fails closed with
+  `VAULT_KEY_INVALID` when the session holds no key for the requested
+  (account, role). Still pending from A6: (a) NO business component signs
+  through the facade yet — callers still sign via `src/lib/steem/client.ts`;
+  the facade stays the ONE entry point they migrate to. Never build a signer
+  at a component; never query `/api/query/accounts` outside the vault signer.
+  (b) R3 vault sessions (`sessionKind: 'vault'`, zero keys in Redux) still
+  need their signing path: per operation, select the encrypted key by
   `(accountName, role, keyIv)` from the public directory and ask for the
   vault password — and replace the embedded re-auth `vaultUnsupported*`
   notice with that path.
