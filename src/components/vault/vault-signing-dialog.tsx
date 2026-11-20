@@ -72,7 +72,14 @@ export function signingRolesAtOrAbove(floor: SigningRole): SigningRole[] {
 export interface SessionSignRequest {
   /** Frozen operation tuples — the dialog never inspects or rebuilds them. */
   operations: Operation[];
-  /** Account the operations are signed for (normalized). */
+  /**
+   * Account the operations are signed for (normalized). CONTRACT: on the
+   * vault path this MUST be the session identity itself — `useSessionSigning`
+   * fails closed (typed `error`, no dialog, no key offered, no signing) when
+   * it does not `sameSteemAccount`-match `state.auth.username`. Never send
+   * another account's name; the dialog must never list keys of an account
+   * the session is not.
+   */
   accountName: string;
   /** Minimum storage role whose keys are offered (the signer's floor). */
   role: SigningRole;

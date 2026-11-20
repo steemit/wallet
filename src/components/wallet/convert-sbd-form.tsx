@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
+import { sessionKindOf } from '@/lib/store/slices/auth';
+import { useSessionSigning } from '@/hooks/use-session-signing';
 import { useActiveSigningKey } from '@/hooks/use-auth';
-import { SteemSigner, apiClient } from '@/lib/steem/client';
-import type { SignedTransaction } from '@/lib/steem/types';
+import { apiClient } from '@/lib/steem/client';
+import type { Operation } from '@/lib/steem/types';
 import type { SteemAccount } from '@/lib/steem/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,7 +46,16 @@ export function ConvertSbdForm({
   const t = useTranslations('wallet.convertSbd');
   const tCommon = useTranslations('common');
   const loggedIn = useSelector((state: RootState) => state.auth.username);
+  // A vault identity session has no Redux signing key but signs through the
+  // per-key password path (A6-T3a) — it counts as able to sign.
+  const isVaultSession =
+    useSelector((state: RootState) => sessionKindOf(state.auth)) === 'vault';
   const signingKey = useActiveSigningKey();
+  const canResolveKey = !!signingKey || isVaultSession;
+  // Unified signing entry (A6-T3a): privateKey sessions sign through the
+  // facade's legacy backend exactly as before; vault identity sessions get
+  // the per-key password dialog. `signing.dialog` mounts it below.
+  const signing = useSessionSigning();
 
   const [amount, setAmount] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
@@ -107,7 +118,7 @@ export function ConvertSbdForm({
     isMyAccount &&
     !!loggedIn &&
     sameSteemAccount(loggedIn, accountUsername) &&
-    !!signingKey &&
+    canResolveKey &&
     amountNum > 0 &&
     amountNum <= sbdMax + 1e-9 &&
     acknowledged &&
@@ -116,7 +127,7 @@ export function ConvertSbdForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!signingKey || !loggedIn || !sameSteemAccount(loggedIn, accountUsername)) {
+    if (!canResolveKey || !loggedIn || !sameSteemAccount(loggedIn, accountUsername)) {
       setError(t('mustBeAccountOwner'));
       return;
     }
@@ -132,13 +143,50 @@ export function ConvertSbdForm({
     try {
       const amountStr = `${amountNum.toFixed(3)} SBD`;
       const requestid = Math.floor(Date.now() / 1000);
-      const signedTx: SignedTransaction = await SteemSigner.signConvert(
-        accountUsername,
-        requestid,
-        amountStr,
-        signingKey
-      );
-      const res = await apiClient.broadcastConvert(signedTx, loggedIn);
+
+      // Build the exact operation tuple SteemSigner.signConvert used to
+      // build internally — the signing itself now goes through the unified
+      // session signing entry (A6-T3a).
+      const operations: Operation[] = [
+        [
+          'convert',
+          {
+            owner: accountUsername,
+            requestid,
+            amount: amountStr,
+          },
+        ],
+      ];
+
+      // convert is an active-class operation. privateKey sessions sign
+      // through the facade's legacy backend (active key, owner fallback —
+      // the useActiveSigningKey rule); vault sessions get the per-key
+      // password dialog.
+      const outcome = await signing.sign({
+        operations,
+        accountName: loggedIn,
+        role: 'active',
+      });
+
+      if (outcome.status === 'cancelled') {
+        // User aborted the vault dialog — back to the form, no error.
+        setSubmitting(false);
+        return;
+      }
+      if (outcome.status === 'needsClassicReauth') {
+        // privateKey session without an active/owner key: the same
+        // owner-copy dead end the disabled submit guarded before.
+        setSubmitting(false);
+        setError(t('mustBeAccountOwner'));
+        return;
+      }
+      if (outcome.status === 'error') {
+        setSubmitting(false);
+        setError(t('broadcastFailed'));
+        return;
+      }
+
+      const res = await apiClient.broadcastConvert(outcome.result.signedTx, loggedIn);
       if (!res.success) {
         setError(res.error || t('broadcastFailed'));
         setSubmitting(false);
@@ -233,8 +281,20 @@ export function ConvertSbdForm({
   );
 
   if (variant === 'dialog') {
-    return <div className="px-0 py-0">{inner}</div>;
+    return (
+      <div className="px-0 py-0">
+        {inner}
+        {/* Vault password dialog for vault identity sessions (A6-T3a). */}
+        {signing.dialog}
+      </div>
+    );
   }
 
-  return <div className="mx-auto max-w-lg px-4 py-4">{inner}</div>;
+  return (
+    <div className="mx-auto max-w-lg px-4 py-4">
+      {inner}
+      {/* Vault password dialog for vault identity sessions (A6-T3a). */}
+      {signing.dialog}
+    </div>
+  );
 }

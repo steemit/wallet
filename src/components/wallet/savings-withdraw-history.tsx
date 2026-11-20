@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { SteemSigner, apiClient } from '@/lib/steem/client';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/lib/store';
+import { sessionKindOf } from '@/lib/store/slices/auth';
+import { useSessionSigning } from '@/hooks/use-session-signing';
 import { useActiveSigningKey } from '@/hooks/use-auth';
+import { apiClient } from '@/lib/steem/client';
+import type { Operation } from '@/lib/steem/types';
 import { cachedFetch } from '@/lib/cache/client-fetch';
 import { clientCache } from '@/lib/cache/client-cache';
 import { formatTimeUntil } from '@/lib/wallet/format-time-ago';
@@ -34,7 +39,18 @@ export function SavingsWithdrawHistory({
   onChanged?: () => void;
 }) {
   const t = useTranslations('wallet.savingsWithdrawals');
+  // A vault identity session has no Redux signing key but signs through the
+  // per-key password path (A6-T3a) — it counts as able to sign. The section
+  // is only mounted for the account owner (isMyAccount), which is the
+  // session-matches-page gate.
+  const isVaultSession =
+    useSelector((state: RootState) => sessionKindOf(state.auth)) === 'vault';
   const signingKey = useActiveSigningKey();
+  const canResolveKey = !!signingKey || isVaultSession;
+  // Unified signing entry (A6-T3a): privateKey sessions sign through the
+  // facade's legacy backend exactly as before; vault identity sessions get
+  // the per-key password dialog. `signing.dialog` mounts it below.
+  const signing = useSessionSigning();
 
   const [withdrawals, setWithdrawals] = useState<PendingSavingsWithdrawal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,16 +83,49 @@ export function SavingsWithdrawHistory({
   }, [username, load]);
 
   const handleCancel = async () => {
-    if (!cancelTarget || !signingKey || !username) return;
+    if (!cancelTarget || !username) return;
     setCancelling(true);
     setCancelError(null);
     try {
-      const signedTx = await SteemSigner.signCancelTransferFromSavings(
-        username,
-        cancelTarget.requestId,
-        signingKey
+      // Build the exact operation tuple SteemSigner.signCancelTransferFromSavings
+      // used to build internally — the signing itself now goes through the
+      // unified session signing entry (A6-T3a).
+      const operations: Operation[] = [
+        [
+          'cancel_transfer_from_savings',
+          {
+            from: username,
+            request_id: cancelTarget.requestId,
+          },
+        ],
+      ];
+
+      // cancel_transfer_from_savings is an active-class operation. privateKey
+      // sessions sign through the facade's legacy backend (active key, owner
+      // fallback); vault sessions get the per-key password dialog.
+      const outcome = await signing.sign({
+        operations,
+        accountName: username,
+        role: 'active',
+      });
+
+      if (outcome.status === 'cancelled' || outcome.status === 'needsClassicReauth') {
+        // A user abort, or a privateKey session that holds no active/owner
+        // key: quiet no-op, the confirmation dialog stays — the same silent
+        // exit this section always had for a keyless session.
+        setCancelling(false);
+        return;
+      }
+      if (outcome.status === 'error') {
+        setCancelling(false);
+        setCancelError(t('cancelFailed'));
+        return;
+      }
+
+      const res = await apiClient.broadcastCancelTransferFromSavings(
+        outcome.result.signedTx,
+        username
       );
-      const res = await apiClient.broadcastCancelTransferFromSavings(signedTx, username);
       if (!res.success) {
         setCancelError(res.error || t('cancelFailed'));
         setCancelling(false);
@@ -89,8 +138,12 @@ export function SavingsWithdrawHistory({
       await load();
       onChanged?.();
     } catch (err) {
+      // Align with delegations-section: the raw library/transport error is
+      // English and meaningless to the user — keep it in the console for
+      // diagnosis, show the localized copy here.
+      console.error('Cancel savings withdrawal error:', err);
       setCancelling(false);
-      setCancelError(err instanceof Error ? err.message : t('cancelFailed'));
+      setCancelError(t('cancelFailed'));
     }
   };
 
@@ -145,12 +198,15 @@ export function SavingsWithdrawHistory({
           )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={cancelling}>{t('back')}</AlertDialogCancel>
-            <Button onClick={handleCancel} disabled={cancelling || !signingKey}>
+            <Button onClick={handleCancel} disabled={cancelling || !canResolveKey}>
               {cancelling ? t('cancelling') : t('cancelConfirm')}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Vault password dialog for vault identity sessions (A6-T3a). */}
+      {signing.dialog}
     </div>
   );
 }

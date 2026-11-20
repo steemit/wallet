@@ -278,6 +278,28 @@ describe('vault signer (per-key hierarchy)', () => {
       ).toBe('active');
     });
 
+    it('classifies the eight A6-T3a wallet-operation types as active (vault path cannot fail closed on them)', () => {
+      // The callers migrated in A6-T3a pass role floor 'active'; an
+      // unclassified op would make the vault path fail closed with
+      // VAULT_OPERATION_UNSUPPORTED. All eight were ALREADY in the table —
+      // this pins that none regresses.
+      const activeFloorOps: Array<[string, Record<string, unknown>]> = [
+        ['delegate_vesting_shares', { delegator: 'alice', delegatee: 'bob', vesting_shares: '1.000000 VESTS' }],
+        ['transfer_to_vesting', { from: 'alice', to: 'alice', amount: '1.000 STEEM' }],
+        ['withdraw_vesting', { account: 'alice', vesting_shares: '1.000000 VESTS' }],
+        ['convert', { owner: 'alice', requestid: 1, amount: '1.000 SBD' }],
+        ['cancel_transfer_from_savings', { from: 'alice', request_id: 1 }],
+        ['set_withdraw_vesting_route', { from_account: 'alice', to_account: 'bob', percent: 0, auto_vest: false }],
+      ];
+      for (const [type, payload] of activeFloorOps) {
+        expect(resolveRequiredAuthorityClass([[type, payload]])).toBe('active');
+      }
+      // transfer (the A6-T2 pilot) stays classified too.
+      expect(
+        resolveRequiredAuthorityClass([['transfer', { from: 'alice', to: 'bob', amount: '1.000 STEEM', memo: '' }]]),
+      ).toBe('active');
+    });
+
     it('mixed operations require the most privileged class; garbage fails closed', () => {
       expect(resolveRequiredAuthorityClass([postingOp('alice'), activeOp('alice')])).toBe('active');
       const expectClassifierRejection = (operations: unknown[]): void => {

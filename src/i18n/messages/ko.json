@@ -546,6 +546,7 @@
     "confirmButton": "확인",
     "backButton": "뒤로",
     "transferError": "전송 실패",
+    "notAuthenticated": "로그인되어 있지 않습니다",
     "availableBalance": "사용 가능: {amount} {asset}",
     "exchangeAlertTitle": "거래소 계정 감지됨",
     "exchangeAlertMemo": "거래소에서 제공한 올바른 메모와 입금 주소를 사용하세요.",
@@ -623,7 +624,9 @@
     "delegateError": "위임 실패",
     "formatHint": "SP(Steem 파워) 단위 수량, 예: 10.000",
     "invalidDelegatee": "위임받는 사람의 사용자 이름을 입력해 주세요",
-    "invalidAmount": "유효한 수량을 입력해 주세요"
+    "invalidAmount": "유효한 수량을 입력해 주세요",
+    "notAuthenticated": "로그인되어 있지 않습니다",
+    "loadError": "체인 속성을 불러올 수 없습니다. 다시 시도해 주세요."
   },
   "witnesses": {
     "witnessVoting": "증인 투표",

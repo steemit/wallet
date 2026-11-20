@@ -1,12 +1,13 @@
 /**
- * WalletTransfersModals × vault identity sessions (A6-T2) — retiring the
- * embedded re-auth dead-end for the TRANSFER action only.
+ * WalletTransfersModals × vault identity sessions (A6-T2 pilot, A6-T3a all
+ * actions) — retiring the embedded re-auth dead-end for EVERY wallet action.
  *
- * A vault session signs transfers through the per-key password path inside
- * TransferForm, so the modal hands it the form directly. Every OTHER action
- * (delegate, power up/down, convert...) keeps the classic re-auth gate until
- * its caller migrates (T3/T4) — in Vault Mode those still reach the
- * `vaultUnsupported*` notice through the embedded LoginForm dispatcher.
+ * A vault session signs every action this modal hosts (transfer, power up,
+ * power down, cancel power down, delegate, withdraw routes, convert) through
+ * the per-key password path inside its form, so the modal hands it the form
+ * directly. A vault session NOT matching the page account — and a
+ * privateKey session without an active/owner key — keep the classic re-auth
+ * gate.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -61,14 +62,42 @@ vi.mock('@/components/wallet/transfer-form', () => ({
   },
 }));
 
-vi.mock('@/components/wallet/power-down-form', () => ({ PowerDownForm: () => null }));
-vi.mock('@/components/wallet/cancel-power-down-handler', () => ({
-  CancelPowerDownHandler: () => null,
+vi.mock('@/components/wallet/power-down-form', () => ({
+  PowerDownForm: () => {
+    mocks.markers.push('power-down-form');
+    return <div data-testid="power-down-form" />;
+  },
 }));
-vi.mock('@/components/wallet/power-up-form', () => ({ PowerUpForm: () => null }));
-vi.mock('@/components/wallet/delegate-form', () => ({ DelegateForm: () => null }));
-vi.mock('@/components/wallet/withdraw-routes-form', () => ({ WithdrawRoutesForm: () => null }));
-vi.mock('@/components/wallet/convert-sbd-form', () => ({ ConvertSbdForm: () => null }));
+vi.mock('@/components/wallet/cancel-power-down-handler', () => ({
+  CancelPowerDownHandler: () => {
+    mocks.markers.push('cancel-power-down-handler');
+    return <div data-testid="cancel-power-down-handler" />;
+  },
+}));
+vi.mock('@/components/wallet/power-up-form', () => ({
+  PowerUpForm: () => {
+    mocks.markers.push('power-up-form');
+    return <div data-testid="power-up-form" />;
+  },
+}));
+vi.mock('@/components/wallet/delegate-form', () => ({
+  DelegateForm: () => {
+    mocks.markers.push('delegate-form');
+    return <div data-testid="delegate-form" />;
+  },
+}));
+vi.mock('@/components/wallet/withdraw-routes-form', () => ({
+  WithdrawRoutesForm: () => {
+    mocks.markers.push('withdraw-routes-form');
+    return <div data-testid="withdraw-routes-form" />;
+  },
+}));
+vi.mock('@/components/wallet/convert-sbd-form', () => ({
+  ConvertSbdForm: () => {
+    mocks.markers.push('convert-sbd-form');
+    return <div data-testid="convert-sbd-form" />;
+  },
+}));
 
 function vaultSessionStore() {
   const store = configureStore({
@@ -129,7 +158,7 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe('WalletTransfersModals — transfer action re-auth routing (A6-T2)', () => {
+describe('WalletTransfersModals — vault-session re-auth routing (A6-T2/T3a)', () => {
   it('a vault identity session gets the transfer form directly (no re-auth dead-end)', async () => {
     renderModals(vaultSessionStore());
 
@@ -154,19 +183,30 @@ describe('WalletTransfersModals — transfer action re-auth routing (A6-T2)', ()
     expect(mocks.markers).not.toContain('reauth-login-form');
   });
 
-  it('non-migrated actions keep the re-auth gate for vault sessions (delegate example)', async () => {
-    mocks.search = { value: 'walletAction=delegate' };
-    renderModals(vaultSessionStore());
+  it.each([
+    ['delegate', 'delegate-form'],
+    ['powerUp', 'power-up-form'],
+    ['powerDown', 'power-down-form'],
+    ['cancelPowerDown', 'cancel-power-down-handler'],
+    ['advanced', 'withdraw-routes-form'],
+    ['convert', 'convert-sbd-form'],
+  ])(
+    'a vault identity session gets the %s form directly (A6-T3a migration)',
+    async (action, marker) => {
+      mocks.search = { value: `walletAction=${action}` };
+      renderModals(vaultSessionStore());
 
-    await waitFor(() => expect(mocks.markers).toContain('reauth-login-form'));
-    expect(mocks.markers).not.toContain('transfer-form');
-  });
+      await waitFor(() => expect(mocks.markers).toContain(marker));
+      expect(mocks.markers).not.toContain('reauth-login-form');
+    },
+  );
 
-  it('the legacy power_up URL mapping is NOT bypassed for vault sessions', async () => {
+  it('the legacy power_up URL mapping is bypassed for vault sessions too (power up migrated)', async () => {
     mocks.search = { value: 'walletAction=transfer&type=power_up' };
     renderModals(vaultSessionStore());
 
-    await waitFor(() => expect(mocks.markers).toContain('reauth-login-form'));
+    await waitFor(() => expect(mocks.markers).toContain('power-up-form'));
+    expect(mocks.markers).not.toContain('reauth-login-form');
     expect(mocks.markers).not.toContain('transfer-form');
   });
 

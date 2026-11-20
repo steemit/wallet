@@ -130,7 +130,9 @@ route does this; copy that pattern, do not let a parse throw reach the outer cat
 
 ## Private keys on the client
 
-- Signing happens exclusively in `SteemSigner` (`client.ts`) via `steem.auth.sign`/`signTransaction`.
+- Client signing goes through `useSessionSigning` (the unified entry — the callers migrated in
+  A6-T2/T3a: transfer plus the eight wallet operations) or directly through `SteemSigner`
+  (`client.ts`) for the remaining T3b/T4 callers, the login challenge and the recovery pages.
   Key material never enters request bodies, Redux actions other than `auth/setCredentials`, or
   console output.
 - Redux DevTools sanitizers (`store/index.ts`) cover `auth/setCredentials` — **the only action

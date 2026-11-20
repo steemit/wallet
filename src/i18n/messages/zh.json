@@ -546,6 +546,7 @@
     "confirmButton": "确认",
     "backButton": "返回",
     "transferError": "转账失败",
+    "notAuthenticated": "未登录",
     "availableBalance": "可用余额：{amount} {asset}",
     "exchangeAlertTitle": "检测到交易所账户",
     "exchangeAlertMemo": "请使用交易所提供的正确 memo 和充值地址。",
@@ -623,7 +624,9 @@
     "delegateError": "委托失败",
     "formatHint": "SP（Steem Power）金额，例如 10.000",
     "invalidDelegatee": "请输入受让人用户名",
-    "invalidAmount": "请输入有效金额"
+    "invalidAmount": "请输入有效金额",
+    "notAuthenticated": "未登录",
+    "loadError": "无法加载链上属性，请重试。"
   },
   "witnesses": {
     "witnessVoting": "见证人投票",

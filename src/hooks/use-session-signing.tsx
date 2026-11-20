@@ -61,6 +61,7 @@ import { useSelector } from 'react-redux';
 
 import type { RootState } from '@/lib/store';
 import { sessionKindOf } from '@/lib/store/slices/auth';
+import { sameSteemAccount } from '@/lib/steem/username';
 import { createLegacyPrivateKeySigner } from '@/lib/auth/legacy-private-key-signer';
 import { createSessionKeyGetter } from '@/lib/auth/session-key-source';
 import {
@@ -165,6 +166,19 @@ export function useSessionSigning(): {
       inFlightRef.current = true;
 
       if (sessionKindOf(auth) === 'vault') {
+        // Defense-in-depth (round-1 review): a vault identity signs ONLY as
+        // itself. Callers gate page-vs-session matching themselves; if a
+        // mismatched accountName still reaches here (a future caller bug),
+        // fail closed — no dialog, no key offered, no signing — rather than
+        // let the dialog list another account's keys for this session.
+        if (!auth.username || !sameSteemAccount(auth.username, request.accountName)) {
+          console.error(
+            'Vault signing request account does not match the session identity',
+            request.accountName,
+          );
+          inFlightRef.current = false;
+          return { status: 'error', code: 'VAULT_KEY_INVALID' };
+        }
         // The vault path resolves through the dialog; the promise settles
         // when the user completes or cancels it. Every error the signer can
         // raise is surfaced inside the dialog, never here.

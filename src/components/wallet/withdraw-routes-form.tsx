@@ -4,9 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
+import { sessionKindOf } from '@/lib/store/slices/auth';
+import { useSessionSigning } from '@/hooks/use-session-signing';
 import { useActiveSigningKey } from '@/hooks/use-auth';
-import { SteemSigner, apiClient } from '@/lib/steem/client';
-import type { SignedTransaction } from '@/lib/steem/types';
+import { apiClient } from '@/lib/steem/client';
+import type { Operation } from '@/lib/steem/types';
 import { Button } from '@/components/ui/button';
 import {
   ModalFormActions,
@@ -46,7 +48,16 @@ export function WithdrawRoutesForm({
   const t = useTranslations('wallet.withdrawRoutes');
   const tCommon = useTranslations('common');
   const loggedIn = useSelector((state: RootState) => state.auth.username);
+  // A vault identity session has no Redux signing key but signs through the
+  // per-key password path (A6-T3a) — it counts as able to sign.
+  const isVaultSession =
+    useSelector((state: RootState) => sessionKindOf(state.auth)) === 'vault';
   const signingKey = useActiveSigningKey();
+  const canResolveKey = !!signingKey || isVaultSession;
+  // Unified signing entry (A6-T3a): privateKey sessions sign through the
+  // facade's legacy backend exactly as before; vault identity sessions get
+  // the per-key password dialog. `signing.dialog` mounts it below.
+  const signing = useSessionSigning();
 
   const [routes, setRoutes] = useState<WithdrawRouteRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,21 +96,59 @@ export function WithdrawRoutesForm({
   const remainingDisplay = Math.max(0, 100 - totalRoutedChain / 100);
 
   const submitRoute = async (toAccount: string, chainPercent: number, vest: boolean) => {
-    if (!loggedIn || !signingKey || !sameSteemAccount(loggedIn, accountUsername)) {
+    if (!loggedIn || !sameSteemAccount(loggedIn, accountUsername)) {
       setError(t('mustBeAccountOwner'));
       return;
     }
     setBroadcasting(true);
     setError('');
     try {
-      const signedTx: SignedTransaction = await SteemSigner.signSetWithdrawVestingRoute(
-        accountUsername,
-        toAccount,
-        chainPercent,
-        vest,
-        signingKey
+      // Build the exact operation tuple SteemSigner.signSetWithdrawVestingRoute
+      // used to build internally — the signing itself now goes through the
+      // unified session signing entry (A6-T3a).
+      const operations: Operation[] = [
+        [
+          'set_withdraw_vesting_route',
+          {
+            from_account: accountUsername,
+            to_account: toAccount,
+            percent: chainPercent,
+            auto_vest: vest,
+          },
+        ],
+      ];
+
+      // set_withdraw_vesting_route is an active-class operation. privateKey
+      // sessions sign through the facade's legacy backend (active key, owner
+      // fallback); vault sessions get the per-key password dialog.
+      const outcome = await signing.sign({
+        operations,
+        accountName: loggedIn,
+        role: 'active',
+      });
+
+      if (outcome.status === 'cancelled') {
+        // User aborted the vault dialog — back to the form, no error.
+        setBroadcasting(false);
+        return;
+      }
+      if (outcome.status === 'needsClassicReauth') {
+        // privateKey session without an active/owner key: the same
+        // owner-copy dead end the read-only view guarded before.
+        setBroadcasting(false);
+        setError(t('mustBeAccountOwner'));
+        return;
+      }
+      if (outcome.status === 'error') {
+        setBroadcasting(false);
+        setError(t('broadcastFailed'));
+        return;
+      }
+
+      const res = await apiClient.broadcastSetWithdrawVestingRoute(
+        outcome.result.signedTx,
+        loggedIn
       );
-      const res = await apiClient.broadcastSetWithdrawVestingRoute(signedTx, loggedIn);
       if (!res.success) {
         setError(res.error || t('broadcastFailed'));
         setBroadcasting(false);
@@ -137,7 +186,8 @@ export function WithdrawRoutesForm({
     void submitRoute(toAccount, 0, false);
   };
 
-  const canEdit = isMyAccount && !!loggedIn && sameSteemAccount(loggedIn, accountUsername) && !!signingKey;
+  const canEdit =
+    isMyAccount && !!loggedIn && sameSteemAccount(loggedIn, accountUsername) && canResolveKey;
 
   const inner = (
     <div className="space-y-4">
@@ -272,8 +322,20 @@ export function WithdrawRoutesForm({
   );
 
   if (variant === 'dialog') {
-    return <div className="px-0 py-0">{inner}</div>;
+    return (
+      <div className="px-0 py-0">
+        {inner}
+        {/* Vault password dialog for vault identity sessions (A6-T3a). */}
+        {signing.dialog}
+      </div>
+    );
   }
 
-  return <div className="mx-auto max-w-lg px-4 py-4">{inner}</div>;
+  return (
+    <div className="mx-auto max-w-lg px-4 py-4">
+      {inner}
+      {/* Vault password dialog for vault identity sessions (A6-T3a). */}
+      {signing.dialog}
+    </div>
+  );
 }

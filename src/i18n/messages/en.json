@@ -546,6 +546,7 @@
     "confirmButton": "Confirm",
     "backButton": "Back",
     "transferError": "Transfer failed",
+    "notAuthenticated": "Not authenticated",
     "availableBalance": "Available: {amount} {asset}",
     "exchangeAlertTitle": "Exchange Account Detected",
     "exchangeAlertMemo": "Use the correct memo and deposit address provided by the exchange.",
@@ -623,7 +624,9 @@
     "delegateError": "Delegation failed",
     "formatHint": "Amount in SP (Steem Power), e.g. 10.000",
     "invalidDelegatee": "Please enter a delegatee username",
-    "invalidAmount": "Please enter a valid amount"
+    "invalidAmount": "Please enter a valid amount",
+    "notAuthenticated": "Not authenticated",
+    "loadError": "Unable to load chain properties. Please try again."
   },
   "witnesses": {
     "witnessVoting": "Witness Voting",

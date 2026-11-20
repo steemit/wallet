@@ -95,17 +95,14 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
     }
   }, [walletAction, isPowerUpLegacyUrl, accountUsername, canManageBalance, clearWalletQuery]);
 
-  // A vault identity session acting AS the page account signs the TRANSFER
-  // action through the per-key password path (A6-T2, useSessionSigning inside
-  // TransferForm) — classic re-auth can never provide a key for it, so the
-  // form is shown directly. Every other action (and a session NOT matching
-  // the page account) keeps the re-auth gate until its caller migrates
-  // (T3/T4); the `vaultUnsupported*` notice those consumers show in Vault
-  // Mode stays theirs.
-  const isPlainTransfer = walletAction === 'transfer' && !isPowerUpLegacyUrl;
-  const vaultSessionSignsTransfer =
+  // A vault identity session acting AS the page account signs EVERY wallet
+  // action through the per-key password path (A6-T2 pilot: transfer; A6-T3a:
+  // power up/down, cancel power down, delegate, withdraw routes, convert —
+  // useSessionSigning inside each form) — classic re-auth can never provide
+  // a key for it, so the form is shown directly. A session NOT matching the
+  // page account keeps the re-auth gate.
+  const vaultSessionSignsWalletAction =
     useSelector((state: RootState) => sessionKindOf(state.auth)) === 'vault' &&
-    isPlainTransfer &&
     sessionMatchesPage;
 
   const needsWalletReauth =
@@ -113,7 +110,7 @@ export function WalletTransfersModals({ onWalletDataChanged }: WalletTransfersMo
     canManageBalance &&
     accountUsername &&
     (!sessionMatchesPage || activeSigningKey === null) &&
-    !vaultSessionSignsTransfer;
+    !vaultSessionSignsWalletAction;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

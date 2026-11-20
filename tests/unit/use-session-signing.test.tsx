@@ -211,6 +211,19 @@ function Harness() {
       >
         start
       </button>
+      <button
+        type="button"
+        data-testid="harness-start-mismatch"
+        // Identity-mismatch probe (round-1 review defense-in-depth): a
+        // request whose accountName is NOT the session identity.
+        onClick={() => {
+          void signing
+            .sign({ ...REQUEST, accountName: 'bob' })
+            .then((outcome) => outcomes.push(outcome));
+        }}
+      >
+        start mismatch
+      </button>
       {signing.dialog}
     </div>
   );
@@ -447,6 +460,34 @@ describe('useSessionSigning — vault sessions (dialog path)', () => {
     await waitFor(() => expect(outcomes).toHaveLength(1));
     expect(outcomes[0]).toMatchObject({ status: 'signed' });
     expect(vaultSigner.signOperations).toHaveBeenCalledTimes(2);
+  });
+
+  it('fails closed on a request for a DIFFERENT account than the session identity (no dialog, no signing)', async () => {
+    // Round-1 review defense-in-depth: the identity assert lives in the
+    // hook's vault branch — a mismatched accountName must never reach the
+    // dialog (it would list that account's keys for this session).
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const getAccounts = vi.fn().mockResolvedValue(directoryFixture());
+    const { vaultSigner } = readyRuntime({ getAccounts });
+    renderHarness(vaultAuth());
+
+    fireEvent.click(screen.getByTestId('harness-start-mismatch'));
+    await waitFor(() => expect(outcomes).toHaveLength(1));
+    expect(outcomes[0]).toEqual({ status: 'error', code: 'VAULT_KEY_INVALID' });
+    expect(consoleError).toHaveBeenCalledWith(
+      'Vault signing request account does not match the session identity',
+      'bob',
+    );
+    // No dialog was ever offered; no directory read; neither backend signed.
+    expect(screen.queryByTestId('vault-signing-dialog')).not.toBeInTheDocument();
+    expect(getAccounts).not.toHaveBeenCalled();
+    expect(vaultSigner.signOperations).not.toHaveBeenCalled();
+    expect(statics.legacySigner.signOperations).not.toHaveBeenCalled();
+
+    // The in-flight guard reset: a subsequent MATCHING request signs normally.
+    startSign();
+    expect(await screen.findByTestId('vault-signing-dialog')).toBeInTheDocument();
+    consoleError.mockRestore();
   });
 
   it('cancel resolves cancelled with no error surface, and the next request starts fresh', async () => {
