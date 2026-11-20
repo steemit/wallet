@@ -1,16 +1,14 @@
 /**
  * DelegationsSection — revoke flow and table behaviour.
  *
- * The revoke dialog used to print whatever the signing library threw straight
- * into the dialog, so a user clicking "Revoke" saw a raw English internal such
- * as `Operation type delegate_vesting_shares serialization not fully
- * implemented` (the @steemit/steem-js <= 1.2.1 gap). It must show the localized
- * copy instead and leave the raw error to the console — the same contract
- * delegate-form already follows.
- *
- * Relay failures are deliberately NOT swallowed that way: the broadcast
- * response's message is the chain's own answer about the transaction, which is
- * the most useful thing to show (identical to delegate-form).
+ * Since A6-T3a the revoke flow signs through the unified session signing
+ * entry (`useSessionSigning`, mocked here at its module boundary): privateKey
+ * sessions sign through the facade's legacy backend, vault identity sessions
+ * through the per-key password dialog. The tests pin the byte-identical
+ * zero-VESTS operation tuple and each outcome's handling; the signing error
+ * contract is unchanged — the raw library error stays in the console and the
+ * localized copy renders (the same contract delegate-form follows), while
+ * relay failures surface the chain's own answer verbatim.
  *
  * The rest of the file covers the table around that dialog (sorting, search,
  * pagination, the two tabs, load/empty/error states) so the component is
@@ -19,7 +17,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { DelegationsSection } from '@/components/wallet/delegations-section';
-import { SteemSigner, apiClient } from '@/lib/steem/client';
+import { apiClient } from '@/lib/steem/client';
 import type { VestingDelegation, ExpiringVestingDelegation } from '@/lib/steem/types';
 
 // The section reads its data from two hooks; the holders below let each test
@@ -38,13 +36,17 @@ const hooks = vi.hoisted(() => ({
   },
 }));
 
+const mocks = vi.hoisted(() => ({
+  sign: vi.fn(),
+}));
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
   useLocale: () => 'en',
 }));
 
-vi.mock('@/hooks/use-auth', () => ({
-  useActiveSigningKey: () => '5Jactive',
+vi.mock('@/hooks/use-session-signing', () => ({
+  useSessionSigning: () => ({ sign: mocks.sign, dialog: null }),
 }));
 
 vi.mock('@/hooks/use-delegations', () => ({
@@ -62,11 +64,9 @@ vi.mock('@/hooks/use-delegations', () => ({
 }));
 
 vi.mock('@/lib/steem/client', () => ({
-  SteemSigner: { signDelegate: vi.fn() },
   apiClient: { broadcastDelegate: vi.fn() },
 }));
 
-const signDelegate = vi.mocked(SteemSigner.signDelegate);
 const broadcastDelegate = vi.mocked(apiClient.broadcastDelegate);
 
 function delegation(
@@ -129,11 +129,15 @@ function confirmRevoke(dialog: HTMLElement) {
 }
 
 describe('DelegationsSection revoke dialog', () => {
-  it('shows the localized message and consoles the raw library error on a signing throw', async () => {
+  it('consoles the raw error and shows the localized message when broadcast throws', async () => {
     const raw = new Error(
       'Operation type delegate_vesting_shares serialization not fully implemented'
     );
-    signDelegate.mockRejectedValueOnce(raw);
+    mocks.sign.mockResolvedValueOnce({
+      status: 'signed',
+      result: { signedTx: { signatures: ['SIG'], operations: [] } },
+    });
+    broadcastDelegate.mockRejectedValueOnce(raw);
 
     renderSection();
     confirmRevoke(openRevokeDialog());
@@ -147,7 +151,10 @@ describe('DelegationsSection revoke dialog', () => {
   });
 
   it('still surfaces the relay/chain error from an unsuccessful broadcast', async () => {
-    signDelegate.mockResolvedValueOnce({ signatures: ['SIG'], operations: [] } as never);
+    mocks.sign.mockResolvedValueOnce({
+      status: 'signed',
+      result: { signedTx: { signatures: ['SIG'], operations: [] } },
+    });
     broadcastDelegate.mockResolvedValueOnce({
       success: false,
       error: 'missing required active authority',
@@ -163,8 +170,11 @@ describe('DelegationsSection revoke dialog', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it('signs the zero-VESTS revoke, closes the dialog and refreshes the section on success', async () => {
-    signDelegate.mockResolvedValueOnce({ signatures: ['SIG'], operations: [] } as never);
+  it('signs the byte-identical zero-VESTS revoke tuple and refreshes on success', async () => {
+    mocks.sign.mockResolvedValueOnce({
+      status: 'signed',
+      result: { signedTx: { signatures: ['SIG'], operations: [] } },
+    });
     broadcastDelegate.mockResolvedValueOnce({ success: true });
 
     renderSection();
@@ -173,8 +183,55 @@ describe('DelegationsSection revoke dialog', () => {
     await waitFor(() => {
       expect(hooks.refetch).toHaveBeenCalledTimes(1);
     });
-    expect(signDelegate).toHaveBeenCalledWith('alice', 'bob', '0.000000 VESTS', '5Jactive');
+    // Byte-identical to what SteemSigner.signDelegate built before A6-T3a.
+    expect(mocks.sign).toHaveBeenCalledWith({
+      operations: [
+        [
+          'delegate_vesting_shares',
+          { delegator: 'alice', delegatee: 'bob', vesting_shares: '0.000000 VESTS' },
+        ],
+      ],
+      accountName: 'alice',
+      role: 'active',
+    });
     expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('a user cancel in the signing dialog is a quiet no-op (dialog stays, no error)', async () => {
+    mocks.sign.mockResolvedValueOnce({ status: 'cancelled' });
+
+    renderSection();
+    const dialog = openRevokeDialog();
+    confirmRevoke(dialog);
+
+    await waitFor(() => expect(mocks.sign).toHaveBeenCalledTimes(1));
+    expect(broadcastDelegate).not.toHaveBeenCalled();
+    // No error copy; the confirmation dialog remains usable.
+    expect(screen.queryByText('revokeFailed')).toBeNull();
+    expect(screen.getByRole('alertdialog')).toBeTruthy();
+  });
+
+  it('needsClassicReauth is the same quiet no-op a keyless session always had', async () => {
+    mocks.sign.mockResolvedValueOnce({ status: 'needsClassicReauth' });
+
+    renderSection();
+    confirmRevoke(openRevokeDialog());
+
+    await waitFor(() => expect(mocks.sign).toHaveBeenCalledTimes(1));
+    expect(broadcastDelegate).not.toHaveBeenCalled();
+    expect(screen.queryByText('revokeFailed')).toBeNull();
+  });
+
+  it('a typed signing error shows the localized copy', async () => {
+    mocks.sign.mockResolvedValueOnce({ status: 'error', code: 'unexpected' });
+
+    renderSection();
+    confirmRevoke(openRevokeDialog());
+
+    await waitFor(() => {
+      expect(screen.getByText('revokeFailed')).toBeTruthy();
+    });
+    expect(broadcastDelegate).not.toHaveBeenCalled();
   });
 });
 

@@ -2,9 +2,10 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { useActiveSigningKey } from '@/hooks/use-auth';
-import { SteemSigner, apiClient } from '@/lib/steem/client';
+import { useSessionSigning } from '@/hooks/use-session-signing';
+import { apiClient } from '@/lib/steem/client';
 import { useVestingDelegations, useExpiringVestingDelegations } from '@/hooks/use-delegations';
+import type { Operation } from '@/lib/steem/types';
 import {
   formatSteemPowerFromVestsString,
   STEEM_POWER_TICKER,
@@ -152,7 +153,10 @@ function OutgoingDelegationsTable({
   const t = useTranslations('wallet');
   const tc = useTranslations('common');
   const locale = useLocale();
-  const signingKey = useActiveSigningKey();
+  // Unified signing entry (A6-T3a): privateKey sessions sign through the
+  // facade's legacy backend exactly as before; vault identity sessions get
+  // the per-key password dialog. `signing.dialog` mounts it below.
+  const signing = useSessionSigning();
 
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('delegatee');
@@ -213,17 +217,52 @@ function OutgoingDelegationsTable({
   const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleRevoke = async () => {
-    if (!revokeTarget || !signingKey || !username) return;
+    if (!revokeTarget || !username) return;
     setRevoking(true);
     setRevokeError(null);
     try {
-      const signedTx = await SteemSigner.signDelegate(
-        username,
-        revokeTarget,
-        '0.000000 VESTS',
-        signingKey
+      // Build the exact operation tuple SteemSigner.signDelegate used to
+      // build internally (revoke = delegate 0 VESTS) — the signing itself
+      // goes through the unified session signing entry (A6-T3a).
+      const operations: Operation[] = [
+        [
+          'delegate_vesting_shares',
+          {
+            delegator: username,
+            delegatee: revokeTarget,
+            vesting_shares: '0.000000 VESTS',
+          },
+        ],
+      ];
+
+      // delegate_vesting_shares is an active-class operation. privateKey
+      // sessions sign through the facade's legacy backend (active key, owner
+      // fallback); vault sessions get the per-key password dialog.
+      const outcome = await signing.sign({
+        operations,
+        accountName: username,
+        role: 'active',
+      });
+
+      if (outcome.status === 'cancelled') {
+        // User aborted the vault dialog — quiet no-op, the dialog stays.
+        return;
+      }
+      if (outcome.status === 'needsClassicReauth') {
+        // privateKey session without an active/owner key: same quiet no-op
+        // this section always had for a keyless session (the wallet modal
+        // handles the classic re-auth gate for its own actions).
+        return;
+      }
+      if (outcome.status === 'error') {
+        setRevokeError(t('revokeFailed'));
+        return;
+      }
+
+      const res = await apiClient.broadcastDelegate(
+        outcome.result.signedTx,
+        username
       );
-      const res = await apiClient.broadcastDelegate(signedTx, username);
       if (!res.success) {
         setRevokeError(res.error || t('revokeFailed'));
         return;
@@ -232,9 +271,8 @@ function OutgoingDelegationsTable({
       onRevoked();
     } catch (err) {
       // Align with delegate-form: the raw library/transport error is English
-      // and meaningless to the user (e.g. the old "Operation type
-      // delegate_vesting_shares serialization not fully implemented"). Keep the
-      // full error in the console for diagnosis, show localized copy here.
+      // and meaningless to the user. Keep the full error in the console for
+      // diagnosis, show localized copy here.
       console.error('Revoke delegation error:', err);
       setRevokeError(t('revokeFailed'));
     } finally {
@@ -457,6 +495,9 @@ function OutgoingDelegationsTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Vault password dialog for vault identity sessions (A6-T3a). */}
+      {signing.dialog}
     </div>
   );
 }

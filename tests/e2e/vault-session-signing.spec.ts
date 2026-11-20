@@ -2,8 +2,8 @@ import { test, expect, type Locator, type Page } from '@playwright/test';
 import vectors from '../fixtures/vault-development-test-vectors.json';
 
 /**
- * Vault identity session SIGNING (A6-T2) — real-browser coverage for the
- * per-key password path on the pilot caller (transfer).
+ * Vault identity session SIGNING (A6-T2 pilot, A6-T3a wallet-ops batch) —
+ * real-browser coverage for the per-key password path.
  *
  * Setup mirrors vault-per-key.spec.ts (real IndexedDB + real Web Crypto;
  * chain-dependent branches made deterministic by intercepting
@@ -20,6 +20,11 @@ import vectors from '../fixtures/vault-development-test-vectors.json';
  *  - correct password -> signed transaction broadcast (body intercepted:
  *    ref_block fields from the intercepted header + a signature) -> success
  *    closes both dialogs and the wallet modal;
+ *  - delegate (A6-T3a): a vault session opens the delegate modal directly —
+ *    the pre-A6 "Not authenticated" dead-end is gone — signs through the
+ *    same password dialog and broadcasts the byte-identical
+ *    delegate_vesting_shares tuple (SP converted through the intercepted
+ *    global props);
  *  - no /api/auth/* traffic at any point (identity + signing are local).
  *
  * Fixture discipline: WIF/public keys/password come from the shared
@@ -124,6 +129,39 @@ async function interceptBroadcast(page: Page) {
   return bodies;
 }
 
+/** Intercept the delegate broadcast route, returning the captured bodies. */
+async function interceptDelegateBroadcast(page: Page) {
+  const bodies: Array<Record<string, unknown>> = [];
+  await page.route('**/api/broadcast/delegate', (route) => {
+    bodies.push(route.request().postDataJSON() as Record<string, unknown>);
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, result: { id: 'e2e-tx' } }),
+    });
+  });
+  return bodies;
+}
+
+/**
+ * Global props for the delegate form's SP -> VESTS math. 200M VESTS over
+ * 100M STEEM makes 1 SP convert to exactly 2.000000 VESTS.
+ */
+const GLOBAL_PROPS = {
+  total_vesting_shares: '200000000.000000 VESTS',
+  total_vesting_fund_steem: '100000000.000 STEEM',
+};
+
+async function fulfillGlobalProps(page: Page) {
+  await page.route('**/api/query/global-props', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, props: GLOBAL_PROPS }),
+    }),
+  );
+}
+
 async function abortOtherQueries(page: Page) {
   // Registered FIRST so the later-registered accounts / transaction-header
   // routes win for their URLs (Playwright consults the most recently
@@ -141,21 +179,24 @@ function trackAuthEndpoints(page: Page): string[] {
 }
 
 /**
- * Open the wallet transfer modal WITHOUT a full page load: a vault identity
- * session lives only in Redux (by design — invariant 21), so `page.goto`
- * would wipe it and land on an unauthenticated page. The pushState + popstate
- * pair drives the App Router's client-side navigation, exactly what the
+ * Open a wallet modal WITHOUT a full page load: a vault identity session
+ * lives only in Redux (by design — invariant 21), so `page.goto` would wipe
+ * it and land on an unauthenticated page. The pushState + popstate pair
+ * drives the App Router's client-side navigation, exactly what the
  * balance-row action buttons do through next-intl's router.
  */
-async function openTransferModalViaSpaNavigation(page: Page) {
-  await page.evaluate(() => {
-    window.history.pushState(
-      {},
-      '',
-      '/@alice/transfers?walletAction=transfer&asset=STEEM&type=transfer',
-    );
+async function openWalletModalViaSpaNavigation(page: Page, query: string) {
+  await page.evaluate((search) => {
+    window.history.pushState({}, '', `/@alice/transfers${search}`);
     window.dispatchEvent(new PopStateEvent('popstate'));
-  });
+  }, query);
+}
+
+async function openTransferModalViaSpaNavigation(page: Page) {
+  await openWalletModalViaSpaNavigation(
+    page,
+    '?walletAction=transfer&asset=STEEM&type=transfer',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -282,7 +323,7 @@ async function establishVaultIdentity(page: Page) {
   await expect(page).toHaveURL(/\/@alice\/transfers$/, { timeout: 15_000 });
 }
 
-test.describe('Vault identity session signing (A6-T2)', () => {
+test.describe('Vault identity session signing (A6-T2/T3a)', () => {
   test.setTimeout(180_000);
 
   test('transfer happy path: password dialog, wrong-password retry, signed + broadcast', async ({
@@ -414,5 +455,78 @@ test.describe('Vault identity session signing (A6-T2)', () => {
     expect(broadcastBodies).toHaveLength(0);
     await expect(review).toBeVisible();
     await expect(review.getByRole('button', { name: 'Confirm', exact: true })).toBeEnabled();
+  });
+
+  test('delegate (A6-T3a): vault session gets the form directly, signs through the password dialog and broadcasts', async ({
+    page,
+  }) => {
+    const activeKey = fixtureKey('active');
+    const postingKey = fixtureKey('posting');
+    await abortOtherQueries(page);
+    await fulfillTransactionHeader(page);
+    await fulfillGlobalProps(page);
+    const broadcastBodies = await interceptDelegateBroadcast(page);
+    const authEndpoints = trackAuthEndpoints(page);
+
+    const chain = {
+      alice: chainAccount('alice', {
+        active: [[activeKey.publicKey, 1]],
+        posting: [[postingKey.publicKey, 1]],
+      }),
+      bob: chainAccount('bob'),
+    };
+    await fulfillAccountsRoute(page, chain);
+    await establishVaultIdentity(page);
+
+    // The delegate modal opens DIRECTLY for a vault session (A6-T3a closed
+    // the pre-A6 "Not authenticated" dead-end this form used to show).
+    await openWalletModalViaSpaNavigation(page, '?walletAction=delegate');
+    const delegateeInput = page.getByLabel('Delegatee Username');
+    await expect(delegateeInput).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Sign in to continue')).toHaveCount(0);
+
+    await delegateeInput.fill('bob');
+    await page.getByLabel('SP to Delegate').fill('1');
+    await page.getByRole('button', { name: 'Delegate', exact: true }).click();
+
+    // The vault signing dialog layers above the wallet modal at z-60; the
+    // single active-floor candidate auto-selects.
+    const signDialog = page.getByTestId('vault-signing-dialog');
+    await expect(signDialog).toBeVisible({ timeout: 15_000 });
+    await expect(signDialog).toHaveCSS('z-index', '60');
+    await expect(signDialog.getByText('trezor active key')).toBeVisible();
+    await expect(signDialog.getByText('posting only key')).toHaveCount(0);
+
+    await signDialog.getByLabel('Vault password').fill(VAULT_PASSWORD);
+    await signDialog.getByTestId('vault-signing-submit').click();
+    await expect(signDialog).toBeHidden({ timeout: 30_000 });
+
+    // Byte-identical delegate tuple: 1 SP at the intercepted globals
+    // (200M VESTS / 100M STEEM) converts to exactly 2.000000 VESTS.
+    await expect(broadcastBodies).toHaveLength(1);
+    const body = broadcastBodies[0] as {
+      username?: string;
+      signedTx?: {
+        ref_block_num?: number;
+        operations?: unknown[];
+        signatures?: string[];
+      };
+    };
+    expect(body.username).toBe('alice');
+    expect(body.signedTx?.ref_block_num).toBe(12345);
+    expect(body.signedTx?.operations).toEqual([
+      [
+        'delegate_vesting_shares',
+        { delegator: 'alice', delegatee: 'bob', vesting_shares: '2.000000 VESTS' },
+      ],
+    ]);
+    expect(body.signedTx?.signatures?.length).toBe(1);
+
+    // Success closes the wallet modal (query params cleared).
+    await expect(page).toHaveURL(/\/@alice\/transfers$/, { timeout: 15_000 });
+    await expect(delegateeInput).toHaveCount(0);
+
+    // The whole flow — identity login + signing — never touched auth endpoints.
+    expect(authEndpoints).toEqual([]);
   });
 });

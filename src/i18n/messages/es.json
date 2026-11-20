@@ -623,7 +623,9 @@
     "delegateError": "Delegación fallida",
     "formatHint": "Monto en SP (Steem Power), ej. 10.000",
     "invalidDelegatee": "Ingrese un nombre de usuario delegado",
-    "invalidAmount": "Ingrese un monto válido"
+    "invalidAmount": "Ingrese un monto válido",
+    "notAuthenticated": "No autenticado",
+    "loadError": "No se pudieron cargar las propiedades de la cadena. Inténtelo de nuevo."
   },
   "witnesses": {
     "witnessVoting": "Votación de Testigos",
