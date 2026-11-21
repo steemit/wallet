@@ -836,6 +836,7 @@
     "migrateAccountLabel": "账户",
     "migrateKeyLabel": "要迁移的 Posting 密钥",
     "migratePasswordLabel": "保险库密码（用于认证、加密与校验）",
+    "migrateAnchorHint": "该保险库为空——你输入的密码将成为它的保险库密码，因此会按保险库密码规则校验并要求输入两次。",
     "migrateVerifyButton": "链上核验",
     "migrateVerifying": "核验中…",
     "migrateConfirmButton": "立即迁移",

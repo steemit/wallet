@@ -836,6 +836,7 @@
     "migrateAccountLabel": "Account",
     "migrateKeyLabel": "Posting key to migrate",
     "migratePasswordLabel": "Vault password (authenticates, encrypts and verifies)",
+    "migrateAnchorHint": "This vault is empty — the password you type becomes its vault password, so it is checked against the vault password rules and asked twice.",
     "migrateVerifyButton": "Verify on-chain",
     "migrateVerifying": "Verifying…",
     "migrateConfirmButton": "Migrate now",

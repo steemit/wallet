@@ -20,12 +20,25 @@ import { AlertTriangle, ShieldCheck } from 'lucide-react';
 import type { VaultKeyChainMatch } from '@/lib/vault/key-management';
 import type { VaultKeyRole } from '@/lib/vault/types';
 
-const ROLE_LABEL_KEYS: Record<VaultKeyRole, string> = {
+/** i18n message keys per vault key role (shared by the vault dialogs). */
+export const ROLE_LABEL_KEYS: Record<VaultKeyRole, string> = {
   owner: 'keysRoleOwner',
   active: 'keysRoleActive',
   posting: 'keysRolePosting',
   memo: 'keysRoleMemo',
 };
+
+/**
+ * `STM` + first 4 + ellipsis + last 4; short values render as-is. Shared
+ * truncation for every vault surface rendering a public key (moved here from
+ * vault-key-manager.tsx so leaf-ish vault UI modules can import it without a
+ * component-to-component cycle).
+ */
+export function shortPublicKey(publicKey: string): string {
+  return publicKey.length <= 12
+    ? publicKey
+    : `${publicKey.slice(0, 7)}…${publicKey.slice(-4)}`;
+}
 
 /** The verification snapshot shown between the check and the confirm. */
 export interface VaultKeyVerification {

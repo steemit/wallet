@@ -836,6 +836,7 @@
     "migrateAccountLabel": "Cuenta",
     "migrateKeyLabel": "Clave posting a migrar",
     "migratePasswordLabel": "Contraseña de la bóveda (autentica, cifra y verifica)",
+    "migrateAnchorHint": "Esta bóveda está vacía: la contraseña que escribas se convertirá en su contraseña de bóveda, por eso se comprueba con las reglas de contraseña y se pide dos veces.",
     "migrateVerifyButton": "Verificar en la cadena",
     "migrateVerifying": "Verificando…",
     "migrateConfirmButton": "Migrar ahora",

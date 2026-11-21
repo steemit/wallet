@@ -14,6 +14,11 @@
  *  - failure mapping (wrong password -> errors.VAULT_PASSWORD_INVALID,
  *    authority unavailable -> errors.VAULT_AUTHORITY_UNAVAILABLE) keeps the
  *    dialog open and the plaintext untouched;
+ *  - EMPTY-TARGET ANCHORING (review r1 P1-1): an empty target vault renders
+ *    the confirm re-type + hint, mismatches block, weak passwords are
+ *    rejected by the creation policy; non-empty targets keep one field;
+ *  - scrub discipline (P3-5): cancel clears the typed password, the confirm
+ *    field and the verdict;
  *  - nothing valid remembered at open -> the dismiss-only migrateMissing
  *    state.
  *
@@ -29,6 +34,7 @@ import {
 import { VaultError } from '@/lib/vault/errors';
 import type { VaultKeyChainMatch } from '@/lib/vault/key-management';
 import type { VaultManagerExtended } from '@/lib/vault/manager';
+import type { VaultAccountSummary } from '@/lib/vault/types';
 import { validateVaultWif } from '@/lib/vault/validation';
 import {
   REMEMBERED_POSTING_KEY_KEY,
@@ -79,10 +85,23 @@ const MATCHED: VaultKeyChainMatch = {
 };
 
 const migrateMock = vi.fn();
+const getAccountsMock = vi.fn();
+
+/** A non-empty public directory (one stored posting key). */
+function nonEmptyDirectory(): VaultAccountSummary[] {
+  return [
+    {
+      accountName: 'alice',
+      keys: [{ role: 'posting', iv: 'ivstored', note: 'stored', publicKey: 'STMstored' }],
+      balances: null,
+    },
+  ];
+}
 
 function makeManager(): VaultManagerExtended {
   return {
     migrateRememberedPostingKey: migrateMock,
+    getAccounts: getAccountsMock,
   } as unknown as VaultManagerExtended;
 }
 
@@ -131,6 +150,8 @@ describe('MigrateRememberedKeyDialog', () => {
     window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'alice');
     mockVerifyKeysOnChain.mockResolvedValue([MATCHED]);
     migrateMock.mockResolvedValue({ outcome: 'migrated' });
+    // Default: a NON-empty target vault (single verify field).
+    getAccountsMock.mockResolvedValue(nonEmptyDirectory());
   });
 
   afterEach(() => {
@@ -238,5 +259,97 @@ describe('MigrateRememberedKeyDialog', () => {
     expect(await screen.findByText('migrateMissing')).toBeInTheDocument();
     expect(screen.queryByLabelText('migratePasswordLabel')).not.toBeInTheDocument();
     expect(migrateMock).not.toHaveBeenCalled();
+  });
+
+  it('scrub on cancel: the typed password, confirm field and verdict are cleared', async () => {
+    const { onOpenChange } = await driveToConfirm();
+    const passwordInput = screen.getByLabelText('migratePasswordLabel');
+    expect((passwordInput as HTMLInputElement).value).toBe(VAULT_PASSWORD);
+    expect(screen.getByTestId('vault-migrate-verification')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'migrateEditAgain' }));
+    // Back first clears the verdict but keeps the password for a re-try...
+    expect(screen.queryByTestId('vault-migrate-verification')).not.toBeInTheDocument();
+    expect((passwordInput as HTMLInputElement).value).toBe(VAULT_PASSWORD);
+    // ...while Cancel scrubs everything sensitive.
+    fireEvent.click(screen.getByRole('button', { name: 'cancelAction' }));
+    expect((passwordInput as HTMLInputElement).value).toBe('');
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(migrateMock).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(REMEMBERED_POSTING_KEY_KEY)).toBe(WIF);
+  });
+
+  // -------------------------------------------------------------------------
+  // Empty-target anchoring (review r1 P1-1)
+  // -------------------------------------------------------------------------
+
+  it('EMPTY target vault: confirm re-type + hint render; mismatch blocks and shows the mismatch error', async () => {
+    getAccountsMock.mockResolvedValue([]);
+    renderDialog();
+    expect(await screen.findByText('migrateAnchorHint')).toBeInTheDocument();
+    const passwordInput = screen.getByLabelText('migratePasswordLabel');
+    const confirmInput = screen.getByLabelText('confirmPasswordLabel');
+    expect(confirmInput).toBeInTheDocument();
+
+    // Mismatch: the primary stays disabled and the mismatch error renders.
+    fireEvent.change(passwordInput, { target: { value: VAULT_PASSWORD } });
+    fireEvent.change(confirmInput, { target: { value: `${VAULT_PASSWORD}-typo` } });
+    expect(screen.getByText('passwordMismatch')).toBeInTheDocument();
+    expect(screen.getByTestId('vault-migrate-primary')).toBeDisabled();
+    expect(migrateMock).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(REMEMBERED_POSTING_KEY_KEY)).toBe(WIF);
+  });
+
+  it('EMPTY target vault: a weak anchoring password is rejected by the creation policy before any chain work', async () => {
+    getAccountsMock.mockResolvedValue([]);
+    renderDialog();
+    await screen.findByText('migrateAnchorHint');
+    fireEvent.change(screen.getByLabelText('migratePasswordLabel'), {
+      target: { value: 'short' },
+    });
+    fireEvent.change(screen.getByLabelText('confirmPasswordLabel'), {
+      target: { value: 'short' },
+    });
+    fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+    expect(await screen.findByText('errors.VAULT_PASSWORD_WEAK')).toBeInTheDocument();
+    expect(mockVerifyKeysOnChain).not.toHaveBeenCalled();
+    expect(migrateMock).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(REMEMBERED_POSTING_KEY_KEY)).toBe(WIF);
+  });
+
+  it('EMPTY target vault: matching policy-valid confirm proceeds to the verdict and the migration', async () => {
+    getAccountsMock.mockResolvedValue([]);
+    const onMigrated = vi.fn<(outcome: MigrateRememberedKeyOutcome) => void>();
+    const onOpenChange = vi.fn();
+    render(
+      <MigrateRememberedKeyDialog
+        open
+        onOpenChange={onOpenChange}
+        vaultName={VAULT}
+        manager={makeManager()}
+        onMigrated={onMigrated}
+      />,
+    );
+    await screen.findByText('migrateAnchorHint');
+    fireEvent.change(screen.getByLabelText('migratePasswordLabel'), {
+      target: { value: VAULT_PASSWORD },
+    });
+    fireEvent.change(screen.getByLabelText('confirmPasswordLabel'), {
+      target: { value: VAULT_PASSWORD },
+    });
+    fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+    await screen.findByTestId('vault-migrate-verification');
+    fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+    await waitFor(() => expect(onMigrated).toHaveBeenCalledWith('migrated'));
+    expect(migrateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ password: VAULT_PASSWORD }),
+    );
+  });
+
+  it('NON-EMPTY target vault: no confirm field is rendered', async () => {
+    renderDialog();
+    await screen.findByText('migrateWhatHappens');
+    expect(screen.queryByLabelText('confirmPasswordLabel')).not.toBeInTheDocument();
+    expect(screen.queryByText('migrateAnchorHint')).not.toBeInTheDocument();
   });
 });

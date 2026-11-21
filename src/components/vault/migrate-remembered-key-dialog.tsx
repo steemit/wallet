@@ -32,6 +32,16 @@
 // The remembered key's ACCOUNT may differ from any active session: the
 // migration targets the remembered account, and the vault password belongs
 // to the TARGET vault, not to any session identity.
+//
+// EMPTY-TARGET ANCHORING (review r1 P1-1): when the target vault holds ZERO
+// keys (read from the public directory — locked-state data), the typed
+// password becomes the vault's password (nothing exists to authenticate it
+// against), and a successful migration deletes the only other copy of the
+// key. The bar rises to creation level in that case: a CONFIRMED re-typed
+// password (mirroring the create-vault form) AND the full
+// `validateVaultPassword` policy (14+ code points etc., with the remembered
+// account as context). The primitive re-checks the policy server-of-truth
+// style (defense-in-depth); non-empty vaults keep the single verify field.
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -47,8 +57,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { modalFormActionButtonClassName } from '@/components/ui/modal-form-actions';
-import { shortPublicKey } from './vault-key-manager';
-import { KeyVerdictBox, type VaultKeyVerification } from './key-verdict';
+import { KeyVerdictBox, shortPublicKey, type VaultKeyVerification } from './key-verdict';
 import { VaultError } from '@/lib/vault/errors';
 import { verifyKeysOnChain } from '@/lib/vault/key-management';
 import {
@@ -56,6 +65,7 @@ import {
   type RememberedKeyCandidate,
 } from '@/lib/vault/migration';
 import type { VaultManagerExtended } from '@/lib/vault/manager';
+import { validateVaultPassword } from '@/lib/vault/validation';
 
 export type MigrateRememberedKeyOutcome = 'migrated' | 'alreadyPresent';
 
@@ -79,7 +89,10 @@ export function MigrateRememberedKeyDialog({
   const t = useTranslations('vault');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="z-[60] sm:max-w-md">
+      {/* max-h + overflow: the anchoring case adds the hint + confirm field
+          on top of the consent copy, which overflows short viewports — the
+          content must stay scrollable so the footer stays reachable. */}
+      <DialogContent className="z-[60] max-h-[calc(100dvh-4rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('migrateTitle')}</DialogTitle>
           <DialogDescription>{t('migrateDescription', { name: vaultName })}</DialogDescription>
@@ -116,28 +129,48 @@ function MigrateRememberedKeyForm({
   const [candidate, setCandidate] = useState<RememberedKeyCandidate | null | undefined>(undefined);
   const [candidateLoaded, setCandidateLoaded] = useState(false);
   const [password, setPassword] = useState('');
+  // Confirm re-type — rendered (and required) ONLY in the empty-target
+  // anchoring case (review r1 P1-1).
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [anchorCase, setAnchorCase] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [verification, setVerification] = useState<VaultKeyVerification | null>(null);
 
   // Read the remembered pair's PUBLIC description once per mount (Radix
-  // unmounts closed content, so every open re-reads the device state).
+  // unmounts closed content, so every open re-reads the device state), and
+  // resolve the anchoring case from the target vault's public directory.
   useEffect(() => {
     // Defer past the effect body (the panel's established pattern).
-    void Promise.resolve().then(() => {
-      setCandidate(readRememberedPostingKeyCandidate());
-      setCandidateLoaded(true);
-    });
+    void Promise.resolve()
+      .then(async () => {
+        setCandidate(readRememberedPostingKeyCandidate());
+        setCandidateLoaded(true);
+        if (manager) {
+          try {
+            const accounts = await manager.getAccounts(vaultName);
+            setAnchorCase(accounts.every((account) => account.keys.length === 0));
+          } catch {
+            // The submit path re-reads through the primitive anyway; a
+            // directory failure here only costs the confirm-field UX.
+            setAnchorCase(false);
+          }
+        } else {
+          setAnchorCase(false);
+        }
+      });
     return () => {
       // Unmount (dialog closed/cancelled) scrubs the sensitive transient
       // state — a closed dialog holds no password.
       setPassword('');
+      setConfirmPassword('');
       setVerification(null);
     };
-  }, []);
+  }, [manager, vaultName]);
 
   const scrubSecrets = () => {
     setPassword('');
+    setConfirmPassword('');
     setVerification(null);
   };
 
@@ -170,8 +203,18 @@ function MigrateRememberedKeyForm({
     );
   }
 
+  // Anchoring case: the confirm re-type must match before anything runs.
+  // The anchoring decision must also have LANDED (anchorCase !== null) — a
+  // submit during the directory read would bypass the confirm requirement.
+  const mismatch = confirmPassword !== '' && password !== confirmPassword;
   const canVerify =
-    candidate !== null && candidate !== undefined && password !== '' && !busy;
+    candidate !== null &&
+    candidate !== undefined &&
+    password !== '' &&
+    !mismatch &&
+    anchorCase !== null &&
+    (anchorCase !== true || confirmPassword !== '') &&
+    !busy;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -181,6 +224,11 @@ function MigrateRememberedKeyForm({
       setBusy(true);
       setErrorKey(null);
       try {
+        // EMPTY-TARGET ANCHORING: the typed password becomes the vault's
+        // password — apply the creation-level policy before any chain work.
+        if (anchorCase === true) {
+          validateVaultPassword(password, { accountName: candidate.accountName });
+        }
         // Only the PUBLIC candidate reaches the chain check — the remembered
         // WIF never enters this component.
         const [result] = await verifyKeysOnChain([
@@ -227,7 +275,15 @@ function MigrateRememberedKeyForm({
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3" data-testid="vault-migrate-form">
+    <form
+      onSubmit={submit}
+      className="flex flex-col gap-3"
+      data-testid="vault-migrate-form"
+      // Exposes the (async) anchoring decision for tests and e2e helpers:
+      // 'pending' while the target directory is being read, then 'empty'
+      // (confirm re-type required) or 'nonempty' (single verify field).
+      data-anchor-case={anchorCase === null ? 'pending' : anchorCase ? 'empty' : 'nonempty'}
+    >
       <div className="rounded-md border p-3">
         <p className="text-sm font-medium">{t('migrateWhatHappens')}</p>
         <ul className="text-muted-foreground mt-1 list-disc space-y-1 pl-5 text-sm">
@@ -254,12 +310,42 @@ function MigrateRememberedKeyForm({
         <Input
           id="vault-migrate-password"
           type="password"
-          autoComplete="current-password"
+          autoComplete={anchorCase === true ? 'new-password' : 'current-password'}
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(event) => {
+            setPassword(event.target.value);
+            // A verdict produced under a different password (and, in the
+            // anchoring case, a different policy check) must not survive an
+            // edit — same reset discipline as the add-key dialog's fields.
+            setVerification(null);
+          }}
           disabled={busy}
         />
       </div>
+      {anchorCase === true && (
+        <>
+          <p className="text-muted-foreground text-xs">{t('migrateAnchorHint')}</p>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="vault-migrate-confirm-password">{t('confirmPasswordLabel')}</Label>
+            <Input
+              id="vault-migrate-confirm-password"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(event) => {
+                setConfirmPassword(event.target.value);
+                setVerification(null);
+              }}
+              disabled={busy}
+            />
+          </div>
+        </>
+      )}
+      {mismatch && (
+        <p className="text-destructive text-sm font-medium" role="alert">
+          {t('passwordMismatch')}
+        </p>
+      )}
       {verification !== null && <KeyVerdictBox verification={verification} testId="vault-migrate-verification" />}
       {errorKey && (
         <p className="text-destructive text-sm font-medium" role="alert">

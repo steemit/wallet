@@ -39,7 +39,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { modalFormActionButtonClassName } from '@/components/ui/modal-form-actions';
-import { KeyVerdictBox, type VaultKeyVerification } from './key-verdict';
+import { KeyVerdictBox, ROLE_LABEL_KEYS, type VaultKeyVerification } from './key-verdict';
 import { VaultError } from '@/lib/vault/errors';
 import { verifyKeysOnChain } from '@/lib/vault/key-management';
 import type { VaultManagerExtended } from '@/lib/vault/manager';
@@ -48,13 +48,6 @@ import { validateVaultWif } from '@/lib/vault/validation';
 import { normalizeSteemUsername } from '@/lib/steem/username';
 
 const ROLE_OPTIONS: readonly VaultKeyRole[] = ['owner', 'active', 'posting', 'memo'];
-
-const ROLE_LABEL_KEYS: Record<VaultKeyRole, string> = {
-  owner: 'keysRoleOwner',
-  active: 'keysRoleActive',
-  posting: 'keysRolePosting',
-  memo: 'keysRoleMemo',
-};
 
 export type AddKeyOutcome = 'keyAdded' | 'keyAlreadyExists';
 

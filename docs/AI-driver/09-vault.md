@@ -219,12 +219,20 @@ src/lib/vault/migration.ts  A6-T5 plaintext migration + THE DELETION GATE
                            re-reads localStorage, refuses when the pair no
                            longer matches the UI-verified account/publicKey,
                            then WRITE (service.addKey — fresh IV, password
-                           authentication, dedupe no-op) -> RE-READ
-                           (service.getRecordSnapshot — a fresh registry read,
-                           never the write path's in-memory record) ->
-                           AUTHENTICATED DECRYPT of the stored posting entry
-                           under the password-derived KEK + derived-publicKey
-                           match -> ONLY THEN clearRememberedPostingKey.
+                           authentication, dedupe no-op; an EMPTY target first
+                           requires the creation-level validateVaultPassword —
+                           the typed password would become the vault's
+                           password) -> RE-READ (service.getRecordSnapshot — a
+                           fresh registry read, never the write path's
+                           in-memory record; runs for BOTH outcomes, the
+                           no-op dedupe proves nothing about decryptability)
+                           -> AUTHENTICATED DECRYPT of the stored posting
+                           entry under the password-derived KEK +
+                           derived-publicKey match -> still-current plaintext
+                           check (mid-flow swap aborts) -> ONLY THEN
+                           clearRememberedPostingKey + a gone post-condition
+                           read (a swallowed storage error surfaces as
+                           VAULT_STORAGE_UNAVAILABLE, never as success).
                            outcome 'migrated' | 'alreadyPresent' (dedupe no-op
                            detected by revision compare; verification and
                            deletion run identically). Every failure leaves the
@@ -232,8 +240,11 @@ src/lib/vault/migration.ts  A6-T5 plaintext migration + THE DELETION GATE
                            remembered USERNAME is deliberately kept. The
                            manager exposes this as
                            VaultManagerExtended.migrateRememberedPostingKey —
-                           UI code never re-implements the gate (and never
-                           calls clearRememberedPostingKey on its own)
+                           migration UI code never re-implements the gate nor
+                           deletes the plaintext itself (clearRememberedPostingKey's
+                           pre-existing callers OUTSIDE the migration flow —
+                           change-password rotation, logout device-auth clear —
+                           are unaffected)
 src/components/vault/migrate-remembered-key-dialog.tsx  A6-T5 user-initiated
                            migration dialog (opened from the key manager):
                            confirmation copy (key moves into THIS vault /
@@ -244,13 +255,26 @@ src/components/vault/migrate-remembered-key-dialog.tsx  A6-T5 user-initiated
                            "Migrate now" -> manager.migrateRememberedPostingKey.
                            The component NEVER holds the WIF (stricter than the
                            add-key dialog: only the public candidate and the
-                           typed password — scrubbed on success/cancel/unmount)
+                           typed password — scrubbed on success/cancel/unmount).
+                           EMPTY-target anchoring (r1 P1-1): when the target's
+                           public directory holds zero keys the dialog adds the
+                           anchoring hint + a CONFIRM re-type and runs the
+                           creation-level validateVaultPassword before any
+                           chain work; the async anchoring decision is exposed
+                           as the form's data-anchor-case attribute and the
+                           verify button stays disabled until it lands. The
+                           dialog content is capped at viewport height with
+                           internal scrolling (the anchoring fields overflow
+                           short viewports otherwise)
 src/components/vault/key-verdict.tsx  shared on-chain verdict rendering
                            (extracted from import-key-dialog for A6-T5): pure
                            vaultKeyVerdict mapping (not-on-chain >
                            sub-threshold > authority-differs > memo > matched)
-                           + the KeyVerdictBox; testId defaults to the add-key
-                           dialog's marker
+                           + the KeyVerdictBox (testId defaults to the add-key
+                           dialog's marker) + the shared ROLE_LABEL_KEYS and
+                           shortPublicKey helpers (moved here from
+                           vault-key-manager.tsx in review r1 so leaf-ish vault
+                           UI modules import them without a component cycle)
 src/components/vault/vault-signing-dialog.tsx  A6-T2 per-operation password
                            dialog for vault identity sessions: candidates =
                            the locked-readable public directory entries stored
@@ -907,12 +931,34 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
     matching the flow-start derivation. Write success alone NEVER deletes.
     The gate lives in `migrateRememberedPostingKey`
     (src/lib/vault/migration.ts, exposed on the manager) — the ONLY
-    `clearRememberedPostingKey` call in the flow; UI code never re-implements
-    it. Failure semantics: any failure (wrong password, vanished/changed
+    `clearRememberedPostingKey` call in the MIGRATION FLOW; migration UI code
+    never re-implements it or deletes on its own. Failure semantics: any
+    failure (wrong password, vanished/changed
     remembered pair, readback mismatch, storage error) leaves the plaintext
     untouched; a partial success (key written, readback failed) leaves BOTH
     the vault entry and the plaintext, and the flow is idempotent — re-running
     rides addKey's dedupe no-op, verifies, then deletes (`alreadyPresent`).
+    The readback runs on BOTH outcomes — the no-op dedupe (outer-publicKey
+    string match) proves nothing about decryptability, so `alreadyPresent`
+    still re-reads and authenticate-decrypts before deleting (pinned by the
+    corrupt-duplicate test in tests/unit/vault-migration.test.ts).
+    EMPTY-TARGET ANCHORING (r1 P1-1): a zero-key vault cannot authenticate
+    any password, so a migration into it makes the typed password the vault's
+    password — and a success then deletes the only other copy of the key.
+    The bar is CREATION-LEVEL in that case: the dialog renders a CONFIRMED
+    re-typed password (mirroring the create-vault form) and runs the full
+    `validateVaultPassword` policy (with the remembered account as context);
+    the PRIMITIVE independently re-checks the policy for the anchoring case
+    before the write (defense-in-depth — a rogue caller cannot anchor a weak
+    password even with the dialog bypassed). Non-empty targets keep the
+    single verify field and never re-run the policy (unlock-path passwords
+    keep working).
+    DELETION-POINT HARDENING (r1 P2 + P3-1): immediately before the deletion
+    the plaintext is re-read and must STILL be the exact flow-start WIF (a
+    mid-flow swap aborts with VAULT_KEY_INVALID, no deletion); immediately
+    after, a post-condition read must find it GONE (a storage error that
+    clearRememberedPostingKey swallowed surfaces as VAULT_STORAGE_UNAVAILABLE,
+    never as a success).
     What stays: the remembered USERNAME is NOT deleted (a public account
     name; it keeps the classic login prefill, the remembered-username
     redirect and the switch-back-to-privateKey UX working — deleting it would
@@ -926,6 +972,11 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
     Migration entry data is PUBLIC: the dialog holds only the account name,
     the derived public key and the typed vault password — never the WIF (the
     primitive re-reads localStorage inside the gated operation).
+    Scope note on "the only clearRememberedPostingKey call": that is the
+    MIGRATION FLOW's contract — clearRememberedPostingKey has pre-existing
+    legitimate callers outside it (change-password-section clearing a key the
+    chain just invalidated, and the logout device-auth clear); those are
+    unrelated to this invariant.
 
 ## Error taxonomy (17 codes, types.ts order)
 

@@ -41,8 +41,12 @@ const v = vectors.vault;
 const posting = v.keys[0];
 const active = v.keys[1];
 if (!posting || !active) throw new Error('fixture needs two keys');
-// Captured while narrowed so closures below see a plain string.
+// Captured while narrowed so closures below see plain values.
 const ACTIVE_WIF = active.privateKey;
+const ACTIVE_IV = active.iv;
+const ACTIVE_CIPHERTEXT = active.ciphertext;
+const POSTING_IV = posting.iv;
+const POSTING_CIPHERTEXT = posting.ciphertext;
 
 const TARGET_PASSWORD = v.password;
 const WRONG_PASSWORD = 'not-the-fixture-password';
@@ -394,4 +398,216 @@ describe('migrateRememberedPostingKey (A6-T5 verified-readback deletion gate)', 
     expect(result.outcome).toBe('alreadyPresent');
     plaintextGone();
   }, 60000);
+
+  // -------------------------------------------------------------------------
+  // Empty-target anchoring (review r1 P1-1)
+  // -------------------------------------------------------------------------
+
+  it('ANCHORING: a weak password into an EMPTY vault is rejected before any write', async () => {
+    seedRemembered(posting.privateKey);
+    const { manager, registry } = await setup();
+
+    // Too short for the creation policy (14+ code points) — and an empty
+    // vault would silently anchor it as THE vault password right before the
+    // migration deletes the only other copy of the key.
+    await expectRejectedBy(
+      () =>
+        manager.migrateRememberedPostingKey({
+          vaultName: 'beta',
+          expectedAccountName: ACCOUNT,
+          expectedPublicKey: publicKeyOf(posting.privateKey),
+          password: 'short',
+        }),
+      'VAULT_PASSWORD_WEAK',
+    );
+    plaintextIntact();
+    const record = await registry.getRecord('beta');
+    expect(record?.revision).toBe(0);
+    expect(record?.accounts).toHaveLength(0);
+  }, 30000);
+
+  it('ANCHORING: the account name is not accepted as the anchoring password (policy context)', async () => {
+    // A 15-char account name doubles as a length-passing password; only the
+    // policy's account-name context rule rejects it.
+    const longAccount = 'blocktrades-com';
+    seedRemembered(posting.privateKey, longAccount);
+    const { manager } = await setup();
+
+    await expectRejectedBy(
+      () =>
+        manager.migrateRememberedPostingKey({
+          vaultName: 'beta',
+          expectedAccountName: longAccount,
+          expectedPublicKey: publicKeyOf(posting.privateKey),
+          password: longAccount,
+        }),
+      'VAULT_PASSWORD_WEAK',
+    );
+    plaintextIntact();
+  }, 30000);
+
+  it('ANCHORING: a policy-valid password still migrates into an empty vault (and anchors it)', async () => {
+    seedRemembered(posting.privateKey);
+    const { manager } = await setup();
+
+    const result = await manager.migrateRememberedPostingKey({
+      vaultName: 'beta',
+      expectedAccountName: ACCOUNT,
+      expectedPublicKey: publicKeyOf(posting.privateKey),
+      password: TARGET_PASSWORD,
+    });
+    expect(result.outcome).toBe('migrated');
+    plaintextGone();
+  }, 30000);
+
+  it('ANCHORING does not apply to a non-empty vault: the existing password keeps working (no policy re-run)', async () => {
+    seedRemembered(posting.privateKey);
+    const { manager } = await setup();
+    // 'demo' already holds keys under TARGET_PASSWORD; the policy never runs
+    // for non-empty targets (unlock-path passwords must keep working).
+    const result = await manager.migrateRememberedPostingKey({
+      vaultName: 'demo',
+      expectedAccountName: ACCOUNT,
+      expectedPublicKey: publicKeyOf(posting.privateKey),
+      password: TARGET_PASSWORD,
+    });
+    expect(result.outcome).toBe('alreadyPresent');
+    plaintextGone();
+  }, 30000);
+
+  // -------------------------------------------------------------------------
+  // Unpinned alreadyPresent readback (review r1 P1-2)
+  // -------------------------------------------------------------------------
+
+  it('alreadyPresent is NOT trusted: a stored entry that string-matches the outer publicKey but cannot decrypt throws, plaintext survives', async () => {
+    seedRemembered(posting.privateKey);
+    // A revision-1 vault whose alice posting entry carries the MATCHING
+    // outer publicKey (so service.addKey dedupes by plain string comparison
+    // and never decrypts) but CORRUPTED ciphertext; the valid ACTIVE entry
+    // lets addKey's authenticate() pass. A migration that skipped the
+    // readback for the no-op outcome would delete the plaintext while the
+    // stored entry is garbage — exactly what this test kills.
+    const { manager, registry } = await setup();
+    fake.seed(
+      VAULT_DB_NAME,
+      'vaults',
+      makeRecord('dedupe-corrupt', {
+        revision: 1,
+        accounts: [
+          {
+            accountName: ACCOUNT,
+            keys: {
+              owner: [],
+              active: [
+                {
+                  iv: ACTIVE_IV,
+                  ciphertext: ACTIVE_CIPHERTEXT,
+                  note: 'authenticate anchor',
+                },
+              ],
+              posting: [
+                {
+                  iv: POSTING_IV,
+                  ciphertext: `${POSTING_CIPHERTEXT}AAAA`,
+                  note: 'corrupted duplicate',
+                  publicKey: publicKeyOf(posting.privateKey),
+                },
+              ],
+              memo: [],
+            },
+          },
+        ],
+      }),
+    );
+
+    await expectRejectedBy(
+      () =>
+        manager.migrateRememberedPostingKey({
+          vaultName: 'dedupe-corrupt',
+          expectedAccountName: ACCOUNT,
+          expectedPublicKey: publicKeyOf(posting.privateKey),
+          password: TARGET_PASSWORD,
+        }),
+      'VAULT_KEY_INVALID',
+    );
+    plaintextIntact();
+    // The stored record is untouched by the failed run.
+    const record = await registry.getRecord('dedupe-corrupt');
+    expect(record?.revision).toBe(1);
+    expect(record?.accounts[0]?.keys.posting[0]?.publicKey).toBe(
+      publicKeyOf(posting.privateKey),
+    );
+  }, 30000);
+
+  // -------------------------------------------------------------------------
+  // Deletion-point hardening (review r1 P2 + P3-1)
+  // -------------------------------------------------------------------------
+
+  it('TOCTOU: a mid-flow swap of the remembered plaintext aborts with no deletion', async () => {
+    seedRemembered(posting.privateKey);
+    const { manager } = await setup();
+
+    // The SECOND read of the remembered posting key inside the flow (the
+    // first is readRememberedPair's, the second is the deletion-point
+    // still-current check) returns a different WIF — another tab or a login
+    // swapped it between the verified readback and the deletion.
+    const realGetItem = Storage.prototype.getItem;
+    let postingKeyReads = 0;
+    const spy = vi
+      .spyOn(Storage.prototype, 'getItem')
+      .mockImplementation(function (this: Storage, key: string) {
+        if (key === REMEMBERED_POSTING_KEY_KEY) {
+          postingKeyReads += 1;
+          if (postingKeyReads === 2) return '5Jswapped-mid-flow-key';
+        }
+        return realGetItem.call(this, key) as string | null;
+      });
+
+    try {
+      await expectRejectedBy(
+        () =>
+          manager.migrateRememberedPostingKey({
+            vaultName: 'demo',
+            expectedAccountName: ACCOUNT,
+            expectedPublicKey: publicKeyOf(posting.privateKey),
+            password: TARGET_PASSWORD,
+          }),
+        'VAULT_KEY_INVALID',
+      );
+    } finally {
+      spy.mockRestore();
+    }
+    // The (real) plaintext survived.
+    plaintextIntact();
+  }, 30000);
+
+  it('deletion post-condition: a swallowed removeItem storage error surfaces as failure, never as success', async () => {
+    seedRemembered(posting.privateKey);
+    const { manager, registry } = await setup();
+
+    // removeItem swallowed (clearRememberedPostingKey ignores errors) — the
+    // post-condition read must catch the surviving plaintext.
+    const removeSpy = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {});
+
+    try {
+      await expectRejectedBy(
+        () =>
+          manager.migrateRememberedPostingKey({
+            vaultName: 'beta',
+            expectedAccountName: ACCOUNT,
+            expectedPublicKey: publicKeyOf(posting.privateKey),
+            password: TARGET_PASSWORD,
+          }),
+        'VAULT_STORAGE_UNAVAILABLE',
+      );
+    } finally {
+      removeSpy.mockRestore();
+    }
+    // The plaintext is still on the device — the UI must NOT have seen a
+    // success (the documented re-runnable partial state; the vault copy is
+    // verified in the record).
+    plaintextIntact();
+    const record = await registry.getRecord('beta');
+    expect(record?.accounts[0]?.keys.posting).toHaveLength(1);
+  }, 30000);
 });

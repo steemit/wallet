@@ -50,7 +50,7 @@ import { VaultError } from '@/lib/vault/errors';
 import { sameSteemAccount } from '@/lib/steem/username';
 import { VAULT_WORK_MODE_OPEN_EVENT } from '@/components/vault/work-mode-events';
 import { useVaultRuntime } from '@/components/vault/vault-manager';
-import { shortPublicKey } from '@/components/vault/vault-key-manager';
+import { shortPublicKey } from '@/components/vault/key-verdict';
 import type { Operation } from '@/lib/steem/types';
 import type { SignResult, SigningRole, VaultAccountSummary } from '@/lib/vault/types';
 

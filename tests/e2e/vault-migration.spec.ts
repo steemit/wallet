@@ -1,5 +1,6 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import vectors from '../fixtures/vault-development-test-vectors.json';
+import { steem } from '@steemit/steem-js';
 // The REAL production localStorage key names (alias-free leaf module — the
 // same constants lib/auth/browser-storage.ts uses), so the seeding writes
 // exactly what the app reads.
@@ -57,10 +58,20 @@ function shortPublicKey(publicKey: string): string {
 // Real localStorage seeding (production key constants)
 // ---------------------------------------------------------------------------
 
-/** Register an init script seeding the remembered pair on every navigation. */
+/**
+ * Register a SELF-DISARMING init script that seeds the remembered pair once
+ * per page lifetime (review r1 P3-4): a plain addInitScript re-runs on every
+ * navigation and would re-seed localStorage AFTER the migration deleted the
+ * plaintext, making every retention assertion meaningless. The window flag
+ * ensures only the first load seeds; later navigations observe the app's own
+ * writes — so "username kept / plaintext gone" assertions are real.
+ */
 async function seedRememberedPair(page: Page, account: string, wif: string) {
   await page.addInitScript(
     ({ postingKeyKey, usernameKey, accountName, postingWif }) => {
+      const w = window as typeof window & { __walletMigrationE2eSeeded?: boolean };
+      if (w.__walletMigrationE2eSeeded) return;
+      w.__walletMigrationE2eSeeded = true;
       window.localStorage.setItem(postingKeyKey, postingWif);
       window.localStorage.setItem(usernameKey, accountName);
     },
@@ -277,7 +288,8 @@ async function openKeyManager(page: Page, modal: Locator, vaultName: string) {
 
 /**
  * Drive the migration dialog to the verdict: open, assert the confirmation
- * copy, fill the vault password, verify on-chain (intercepted accounts).
+ * copy, fill the vault password (plus the CONFIRM re-type when the target
+ * vault is empty — the anchoring case), verify on-chain (intercepted).
  */
 async function migrateDialogToVerdict(page: Page, view: Locator, password: string) {
   await view.getByRole('button', { name: 'Migrate remembered key' }).click();
@@ -294,7 +306,13 @@ async function migrateDialogToVerdict(page: Page, view: Locator, password: strin
   await expect(form.getByLabel('Account')).toHaveValue('alice');
   await expect(form.getByText(shortPublicKey(fixtureKey('posting').publicKey))).toBeVisible();
 
-  await form.getByLabel('Vault password', { exact: false }).fill(password);
+  await form.locator('#vault-migrate-password').fill(password);
+  // The (async) anchoring decision must land before the confirm handling:
+  // 'empty' target -> the confirm re-type is required too.
+  await expect(form).not.toHaveAttribute('data-anchor-case', 'pending');
+  if ((await form.getAttribute('data-anchor-case')) === 'empty') {
+    await form.getByLabel('Confirm vault password').fill(password);
+  }
   await form.getByRole('button', { name: 'Verify on-chain' }).click();
   const verdict = form.getByTestId('vault-migrate-verification');
   await expect(verdict).toBeVisible({ timeout: 20_000 });
@@ -395,6 +413,71 @@ test.describe('Vault plaintext migration (A6-T5)', () => {
     await closeWorkModeModal(modal);
   });
 
+  test('empty-vault anchoring: confirm re-type + creation-level password policy before the migration may run (r1 P1-1)', async ({
+    page,
+  }) => {
+    const postingKey = fixtureKey('posting');
+    await seedRememberedPair(page, 'alice', postingKey.privateKey);
+    await abortOtherQueries(page);
+    await fulfillAccountsRoute(page, {
+      alice: chainAccount('alice', { posting: [[postingKey.publicKey, 1]] }),
+    });
+
+    await page.goto('/login');
+    const modal = await openWorkModeModal(page);
+    await switchToVaultMode(modal);
+    await createVaultViaEmptyDialog(page, modal, 'Anchor Vault');
+    const view = await openKeyManager(page, modal, 'Anchor Vault');
+
+    await view.getByRole('button', { name: 'Migrate remembered key' }).click();
+    const form = page.getByTestId('vault-migrate-form');
+    await expect(form).toBeVisible({ timeout: 15_000 });
+
+    // The EMPTY target raises the bar: the anchoring hint + the confirm
+    // re-type render (the typed password becomes the vault's password).
+    await expect(form.getByText(/password you type becomes its vault password/)).toBeVisible();
+    const confirmField = form.getByLabel('Confirm vault password');
+    await expect(confirmField).toBeVisible();
+
+    // (1) Typo: mismatched confirm blocks the flow with the shared mismatch
+    // error — nothing runs, the plaintext is untouched.
+    await form.locator('#vault-migrate-password').fill(VAULT_PASSWORD);
+    await confirmField.fill(`${VAULT_PASSWORD}-typo`);
+    await expect(form.getByText('Passwords do not match.')).toBeVisible();
+    await expect(form.getByRole('button', { name: 'Verify on-chain' })).toBeDisabled();
+    expect(await rememberedState(page)).toEqual({
+      postingKey: postingKey.privateKey,
+      username: 'alice',
+    });
+
+    // (2) Weak anchoring password: matched confirm, but the creation policy
+    // rejects it before ANY chain work or write.
+    await form.locator('#vault-migrate-password').fill('short');
+    await confirmField.fill('short');
+    await form.getByRole('button', { name: 'Verify on-chain' }).click();
+    await expect(form.getByText(/This password is too weak/)).toBeVisible({
+      timeout: 15_000,
+    });
+    expect(await rememberedState(page)).toEqual({
+      postingKey: postingKey.privateKey,
+      username: 'alice',
+    });
+
+    // (3) Correct, confirmed, policy-valid: the full flow succeeds and only
+    // now deletes the plaintext.
+    await form.locator('#vault-migrate-password').fill(VAULT_PASSWORD);
+    await confirmField.fill(VAULT_PASSWORD);
+    await form.getByRole('button', { name: 'Verify on-chain' }).click();
+    await expect(form.getByTestId('vault-migrate-verification')).toBeVisible({
+      timeout: 20_000,
+    });
+    await form.getByRole('button', { name: 'Migrate now' }).click();
+    await expect(form).toBeHidden({ timeout: 30_000 });
+    expect(await rememberedState(page)).toEqual({ postingKey: null, username: 'alice' });
+
+    await closeWorkModeModal(modal);
+  });
+
   test('vault identity session signs with the migrated key (claim rewards, posting floor)', async ({
     page,
   }) => {
@@ -469,6 +552,15 @@ test.describe('Vault plaintext migration (A6-T5)', () => {
       ],
     ]);
     expect(body.signedTx?.signatures?.length).toBe(1);
+    // Signer identity (review r1 P3-6): recover the signature against the
+    // MIGRATED posting key's public key — the broadcast was really signed by
+    // the key that replaced the plaintext. Negative control: the active
+    // fixture key does NOT verify. Both sides use steem-js's default chain
+    // id (the app never overrides it client-side).
+    expect(steem.auth.verifyTransaction(body.signedTx, postingKey.publicKey)).toBe(true);
+    expect(steem.auth.verifyTransaction(body.signedTx, fixtureKey('active').publicKey)).toBe(
+      false,
+    );
 
     // Identity + signing stayed local (no classic auth endpoints).
     expect(authEndpoints).toEqual([]);

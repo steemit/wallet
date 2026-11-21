@@ -17,20 +17,46 @@
 //       decrypted WIF equals the public key derived from the remembered key
 //       at flow start.
 //
-//   Write success alone NEVER triggers deletion. UI code must not re-implement
-//   this gate (or call clearRememberedPostingKey on its own): the ONLY
-//   deletion call in the migration flow lives at the bottom of
-//   migrateRememberedPostingKey.
+//   Write success alone NEVER triggers deletion. Migration UI code must not
+//   re-implement this gate; the ONLY clearRememberedPostingKey call in the
+//   MIGRATION FLOW lives at the bottom of migrateRememberedPostingKey.
+//   (clearRememberedPostingKey has pre-existing legitimate callers OUTSIDE
+//   the migration flow — change-password-section clearing an invalidated key
+//   and the logout device-auth clear — those are unrelated to this contract.)
+//
+// EMPTY-TARGET ANCHORING (review r1 P1-1): a vault with ZERO key ciphertext
+// has no password anchor — `service.addKey`'s authenticate() accepts ANY
+// password there, so a migration into an empty vault makes the typed
+// password the vault's password. Because a successful migration then deletes
+// the only OTHER copy of the key, a typo would strand it. The primitive
+// therefore requires a CREATION-LEVEL password for the anchoring case:
+// `validateVaultPassword` (the 14-code-point policy, with the remembered
+// account name as context) runs BEFORE the write whenever the target holds
+// no keys. The dialog additionally asks for a confirmed (re-typed) password
+// in that case (mirroring the create-vault form); the primitive check is
+// defense-in-depth and safe on its own — a rogue caller cannot anchor a
+// weak password even with the dialog bypassed.
+//
+// DELETION-POINT HARDENING (review r1 P2 + P3-1): immediately before the
+// deletion, localStorage is re-read and must STILL hold the exact flow-start
+// WIF (a mid-flow swap — another tab, a login in between — aborts with
+// VAULT_KEY_INVALID and no deletion), and immediately after the deletion a
+// post-condition read must find the plaintext GONE (a storage error that
+// `clearRememberedPostingKey` swallowed surfaces as
+// VAULT_STORAGE_UNAVAILABLE instead of a false success).
 //
 // Idempotency / partial states: every failure leaves the plaintext untouched.
 // A partial success (key written, readback failed) leaves the key in the vault
 // AND the plaintext on the device; re-running the flow rides `service.addKey`'s
 // duplicate no-op (dedupe on (accountName, role, publicKey)), then verifies and
-// deletes — the second run reports `alreadyPresent`. The dedupe outcome is
-// detected by comparing the record revision before/after `addKey` (a no-op
-// returns the unchanged record), the same class of cosmetic race the add-key
-// dialog documents for its count-based detection; the storage outcome is
-// identical either way.
+// deletes — the second run reports `alreadyPresent`. The readback verification
+// runs on BOTH outcomes: a no-op add does not prove the stored entry decrypts
+// back to this key (the outer publicKey string-match dedupe never decrypts),
+// so `alreadyPresent` still re-reads and authenticate-decrypts before any
+// deletion. The dedupe outcome is detected by comparing the record revision
+// before/after `addKey` (a no-op returns the unchanged record), the same class
+// of cosmetic race the add-key dialog documents for its count-based
+// detection; the storage outcome is identical either way.
 //
 // What stays: the remembered USERNAME is NOT deleted. It is a public account
 // name (the chain publishes it), it keeps the classic login prefill and the
@@ -50,7 +76,7 @@ import { decryptVaultKey, deriveVaultKek } from './crypto';
 import { VaultError } from './errors';
 import type { VaultService } from './service';
 import type { VaultRecordV1 } from './types';
-import { validateVaultWif } from './validation';
+import { validateVaultPassword, validateVaultWif } from './validation';
 import { normalizeSteemUsername } from '@/lib/steem/username';
 import {
   clearRememberedPostingKey,
@@ -150,6 +176,29 @@ function readRememberedPair(): { wif: string; accountName: string; publicKey: st
 }
 
 /**
+ * True when the record carries no key ciphertext at all (the empty-vault
+ * state). Mirrors manager.ts's private helper of the same name — that one
+ * cannot be imported here (manager imports this module), and the definition
+ * is the envelope contract itself: every account, every role array empty.
+ */
+function recordHasNoKeys(record: VaultRecordV1): boolean {
+  return record.accounts.every((account) =>
+    (['owner', 'active', 'posting', 'memo'] as const).every(
+      (role) => account.keys[role].length === 0,
+    ),
+  );
+}
+
+/** Read the current remembered plaintext; null on a storage failure. */
+function currentRememberedPlaintext(): string | null {
+  try {
+    return localStorage.getItem(REMEMBERED_POSTING_KEY_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Scan one account's posting entries for a VERIFIED copy of the expected key:
  * an entry is verified when it authenticates (AES-GCM) under the KEK AND the
  * public key derived from its decrypted WIF equals `expectedPublicKey`.
@@ -213,6 +262,15 @@ export async function migrateRememberedPostingKey(
   // (a) WRITE through the add-key primitive (fresh IV, password
   // authentication, dedupe no-op on (accountName, role, publicKey)).
   const before = await deps.service.getRecordSnapshot(input.vaultName);
+  // EMPTY-TARGET ANCHORING: with no key ciphertext the vault cannot
+  // authenticate the password, so this write would silently make
+  // `input.password` the vault password — and a successful migration then
+  // deletes the only other copy of the key. Require the creation-level
+  // policy up front (the dialog additionally demands a confirmed re-type;
+  // this check keeps the primitive safe on its own).
+  if (recordHasNoKeys(before)) {
+    validateVaultPassword(input.password, { accountName: remembered.accountName });
+  }
   const written = await deps.service.addKey({
     vaultName: input.vaultName,
     accountName: remembered.accountName,
@@ -226,6 +284,8 @@ export async function migrateRememberedPostingKey(
     written.revision > before.revision ? 'migrated' : 'alreadyPresent';
 
   // (b) RE-READ from the registry — never the write path's in-memory record.
+  // Runs for BOTH outcomes: a no-op addKey (outer-publicKey string dedupe)
+  // proves nothing about decryptability.
   const reread = await deps.service.getRecordSnapshot(input.vaultName);
 
   // (c) AUTHENTICATED DECRYPT + derived-public-key match on the stored entry.
@@ -242,8 +302,25 @@ export async function migrateRememberedPostingKey(
         'readback verification failed: the stored entry does not match the remembered key',
       );
     }
-    // Deletion gate: reached only after (a) + (b) + (c) all succeeded.
+    // DELETION-POINT HARDENING (P2): the plaintext that still sits in
+    // localStorage must be byte-for-byte the key this flow verified — a
+    // mid-flow swap aborts with no deletion.
+    if (currentRememberedPlaintext() !== remembered.wif) {
+      throw keyInvalid('the remembered key changed during the migration');
+    }
+    // Deletion gate: reached only after (a) + (b) + (c) + the still-current
+    // check all succeeded.
     clearRememberedPostingKey();
+    // DELETION POST-CONDITION (P3-1): clearRememberedPostingKey swallows
+    // storage errors by design — a plaintext that survived the removal must
+    // surface as a failure (the flow stays re-runnable; the vault already
+    // holds a verified copy), never as a success banner.
+    if (currentRememberedPlaintext() !== null) {
+      throw new VaultError(
+        'VAULT_STORAGE_UNAVAILABLE',
+        'removing the remembered key from this device failed',
+      );
+    }
     return { outcome };
   } finally {
     kek.fill(0);

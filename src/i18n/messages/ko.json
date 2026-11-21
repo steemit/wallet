@@ -836,6 +836,7 @@
     "migrateAccountLabel": "계정",
     "migrateKeyLabel": "이전할 포스팅 키",
     "migratePasswordLabel": "볼트 비밀번호 (인증, 암호화 및 검증)",
+    "migrateAnchorHint": "이 볼트는 비어 있습니다. 입력한 비밀번호가 이 볼트의 비밀번호가 되므로 볼트 비밀번호 규칙으로 검증하고 두 번 입력받습니다.",
     "migrateVerifyButton": "온체인 검증",
     "migrateVerifying": "검증 중…",
     "migrateConfirmButton": "지금 이전",

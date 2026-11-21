@@ -64,23 +64,9 @@ import { readRememberedPostingKeyCandidate } from '@/lib/vault/migration';
 import type { VaultAccountSummary, VaultKeyRole, VaultKeySummary } from '@/lib/vault/types';
 import { ImportKeyDialog, type AddKeyOutcome } from './import-key-dialog';
 import { MigrateRememberedKeyDialog } from './migrate-remembered-key-dialog';
+import { ROLE_LABEL_KEYS, shortPublicKey } from './key-verdict';
 
 const ROLE_ORDER: readonly VaultKeyRole[] = ['owner', 'active', 'posting', 'memo'];
-
-const ROLE_LABEL_KEYS: Record<VaultKeyRole, string> = {
-  owner: 'keysRoleOwner',
-  active: 'keysRoleActive',
-  posting: 'keysRolePosting',
-  memo: 'keysRoleMemo',
-};
-
-/** `STM` + first 4 + ellipsis + last 4; short values render as-is.
- *  Shared truncation for every vault surface rendering a public key. */
-export function shortPublicKey(publicKey: string): string {
-  return publicKey.length <= 12
-    ? publicKey
-    : `${publicKey.slice(0, 7)}…${publicKey.slice(-4)}`;
-}
 
 /** A key the note/remove dialogs currently target (IV = unique pointer). */
 interface KeyTarget {
