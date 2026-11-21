@@ -4,7 +4,8 @@ import { Suspense, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { useAuth, useActiveSigningKey } from '@/hooks/use-auth';
+import { useAuth } from '@/hooks/use-auth';
+import { useSessionSigning } from '@/hooks/use-session-signing';
 import { useProposals } from '@/hooks/use-proposals';
 import { useProposalsMeta } from '@/hooks/use-proposals-meta';
 import { LoginForm } from '@/components/auth/login-form';
@@ -31,8 +32,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { apiClient, SteemSigner } from '@/lib/steem/client';
-import type { Proposal, ProposalOrderBy, ProposalStatus } from '@/lib/steem/types';
+import { apiClient } from '@/lib/steem/client';
+import type { Operation, Proposal, ProposalOrderBy, ProposalStatus } from '@/lib/steem/types';
 import { parseSteemAsset } from '@/lib/steem/parse-asset';
 import { sameSteemAccount } from '@/lib/steem/username';
 import {
@@ -234,9 +235,15 @@ function ProposalRow({
 export function ProposalsPageClient() {
   const t = useTranslations('wallet.proposalsPage');
   const tAuth = useTranslations('auth');
+  const tWallet = useTranslations('wallet');
   const { username, isAuthenticated } = useAuth();
-  const activeKey = useActiveSigningKey();
+  // Unified signing entry (A6-T4): privateKey sessions sign through the
+  // facade's legacy backend exactly as before (active key, owner fallback);
+  // vault identity sessions get the per-key password dialog.
+  const signing = useSessionSigning();
   const [loginOpen, setLoginOpen] = useState(false);
+  /** Classic re-auth for a privateKey session that lacks an active/owner key. */
+  const [reauthOpen, setReauthOpen] = useState(false);
   const [votingId, setVotingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -274,10 +281,10 @@ export function ProposalsPageClient() {
     [proposals, searchTerm]
   );
 
-  const canVote = isAuthenticated && !!username && !!activeKey;
+  const canVote = isAuthenticated && !!username;
 
   const onVoteToggle = async (proposalId: number, approve: boolean) => {
-    if (!username || !activeKey) {
+    if (!username) {
       toast.error(t('signInToVote'));
       setLoginOpen(true);
       return;
@@ -291,13 +298,39 @@ export function ProposalsPageClient() {
     setProposalVotedLocally(proposalId, approve);
     const rollback = () => setProposalVotedLocally(proposalId, !approve);
     try {
-      const signedTx = await SteemSigner.signUpdateProposalVotes(
-        username,
-        [proposalId],
-        approve,
-        activeKey
-      );
-      const res = await apiClient.broadcastProposalVote(signedTx, username);
+      // The exact operation tuple SteemSigner.signUpdateProposalVotes built
+      // internally. update_proposal_votes is an ACTIVE-class operation on
+      // Steem (the legacy postingOps whitelist never included it and the
+      // chain's active authority covers it), so the floor stays 'active'.
+      const operations: Operation[] = [
+        ['update_proposal_votes', { voter: username, proposal_ids: [proposalId], approve }],
+      ];
+
+      const outcome = await signing.sign({
+        operations,
+        accountName: username,
+        role: 'active',
+      });
+
+      if (outcome.status === 'cancelled') {
+        // User aborted the vault dialog — roll the optimistic flip back, no error.
+        rollback();
+        return;
+      }
+      if (outcome.status === 'needsClassicReauth') {
+        // privateKey session without an active/owner key: the classic re-auth
+        // dialog locked to this account.
+        rollback();
+        setReauthOpen(true);
+        return;
+      }
+      if (outcome.status === 'error') {
+        rollback();
+        toast.error(t('voteFailed'));
+        return;
+      }
+
+      const res = await apiClient.broadcastProposalVote(outcome.result.signedTx, username);
       if (!res.success) {
         rollback();
         toast.error(res.error ?? t('voteFailed'));
@@ -442,7 +475,7 @@ export function ProposalsPageClient() {
           <Button
             type="button"
             onClick={() => {
-              if (!username || !activeKey) {
+              if (!username) {
                 setLoginOpen(true);
                 return;
               }
@@ -469,10 +502,47 @@ export function ProposalsPageClient() {
               </div>
             }
           >
-            <LoginForm embedded onLoginSuccess={() => setLoginOpen(false)} />
+            {/* Unauthenticated visitors may log in as any account; the
+                active-authority requirement keeps a privateKey login fit for
+                voting the first time — every proposals action here (vote /
+                create / remove) is an active-class operation. In Vault Mode
+                this dialog still offers identity selection — the per-action
+                password dialog enforces the floor after login. */}
+            <LoginForm
+              embedded
+              requiredAuthTypes={['active']}
+              onLoginSuccess={() => setLoginOpen(false)}
+            />
           </Suspense>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={reauthOpen} onOpenChange={setReauthOpen}>
+        <DialogContent className="z-[60] max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{tWallet('reauthTitle')}</DialogTitle>
+            <DialogDescription>{tWallet('reauthDescription')}</DialogDescription>
+          </DialogHeader>
+          <Suspense
+            fallback={
+              <div className="space-y-4 py-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-11 w-full" />
+              </div>
+            }
+          >
+            <LoginForm
+              embedded
+              fixedUsername={username ?? ''}
+              requiredAuthTypes={['active']}
+              onLoginSuccess={() => setReauthOpen(false)}
+            />
+          </Suspense>
+        </DialogContent>
+      </Dialog>
+
+      {signing.dialog}
 
       <ProposalCreatorDialog
         key={`${createOpen ? 'open' : 'closed'}:${username ?? 'anon'}`}

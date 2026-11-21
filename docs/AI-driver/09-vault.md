@@ -22,10 +22,12 @@
 > encryption), and the R3 vault identity login (mode-dispatched login form,
 > two-select identity picker over the public directory, key-free
 > `sessionKind: 'vault'` sessions).
-> Not implemented: the REMAINING A6 caller migration (T3b: claim /
-> communities / change-password / recovery-warning; T4: market / proposals /
-> witnesses — signing with a vault identity for the wallet operations landed
-> in A6-T2/T3a) and the B-phase dapp — this doc grows with each task package.
+> Not implemented: the B-phase dapp. The A6 caller migration is COMPLETE
+> (T2 transfer pilot; T3a the eight active-class wallet ops; T3b claim /
+> communities / change-password / recovery-warning; T4 market / proposals /
+> witnesses) — every business signing caller now routes through
+> `useSessionSigning` except the documented permanent exceptions (see the
+> A6 progress note's final "who still signs directly" inventory).
 
 ## Module map
 
@@ -226,8 +228,11 @@ src/hooks/use-session-signing.tsx  A6-T2 unified consumer signing entry — the
                            the pilot; A6-T3a migrated the eight wallet-op
                            callers; A6-T3b migrated claim-rewards-banner,
                            communities-section, change-password-section and
-                           recovery-warning-banner; T4 = market/proposals/
-                           witnesses): `sign({ operations,
+                           recovery-warning-banner; A6-T4 migrated the last
+                           five: market-page-client limit orders,
+                           proposals-page-client votes,
+                           proposal-creator-dialog, proposal-remove-dialog
+                           and witness-vote-form): `sign({ operations,
                            accountName, role })` → discriminated outcome
                            `signed` (SignResult) | `cancelled` | `needsClassicReauth`
                            (privateKey session lacks a key at-or-above the floor
@@ -305,26 +310,37 @@ src/components/vault/work-mode-events.ts  R3 leaf module holding
                            -> login form -> vault login form -> layout)
 src/components/auth/login-form.tsx  R3 MODE DISPATCHER (`LoginForm`): reads the
                            persisted signing mode via useVaultRuntime +
-                           useSigningMode. 'vault' -> VaultLoginForm; 'vault' +
-                           embedded re-auth (fixedUsername / requiredAuthTypes)
-                           -> explicit "not available in Vault Mode yet" notice
-                           + Work Mode shortcut. A6-T3a narrowing: the notice now
-                           covers only the consumers whose callers have NOT
-                           migrated to useSessionSigning (witness vote and claim
-                           rewards until T3b/T4; the permissions key reveal
-                           permanently — showing the raw WIF can never be served
-                           by the signing path). Since A6-T3a NO wallet-action
-                           re-auth gate fires for a page-matching vault session
-                           (wallet-transfers-modals hands it every hosted form
-                           directly); the migrated wallet forms' own in-form
-                           re-auth dialogs (delegate / power up / power down)
-                           remain as the defensive path for the divergent
-                           mode/session edge (a privateKey session that lost its
-                           key); EVERY other state (privateKey, mode still
-                           loading, failed read, runtime unavailable, no
-                           provider) -> the module-private PrivateKeyLoginForm,
-                           whose body is byte-identical to the pre-R3 LoginForm
-                           (the R3 diff is insert-only)
+                           useSigningMode. 'vault' -> VaultLoginForm — including
+                           embedded dialogs that only declare
+                           `requiredAuthTypes` (the market / proposals /
+                           witnesses sign-in dialogs since A6-T4: the floor
+                           applies to the privateKey branch, and after identity
+                           login the per-action password dialog enforces it);
+                           'vault' + embedded ACCOUNT-PINNED re-auth
+                           (`fixedUsername`) -> explicit "not available in
+                           Vault Mode yet" notice + Work Mode shortcut. A6-T4
+                           narrowing: `requiredAuthTypes` alone no longer
+                           triggers the notice — identity selection + the
+                           per-key password path CAN satisfy an authority
+                           floor, so the notice is reserved for account-pinned
+                           re-auth (a privateKey session that needs ITS
+                           account's key back; identity selection would switch
+                           accounts). The permissions key reveal keeps the
+                           notice PERMANENTLY — showing the raw WIF can never
+                           be served by the signing path. Since A6-T3a NO
+                           wallet-action re-auth gate fires for a page-matching
+                           vault session (wallet-transfers-modals hands it
+                           every hosted form directly); the migrated wallet
+                           forms' own in-form re-auth dialogs (delegate / power
+                           up / power down / market / proposals / creator /
+                           remove / witness) remain as the defensive path for
+                           the divergent mode/session edge (a privateKey
+                           session that lost its key); EVERY other state
+                           (privateKey, mode still loading, failed read,
+                           runtime unavailable, no provider) -> the
+                           module-private PrivateKeyLoginForm, whose body is
+                           byte-identical to the pre-R3 LoginForm (the R3 diff
+                           is insert-only)
 src/components/auth/vault-login-form.tsx  R3 identity selection: two NATIVE
                            selects — vaults (manager.listVaults) and the
                            selected vault's account names (manager.getAccounts,
@@ -770,19 +786,25 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
       default; login must not hard-depend on IndexedDB). Inside Vault Mode the
       reverse holds: storage errors show mapped errors + Retry, never a silent
       PrivateKey fallback.
-    - Embedded re-auth callers (`fixedUsername` / `requiredAuthTypes`) cannot
-      be satisfied by identity selection and get an explicit "not available
-      in Vault Mode yet" notice with a Work Mode shortcut. Since A6-T2 the
-      notice is the TEMPORARY state of consumers whose callers have not been
-      migrated to useSessionSigning (witness vote remains, T4; the
-      permissions key reveal stays PERMANENTLY — it needs the raw WIF
-      displayed, which the signing path never exposes); since A6-T3a NO
+    - Embedded ACCOUNT-PINNED re-auth callers (`fixedUsername`) cannot be
+      satisfied by identity selection (it would switch accounts) and get an
+      explicit "not available in Vault Mode yet" notice with a Work Mode
+      shortcut. Since A6-T4 `requiredAuthTypes` ALONE no longer triggers the
+      notice: the market / proposals / witnesses sign-in dialogs declare the
+      active floor for the PRIVATEKEY branch while Vault Mode keeps identity
+      selection — the per-key password path enforces the floor after login,
+      so identity selection IS fit for purpose for vault mode now. The
+      permissions key reveal keeps the notice PERMANENTLY (it needs the raw
+      WIF displayed, which the signing path never exposes). Since A6-T3a NO
       wallet-action re-auth gate fires for a page-matching vault session
       (wallet-transfers-modals shows every hosted form directly — transfer,
       power up/down, cancel power down, delegate, withdraw routes, convert —
-      and each form signs through the per-key password path), and since A6-T3b
+      and each form signs through the per-key password path); since A6-T3b
       the claim-rewards banner's re-auth dialog is likewise unreachable for a
-      vault session (the claim signs through the password path directly).
+      vault session; since A6-T4 the witness-vote login dialog (which used to
+      conditionally pin `fixedUsername` and could surface the notice) opens
+      only for unauthenticated visitors and no T4 surface reaches the notice
+      for an authenticated vault session.
       Migrating a caller = routing its action through useSessionSigning and
       dropping its notice reachability — never a silently degraded form.
     - The claim-rewards banner's device-remembered posting-key restore
@@ -804,19 +826,23 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
       form may READ the remembered USERNAME to prefill (no key read, no
       write); (b) a successful change-password clears the remembered posting
       key because the chain just invalidated it — a removal, never a borrow.
-    - Known UX gaps still open (no key exposure; T4 will close them): the
-      `delegate-form` "Not authenticated" dead-end for a keyless vault session
-      CLOSED in A6-T3a (with the seven other wallet-op callers — see the A6
-      progress note below; the transfer-form's copy of that gap CLOSED in
-      A6-T2); the claim-rewards / communities / change-password /
+    - Known UX gaps: NONE left for vault sessions. The historical list, all
+      CLOSED: the `delegate-form` "Not authenticated" dead-end for a keyless
+      vault session CLOSED in A6-T3a (with the seven other wallet-op callers
+      — see the A6 progress note below; the transfer-form's copy of that gap
+      CLOSED in A6-T2); the claim-rewards / communities / change-password /
       recovery-warning vault gaps (keyless notice or dead gate) CLOSED in
       A6-T3b — the claim banner's "skip restore → re-auth dialog →
       vaultUnsupported notice" chain is gone and each of the four callers
-      signs through the per-key password path; login dialogs opened from the
-      market and proposals pages pass
-      neither `fixedUsername` nor `requiredAuthTypes`, so in Vault Mode they
-      show identity selection and a later order/vote finds no key and reopens
-      the dialog.
+      signs through the per-key password path; the market / proposals /
+      witnesses gap CLOSED in A6-T4 — those sign-in dialogs now declare
+      `requiredAuthTypes: ['active']` (every action on the three pages is
+      active-class) without pinning a username, Vault Mode keeps identity
+      selection there, and an authenticated vault session orders / votes /
+      creates / removes / witness-votes straight through the per-key password
+      path instead of reopening the login dialog. The one PERMANENT notice
+      consumer is the permissions key reveal (raw WIF display — outside the
+      signing path by design).
 
 ## Error taxonomy (17 codes, types.ts order)
 
@@ -1020,19 +1046,22 @@ into, or changePassword on, a vault with zero key ciphertext).
     login). `HomeRedirectOrLogin` instead WAITS for the mode before its
     Legacy remembered-username jump (so a vault user is never redirected by
     PrivateKey-era device data) and skips the jump entirely in Vault Mode.
-  - Embedded re-auth (`fixedUsername` / `requiredAuthTypes`) + Vault Mode =
+  - Embedded ACCOUNT-PINNED re-auth (`fixedUsername`) + Vault Mode =
     the explicit `vaultUnsupported*` notice with a Work Mode shortcut —
     chosen over "silently guide to identity selection" because identity
-    selection cannot satisfy an authority requirement. Status after A6-T3b:
-    the TRANSFER re-auth gate no longer reaches the notice (a vault session
-    gets the form directly and signs through the per-key password path);
-    the CLAIM-REWARDS re-auth dialog likewise retired in A6-T3b (a vault
-    session claims through the password path); the witness-vote notice
-    retires when that caller migrates to `useSessionSigning` (T4); the
-    permissions key-reveal
-    notice stays PERMANENTLY (revealing a key must display the raw WIF,
+    selection would switch accounts and cannot hand a specific session its
+    key back. Since A6-T4 `requiredAuthTypes` ALONE no longer triggers the
+    notice: the market / proposals / witnesses sign-in dialogs declare the
+    active floor for the privateKey branch while Vault Mode keeps identity
+    selection (the per-action password dialog enforces the floor after
+    login). Final status after A6-T4: NO business-action surface reaches
+    the notice for an authenticated vault session; the only remaining
+    consumers are the account-pinned re-auth dialogs' divergent
+    mode/session edge (a privateKey session that lost its key while the
+    device mode says vault) and the permissions key-reveal notice, which
+    stays PERMANENTLY (revealing a key must display the raw WIF,
     which the signing path never exposes). Plain embedded usage
-    (header / market / proposals login modals) already gets VaultLoginForm.
+    (header / market / proposals login modals) gets VaultLoginForm.
   - `sessionKind` is OPTIONAL on `AuthState` (absent = 'privateKey') so every
     pre-R3 AuthState value stays valid; read it via `sessionKindOf`.
   - `VAULT_WORK_MODE_OPEN_EVENT` (and the new `VAULT_WORK_MODE_CLOSED_EVENT`)
@@ -1051,7 +1080,8 @@ into, or changePassword on, a vault with zero key ciphertext).
     no-vault / empty-vault / unsupported copy) plus `vault.verifyAuthorityDiffers`
     (R2 batch), all four locales.
 - **A6 progress — the vault-session signing path EXISTS (A6-T2 pilot +
-  A6-T3a wallet-ops batch + A6-T3b remaining wallet callers)** — the
+  A6-T3a wallet-ops batch + A6-T3b remaining wallet callers + A6-T4
+  market/proposals/witnesses) and the caller migration is COMPLETE** — the
   privateKey backend has been wired into the facade since A6-T1
   (`vault-manager.tsx` composes
   `createLegacyPrivateKeySigner(createSessionKeyGetter())`, which reads the
@@ -1082,7 +1112,21 @@ into, or changePassword on, a vault with zero key ciphertext).
   master password) now gets explicit re-authenticate guidance instead of the
   old silent success with the form-derived owner key — re-authenticating
   with the master password or owner WIF derives the very same owner key, so
-  the signed transaction is unchanged once the session holds it. Every
+  the signed transaction is unchanged once the session holds it. A6-T4
+  migrated the LAST five business callers (market-page-client
+  limit_order_create/limit_order_cancel, proposals-page-client
+  update_proposal_votes, proposal-creator-dialog create_proposal,
+  proposal-remove-dialog remove_proposal, witness-vote-form
+  account_witness_vote/account_witness_proxy) — all ACTIVE-floor (NOTE:
+  update_proposal_votes is active-class on Steem, matching the pre-T4
+  active-or-owner key resolution and the legacy postingOps whitelist which
+  never listed it), byte-identical tuples, each caller's action gate widened
+  to "authenticated session" (vault sessions act through the password
+  dialog; the witness login dialog's conditional fixedUsername — the last
+  business `vaultUnsupported` notice reachability — retired), and the
+  market/proposals/witnesses sign-in dialogs now declare
+  `requiredAuthTypes: ['active']` so a privateKey login is fit for purpose
+  the first time. Every
   privateKey path signs through the hook's STATIC
   legacy signer — NO pre-check, NO extra network calls, and NO
   vault-runtime/IndexedDB dependency, a round-1-review hard contract; every
@@ -1090,15 +1134,20 @@ into, or changePassword on, a vault with zero key ciphertext).
   `wallet-transfers-modals` hands a page-matching vault session EVERY
   wallet action directly (the classic re-auth gate stays for mismatched
   sessions and keyless privateKey sessions).
-  Direct `SteemSigner` consumers after A6-T3b (the "who still signs
-  directly" inventory): T4 = market-page-client (limit order create/cancel),
-  proposals-page-client / proposal-creator-dialog / proposal-remove-dialog,
-  witness-vote-form; PERMANENT/deliberate = login-form (challenge + key
-  derivation), the two recovery pages (`signRecoverAccount` dual-sign —
-  invariant 20), account-keys.ts + change-password.ts validation helpers
-  (non-signing), claim-rewards-banner's remembered-key branch and
+  Direct `SteemSigner` consumers after A6-T4 — FINAL "who still signs
+  directly" inventory, no business callers remain: PERMANENT/deliberate =
+  login-form (challenge + key derivation), the two recovery pages
+  (`signRecoverAccount` dual-sign — invariant 20),
+  recover-account-step-1-page verify helpers + account-keys.ts +
+  change-password.ts validation helpers (derive/validate only, never
+  broadcast), claim-rewards-banner's remembered-key branch and
   communities-section's hivemind setup ops (keys that exist in no session —
-  see the module map note under use-session-signing). Never build a signer
+  see the module map note under use-session-signing). The seven T4 builders
+  (`signLimitOrderCreate` / `signLimitOrderCancel` /
+  `signUpdateProposalVotes` / `signCreateProposal` / `signRemoveProposal` /
+  `signWitnessVote` / `signWitnessProxy`) now have NO production callers —
+  deleting them (with the rest of the retired builder batch) is a separate
+  cleanup decision. Never build a signer
   at a component; never query `/api/query/accounts` outside the vault
   signer.
   (b) R3 vault sessions (`sessionKind: 'vault'`, zero keys in Redux) sign per

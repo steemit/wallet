@@ -1,14 +1,19 @@
 /**
- * LoginForm mode dispatcher (R3).
+ * LoginForm mode dispatcher (R3; A6-T4 narrowing).
  *
  * `LoginForm` reads the persisted signing mode (through the REAL
  * useSigningMode hook over a mocked facade) and renders:
  *   - 'privateKey' (and every not-yet-'vault' state: loading, failed read,
  *     unavailable runtime)                        -> the classic form, as-is;
  *   - 'vault'                                     -> VaultLoginForm;
- *   - 'vault' + embedded re-auth (fixedUsername / requiredAuthTypes)
+ *   - 'vault' + embedded ACCOUNT-PINNED re-auth (fixedUsername)
  *                                                 -> the explicit
  *     "not available in Vault Mode yet" notice + Work Mode shortcut.
+ *     Since A6-T4 `requiredAuthTypes` ALONE no longer triggers the notice:
+ *     the market / proposals / witnesses "sign in to trade / vote" dialogs
+ *     declare an authority floor for the PRIVATEKEY branch while Vault Mode
+ *     keeps identity selection — the per-action password dialog (via
+ *     useSessionSigning) enforces the floor after login.
  *
  * The PrivateKey branch's own behavior is pinned by the UNCHANGED
  * login-form-reauth.test.tsx (rendered without any VaultProvider — the
@@ -174,12 +179,15 @@ describe('LoginForm mode dispatch (R3)', () => {
     window.removeEventListener(VAULT_WORK_MODE_OPEN_EVENT, onOpen);
   });
 
-  it("'vault' mode + embedded re-auth with requiredAuthTypes shows the notice too", async () => {
+  it("'vault' mode + embedded with requiredAuthTypes ALONE gets identity selection (A6-T4 gap closure)", async () => {
     mockRuntime = readyRuntime('vault');
     renderLogin({ embedded: true, requiredAuthTypes: ['active'] });
 
-    expect(await screen.findByTestId('vault-mode-unsupported')).toBeInTheDocument();
-    expect(screen.queryByTestId('vault-login-form-stub')).not.toBeInTheDocument();
+    // The market / proposals / witnesses sign-in dialogs: the declared
+    // authority floor applies to the privateKey branch; in Vault Mode the
+    // per-action password dialog enforces it after identity selection.
+    expect(await screen.findByTestId('vault-login-form-stub')).toBeInTheDocument();
+    expect(screen.queryByTestId('vault-mode-unsupported')).not.toBeInTheDocument();
     expect(privateKeyInput()).not.toBeInTheDocument();
   });
 

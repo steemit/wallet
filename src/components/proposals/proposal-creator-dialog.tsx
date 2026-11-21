@@ -6,15 +6,18 @@ import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiClient, SteemSigner } from '@/lib/steem/client';
+import { LoginForm } from '@/components/auth/login-form';
+import { apiClient } from '@/lib/steem/client';
 import { normalizeSteemUsername, sameSteemAccount } from '@/lib/steem/username';
-import { useActiveSigningKey } from '@/hooks/use-auth';
+import { useSessionSigning } from '@/hooks/use-session-signing';
+import type { Operation } from '@/lib/steem/types';
 
 function defaultDateTimeLocal(): string {
   const d = new Date();
@@ -46,8 +49,14 @@ export function ProposalCreatorDialog({
   onNeedLogin,
 }: ProposalCreatorDialogProps) {
   const t = useTranslations('wallet.proposalsPage');
-  const activeKey = useActiveSigningKey();
+  const tWallet = useTranslations('wallet');
+  // Unified signing entry (A6-T4): privateKey sessions sign through the
+  // facade's legacy backend exactly as before; vault identity sessions get
+  // the per-key password dialog.
+  const signing = useSessionSigning();
   const [submitting, setSubmitting] = useState(false);
+  /** Classic re-auth for a privateKey session that lacks an active/owner key. */
+  const [reauthOpen, setReauthOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [dailyAmount, setDailyAmount] = useState('');
   const [startDate, setStartDate] = useState(defaultDateTimeLocal);
@@ -96,7 +105,7 @@ export function ProposalCreatorDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !activeKey) {
+    if (!username) {
       onNeedLogin();
       return;
     }
@@ -116,17 +125,46 @@ export function ProposalCreatorDialog({
       // permlink-parsed creator/receiver may carry mixed case or a leading '@'.
       const creatorName = normalizeSteemUsername(resolvedCreator);
       const receiverName = normalizeSteemUsername(resolvedReceiver);
-      const signedTx = await SteemSigner.signCreateProposal(
-        creatorName,
-        receiverName,
-        normalizeChainDateTime(startDate),
-        normalizeChainDateTime(endDate),
-        dailyPay,
-        title.trim(),
-        resolvedPermlink,
-        activeKey
-      );
-      const res = await apiClient.broadcastProposalCreate(signedTx, username);
+      // The exact operation tuple SteemSigner.signCreateProposal built
+      // internally — field order byte-identical. create_proposal is an
+      // active-class operation.
+      const operations: Operation[] = [
+        [
+          'create_proposal',
+          {
+            creator: creatorName,
+            receiver: receiverName,
+            start_date: normalizeChainDateTime(startDate),
+            end_date: normalizeChainDateTime(endDate),
+            daily_pay: dailyPay,
+            subject: title.trim(),
+            permlink: resolvedPermlink,
+          },
+        ],
+      ];
+
+      const outcome = await signing.sign({
+        operations,
+        accountName: username,
+        role: 'active',
+      });
+
+      if (outcome.status === 'cancelled') {
+        // User aborted the vault dialog — back to the form, no error.
+        return;
+      }
+      if (outcome.status === 'needsClassicReauth') {
+        // privateKey session without an active/owner key: the classic re-auth
+        // dialog locked to this account.
+        setReauthOpen(true);
+        return;
+      }
+      if (outcome.status === 'error') {
+        toast.error(t('createFailed'));
+        return;
+      }
+
+      const res = await apiClient.broadcastProposalCreate(outcome.result.signedTx, username);
       if (!res.success) {
         toast.error(res.error ?? t('createFailed'));
         return;
@@ -145,8 +183,9 @@ export function ProposalCreatorDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t('createHeader')}</DialogTitle>
         </DialogHeader>
@@ -245,6 +284,24 @@ export function ProposalCreatorDialog({
           </Button>
         </form>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      <Dialog open={reauthOpen} onOpenChange={setReauthOpen}>
+        <DialogContent className="z-[60] max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{tWallet('reauthTitle')}</DialogTitle>
+            <DialogDescription>{tWallet('reauthDescription')}</DialogDescription>
+          </DialogHeader>
+          <LoginForm
+            embedded
+            fixedUsername={username ?? ''}
+            requiredAuthTypes={['active']}
+            onLoginSuccess={() => setReauthOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {signing.dialog}
+    </>
   );
 }

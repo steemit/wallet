@@ -6,6 +6,11 @@
  * way every other broadcast flow does, and the orderid handed to the chain
  * must be a per-session unique uint32 (G-14) instead of a seconds timestamp
  * whose same-second repeat silently REPLACED the previous order.
+ *
+ * Since A6-T4 signing goes through useSessionSigning (mocked here at its
+ * module boundary): a typed `{status:'error'}` outcome or a broadcast
+ * transport throw must reach the same toasts, and the unique orderid now
+ * lives in the operation tuple handed to the unified entry.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -14,8 +19,7 @@ import { MarketPageClient } from '@/components/market/market-page-client';
 
 const mocks = vi.hoisted(() => ({
   refresh: vi.fn().mockResolvedValue(undefined),
-  signCreate: vi.fn(),
-  signCancel: vi.fn(),
+  sign: vi.fn(),
   broadcastCreate: vi.fn(),
   broadcastCancel: vi.fn(),
   invalidate: vi.fn(),
@@ -43,8 +47,10 @@ vi.mock('@/hooks/use-auth', () => ({
     username: mocks.auth.username,
     isAuthenticated: mocks.auth.isAuthenticated,
   }),
-  useActiveSigningKey: () =>
-    mocks.auth.isAuthenticated ? '5J-test-active' : null,
+}));
+
+vi.mock('@/hooks/use-session-signing', () => ({
+  useSessionSigning: () => ({ sign: mocks.sign, dialog: null }),
 }));
 
 vi.mock('@/hooks/use-steem-account', () => ({
@@ -75,10 +81,6 @@ vi.mock('@/hooks/use-market-data', () => ({
 }));
 
 vi.mock('@/lib/steem/client', () => ({
-  SteemSigner: {
-    signLimitOrderCreate: (...args: unknown[]) => mocks.signCreate(...args),
-    signLimitOrderCancel: (...args: unknown[]) => mocks.signCancel(...args),
-  },
   apiClient: {
     broadcastLimitOrderCreate: (...args: unknown[]) => mocks.broadcastCreate(...args),
     broadcastLimitOrderCancel: (...args: unknown[]) => mocks.broadcastCancel(...args),
@@ -106,6 +108,25 @@ const mockToast = toast as unknown as {
 
 const UINT32_MAX = 4_294_967_295;
 
+function signedOutcome() {
+  return {
+    status: 'signed' as const,
+    result: { signedTx: { id: 'tx' } },
+  };
+}
+
+/** The orderid of the i-th signing request's limit_order_create payload. */
+function placedOrderId(callIndex: number): number {
+  const request = mocks.sign.mock.calls[callIndex]?.[0] as {
+    operations: Array<[string, { orderid?: number }]>;
+  };
+  const payload = request.operations[0]?.[1];
+  if (!payload || typeof payload.orderid !== 'number') {
+    throw new Error('expected a limit_order_create payload with a numeric orderid');
+  }
+  return payload.orderid;
+}
+
 /** Fill the buy form (price auto-seeds from the ticker) and submit. */
 async function placeBuyOrder() {
   fireEvent.change(screen.getAllByLabelText('amount')[0]!, {
@@ -117,6 +138,7 @@ async function placeBuyOrder() {
 describe('MarketPageClient — order error capture (G-7) + orderid (G-14)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.sign.mockResolvedValue(signedOutcome());
     vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
@@ -124,8 +146,8 @@ describe('MarketPageClient — order error capture (G-7) + orderid (G-14)', () =
     vi.restoreAllMocks();
   });
 
-  it('surfaces a signing failure as a toast instead of an unhandled rejection', async () => {
-    mocks.signCreate.mockRejectedValueOnce(new Error('signing boom'));
+  it('surfaces a typed signing-error outcome as a toast (no broadcast attempt)', async () => {
+    mocks.sign.mockResolvedValueOnce({ status: 'error', code: 'unexpected' });
     render(<MarketPageClient />);
 
     await placeBuyOrder();
@@ -133,12 +155,22 @@ describe('MarketPageClient — order error capture (G-7) + orderid (G-14)', () =
     await waitFor(() => {
       expect(mockToast.error).toHaveBeenCalledWith('orderFailed');
     });
-    // The broadcast was never attempted and the signing key was not consumed.
+    // The broadcast was never attempted.
     expect(mocks.broadcastCreate).not.toHaveBeenCalled();
   });
 
+  it('surfaces a broadcast transport throw as a toast instead of an unhandled rejection', async () => {
+    mocks.broadcastCreate.mockRejectedValueOnce(new Error('relay unreachable'));
+    render(<MarketPageClient />);
+
+    await placeBuyOrder();
+
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledWith('orderFailed');
+    });
+  });
+
   it('surfaces a relay failure ({success:false}) as a toast', async () => {
-    mocks.signCreate.mockResolvedValueOnce({ id: 'tx' });
     mocks.broadcastCreate.mockResolvedValueOnce({ success: false, error: 'relay rejected' });
     render(<MarketPageClient />);
 
@@ -151,7 +183,6 @@ describe('MarketPageClient — order error capture (G-7) + orderid (G-14)', () =
   });
 
   it('success path: unique uint32 orderids, cache invalidation, refresh', async () => {
-    mocks.signCreate.mockResolvedValue({ id: 'tx' });
     mocks.broadcastCreate.mockResolvedValue({ success: true });
     render(<MarketPageClient />);
 
@@ -161,9 +192,8 @@ describe('MarketPageClient — order error capture (G-7) + orderid (G-14)', () =
     await placeBuyOrder();
     await waitFor(() => expect(mockToast.success).toHaveBeenCalledTimes(2));
 
-    const firstId = mocks.signCreate.mock.calls[0]?.[3] as number;
-    const secondId = mocks.signCreate.mock.calls[1]?.[3] as number;
-    // signLimitOrderCreate(owner, amountToSell, minToReceive, orderid, ...)
+    const firstId = placedOrderId(0);
+    const secondId = placedOrderId(1);
     expect(firstId).not.toBe(secondId);
     for (const id of [firstId, secondId]) {
       expect(id).toBeGreaterThanOrEqual(0);
@@ -173,8 +203,8 @@ describe('MarketPageClient — order error capture (G-7) + orderid (G-14)', () =
     expect(mocks.refresh).toHaveBeenCalled();
   });
 
-  it('cancel: signing failure surfaces a toast and releases the spinner', async () => {
-    mocks.signCancel.mockRejectedValueOnce(new Error('cancel signing boom'));
+  it('cancel: typed signing-error outcome surfaces a toast and releases the spinner', async () => {
+    mocks.sign.mockResolvedValueOnce({ status: 'error', code: 'unexpected' });
     render(<MarketPageClient />);
 
     fireEvent.click(screen.getByRole('button', { name: 'cancelOrder' }));
@@ -190,7 +220,6 @@ describe('MarketPageClient — order error capture (G-7) + orderid (G-14)', () =
   });
 
   it('cancel: relay failure surfaces the relay error', async () => {
-    mocks.signCancel.mockResolvedValueOnce({ id: 'tx' });
     mocks.broadcastCancel.mockResolvedValueOnce({ success: false, error: 'rate limited' });
     render(<MarketPageClient />);
 
@@ -203,7 +232,6 @@ describe('MarketPageClient — order error capture (G-7) + orderid (G-14)', () =
   });
 
   it('cancel: success path still works (toast + invalidation + refresh)', async () => {
-    mocks.signCancel.mockResolvedValueOnce({ id: 'tx' });
     mocks.broadcastCancel.mockResolvedValueOnce({ success: true });
     render(<MarketPageClient />);
 
@@ -217,7 +245,6 @@ describe('MarketPageClient — order error capture (G-7) + orderid (G-14)', () =
   });
 
   it('sell orders take the price-warning branch and succeed with a unique orderid', async () => {
-    mocks.signCreate.mockResolvedValue({ id: 'tx' });
     mocks.broadcastCreate.mockResolvedValue({ success: true });
     render(<MarketPageClient />);
 
@@ -229,8 +256,7 @@ describe('MarketPageClient — order error capture (G-7) + orderid (G-14)', () =
     await waitFor(() => {
       expect(mockToast.success).toHaveBeenCalledWith('orderPlaced');
     });
-    const sellOrderid = mocks.signCreate.mock.calls.at(-1)?.[3] as number;
-    expect(sellOrderid).toBeLessThanOrEqual(UINT32_MAX);
+    expect(placedOrderId(mocks.sign.mock.calls.length - 1)).toBeLessThanOrEqual(UINT32_MAX);
     expect(mockToast.error).not.toHaveBeenCalled();
   });
 
@@ -241,8 +267,7 @@ describe('MarketPageClient — order error capture (G-7) + orderid (G-14)', () =
     await placeBuyOrder();
     fireEvent.click(screen.getByRole('button', { name: 'cancelOrder' }));
 
-    expect(mocks.signCreate).not.toHaveBeenCalled();
-    expect(mocks.signCancel).not.toHaveBeenCalled();
+    expect(mocks.sign).not.toHaveBeenCalled();
   });
 
   it('anonymous users get the sign-in prompt, login dialog, and no order attempt', async () => {
@@ -258,7 +283,7 @@ describe('MarketPageClient — order error capture (G-7) + orderid (G-14)', () =
 
       // The order form is disabled for anonymous users.
       expect(screen.getByRole('button', { name: 'buySteem' })).toBeDisabled();
-      expect(mocks.signCreate).not.toHaveBeenCalled();
+      expect(mocks.sign).not.toHaveBeenCalled();
     } finally {
       mocks.auth.username = 'alice';
       mocks.auth.isAuthenticated = true;

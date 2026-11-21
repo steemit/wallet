@@ -88,11 +88,15 @@ canonical lowercase.
   `useSessionSigning` (09-vault.md module map): it applies this lowest-at-or-above-the-floor
   rule for privateKey sessions itself (posting → active → owner for a posting floor, active →
   owner for an active floor) and routes vault identity sessions through the per-key password
-  dialog. After A6-T3b every wallet-domain caller is on it (transfer pilot + the eight
-  active-class ops + claim / communities / change-password / recovery-warning); the remaining
-  direct signers are the T4 market/proposals/witnesses callers, the two no-session-key
+  dialog. After A6-T4 EVERY business signing caller is on it (transfer pilot + the eight
+  active-class ops + claim / communities / change-password / recovery-warning + the five
+  T4 callers — market limit orders, proposals vote/create/remove, witness vote/proxy —
+  EACH of the five T4 callers at the ACTIVE floor; the earlier callers' posting/owner
+  floors are the documented exceptions in 09-vault.md's A6 progress note); the only
+  remaining direct signers are the two no-session-key
   remnants (claim remembered-key branch, communities hivemind setup ops) and the permanent
-  login-challenge/recovery paths — see 09-vault.md's "who still signs directly" inventory.
+  login-challenge/recovery paths — see 09-vault.md's final "who still signs directly"
+  inventory.
 
 ## Legacy-parity watchlist (verified drifts from `wallet-legacy`)
 

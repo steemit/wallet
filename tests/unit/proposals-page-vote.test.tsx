@@ -14,6 +14,10 @@ import { ProposalsPageClient } from '@/components/proposals-page-client';
 const mocks = vi.hoisted(() => ({
   broadcast: vi.fn(),
   refreshMeta: vi.fn(),
+  sign: vi.fn().mockResolvedValue({
+    status: 'signed',
+    result: { signedTx: { signed: 'tx' } },
+  }),
 }));
 
 vi.mock('next-intl', () => ({
@@ -26,13 +30,16 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/hooks/use-auth', () => ({
   useAuth: () => ({ username: 'alice', isAuthenticated: true }),
-  useActiveSigningKey: () => '5Jactivekey',
+}));
+
+vi.mock('@/hooks/use-session-signing', () => ({
+  useSessionSigning: () => ({
+    sign: mocks.sign,
+    dialog: null,
+  }),
 }));
 
 vi.mock('@/lib/steem/client', () => ({
-  SteemSigner: {
-    signUpdateProposalVotes: vi.fn().mockResolvedValue({ signed: 'tx' }),
-  },
   apiClient: {
     broadcastProposalVote: mocks.broadcast,
     getGlobalProps: vi.fn().mockResolvedValue({ props: { total_vesting_shares: '1 VESTS' } }),

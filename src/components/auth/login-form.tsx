@@ -61,13 +61,20 @@ export interface LoginFormProps {
  * Mode dispatcher (R3) — decides WHICH login surface the persisted signing
  * mode (settings row, default `'privateKey'`) gets:
  *
- *   - `'vault'` + plain usage            -> VaultLoginForm (identity selection);
- *   - `'vault'` + embedded caller that pins an account or requires specific
- *     authorities (`fixedUsername` / `requiredAuthTypes` — the re-auth
- *     dialogs) -> an explicit "not available in Vault Mode yet" notice with a
- *     shortcut to the Work Mode modal. Identity selection cannot satisfy a
- *     per-key authority requirement; the real path is the per-key password +
- *     signing flow that A6 wires. Deliberately LOUD, never a silent swap.
+ *   - `'vault'` + plain usage, including embedded dialogs that only declare
+ *     `requiredAuthTypes` (the market / proposals / witnesses "sign in to
+ *     trade / vote" dialogs since A6-T4) -> VaultLoginForm (identity
+ *     selection). The declared authority is NOT checked at identity-selection
+ *     time: after login the caller's action goes through `useSessionSigning`,
+ *     whose per-key password dialog offers exactly the keys at-or-above the
+ *     action's role floor — identity selection IS fit for purpose for vault
+ *     mode now.
+ *   - `'vault'` + embedded caller that PINS an account (`fixedUsername` — the
+ *     account-locked re-auth dialogs) -> an explicit "not available in Vault
+ *     Mode yet" notice with a shortcut to the Work Mode modal. An account-
+ *     pinned re-auth means a privateKey session needs ITS account's key back;
+ *     identity selection would switch accounts and cannot serve that.
+ *     Deliberately LOUD, never a silent swap.
  *   - everything else                    -> PrivateKeyLoginForm below.
  *
  * The PrivateKey branch must stay byte-identical in behavior: when the mode
@@ -82,7 +89,7 @@ export interface LoginFormProps {
  * surface storage errors with Retry instead of quietly showing this form.
  */
 export function LoginForm(props: LoginFormProps = {}) {
-  const { embedded = false, fixedUsername, requiredAuthTypes } = props;
+  const { embedded = false, fixedUsername } = props;
   const runtime = useVaultRuntime();
   const { mode } = useSigningMode(runtime.state === 'ready' ? runtime.facade : null);
 
@@ -90,9 +97,10 @@ export function LoginForm(props: LoginFormProps = {}) {
     return <PrivateKeyLoginForm {...props} />;
   }
 
-  // Embedded re-auth consumers pin an account and/or require key authorities
-  // that identity selection cannot provide (A6 wires the real path).
-  if (embedded && (fixedUsername !== undefined || (requiredAuthTypes?.length ?? 0) > 0)) {
+  // Embedded account-pinned re-auth cannot be satisfied by identity
+  // selection (it would switch accounts); `requiredAuthTypes` alone CAN —
+  // the per-action password dialog enforces the floor after login (A6-T4).
+  if (embedded && fixedUsername !== undefined) {
     return <VaultModeUnsupportedNotice />;
   }
 
@@ -100,10 +108,11 @@ export function LoginForm(props: LoginFormProps = {}) {
 }
 
 /**
- * Explicit dead-end for embedded re-auth dialogs while the device is in Vault
- * Mode: states that this flow needs a specific key authority, which identity
- * selection cannot satisfy yet, and offers the Work Mode modal to switch back
- * to PrivateKey Mode. Never renders a silently-degraded form.
+ * Explicit dead-end for embedded ACCOUNT-PINNED re-auth dialogs while the
+ * device is in Vault Mode: states that this flow needs this account's key
+ * back, which identity selection (a different login model that would switch
+ * accounts) cannot satisfy, and offers the Work Mode modal to switch back to
+ * PrivateKey Mode. Never renders a silently-degraded form.
  */
 function VaultModeUnsupportedNotice() {
   const t = useTranslations('auth');

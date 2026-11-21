@@ -13,9 +13,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiClient, SteemSigner } from '@/lib/steem/client';
+import { LoginForm } from '@/components/auth/login-form';
+import { apiClient } from '@/lib/steem/client';
 import { normalizeSteemUsername } from '@/lib/steem/username';
-import { useActiveSigningKey } from '@/hooks/use-auth';
+import { useSessionSigning } from '@/hooks/use-session-signing';
+import type { Operation } from '@/lib/steem/types';
 
 type ProposalRemoveDialogProps = {
   open: boolean;
@@ -35,15 +37,21 @@ export function ProposalRemoveDialog({
   onNeedLogin,
 }: ProposalRemoveDialogProps) {
   const t = useTranslations('wallet.proposalsPage');
-  const activeKey = useActiveSigningKey();
+  const tWallet = useTranslations('wallet');
+  // Unified signing entry (A6-T4): privateKey sessions sign through the
+  // facade's legacy backend exactly as before; vault identity sessions get
+  // the per-key password dialog.
+  const signing = useSessionSigning();
   const [confirmId, setConfirmId] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  /** Classic re-auth for a privateKey session that lacks an active/owner key. */
+  const [reauthOpen, setReauthOpen] = useState(false);
 
   const idMatches = confirmId.trim() === String(proposalId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !activeKey) {
+    if (!username) {
       onNeedLogin();
       return;
     }
@@ -59,8 +67,34 @@ export function ProposalRemoveDialog({
       // submit site normalizes again as defense-in-depth — mirrors
       // proposal-creator-dialog (#341 residual).
       const ownerName = normalizeSteemUsername(username);
-      const signedTx = await SteemSigner.signRemoveProposal(ownerName, [proposalId], activeKey);
-      const res = await apiClient.broadcastProposalRemove(signedTx, username);
+      // The exact operation tuple SteemSigner.signRemoveProposal built
+      // internally. remove_proposal is an active-class operation.
+      const operations: Operation[] = [
+        ['remove_proposal', { proposal_owner: ownerName, proposal_ids: [proposalId] }],
+      ];
+
+      const outcome = await signing.sign({
+        operations,
+        accountName: username,
+        role: 'active',
+      });
+
+      if (outcome.status === 'cancelled') {
+        // User aborted the vault dialog — back to the form, no error.
+        return;
+      }
+      if (outcome.status === 'needsClassicReauth') {
+        // privateKey session without an active/owner key: the classic re-auth
+        // dialog locked to this account.
+        setReauthOpen(true);
+        return;
+      }
+      if (outcome.status === 'error') {
+        toast.error(t('removeFailed'));
+        return;
+      }
+
+      const res = await apiClient.broadcastProposalRemove(outcome.result.signedTx, username);
       if (!res.success) {
         toast.error(res.error ?? t('removeFailed'));
         return;
@@ -77,8 +111,9 @@ export function ProposalRemoveDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('removeTitle')}</DialogTitle>
           <DialogDescription>{t('removeDescription')}</DialogDescription>
@@ -102,6 +137,24 @@ export function ProposalRemoveDialog({
           </Button>
         </form>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      <Dialog open={reauthOpen} onOpenChange={setReauthOpen}>
+        <DialogContent className="z-[60] max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{tWallet('reauthTitle')}</DialogTitle>
+            <DialogDescription>{tWallet('reauthDescription')}</DialogDescription>
+          </DialogHeader>
+          <LoginForm
+            embedded
+            fixedUsername={username ?? ''}
+            requiredAuthTypes={['active']}
+            onLoginSuccess={() => setReauthOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {signing.dialog}
+    </>
   );
 }
