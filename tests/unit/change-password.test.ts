@@ -112,18 +112,13 @@ describe('change-password helpers', () => {
     expect(verifyCurrentPasswordMatchesAccount(baseAccount, 'wrong')).toBe(false);
   });
 
-  it('buildAccountUpdateForPasswordChange builds account_update with new authorities', () => {
+  it('buildAccountUpdateForPasswordChange builds account_update with new authorities (operation-only)', () => {
     const accountWithObjectMeta = {
       ...baseAccount,
       json_metadata: { profile: { name: 'alice' } } as unknown as string,
     };
-    const { operation, signingKey } = buildAccountUpdateForPasswordChange(
-      accountWithObjectMeta,
-      'oldpass',
-      'PnewGenerated'
-    );
+    const operation = buildAccountUpdateForPasswordChange(accountWithObjectMeta, 'PnewGenerated');
 
-    expect(signingKey).toBe('5Jalice-owner-oldpass');
     expect(operation[0]).toBe('account_update');
     const payload = operation[1];
     expect(payload.account).toBe('alice');
@@ -134,6 +129,20 @@ describe('change-password helpers', () => {
     });
     expect(payload.memo_key).toBe('STMnewMemoPub');
     expect(payload.json_metadata).toBe('{"profile":{"name":"alice"}}');
+  });
+
+  it('buildAccountUpdateForPasswordChange never verifies or derives against a current secret (round-1: no owner-WIF materialization)', () => {
+    // The builder is a PURE function of the new master password: it takes no
+    // current password and never calls resolveOwnerSigningKey — the current
+    // password check lives in verifyCurrentPasswordMatchesAccount alone.
+    // Mutation guard: restoring an eager resolveOwnerSigningKey(account, ...)
+    // inside the builder would throw 'Incorrect Password' here (the new
+    // password does not match the account's owner authority), failing this
+    // test.
+    expect(() => buildAccountUpdateForPasswordChange(baseAccount, 'PnewGenerated')).not.toThrow();
+    expect(buildAccountUpdateForPasswordChange(baseAccount, 'PnewGenerated')).toEqual(
+      buildAccountUpdateForPasswordChange(baseAccount, 'PnewGenerated'),
+    );
   });
 
   it('normalizeOperationForBroadcast rejects array-shaped owner authority', () => {

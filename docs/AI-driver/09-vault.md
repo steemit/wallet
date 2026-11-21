@@ -1072,9 +1072,18 @@ into, or changePassword on, a vault with zero key ciphertext).
   the two role floors other than 'active' exercise the hook's full
   posting→active→owner / owner-only resolution, and each caller's own key
   gate widens for a page-matching vault session (claim banner hint,
-  communities activeKeyRequired, recovery owner-key notice, change-password
-  needsClassicReauth copy) while keyless privateKey sessions keep the
-  pre-existing gates. Every privateKey path signs through the hook's STATIC
+  communities activeKeyRequired, recovery owner-key notice) while keyless
+  privateKey sessions keep the PRE-EXISTING gates for those three callers —
+  for change-password the `ownerKeySessionRequired` gate is NEW: pre-T3b the
+  flow had no gate at all, because the signing key was derived from the
+  form's account password. KEY-SOURCE CHANGE (T3b, deliberate): through the
+  unified entry the privateKey path signs with the SESSION owner key, so a
+  privateKey session WITHOUT one (e.g. an active-WIF login that knows the
+  master password) now gets explicit re-authenticate guidance instead of the
+  old silent success with the form-derived owner key — re-authenticating
+  with the master password or owner WIF derives the very same owner key, so
+  the signed transaction is unchanged once the session holds it. Every
+  privateKey path signs through the hook's STATIC
   legacy signer — NO pre-check, NO extra network calls, and NO
   vault-runtime/IndexedDB dependency, a round-1-review hard contract; every
   vault path opens the per-key password dialog, and

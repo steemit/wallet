@@ -75,13 +75,21 @@ export function resolveOwnerSigningKey(
   return privateKey;
 }
 
-/** Build the account_update operation and signing key for a master-password rotation. */
+/**
+ * Build the account_update operation for a master-password rotation.
+ *
+ * OPERATION-ONLY since the A6-T3b round-1 review: the caller signs through
+ * `useSessionSigning` (privateKey: the session owner key; vault: the per-key
+ * password path), so this builder must NOT materialize an owner WIF it no
+ * longer returns. The current-password check lives in
+ * `verifyCurrentPasswordMatchesAccount` (call it first — the change-password
+ * form does); the operation below is a pure function of the NEW master
+ * password and never touches the current secret.
+ */
 export function buildAccountUpdateForPasswordChange(
   account: SteemAccount,
-  currentPassword: string,
   newMasterPassword: string
-): { operation: Operation; signingKey: string } {
-  const signingKey = resolveOwnerSigningKey(account, currentPassword);
+): Operation {
   const accountName = account.name;
 
   const rawOperation: Operation = [
@@ -105,10 +113,7 @@ export function buildAccountUpdateForPasswordChange(
     },
   ];
 
-  return {
-    operation: steem.auth.normalizeOperationForBroadcast(rawOperation) as Operation,
-    signingKey,
-  };
+  return steem.auth.normalizeOperationForBroadcast(rawOperation) as Operation;
 }
 
 /** Validate that the current password matches all authority roles (legacy parity). */

@@ -28,8 +28,10 @@ import vectors from '../fixtures/vault-development-test-vectors.json';
  *  - claim rewards (A6-T3b): the banner's POSTING floor offers BOTH stored
  *    keys as radio candidates (the active-floor tests above exclude the
  *    posting key); picking the posting key and broadcasting the
- *    byte-identical full-pending-amounts claim_reward_balance tuple —
- *    and never reading the Legacy remembered posting key;
+ *    byte-identical full-pending-amounts claim_reward_balance tuple. (The
+ *    "a vault session never reads the Legacy remembered posting key"
+ *    invariant is NOT exercised here — it is pinned by the unit suite's
+ *    Storage-prototype spy in tests/unit/claim-rewards-banner.test.tsx.);
  *  - no /api/auth/* traffic at any point (identity + signing are local).
  *
  * Fixture discipline: WIF/public keys/password come from the shared

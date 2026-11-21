@@ -577,6 +577,26 @@ describe('RecoveryWarningBanner × session signing (A6-T3b)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
+  it('a vault-dialog cancel is a quiet no-op: dialog stays open, no broadcast, no error', async () => {
+    fetchAccountsMock.mockResolvedValue({
+      success: true,
+      accounts: [RECOVERY_ACCOUNT_FIXTURE],
+    });
+    mocks.sign.mockResolvedValueOnce({ status: 'cancelled' });
+
+    await submitRecoveryChange(vaultStore());
+
+    await waitFor(() => expect(mocks.sign).toHaveBeenCalledTimes(1));
+    expect(broadcastChangeRecovery).not.toHaveBeenCalled();
+    // The dialog remains usable for another attempt: no error copy, the
+    // submit button re-enables.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.queryByText('failed')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'submit' })).toBeEnabled(),
+    );
+  });
+
   it('keyless privateKey session keeps the owner-key gate (disabled submit + notice)', async () => {
     fetchAccountsMock.mockResolvedValue({
       success: true,

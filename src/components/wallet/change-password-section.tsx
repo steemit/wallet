@@ -107,14 +107,12 @@ export function ChangePasswordSection({
 
       // The operation tuple is byte-identical to what the previous
       // SteemSigner.signAccountUpdate path signed (buildAccountUpdateForPasswordChange
-      // already returns the chain-normalized payload). The signing key comes
-      // from the unified entry: privateKey sessions sign with the SESSION
-      // owner key, vault sessions through the per-key password dialog.
-      const { operation } = buildAccountUpdateForPasswordChange(
-        account,
-        currentPassword.trim(),
-        generatedPassword
-      );
+      // is operation-only since the round-1 review — it derives everything
+      // from the NEW password and never materializes a signing key). The
+      // signing key comes from the unified entry: privateKey sessions sign
+      // with the SESSION owner key, vault sessions through the per-key
+      // password dialog.
+      const operation = buildAccountUpdateForPasswordChange(account, generatedPassword);
       const outcome = await signing.sign({
         operations: [operation],
         accountName: username,

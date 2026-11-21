@@ -236,6 +236,34 @@ describe('ClaimRewardsBanner', () => {
     expect(onClaimed).not.toHaveBeenCalled();
   });
 
+  it('shows a thrown relay error inline on the hook-signed path (broadcast catch pinned)', async () => {
+    // The residual broadcastClaimTx catch: a transport/library throw (not a
+    // { success: false } answer) surfaces the error message inline and the
+    // banner survives.
+    broadcastClaim.mockRejectedValue(new Error('relay down'));
+    const { onClaimed } = renderBanner();
+
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+
+    await waitFor(() => expect(screen.getByText('relay down')).toBeInTheDocument());
+    expect(screen.getByText(/Your current rewards:/)).toBeInTheDocument();
+    expect(onClaimed).not.toHaveBeenCalled();
+  });
+
+  it('a vault-dialog cancel is a quiet no-op: banner stays, no broadcast, no error', async () => {
+    mocks.sign.mockResolvedValueOnce({ status: 'cancelled' });
+    const { onClaimed } = renderBanner();
+
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+
+    await waitFor(() => expect(mocks.sign).toHaveBeenCalledTimes(1));
+    expect(broadcastClaim).not.toHaveBeenCalled();
+    expect(screen.getByText(/Your current rewards:/)).toBeInTheDocument();
+    expect(screen.queryByText('claimFailed')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onClaimed).not.toHaveBeenCalled();
+  });
+
   it('a typed signing error outcome shows the localized claim error and never broadcasts', async () => {
     mocks.sign.mockResolvedValueOnce({ status: 'error', code: 'unexpected' });
     const { onClaimed } = renderBanner();
@@ -301,6 +329,33 @@ describe('ClaimRewardsBanner', () => {
     await waitFor(() => expect(broadcastClaim).toHaveBeenCalledTimes(1));
     // No re-auth dialog in this path.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows the thrown signing error inline on the remembered-key direct path (claimWithKey catch pinned)', async () => {
+    window.localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, '5J-remembered-posting');
+    window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'alice');
+    getAccountsMock.mockResolvedValue({
+      success: true,
+      accounts: [
+        {
+          posting: {
+            account_auths: [],
+            key_auths: [['STM-valid-posting-pub', '1']],
+            weight_threshold: 1,
+          },
+        } as never,
+      ],
+    });
+    verifyPrivateKeyMock.mockReturnValue(true);
+    signClaim.mockRejectedValue(new Error('sign failed'));
+
+    const { onClaimed } = renderBanner({}, null);
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+
+    await waitFor(() => expect(screen.getByText('sign failed')).toBeInTheDocument());
+    expect(broadcastClaim).not.toHaveBeenCalled();
+    expect(onClaimed).not.toHaveBeenCalled();
+    expect(screen.getByText(/Your current rewards:/)).toBeInTheDocument();
   });
 
   it('never touches the Legacy remembered posting key in a vault session (invariant 21)', async () => {

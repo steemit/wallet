@@ -140,6 +140,12 @@ route does this; copy that pattern, do not let a parse throw reach the outer cat
   the login challenge, the recovery pages, and the two no-session-key remnants (the claim
   banner's remembered-posting-key branch and the communities hivemind setup ops — see
   09-vault.md's "who still signs directly" inventory).
+  CHANGE-PASSWORD KEY SOURCE (T3b): the account_update signs with the SESSION
+  owner key, not the owner WIF the form's account password used to derive —
+  a privateKey session without an owner key gets the `ownerKeySessionRequired`
+  guidance (re-login with the master password or owner WIF derives the same
+  owner key); the form's ACCOUNT password still derives and verifies the NEW
+  keys and is never the vault password the signing dialog asks for.
   Key material never enters request bodies, Redux actions other than `auth/setCredentials`, or
   console output.
 - Redux DevTools sanitizers (`store/index.ts`) cover `auth/setCredentials` — **the only action
