@@ -43,7 +43,7 @@
 // account as context). The primitive re-checks the policy server-of-truth
 // style (defense-in-depth); non-empty vaults keep the single verify field.
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -133,32 +133,49 @@ function MigrateRememberedKeyForm({
   // anchoring case (review r1 P1-1).
   const [confirmPassword, setConfirmPassword] = useState('');
   const [anchorCase, setAnchorCase] = useState<boolean | null>(null);
+  // Mapped i18n key of a FAILED target-directory read (review r2: a failure
+  // must surface with Retry — it must NEVER silently degrade to the
+  // non-anchor single-field mode, which would let a strong-but-typo'd
+  // password anchor a truly-empty vault without re-entry).
+  const [directoryErrorKey, setDirectoryErrorKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [verification, setVerification] = useState<VaultKeyVerification | null>(null);
+
+  const mapErrorKey = (error: unknown): string => {
+    if (error instanceof VaultError) return `errors.${error.code}`;
+    console.error('Unexpected migrate-remembered-key error', error);
+    return 'errors.unexpected';
+  };
+
+  /** (Re)read the target directory; only a SUCCESS decides anchor vs not. */
+  const loadAnchorCase = useCallback(async () => {
+    if (!manager) {
+      setAnchorCase(false);
+      return;
+    }
+    setDirectoryErrorKey(null);
+    try {
+      const accounts = await manager.getAccounts(vaultName);
+      setAnchorCase(accounts.every((account) => account.keys.length === 0));
+    } catch (error) {
+      // Fail CLOSED on the decision: anchorCase stays null (the verify
+      // button stays disabled) and the mapped error + Retry render.
+      setAnchorCase(null);
+      setDirectoryErrorKey(mapErrorKey(error));
+    }
+  }, [manager, vaultName]);
 
   // Read the remembered pair's PUBLIC description once per mount (Radix
   // unmounts closed content, so every open re-reads the device state), and
   // resolve the anchoring case from the target vault's public directory.
   useEffect(() => {
     // Defer past the effect body (the panel's established pattern).
-    void Promise.resolve()
-      .then(async () => {
-        setCandidate(readRememberedPostingKeyCandidate());
-        setCandidateLoaded(true);
-        if (manager) {
-          try {
-            const accounts = await manager.getAccounts(vaultName);
-            setAnchorCase(accounts.every((account) => account.keys.length === 0));
-          } catch {
-            // The submit path re-reads through the primitive anyway; a
-            // directory failure here only costs the confirm-field UX.
-            setAnchorCase(false);
-          }
-        } else {
-          setAnchorCase(false);
-        }
-      });
+    void Promise.resolve().then(async () => {
+      setCandidate(readRememberedPostingKeyCandidate());
+      setCandidateLoaded(true);
+      await loadAnchorCase();
+    });
     return () => {
       // Unmount (dialog closed/cancelled) scrubs the sensitive transient
       // state — a closed dialog holds no password.
@@ -166,7 +183,7 @@ function MigrateRememberedKeyForm({
       setConfirmPassword('');
       setVerification(null);
     };
-  }, [manager, vaultName]);
+  }, [loadAnchorCase]);
 
   const scrubSecrets = () => {
     setPassword('');
@@ -175,12 +192,7 @@ function MigrateRememberedKeyForm({
   };
 
   const formError = (error: unknown) => {
-    if (error instanceof VaultError) {
-      setErrorKey(`errors.${error.code}`);
-    } else {
-      console.error('Unexpected migrate-remembered-key error', error);
-      setErrorKey('errors.unexpected');
-    }
+    setErrorKey(mapErrorKey(error));
   };
 
   // Nothing (valid) remembered anymore: the entry point should not have been
@@ -293,6 +305,27 @@ function MigrateRememberedKeyForm({
           <li>{t('migrateStepUsername')}</li>
         </ul>
       </div>
+      {directoryErrorKey !== null ? (
+        // A failed directory read must be resolved explicitly: the anchoring
+        // decision is unknown (verify disabled), the mapped error renders,
+        // and Retry re-runs the read — never a silent single-field fallback.
+        <div className="flex flex-col gap-2" data-testid="vault-migrate-directory-error">
+          <p className="text-destructive text-sm font-medium" role="alert">
+            {t(directoryErrorKey)}
+          </p>
+          <div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => void loadAnchorCase()}
+              disabled={busy}
+            >
+              {t('retry')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="vault-migrate-account">{t('migrateAccountLabel')}</Label>
         <Input id="vault-migrate-account" value={candidate?.accountName ?? ''} readOnly disabled />

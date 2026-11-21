@@ -59,19 +59,28 @@ function shortPublicKey(publicKey: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Register a SELF-DISARMING init script that seeds the remembered pair once
- * per page lifetime (review r1 P3-4): a plain addInitScript re-runs on every
- * navigation and would re-seed localStorage AFTER the migration deleted the
- * plaintext, making every retention assertion meaningless. The window flag
- * ensures only the first load seeds; later navigations observe the app's own
- * writes — so "username kept / plaintext gone" assertions are real.
+ * Register a SELF-DISARMING init script that seeds the remembered pair ONCE
+ * per tab (review r2 N1): a plain addInitScript re-runs on every navigation
+ * and would re-seed localStorage AFTER the migration deleted the plaintext,
+ * making every retention assertion meaningless — and a per-document window
+ * property dies with the document, so it disarms nothing across navigations
+ * (the r1 attempt's bug). sessionStorage is the right flag store: per-origin
+ * AND per-tab, it survives same-tab navigations. The first run seeds both
+ * localStorage keys and sets the flag; every later navigation in the same
+ * tab sees the flag and skips — so "plaintext gone / username kept"
+ * assertions after a migration observe the app's own writes, not re-seeds.
  */
+const E2E_SEED_FLAG = 'wallet:e2e-migration-seeded-once';
 async function seedRememberedPair(page: Page, account: string, wif: string) {
   await page.addInitScript(
-    ({ postingKeyKey, usernameKey, accountName, postingWif }) => {
-      const w = window as typeof window & { __walletMigrationE2eSeeded?: boolean };
-      if (w.__walletMigrationE2eSeeded) return;
-      w.__walletMigrationE2eSeeded = true;
+    ({ postingKeyKey, usernameKey, accountName, postingWif, flag }) => {
+      try {
+        if (window.sessionStorage.getItem(flag) === '1') return;
+        window.sessionStorage.setItem(flag, '1');
+      } catch {
+        // sessionStorage unavailable (never in this app's browsers) — seed
+        // anyway rather than failing the whole test setup.
+      }
       window.localStorage.setItem(postingKeyKey, postingWif);
       window.localStorage.setItem(usernameKey, accountName);
     },
@@ -80,6 +89,7 @@ async function seedRememberedPair(page: Page, account: string, wif: string) {
       usernameKey: REMEMBERED_USERNAME_KEY,
       accountName: account,
       postingWif: wif,
+      flag: E2E_SEED_FLAG,
     },
   );
 }
@@ -512,7 +522,15 @@ test.describe('Vault plaintext migration (A6-T5)', () => {
 
     // Identity login for the migrated account, then claim with the migrated
     // key: the ciphertext that replaced the plaintext must actually sign.
+    // This navigation re-ran the (disarmed) seeding script — the signing
+    // phase below genuinely runs WITHOUT the device plaintext.
     await page.goto('/login');
+    expect(
+      await page.evaluate(
+        ({ key }) => window.localStorage.getItem(key),
+        { key: REMEMBERED_POSTING_KEY_KEY },
+      ),
+    ).toBeNull();
     const accountSelect = page.getByTestId('vault-login-account-select');
     await expect(accountSelect).toBeVisible({ timeout: 15_000 });
     await accountSelect.selectOption('alice');
@@ -646,6 +664,10 @@ test.describe('Vault plaintext migration (A6-T5)', () => {
     // renders, the KEPT remembered username prefills it, and a WIF login
     // goes through the (intercepted) challenge/login endpoints.
     await page.goto('/login');
+    // EMPIRICAL seed-disarm check (r2 N1): this navigation ran the init
+    // script again — the plaintext must STILL be gone (a re-seeding guard
+    // bug would resurrect it here and pollute every retention assertion).
+    expect(await rememberedState(page)).toEqual({ postingKey: null, username: 'alice' });
     await expect(page.getByTestId('vault-login-form')).toHaveCount(0);
     const usernameInput = page.locator('#username');
     await expect(usernameInput).toBeVisible({ timeout: 15_000 });

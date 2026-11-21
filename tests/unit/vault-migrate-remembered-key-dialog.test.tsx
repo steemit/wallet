@@ -26,7 +26,7 @@
  * expected public key is computed the same way.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import {
   MigrateRememberedKeyDialog,
   type MigrateRememberedKeyOutcome,
@@ -351,5 +351,34 @@ describe('MigrateRememberedKeyDialog', () => {
     await screen.findByText('migrateWhatHappens');
     expect(screen.queryByLabelText('confirmPasswordLabel')).not.toBeInTheDocument();
     expect(screen.queryByText('migrateAnchorHint')).not.toBeInTheDocument();
+  });
+
+  it('directory-read failure surfaces the mapped error with Retry — never a silent single-field fallback (r2)', async () => {
+    // The target-directory read fails: the anchoring decision must stay
+    // UNKNOWN (verify disabled), the mapped error must render, and only a
+    // successful retry decides anchor vs non-anchor. Falling back to
+    // anchorCase=false here would let a strong-but-typo'd password anchor a
+    // truly-empty vault without re-entry.
+    getAccountsMock.mockRejectedValueOnce(
+      new VaultError('VAULT_STORAGE_UNAVAILABLE', 'directory read failed'),
+    );
+    renderDialog();
+    const errorBox = await screen.findByTestId('vault-migrate-directory-error');
+    expect(errorBox).toHaveTextContent('errors.VAULT_STORAGE_UNAVAILABLE');
+    const retryButton = within(errorBox).getByRole('button', { name: 'retry' });
+    expect(retryButton).toBeInTheDocument();
+
+    // Verify stays blocked while the decision is unknown.
+    fireEvent.change(await screen.findByLabelText('migratePasswordLabel'), {
+      target: { value: VAULT_PASSWORD },
+    });
+    expect(screen.getByTestId('vault-migrate-primary')).toBeDisabled();
+    expect(mockVerifyKeysOnChain).not.toHaveBeenCalled();
+
+    // Retry resolves the directory (empty vault) and the confirm field appears.
+    getAccountsMock.mockResolvedValue([]);
+    fireEvent.click(retryButton);
+    await screen.findByText('migrateAnchorHint');
+    expect(screen.getByLabelText('confirmPasswordLabel')).toBeInTheDocument();
   });
 });
