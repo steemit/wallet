@@ -163,7 +163,7 @@ export function WorkModeSwitcher({
         className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"
         onKeyDown={handleKeyDown}
       >
-        {options.map(({ value, titleKey, badgeKey, descriptionKey, icon: Icon }) => {
+        {options.map(({ value, titleKey, badgeKey, descriptionKey, icon: Icon }, index) => {
           const selected = mode === value;
           return (
             <button
@@ -177,8 +177,8 @@ export function WorkModeSwitcher({
               aria-checked={selected}
               disabled={switching || loading || !facade}
               // Roving tabindex: only the selected radio is tabbable (the
-              // first one while the mode is still loading).
-              tabIndex={mode === null || selected ? 0 : -1}
+              // first one while the mode is still loading / failed to load).
+              tabIndex={mode === null ? (index === 0 ? 0 : -1) : selected ? 0 : -1}
               onClick={() => void select(value)}
               className={cn(
                 'flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors',

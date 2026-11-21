@@ -36,11 +36,13 @@ import vectors from '../fixtures/vault-development-test-vectors.json';
  *    lockEpoch +1, the A4 blue-book contract) -> the target's merged key
  *    directory -> the source vault untouched;
  *  - MULTI-TAB (A6-T6): two pages in one browser context share the device
- *    vaults; directory changes made in the front tab surface in the hidden
- *    tab only after it becomes visible (real visibilitychange — jsdom cannot
- *    produce a genuine hidden->visible transition), the unlock session stays
- *    TAB-LOCAL (one tab = one in-memory session service), and a deletion in
- *    the second tab propagates back through the modal-close refresh;
+ *    vaults; directory changes made in one tab surface in the other through
+ *    a SYNTHETIC visibilitychange dispatch — headless Chromium keeps every
+ *    page `visibilityState: 'visible'`, so a genuine hidden->visible
+ *    transition cannot be produced here (the listener logic itself is also
+ *    pinned by the jsdom unit suite); the unlock session stays TAB-LOCAL
+ *    (one tab = one in-memory session service), and a deletion in the
+ *    second tab propagates back through the modal-close refresh;
  *  - forms never overflow horizontally; secondary dialogs are z-60 and
  *    interactable on top of the Work Mode modal.
  *
@@ -176,7 +178,9 @@ async function ackBackupConfirmation(page: Page) {
   await dialog.getByRole('checkbox').check();
   await expect(continueButton).toBeEnabled();
   await continueButton.click();
-  await expect(dialog).toBeHidden();
+  // Explicit timeout: the unmount after the busy create can lag on a cold
+  // dev-server compile (round-1 review flake, observed twice by the reviewer).
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
 }
 
 /**

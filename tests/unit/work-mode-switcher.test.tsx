@@ -196,7 +196,7 @@ describe('WorkModeSwitcher', () => {
     expect(setSigningMode).toHaveBeenCalledWith('vault');
     expect(document.activeElement).toBe(radio('modeVaultTitle'));
 
-    // Backward wraps around the two options: vault -> privateKey.
+    // Backward: vault -> privateKey.
     fireEvent.keyDown(group, { key: 'ArrowLeft' });
     await waitFor(() => {
       expect(privateKey).toHaveAttribute('aria-checked', 'true');
@@ -213,6 +213,35 @@ describe('WorkModeSwitcher', () => {
       expect(privateKey).toHaveAttribute('aria-checked', 'true');
     });
     expect(setSigningMode).toHaveBeenCalledTimes(4);
+  });
+
+  it('wrap-around at the group ends: ArrowDown on the LAST option selects the first, ArrowUp on the FIRST selects the last', async () => {
+    // Two options only — every move off an END must exercise the `% count`
+    // wrap (a linear `index +/- 1` implementation would run off the ends).
+    const { facade, setSigningMode } = makeFacade('vault');
+    setSigningMode.mockResolvedValue(undefined);
+    render(<WorkModeSwitcher facade={facade} />);
+
+    await waitFor(() => {
+      expect(radio('modeVaultTitle')).toHaveAttribute('aria-checked', 'true');
+    });
+    const group = screen.getByRole('radiogroup');
+
+    // Forward wrap: vault (last) -> privateKey (first).
+    fireEvent.keyDown(group, { key: 'ArrowDown' });
+    await waitFor(() => {
+      expect(radio('modePrivateKeyTitle')).toHaveAttribute('aria-checked', 'true');
+    });
+    expect(setSigningMode).toHaveBeenCalledWith('privateKey');
+    expect(document.activeElement).toBe(radio('modePrivateKeyTitle'));
+
+    // Backward wrap: privateKey (first) -> vault (last).
+    fireEvent.keyDown(group, { key: 'ArrowUp' });
+    await waitFor(() => {
+      expect(radio('modeVaultTitle')).toHaveAttribute('aria-checked', 'true');
+    });
+    expect(setSigningMode).toHaveBeenCalledWith('vault');
+    expect(setSigningMode).toHaveBeenCalledTimes(2);
   });
 
   it('Home and End select the first and last option; unrelated keys are ignored', async () => {

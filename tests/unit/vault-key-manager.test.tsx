@@ -23,7 +23,7 @@
  * real crypto evidence lives in tests/node/vault-wif-real-check.mjs.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { VaultKeyManager } from '@/components/vault/vault-key-manager';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { VaultError } from '@/lib/vault/errors';
@@ -450,6 +450,60 @@ describe('VaultKeyManager (R2 key management)', () => {
     await screen.findByText('laptop key');
   });
 
+  it('a slow directory response never overwrites a newer refresh (sequence guard)', async () => {
+    // Interleaving (A6-T6 round-1 review): the MOUNT directory load is held
+    // in flight through a deferred while the add-key success handler's own
+    // refresh lands first with the updated directory — the stale mount
+    // response must be discarded instead of wiping the rows away.
+    const state = makeManager();
+    const staleDirectory = state.directory.map((account) => ({ ...account }));
+    const slow = {
+      resolve: null as unknown as (value: VaultAccountSummary[]) => void,
+      promise: null as unknown as Promise<VaultAccountSummary[]>,
+    };
+    slow.promise = new Promise<VaultAccountSummary[]>((resolve) => {
+      slow.resolve = resolve;
+    });
+    const getAccounts = state.manager.getAccounts as unknown as ReturnType<typeof vi.fn>;
+    getAccounts.mockImplementationOnce(() => slow.promise);
+
+    renderManager(state);
+    // The mount refresh is pending: the loading row shows, no directory yet.
+    expect(screen.getByText('keysLoading')).toBeInTheDocument();
+    expect(screen.queryByTestId('vault-key-account')).not.toBeInTheDocument();
+
+    // Add a key through the dialog while the mount load is still in flight —
+    // its success handler fires refresh #2 (the default implementation reads
+    // the manager's already-mutated directory, WITH the new key; the mock's
+    // addKey rebuilds the list with alice appended AFTER bob).
+    await verifyAddKey(MATCHED);
+    fireEvent.click(screen.getByTestId('vault-add-key-primary'));
+    await waitFor(() => {
+      expect(state.manager.addKey).toHaveBeenCalled();
+    });
+    // alice: one stored posting key + the just-added one -> Posting 2.
+    await waitFor(() => {
+      const alice = screen
+        .getAllByTestId('vault-key-account')
+        .find((el) => el.getAttribute('data-account') === 'alice');
+      expect(alice).toHaveTextContent('keysRolePosting 2');
+    });
+    await screen.findByText('keyAdded');
+
+    // The stale mount response lands late with the OLD directory — it must
+    // be dropped (without the guard the pre-add rows would come back and the
+    // added key would vanish from the rendered directory).
+    await act(async () => {
+      slow.resolve(staleDirectory);
+      await slow.promise;
+    });
+    const aliceAfter = screen
+      .getAllByTestId('vault-key-account')
+      .find((el) => el.getAttribute('data-account') === 'alice');
+    expect(aliceAfter).toHaveTextContent('keysRolePosting 2');
+    expect(screen.queryByText('keysEmpty')).not.toBeInTheDocument();
+  });
+
   // -------------------------------------------------------------------------
   // R2 quick-review follow-ups (R3 batch)
   // -------------------------------------------------------------------------
@@ -612,8 +666,7 @@ describe('VaultKeyManager (R2 key management)', () => {
     expect(box).not.toHaveTextContent('verifyAuthorityDiffers');
   });
 
-  it('added-vs-duplicate detection compares account names through normalization (non-canonical stored name)', async () => {
-    // A directory entry whose STORED name is not canonical (e.g. from an
+  it('added-vs-duplicate detection compares account names through normalization (non-canonical stored name)', async () => {    // A directory entry whose STORED name is not canonical (e.g. from an
     // imported backup) — the service matches it by normalized name, so the
     // new key lands under 'ALICE'. A raw `===` against the verified 'alice'
     // would count 0 before and after and mislabel the add as a duplicate.
