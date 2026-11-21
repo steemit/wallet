@@ -7,9 +7,16 @@
  * lowercase account names — the signed create_proposal op must therefore
  * carry normalized creator/receiver names, or the user gets a relay/chain
  * rejection instead of the previous early validation toast.
+ *
+ * Since A6-T4 signing goes through useSessionSigning (mocked at its module
+ * boundary); the normalization assertions read the create_proposal tuple
+ * handed to the unified entry.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
+import authReducer from '@/lib/store/slices/auth';
 import { ProposalCreatorDialog } from '@/components/proposals/proposal-creator-dialog';
 
 // jsdom lacks ResizeObserver, required by radix-ui primitives.
@@ -28,20 +35,52 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
-vi.mock('@/hooks/use-auth', () => ({
-  useActiveSigningKey: () => '5J-test-active-key',
+const mocks = vi.hoisted(() => ({
+  sign: vi.fn().mockResolvedValue({ status: 'signed', result: { signedTx: { signed: true } } }),
+  broadcastCreate: vi.fn().mockResolvedValue({ success: true }),
 }));
 
-const mockSignCreateProposal = vi.fn().mockResolvedValue({ signed: true });
-const mockBroadcastCreate = vi.fn().mockResolvedValue({ success: true });
+vi.mock('@/hooks/use-session-signing', () => ({
+  useSessionSigning: () => ({ sign: mocks.sign, dialog: null }),
+}));
+
+vi.mock('@/components/auth/login-form', () => ({
+  LoginForm: () => <div data-testid="reauth-login-form" />,
+}));
+
 vi.mock('@/lib/steem/client', () => ({
-  SteemSigner: {
-    signCreateProposal: (...args: unknown[]) => mockSignCreateProposal(...args),
-  },
   apiClient: {
-    broadcastProposalCreate: (...args: unknown[]) => mockBroadcastCreate(...args),
+    broadcastProposalCreate: (...args: unknown[]) => mocks.broadcastCreate(...args),
   },
 }));
+
+function renderDialog() {
+  const onSuccess = vi.fn();
+  const store = configureStore({ reducer: { auth: authReducer } });
+  render(
+    <Provider store={store}>
+      <ProposalCreatorDialog
+        open
+        onOpenChange={vi.fn()}
+        username="alice"
+        treasuryFeeSbd="10.000"
+        onSuccess={onSuccess}
+        onNeedLogin={vi.fn()}
+      />
+    </Provider>
+  );
+  return { onSuccess };
+}
+
+/** The create_proposal payload of the (only) signing request. */
+function signedCreatePayload(): { creator?: string; receiver?: string } {
+  const request = mocks.sign.mock.calls[0]?.[0] as {
+    operations: Array<[string, Record<string, unknown>]>;
+  };
+  const payload = request.operations[0]?.[1];
+  if (!payload) throw new Error('expected a create_proposal payload');
+  return payload as { creator?: string; receiver?: string };
+}
 
 function fillForm(overrides: { creator?: string; receiver?: string; permlink?: string } = {}) {
   fireEvent.change(screen.getByLabelText('createTitle'), { target: { value: 'Dev fund' } });
@@ -63,21 +102,6 @@ function fillForm(overrides: { creator?: string; receiver?: string; permlink?: s
   });
 }
 
-function renderDialog() {
-  const onSuccess = vi.fn();
-  render(
-    <ProposalCreatorDialog
-      open
-      onOpenChange={vi.fn()}
-      username="alice"
-      treasuryFeeSbd="10.000"
-      onSuccess={onSuccess}
-      onNeedLogin={vi.fn()}
-    />
-  );
-  return { onSuccess };
-}
-
 describe('ProposalCreatorDialog — normalized names in the signed op', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -90,11 +114,11 @@ describe('ProposalCreatorDialog — normalized names in the signed op', () => {
     fireEvent.click(screen.getByRole('button', { name: 'createSubmit' }));
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
-    expect(mockSignCreateProposal).toHaveBeenCalledTimes(1);
-    const [creator, receiver] = mockSignCreateProposal.mock.calls[0] as [string, string];
-    expect(creator).toBe('alice');
-    expect(receiver).toBe('alice');
-    expect(mockBroadcastCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.sign).toHaveBeenCalledTimes(1);
+    const payload = signedCreatePayload();
+    expect(payload.creator).toBe('alice');
+    expect(payload.receiver).toBe('alice');
+    expect(mocks.broadcastCreate).toHaveBeenCalledTimes(1);
   });
 
   it('normalizes the creator parsed from a mixed-case permlink when fields fall back', async () => {
@@ -108,9 +132,9 @@ describe('ProposalCreatorDialog — normalized names in the signed op', () => {
     fireEvent.click(screen.getByRole('button', { name: 'createSubmit' }));
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
-    const [creator, receiver] = mockSignCreateProposal.mock.calls[0] as [string, string];
-    expect(creator).toBe('alice');
-    expect(receiver).toBe('alice');
+    const payload = signedCreatePayload();
+    expect(payload.creator).toBe('alice');
+    expect(payload.receiver).toBe('alice');
   });
 
   it('still blocks a creator that is a different account', async () => {
@@ -123,7 +147,7 @@ describe('ProposalCreatorDialog — normalized names in the signed op', () => {
     await waitFor(() =>
       expect(vi.mocked(toast.error)).toHaveBeenCalledWith('createMustSignAsCreator')
     );
-    expect(mockSignCreateProposal).not.toHaveBeenCalled();
-    expect(mockBroadcastCreate).not.toHaveBeenCalled();
+    expect(mocks.sign).not.toHaveBeenCalled();
+    expect(mocks.broadcastCreate).not.toHaveBeenCalled();
   });
 });

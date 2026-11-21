@@ -4,7 +4,8 @@ import { Suspense, useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LoginForm } from '@/components/auth/login-form';
 import { toast } from 'sonner';
-import { useAuth, useActiveSigningKey } from '@/hooks/use-auth';
+import { useAuth } from '@/hooks/use-auth';
+import { useSessionSigning } from '@/hooks/use-session-signing';
 import { useMarketData } from '@/hooks/use-market-data';
 import { useSteemAccount } from '@/hooks/use-steem-account';
 import { MarketDepthChart } from '@/components/market/market-depth-chart';
@@ -28,22 +29,31 @@ import {
 } from '@/lib/market/constants';
 import { formatAssetAmount } from '@/lib/market/utils';
 import { nextMarketOrderId } from '@/lib/market/order-id';
+import { unixSecToSteemIsoTimestamp } from '@/lib/steem/chain-time';
 import { invalidateWalletCache } from '@/lib/cache/client-invalidate';
-import { apiClient, SteemSigner } from '@/lib/steem/client';
+import { apiClient } from '@/lib/steem/client';
+import type { Operation } from '@/lib/steem/types';
 
 export function MarketPageClient() {
   const t = useTranslations('wallet.marketPage');
   const tAuth = useTranslations('auth');
+  const tWallet = useTranslations('wallet');
   const { username, isAuthenticated } = useAuth();
-  const activeKey = useActiveSigningKey();
+  // Unified signing entry (A6-T4): privateKey sessions sign through the
+  // facade's legacy backend exactly as before (active key, owner fallback);
+  // vault identity sessions get the per-key password dialog. `signing.dialog`
+  // mounts it.
+  const signing = useSessionSigning();
   const { data: account } = useSteemAccount(username ?? '');
   const { orderbook, ticker, history, openOrders, loading, error, refresh } =
     useMarketData(username);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
+  /** Classic re-auth for a privateKey session that lacks an active/owner key. */
+  const [reauthOpen, setReauthOpen] = useState(false);
 
-  const canTrade = isAuthenticated && !!username && !!activeKey;
+  const canTrade = isAuthenticated && !!username;
 
   const placeOrder = useCallback(
     async (
@@ -56,7 +66,7 @@ export function MarketPageClient() {
         marketRefPrice: number;
       }
     ) => {
-      if (!username || !activeKey) {
+      if (!username) {
         toast.error(t('signInToTrade'));
         setLoginOpen(true);
         return;
@@ -93,16 +103,50 @@ export function MarketPageClient() {
       const expiration = Math.floor(Date.now() / 1000) + DEFAULT_LIMIT_ORDER_EXPIRATION_SEC;
 
       try {
-        const signedTx = await SteemSigner.signLimitOrderCreate(
-          username,
-          amountToSell,
-          minToReceive,
-          orderid,
-          expiration,
-          activeKey
-        );
+        // The exact operation tuple SteemSigner.signLimitOrderCreate built
+        // internally — field order, fill_or_kill default and the ISO
+        // expiration conversion (condenser_api expects a time_point_sec
+        // string, not unix seconds) are byte-identical.
+        const operations: Operation[] = [
+          [
+            'limit_order_create',
+            {
+              owner: username,
+              amount_to_sell: amountToSell,
+              min_to_receive: minToReceive,
+              fill_or_kill: false,
+              expiration: unixSecToSteemIsoTimestamp(expiration),
+              orderid,
+            },
+          ],
+        ];
 
-        const res = await apiClient.broadcastLimitOrderCreate(signedTx, username);
+        // limit_order_create is an active-class operation.
+        const outcome = await signing.sign({
+          operations,
+          accountName: username,
+          role: 'active',
+        });
+
+        if (outcome.status === 'cancelled') {
+          // User aborted the vault dialog — back to the form, no error.
+          return;
+        }
+        if (outcome.status === 'needsClassicReauth') {
+          // privateKey session without an active/owner key: the classic
+          // re-auth dialog locked to this account.
+          setReauthOpen(true);
+          return;
+        }
+        if (outcome.status === 'error') {
+          toast.error(t('orderFailed'));
+          return;
+        }
+
+        const res = await apiClient.broadcastLimitOrderCreate(
+          outcome.result.signedTx,
+          username
+        );
         if (!res.success) {
           toast.error(res.error ?? t('orderFailed'));
           return;
@@ -120,17 +164,44 @@ export function MarketPageClient() {
         toast.error(t('orderFailed'));
       }
     },
-    [username, activeKey, t, refresh]
+    [username, t, refresh, signing]
   );
 
   const cancelOrder = useCallback(
     async (orderid: number) => {
-      if (!username || !activeKey) return;
+      if (!username) return;
       if (!window.confirm(t('cancelConfirm', { orderId: orderid, user: username }))) return;
       setCancellingId(orderid);
       try {
-        const signedTx = await SteemSigner.signLimitOrderCancel(username, orderid, activeKey);
-        const res = await apiClient.broadcastLimitOrderCancel(signedTx, username);
+        // The exact operation tuple SteemSigner.signLimitOrderCancel built.
+        const operations: Operation[] = [
+          ['limit_order_cancel', { owner: username, orderid }],
+        ];
+
+        // limit_order_cancel is an active-class operation.
+        const outcome = await signing.sign({
+          operations,
+          accountName: username,
+          role: 'active',
+        });
+
+        if (outcome.status === 'cancelled') {
+          // User aborted the vault dialog — release the spinner, no error.
+          return;
+        }
+        if (outcome.status === 'needsClassicReauth') {
+          setReauthOpen(true);
+          return;
+        }
+        if (outcome.status === 'error') {
+          toast.error(t('orderFailed'));
+          return;
+        }
+
+        const res = await apiClient.broadcastLimitOrderCancel(
+          outcome.result.signedTx,
+          username
+        );
         if (!res.success) {
           toast.error(res.error ?? t('orderFailed'));
           return;
@@ -147,7 +218,7 @@ export function MarketPageClient() {
         setCancellingId(null);
       }
     },
-    [username, activeKey, t, refresh]
+    [username, t, refresh, signing]
   );
 
   return (
@@ -182,10 +253,46 @@ export function MarketPageClient() {
               </div>
             }
           >
-            <LoginForm embedded onLoginSuccess={() => setLoginOpen(false)} />
+            {/* Unauthenticated visitors may log in as any account; the
+                active-authority requirement keeps a privateKey login fit for
+                trading the first time (limit orders are active-class). In
+                Vault Mode this dialog still offers identity selection — the
+                per-action password dialog enforces the floor after login. */}
+            <LoginForm
+              embedded
+              requiredAuthTypes={['active']}
+              onLoginSuccess={() => setLoginOpen(false)}
+            />
           </Suspense>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={reauthOpen} onOpenChange={setReauthOpen}>
+        <DialogContent className="z-[60] max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{tWallet('reauthTitle')}</DialogTitle>
+            <DialogDescription>{tWallet('reauthDescription')}</DialogDescription>
+          </DialogHeader>
+          <Suspense
+            fallback={
+              <div className="space-y-4 py-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-11 w-full" />
+              </div>
+            }
+          >
+            <LoginForm
+              embedded
+              fixedUsername={username ?? ''}
+              requiredAuthTypes={['active']}
+              onLoginSuccess={() => setReauthOpen(false)}
+            />
+          </Suspense>
+        </DialogContent>
+      </Dialog>
+
+      {signing.dialog}
 
       {error && (
         <p className="text-destructive text-sm" role="alert">

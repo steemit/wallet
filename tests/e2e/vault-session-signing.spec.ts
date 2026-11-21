@@ -2,8 +2,9 @@ import { test, expect, type Locator, type Page } from '@playwright/test';
 import vectors from '../fixtures/vault-development-test-vectors.json';
 
 /**
- * Vault identity session SIGNING (A6-T2 pilot, A6-T3a wallet-ops batch) —
- * real-browser coverage for the per-key password path.
+ * Vault identity session SIGNING (A6-T2 pilot, A6-T3a wallet-ops batch,
+ * A6-T4 proposals vote) — real-browser coverage for the per-key password
+ * path.
  *
  * Setup mirrors vault-per-key.spec.ts (real IndexedDB + real Web Crypto;
  * chain-dependent branches made deterministic by intercepting
@@ -32,6 +33,12 @@ import vectors from '../fixtures/vault-development-test-vectors.json';
  *    "a vault session never reads the Legacy remembered posting key"
  *    invariant is NOT exercised here — it is pinned by the unit suite's
  *    Storage-prototype spy in tests/unit/claim-rewards-banner.test.tsx.);
+ *  - proposals vote (A6-T4): a vault identity session votes on /proposals
+ *    directly — the pre-A6 gap (identity-selection login dialog reopening on
+ *    every vote because no Redux key exists) is gone — signs through the
+ *    password dialog at the ACTIVE floor (update_proposal_votes is
+ *    active-class on Steem) and broadcasts the byte-identical
+ *    update_proposal_votes tuple;
  *  - no /api/auth/* traffic at any point (identity + signing are local).
  *
  * Fixture discipline: WIF/public keys/password come from the shared
@@ -170,6 +177,69 @@ async function interceptClaimBroadcast(page: Page) {
     });
   });
   return bodies;
+}
+
+/** Intercept the proposals-vote broadcast route, returning the captured bodies. */
+async function interceptProposalVoteBroadcast(page: Page) {
+  const bodies: Array<Record<string, unknown>> = [];
+  await page.route('**/api/broadcast/proposal-vote', (route) => {
+    bodies.push(route.request().postDataJSON() as Record<string, unknown>);
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, result: { id: 'e2e-tx' } }),
+    });
+  });
+  return bodies;
+}
+
+/**
+ * SPA-navigate to the proposals page through the app's own side-panel link
+ * (a vault identity session lives only in Redux — a full page.goto would
+ * wipe it, and a synthetic pushState/popstate does not drive the App Router
+ * across paths, only the same-route query change the wallet modal uses).
+ */
+async function openProposalsViaAppNavigation(page: Page) {
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await page.getByRole('link', { name: 'Steem Proposals' }).click();
+}
+
+/** Serve one votable proposal row on the proposals query routes. */
+const E2E_PROPOSAL = {
+  id: 77,
+  proposal_id: 77,
+  creator: 'alice',
+  receiver: 'alice',
+  start_date: '2026-01-01T00:00:00',
+  end_date: '2027-01-01T00:00:00',
+  daily_pay: '10.000 SBD',
+  subject: 'E2E vault vote proposal',
+  permlink: 'e2e-vault-vote-proposal',
+  total_votes: '1000000000',
+  upVoted: false,
+};
+
+async function fulfillProposalsRoutes(page: Page) {
+  await page.route('**/api/query/proposals?**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, proposals: [{ ...E2E_PROPOSAL }] }),
+    }),
+  );
+  await page.route('**/api/query/proposals/dao-stats', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        daoTreasury: '1000.000 SBD',
+        dailyBudget: '500.000 SBD',
+        paidProposalIds: [],
+        treasuryFeeSbd: '10.000',
+      }),
+    }),
+  );
 }
 
 /**
@@ -643,6 +713,76 @@ test.describe('Vault identity session signing (A6-T2/T3a)', () => {
     expect(body.signedTx?.signatures?.length).toBe(1);
 
     // The whole flow — identity login + signing — never touched auth endpoints.
+    expect(authEndpoints).toEqual([]);
+  });
+
+  test('proposals vote (A6-T4): vault session votes directly, signs through the password dialog and broadcasts', async ({
+    page,
+  }) => {
+    const activeKey = fixtureKey('active');
+    const postingKey = fixtureKey('posting');
+    await abortOtherQueries(page);
+    await fulfillTransactionHeader(page);
+    await fulfillGlobalProps(page);
+    await fulfillProposalsRoutes(page);
+    const broadcastBodies = await interceptProposalVoteBroadcast(page);
+    const authEndpoints = trackAuthEndpoints(page);
+
+    const chain = {
+      alice: chainAccount('alice', {
+        active: [[activeKey.publicKey, 1]],
+        posting: [[postingKey.publicKey, 1]],
+      }),
+    };
+    await fulfillAccountsRoute(page, chain);
+    await establishVaultIdentity(page);
+
+    // The proposals page opens for a vault session with the Vote action
+    // AVAILABLE (canVote no longer requires a Redux active key) — the pre-A6
+    // gap had every vote reopen the identity-selection login dialog.
+    await openProposalsViaAppNavigation(page);
+    const voteButton = page.getByRole('button', { name: 'Vote', exact: true });
+    await expect(voteButton).toBeVisible({ timeout: 15_000 });
+    await expect(voteButton).toBeEnabled();
+    // No sign-in prompt banner for the authenticated vault session.
+    await expect(page.getByText('Sign in with your active key to vote')).toHaveCount(0);
+
+    await voteButton.click();
+
+    // update_proposal_votes floors at ACTIVE, so only the active-stored key
+    // is offered (the posting key stays below the floor) and auto-selects.
+    const signDialog = page.getByTestId('vault-signing-dialog');
+    await expect(signDialog).toBeVisible({ timeout: 15_000 });
+    await expect(signDialog.getByText('trezor active key')).toBeVisible();
+    await expect(signDialog.getByText('posting only key')).toHaveCount(0);
+
+    await signDialog.getByLabel('Vault password').fill(VAULT_PASSWORD);
+    await signDialog.getByTestId('vault-signing-submit').click();
+    await expect(signDialog).toBeHidden({ timeout: 30_000 });
+
+    // Byte-identical update_proposal_votes tuple for the clicked proposal.
+    await expect(broadcastBodies).toHaveLength(1);
+    const body = broadcastBodies[0] as {
+      username?: string;
+      signedTx?: {
+        ref_block_num?: number;
+        ref_block_prefix?: number;
+        operations?: unknown[];
+        signatures?: string[];
+      };
+    };
+    expect(body.username).toBe('alice');
+    expect(body.signedTx?.ref_block_num).toBe(12345);
+    expect(body.signedTx?.ref_block_prefix).toBe(6789012);
+    expect(body.signedTx?.operations).toEqual([
+      [
+        'update_proposal_votes',
+        { voter: 'alice', proposal_ids: [E2E_PROPOSAL.proposal_id], approve: true },
+      ],
+    ]);
+    expect(body.signedTx?.signatures?.length).toBe(1);
+
+    // The whole flow — identity login + voting — never touched auth endpoints.
     expect(authEndpoints).toEqual([]);
   });
 });

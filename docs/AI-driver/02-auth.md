@@ -133,13 +133,24 @@ route does this; copy that pattern, do not let a parse throw reach the outer cat
 
 ## Private keys on the client
 
-- Client signing goes through `useSessionSigning` (the unified entry — the callers migrated in
-  A6-T2/T3a/T3b: transfer, the eight active-class wallet operations, and the four remaining
-  wallet-domain callers: claim rewards, communities, change password, recovery warning) or
-  directly through `SteemSigner` (`client.ts`) for the T4 callers (market/proposals/witnesses),
-  the login challenge, the recovery pages, and the two no-session-key remnants (the claim
-  banner's remembered-posting-key branch and the communities hivemind setup ops — see
-  09-vault.md's "who still signs directly" inventory).
+- Client signing goes through `useSessionSigning` (the unified entry — every business
+  caller is migrated: A6-T2 transfer; A6-T3a the eight active-class wallet operations;
+  A6-T3b claim rewards, communities, change password, recovery warning; A6-T4 market limit
+  orders, proposals vote/create/remove and witness vote/proxy — all at the ACTIVE floor
+  except the documented posting/owner floors in 09-vault.md). `SteemSigner` (`client.ts`)
+  remains ONLY for the login challenge + key derivation, the recovery pages' dual-sign
+  flow, the non-signing derive/validate helpers, and the two no-session-key remnants (the
+  claim banner's remembered-posting-key branch and the communities hivemind setup ops —
+  see 09-vault.md's final "who still signs directly" inventory).
+  AUTHORITY NOTE (T4): update_proposal_votes is an ACTIVE-class Steem operation — the
+  legacy postingOps whitelist never listed it and the chain's active authority covers it —
+  so proposals votes sign at the active floor exactly like the pre-T4 active-or-owner key
+  resolution; do NOT "downgrade" it to posting.
+  LOGIN-DIALOG CONTRACT (T4): the market / proposals / witnesses embedded sign-in dialogs
+  pass `requiredAuthTypes: ['active']` with NO fixedUsername (session-account pages:
+  unauthenticated visitors may log in as any account), so a privateKey login is fit for
+  purpose the first time; the account-pinned classic re-auth dialogs (every caller's
+  `needsClassicReauth` surface) keep `fixedUsername` + `requiredAuthTypes`.
   CHANGE-PASSWORD KEY SOURCE (T3b): the account_update signs with the SESSION
   owner key, not the owner WIF the form's account password used to derive —
   a privateKey session without an owner key gets the `ownerKeySessionRequired`

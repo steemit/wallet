@@ -383,6 +383,49 @@ describe('vault signer (per-key hierarchy)', () => {
       ).toBe('owner');
     });
 
+    it('classifies the A6-T4 market / proposals / witnesses operation shapes as active (vault path cannot fail closed on them)', () => {
+      // The five T4 callers all sign at role floor 'active'. NOTE:
+      // update_proposal_votes is ACTIVE on Steem — the legacy postingOps
+      // whitelist never listed it and the pre-T4 caller signed it with the
+      // active-or-owner key — so the floor and the classifier agree. An
+      // unclassified op would make the vault path fail closed with
+      // VAULT_OPERATION_UNSUPPORTED; all seven call-site shapes were ALREADY
+      // in the table — this pins that none regresses.
+      const activeFloorOps: Array<[string, Record<string, unknown>]> = [
+        [
+          'limit_order_create',
+          {
+            owner: 'alice',
+            amount_to_sell: '5.000 SBD',
+            min_to_receive: '5.000 STEEM',
+            fill_or_kill: false,
+            expiration: '2026-12-18T00:00:00',
+            orderid: 42,
+          },
+        ],
+        ['limit_order_cancel', { owner: 'alice', orderid: 42 }],
+        ['update_proposal_votes', { voter: 'alice', proposal_ids: [1], approve: true }],
+        [
+          'create_proposal',
+          {
+            creator: 'alice',
+            receiver: 'alice',
+            start_date: '2026-10-01T00:00:00',
+            end_date: '2026-10-15T00:00:00',
+            daily_pay: '100.000 SBD',
+            subject: 'Dev fund',
+            permlink: 'dev-fund-post',
+          },
+        ],
+        ['remove_proposal', { proposal_owner: 'alice', proposal_ids: [7] }],
+        ['account_witness_vote', { account: 'alice', witness: 'witness1', approve: true }],
+        ['account_witness_proxy', { account: 'alice', proxy: 'bob' }],
+      ];
+      for (const [type, payload] of activeFloorOps) {
+        expect(resolveRequiredAuthorityClass([[type, payload]])).toBe('active');
+      }
+    });
+
     it('mixed operations require the most privileged class; garbage fails closed', () => {
       expect(resolveRequiredAuthorityClass([postingOp('alice'), activeOp('alice')])).toBe('active');
       const expectClassifierRejection = (operations: unknown[]): void => {

@@ -4,10 +4,11 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useTransit
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
-import { useActiveSigningKey, useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/hooks/use-auth';
+import { useSessionSigning } from '@/hooks/use-session-signing';
 import { useAccountData } from '@/hooks/use-account-data';
-import { SteemSigner, apiClient } from '@/lib/steem/client';
-import type { Witness } from '@/lib/steem/types';
+import { apiClient } from '@/lib/steem/client';
+import type { Operation, Witness } from '@/lib/steem/types';
 import { LoginForm } from '@/components/auth/login-form';
 import { DISABLED_SIGNING_KEY } from '@/lib/steem/constants';
 import { toast } from 'sonner';
@@ -17,7 +18,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 function compareWitnessByVotes(a: Witness, b: Witness): number {
   try {
@@ -39,14 +46,17 @@ export function WitnessVoteForm() {
   const t = useTranslations('witnesses');
   const tAuth = useTranslations('auth');
   const tCommon = useTranslations('common');
+  const tWallet = useTranslations('wallet');
   const { isAuthenticated } = useAuth();
   const username = useSelector((state: RootState) => state.auth.username);
-  const signingKey = useActiveSigningKey();
+  // Unified signing entry (A6-T4): privateKey sessions sign through the
+  // facade's legacy backend exactly as before (active key, owner fallback);
+  // vault identity sessions get the per-key password dialog. The pre-A6
+  // signingKey gate (and the vaultUnsupported notice its login dialog could
+  // reach) is retired — an authenticated vault session signs through the
+  // per-key password path instead of re-opening a login dialog.
+  const signing = useSessionSigning();
   const [isPending] = useTransition();
-  const signingKeyRef = useRef<string | null>(null);
-  useEffect(() => {
-    signingKeyRef.current = signingKey ?? null;
-  }, [signingKey]);
 
   const { data: account, refetch: refetchAccount, loading: isAccountLoading } = useAccountData();
 
@@ -57,6 +67,8 @@ export function WitnessVoteForm() {
   const [actionLoading, setActionLoading] = useState(false);
 
   const [loginOpen, setLoginOpen] = useState(false);
+  /** Classic re-auth for a privateKey session that lacks an active/owner key. */
+  const [reauthOpen, setReauthOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<
     | { type: 'vote'; witnessName: string; approve: boolean }
     | { type: 'proxy'; proxy: string }
@@ -141,25 +153,85 @@ export function WitnessVoteForm() {
   const hasVoted = (witnessName: string): boolean => userVotes.includes(witnessName);
 
   const ensureAuthOrOpenDialog = useCallback((): boolean => {
-    if (isAuthenticated && username && !!signingKeyRef.current) return true;
+    // Key availability is the unified signing entry's business now: a vault
+    // session (no Redux keys) signs through the per-key password path, a
+    // privateKey session without an active/owner key gets the classic re-auth
+    // dialog from the `needsClassicReauth` outcome.
+    if (isAuthenticated && username) return true;
     setLoginOpen(true);
     return false;
   }, [isAuthenticated, username]);
 
+  /**
+   * Sign + broadcast one witness vote through the unified entry.
+   * Resolves `true` when the vote was signed, broadcast and recorded;
+   * `false` when the flow aborted (vault dialog cancelled, classic re-auth
+   * opened, or no session) — callers must skip their success side effects.
+   * Throws on signing/broadcast failure for the existing error surfaces.
+   */
   const doVote = useCallback(
-    async (witnessName: string, approve: boolean) => {
-      const key = signingKeyRef.current;
-      if (!username || !key) return;
-      const signedTx = await SteemSigner.signWitnessVote(username, witnessName, approve, key);
-      const response = await apiClient.broadcastWitnessVote(signedTx, username);
+    async (witnessName: string, approve: boolean): Promise<boolean> => {
+      if (!username) return false;
+      // The exact operation tuple SteemSigner.signWitnessVote built
+      // internally. account_witness_vote is an active-class operation.
+      const operations: Operation[] = [
+        ['account_witness_vote', { account: username, witness: witnessName, approve }],
+      ];
+      const outcome = await signing.sign({
+        operations,
+        accountName: username,
+        role: 'active',
+      });
+      if (outcome.status === 'cancelled') return false;
+      if (outcome.status === 'needsClassicReauth') {
+        setReauthOpen(true);
+        return false;
+      }
+      if (outcome.status === 'error') {
+        throw new Error(approve ? t('voteError') : t('unvoteError'));
+      }
+      const response = await apiClient.broadcastWitnessVote(outcome.result.signedTx, username);
       if (!response.success) {
         throw new Error(
           response.error || (approve ? t('voteError') : t('unvoteError'))
         );
       }
       userActionRecord('account_witness_vote', { username, witness: witnessName });
+      return true;
     },
-    [t, username]
+    [t, username, signing]
+  );
+
+  /**
+   * Sign + broadcast one witness proxy change — same abort contract as doVote.
+   */
+  const doSetProxy = useCallback(
+    async (nextProxy: string): Promise<boolean> => {
+      if (!username) return false;
+      // The exact operation tuple SteemSigner.signWitnessProxy built
+      // internally. account_witness_proxy is an active-class operation.
+      const operations: Operation[] = [
+        ['account_witness_proxy', { account: username, proxy: nextProxy }],
+      ];
+      const outcome = await signing.sign({
+        operations,
+        accountName: username,
+        role: 'active',
+      });
+      if (outcome.status === 'cancelled') return false;
+      if (outcome.status === 'needsClassicReauth') {
+        setReauthOpen(true);
+        return false;
+      }
+      if (outcome.status === 'error') {
+        throw new Error(tCommon('error'));
+      }
+      const resp = await apiClient.broadcastWitnessProxy(outcome.result.signedTx, username);
+      if (!resp.success) throw new Error(resp.error || tCommon('error'));
+      userActionRecord('account_witness_proxy', { username, proxy: nextProxy });
+      return true;
+    },
+    [tCommon, username, signing]
   );
 
   const handleVote = async (witnessName: string, approve: boolean) => {
@@ -171,7 +243,8 @@ export function WitnessVoteForm() {
 
     setActionLoading(true);
     try {
-      await doVote(witnessName, approve);
+      const done = await doVote(witnessName, approve);
+      if (!done) return;
       setLocalVotes((prev) => {
         const set = new Set(prev);
         if (approve) set.add(witnessName);
@@ -207,15 +280,11 @@ export function WitnessVoteForm() {
       setPendingAction({ type: 'proxy', proxy: nextProxy });
       return;
     }
-    const key = signingKeyRef.current;
-    if (!username || !key) return;
 
     setActionLoading(true);
     try {
-      const signedTx = await SteemSigner.signWitnessProxy(username, nextProxy, key);
-      const resp = await apiClient.broadcastWitnessProxy(signedTx, username);
-      if (!resp.success) throw new Error(resp.error || tCommon('error'));
-      userActionRecord('account_witness_proxy', { username, proxy: nextProxy });
+      const done = await doSetProxy(nextProxy);
+      if (!done) return;
       setProxyInput('');
       toast.success(nextProxy ? t('proxySetSuccess') : t('proxyClearedSuccess'));
       await refetchAccount();
@@ -228,20 +297,17 @@ export function WitnessVoteForm() {
   };
 
   useEffect(() => {
-    if (!pendingAction || !isAuthenticated || !username || !signingKeyRef.current) return;
+    if (!pendingAction || !isAuthenticated || !username) return;
     // Close login dialog after auth is available, but do it async to avoid
     // cascading renders flagged by react-hooks/set-state-in-effect.
     queueMicrotask(() => setLoginOpen(false));
 
     const run = async () => {
-      if (!signingKeyRef.current) {
-        setPendingAction(null);
-        return;
-      }
       try {
         setActionLoading(true);
         if (pendingAction.type === 'vote') {
-          await doVote(pendingAction.witnessName, pendingAction.approve);
+          const done = await doVote(pendingAction.witnessName, pendingAction.approve);
+          if (!done) return;
           setLocalVotes((prev) => {
             const set = new Set(prev);
             if (pendingAction.approve) set.add(pendingAction.witnessName);
@@ -251,12 +317,8 @@ export function WitnessVoteForm() {
           });
           toast.success(pendingAction.approve ? t('voteSuccess') : t('unvoteSuccess'));
         } else {
-          const key = signingKeyRef.current;
-          if (!key) throw new Error(tCommon('error'));
-          const signedTx = await SteemSigner.signWitnessProxy(username, pendingAction.proxy, key);
-          const resp = await apiClient.broadcastWitnessProxy(signedTx, username);
-          if (!resp.success) throw new Error(resp.error || tCommon('error'));
-          userActionRecord('account_witness_proxy', { username, proxy: pendingAction.proxy });
+          const done = await doSetProxy(pendingAction.proxy);
+          if (!done) return;
           toast.success(pendingAction.proxy ? t('proxySetSuccess') : t('proxyClearedSuccess'));
         }
         await refetchAccount();
@@ -269,7 +331,7 @@ export function WitnessVoteForm() {
     };
 
     void run();
-  }, [doVote, isAuthenticated, pendingAction, refetchAccount, t, tCommon, username]);
+  }, [doVote, doSetProxy, isAuthenticated, pendingAction, refetchAccount, t, tCommon, username]);
 
   // Format vote count for display
   const formatVotes = (votes: string): string => {
@@ -305,16 +367,45 @@ export function WitnessVoteForm() {
           <DialogContent className="max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>{tAuth('login')}</DialogTitle>
+              <DialogDescription className="sr-only">{tAuth('login')}</DialogDescription>
             </DialogHeader>
             <Suspense fallback={<div className="h-10" />}>
+              {/* Unauthenticated visitors may log in as any account; the
+                  active-authority requirement keeps a privateKey login fit
+                  for witness voting the first time (both witness ops are
+                  active-class). No fixedUsername: the dialog only opens for
+                  visitors without a session — this retires the pre-A6
+                  conditional pin that could surface the Vault Mode
+                  "unsupported" notice; in Vault Mode this dialog offers
+                  identity selection and the per-action password dialog
+                  enforces the floor after login. */}
               <LoginForm
                 embedded
-                {...(username ? { fixedUsername: username } : {})}
+                requiredAuthTypes={['active']}
                 onLoginSuccess={() => setLoginOpen(false)}
               />
             </Suspense>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={reauthOpen} onOpenChange={setReauthOpen}>
+          <DialogContent className="z-[60] max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{tWallet('reauthTitle')}</DialogTitle>
+              <DialogDescription>{tWallet('reauthDescription')}</DialogDescription>
+            </DialogHeader>
+            <Suspense fallback={<div className="h-10" />}>
+              <LoginForm
+                embedded
+                fixedUsername={username ?? ''}
+                requiredAuthTypes={['active']}
+                onLoginSuccess={() => setReauthOpen(false)}
+              />
+            </Suspense>
+          </DialogContent>
+        </Dialog>
+
+        {signing.dialog}
       </div>
 
       {/* Vote stats + quick vote (outside top 100) */}
