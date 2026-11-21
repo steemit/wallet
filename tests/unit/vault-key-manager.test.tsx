@@ -30,6 +30,10 @@ import { VaultError } from '@/lib/vault/errors';
 import type { VaultKeyChainMatch } from '@/lib/vault/key-management';
 import type { VaultManagerExtended } from '@/lib/vault/manager';
 import type { VaultAccountSummary, VaultKeyInput, VaultKeyPointer } from '@/lib/vault/types';
+import {
+  REMEMBERED_POSTING_KEY_KEY,
+  REMEMBERED_USERNAME_KEY,
+} from '@/lib/auth/browser-storage';
 import { normalizeSteemUsername } from '@/lib/steem/username';
 
 vi.mock('next-intl', () => ({
@@ -158,6 +162,7 @@ function makeManager(initial: VaultAccountSummary[] = directory()): ManagerState
       return {} as never;
     }),
     unlockVault: vi.fn(),
+    migrateRememberedPostingKey: vi.fn(async () => ({ outcome: 'migrated' })),
   } as unknown as VaultManagerExtended;
   return state;
 }
@@ -755,5 +760,95 @@ describe('VaultKeyManager public-key rows', () => {
     expect(newIvRow).not.toBeNull();
     const line = within(newIvRow as HTMLElement).getByTestId('vault-key-public-key');
     expect(line).toHaveTextContent(DERIVED_PUBLIC_KEY);
+  });
+});
+
+describe('VaultKeyManager migrate-remembered-key entry point (A6-T5)', () => {
+  const REMEMBERED_WIF = '5Jtest-alice-remembered-key';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('no remembered key on the device -> no entry point', async () => {
+    const state = makeManager();
+    renderManager(state);
+    await screen.findAllByTestId('vault-key-account');
+    expect(screen.queryByTestId('vault-migrate-remembered-button')).not.toBeInTheDocument();
+  });
+
+  it('invalid remembered pair (unresolvable account) -> no entry point', async () => {
+    window.localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, REMEMBERED_WIF);
+    window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'not a valid account!!');
+    const state = makeManager();
+    renderManager(state);
+    await screen.findAllByTestId('vault-key-account');
+    expect(screen.queryByTestId('vault-migrate-remembered-button')).not.toBeInTheDocument();
+  });
+
+  it('valid remembered pair -> entry point opens the dialog; success banner + entry disappears after migration', async () => {
+    window.localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, REMEMBERED_WIF);
+    window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'alice');
+    const state = makeManager();
+    renderManager(state);
+    const button = await screen.findByTestId('vault-migrate-remembered-button');
+    expect(button).toHaveTextContent('migrateRememberedButton');
+
+    // Drive the dialog: verify (mocked on-chain match) -> confirm. The
+    // mocked manager mirrors the primitive's side effect (plaintext removed
+    // only on success) so the entry-point refresh observes the real state.
+    mockVerifyKeysOnChain.mockResolvedValueOnce([MATCHED]);
+    vi.mocked(state.manager.migrateRememberedPostingKey).mockResolvedValueOnce({
+      outcome: 'migrated',
+    } as never);
+    fireEvent.click(button);
+    await screen.findByTestId('vault-migrate-form');
+    expect(screen.getByText(/migrateStepVault/)).toBeInTheDocument();
+    fireEvent.change(document.getElementById('vault-migrate-password') as HTMLInputElement, {
+      target: { value: VAULT_PASSWORD },
+    });
+    fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+    await screen.findByTestId('vault-migrate-verification');
+    // Simulate the primitive's success side effect, then confirm.
+    window.localStorage.removeItem(REMEMBERED_POSTING_KEY_KEY);
+    fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+
+    // Success banner in the manager + the entry point re-read the device
+    // state (no remembered key anymore) and disappears.
+    await screen.findByText('migrateSuccess');
+    await waitFor(() =>
+      expect(screen.queryByTestId('vault-migrate-remembered-button')).not.toBeInTheDocument(),
+    );
+    expect(state.manager.migrateRememberedPostingKey).toHaveBeenCalledTimes(1);
+  });
+
+  it('migration failure keeps the entry point and the plaintext', async () => {
+    window.localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, REMEMBERED_WIF);
+    window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'alice');
+    const state = makeManager();
+    renderManager(state);
+    fireEvent.click(await screen.findByTestId('vault-migrate-remembered-button'));
+
+    mockVerifyKeysOnChain.mockResolvedValueOnce([MATCHED]);
+    vi.mocked(state.manager.migrateRememberedPostingKey).mockRejectedValueOnce(
+      new VaultError('VAULT_PASSWORD_INVALID', 'authentication failed') as never,
+    );
+    await screen.findByTestId('vault-migrate-form');
+    fireEvent.change(document.getElementById('vault-migrate-password') as HTMLInputElement, {
+      target: { value: VAULT_PASSWORD },
+    });
+    fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+    await screen.findByTestId('vault-migrate-verification');
+    fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+    await screen.findByText('errors.VAULT_PASSWORD_INVALID');
+
+    // Dialog stays open for retry; the device plaintext is untouched.
+    expect(screen.getByTestId('vault-migrate-form')).toBeInTheDocument();
+    expect(window.localStorage.getItem(REMEMBERED_POSTING_KEY_KEY)).toBe(REMEMBERED_WIF);
   });
 });

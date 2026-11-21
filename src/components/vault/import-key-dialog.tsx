@@ -26,7 +26,6 @@
 // open (Radix unmounts closed content), so a closed dialog holds no WIF.
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
-import { AlertTriangle, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -40,11 +39,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { modalFormActionButtonClassName } from '@/components/ui/modal-form-actions';
+import { KeyVerdictBox, type VaultKeyVerification } from './key-verdict';
 import { VaultError } from '@/lib/vault/errors';
-import {
-  verifyKeysOnChain,
-  type VaultKeyChainMatch,
-} from '@/lib/vault/key-management';
+import { verifyKeysOnChain } from '@/lib/vault/key-management';
 import type { VaultManagerExtended } from '@/lib/vault/manager';
 import type { VaultAccountSummary, VaultKeyRole } from '@/lib/vault/types';
 import { validateVaultWif } from '@/lib/vault/validation';
@@ -58,14 +55,6 @@ const ROLE_LABEL_KEYS: Record<VaultKeyRole, string> = {
   posting: 'keysRolePosting',
   memo: 'keysRoleMemo',
 };
-
-/** The verification snapshot shown between the check and the confirm. */
-interface ImportKeyFormVerification {
-  accountName: string;
-  role: VaultKeyRole;
-  publicKey: string;
-  result: VaultKeyChainMatch;
-}
 
 export type AddKeyOutcome = 'keyAdded' | 'keyAlreadyExists';
 
@@ -146,12 +135,7 @@ function ImportKeyForm({
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
-  const [verification, setVerification] = useState<{
-    accountName: string;
-    role: VaultKeyRole;
-    publicKey: string;
-    result: VaultKeyChainMatch;
-  } | null>(null);
+  const [verification, setVerification] = useState<VaultKeyVerification | null>(null);
 
   // Unmount (dialog closed/cancelled) scrubs the sensitive transient state —
   // belt and braces on top of React discarding unmounted state; documents
@@ -242,66 +226,6 @@ function ImportKeyForm({
 
   const roleLabel = (value: VaultKeyRole): string => t(ROLE_LABEL_KEYS[value]);
 
-  interface VerificationVerdict {
-    tone: 'ok' | 'warn';
-    key: string;
-    values: Record<string, string>;
-  }
-
-  /**
-   * Which i18n message (and tone) renders this verification result. Order
-   * matters — the most consequential finding wins:
-   *   1. not on chain                      -> warn (stored, cannot sign);
-   *   2. matched but sub-threshold         -> warn (signer will reject it);
-   *   3. matched on a DIFFERENT level than the selected role (e.g. memo
-   *      selected, posting matched)        -> warn: the key is stored under
-   *      the SELECTED role but acts on chain only as what it really is — a
-   *      green "verified" here would read as "stored where it belongs";
-   *   4. memo match                        -> ok (encrypts memos, never signs);
-   *   5. matched, sufficient weight        -> ok.
-   */
-  const verdictOf = (candidate: ImportKeyFormVerification): VerificationVerdict => {
-    const { result } = candidate;
-    if (!result.matched) {
-      return { tone: 'warn', key: 'verifyNotOnChain', values: {} };
-    }
-    if (!result.suffices) {
-      return {
-        tone: 'warn',
-        key: 'verifySubthreshold',
-        values: {
-          authority: roleLabel(result.authority),
-          weight: String(result.weight),
-          threshold: String(result.threshold),
-        },
-      };
-    }
-    if (result.authority !== candidate.role) {
-      return {
-        tone: 'warn',
-        key: 'verifyAuthorityDiffers',
-        values: {
-          authority: roleLabel(result.authority),
-          role: roleLabel(candidate.role),
-        },
-      };
-    }
-    if (result.authority === 'memo') {
-      return { tone: 'ok', key: 'verifyMemo', values: {} };
-    }
-    return {
-      tone: 'ok',
-      key: 'verifyMatched',
-      values: {
-        authority: roleLabel(result.authority),
-        weight: String(result.weight),
-        threshold: String(result.threshold),
-      },
-    };
-  };
-
-  const verdict = verification !== null ? verdictOf(verification) : null;
-
   return (
     <form onSubmit={submit} className="flex flex-col gap-3" data-testid="vault-add-key-form">
       <div className="flex flex-col gap-1.5">
@@ -373,30 +297,8 @@ function ImportKeyForm({
           disabled={busy}
         />
       </div>
-      {verdict !== null && (
-        <div
-          className={
-            verdict.tone === 'ok'
-              ? 'rounded-md border border-emerald-600/40 bg-emerald-600/10 p-3'
-              : 'rounded-md border border-amber-500/40 bg-amber-500/10 p-3'
-          }
-          data-testid="vault-add-key-verification"
-        >
-          <p
-            className={
-              verdict.tone === 'ok'
-                ? 'flex items-start gap-2 text-sm text-emerald-700 dark:text-emerald-400'
-                : 'flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400'
-            }
-          >
-            {verdict.tone === 'ok' ? (
-              <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-            ) : (
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-            )}
-            {t(verdict.key, verdict.values)}
-          </p>
-        </div>
+      {verification !== null && (
+        <KeyVerdictBox verification={verification} />
       )}
       {errorKey && (
         <p className="text-destructive text-sm font-medium" role="alert">

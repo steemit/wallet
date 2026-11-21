@@ -27,7 +27,9 @@
 > communities / change-password / recovery-warning; T4 market / proposals /
 > witnesses) — every business signing caller now routes through
 > `useSessionSigning` except the documented permanent exceptions (see the
-> A6 progress note's final "who still signs directly" inventory).
+> A6 progress note's final "who still signs directly" inventory). The A6-T5
+> plaintext migration (remembered posting key -> vault, verified-readback
+> deletion gate) has LANDED — invariant 22 is its contract.
 
 ## Module map
 
@@ -201,7 +203,54 @@ src/components/vault/vault-key-manager.tsx  R2 key-manager view (locked-state
                            operations ride manager.updateKeyNote / removeKey
                            (account + role + IV pointer, explicit confirm
                            dialog, no password — removal only deletes
-                           ciphertext); "Add key" opens ImportKeyDialog
+                           ciphertext); "Add key" opens ImportKeyDialog;
+                           A6-T5: while the device holds a VALID remembered
+                           posting-key pair (readRememberedPostingKeyCandidate),
+                           the header also offers "Migrate remembered key" —
+                           entering that vault's key manager IS the target
+                           selection; the button re-reads the device state on
+                           view mount and disappears after a successful
+                           migration (no remembered key left)
+src/lib/vault/migration.ts  A6-T5 plaintext migration + THE DELETION GATE
+                           (invariant 22): readRememberedPostingKeyCandidate
+                           reads the localStorage pair and returns PUBLIC data
+                           only (account + derived publicKey — never the WIF);
+                           migrateRememberedPostingKey({service}, input)
+                           re-reads localStorage, refuses when the pair no
+                           longer matches the UI-verified account/publicKey,
+                           then WRITE (service.addKey — fresh IV, password
+                           authentication, dedupe no-op) -> RE-READ
+                           (service.getRecordSnapshot — a fresh registry read,
+                           never the write path's in-memory record) ->
+                           AUTHENTICATED DECRYPT of the stored posting entry
+                           under the password-derived KEK + derived-publicKey
+                           match -> ONLY THEN clearRememberedPostingKey.
+                           outcome 'migrated' | 'alreadyPresent' (dedupe no-op
+                           detected by revision compare; verification and
+                           deletion run identically). Every failure leaves the
+                           plaintext untouched; the flow is re-runnable. The
+                           remembered USERNAME is deliberately kept. The
+                           manager exposes this as
+                           VaultManagerExtended.migrateRememberedPostingKey —
+                           UI code never re-implements the gate (and never
+                           calls clearRememberedPostingKey on its own)
+src/components/vault/migrate-remembered-key-dialog.tsx  A6-T5 user-initiated
+                           migration dialog (opened from the key manager):
+                           confirmation copy (key moves into THIS vault /
+                           device plaintext removed after verified readback /
+                           claim-banner auto-restore consequence / username
+                           stays) + vault password -> verifyKeysOnChain on the
+                           PUBLIC candidate -> shared KeyVerdictBox -> explicit
+                           "Migrate now" -> manager.migrateRememberedPostingKey.
+                           The component NEVER holds the WIF (stricter than the
+                           add-key dialog: only the public candidate and the
+                           typed password — scrubbed on success/cancel/unmount)
+src/components/vault/key-verdict.tsx  shared on-chain verdict rendering
+                           (extracted from import-key-dialog for A6-T5): pure
+                           vaultKeyVerdict mapping (not-on-chain >
+                           sub-threshold > authority-differs > memo > matched)
+                           + the KeyVerdictBox; testId defaults to the add-key
+                           dialog's marker
 src/components/vault/vault-signing-dialog.tsx  A6-T2 per-operation password
                            dialog for vault identity sessions: candidates =
                            the locked-readable public directory entries stored
@@ -843,6 +892,40 @@ the V1 hierarchical shape and its non-negotiable rules. The type contracts in
       path instead of reopening the login dialog. The one PERMANENT notice
       consumer is the permissions key reveal (raw WIF display — outside the
       signing path by design).
+22. **Plaintext migration is user-initiated and gated on a verified readback
+    (A6-T5).** Moving the device-remembered posting key
+    (`wallet:rememberedPostingKey`) into the vault is an EXPLICIT user action
+    (the key manager's "Migrate remembered key" button, rendered only while a
+    valid remembered pair exists) — nothing auto-migrates. The localStorage
+    plaintext is deleted ONLY after (a) `service.addKey` wrote the key
+    encrypted (fresh IV, password authentication, dedupe no-op on
+    (accountName, role, publicKey)), (b) the record was RE-READ from the
+    registry (`service.getRecordSnapshot` — a fresh IndexedDB read, never the
+    write path's in-memory record), and (c) the specific stored entry was
+    AUTHENTICALLY DECRYPTED (AES-GCM under the password-derived KEK and the
+    re-read record's salt) with the public key derived from the decrypted WIF
+    matching the flow-start derivation. Write success alone NEVER deletes.
+    The gate lives in `migrateRememberedPostingKey`
+    (src/lib/vault/migration.ts, exposed on the manager) — the ONLY
+    `clearRememberedPostingKey` call in the flow; UI code never re-implements
+    it. Failure semantics: any failure (wrong password, vanished/changed
+    remembered pair, readback mismatch, storage error) leaves the plaintext
+    untouched; a partial success (key written, readback failed) leaves BOTH
+    the vault entry and the plaintext, and the flow is idempotent — re-running
+    rides addKey's dedupe no-op, verifies, then deletes (`alreadyPresent`).
+    What stays: the remembered USERNAME is NOT deleted (a public account
+    name; it keeps the classic login prefill, the remembered-username
+    redirect and the switch-back-to-privateKey UX working — deleting it would
+    degrade that UX with zero security gain). Consequence for consumers: the
+    claim banner's device-restore (#375/#378) simply finds nothing after a
+    migration (its gate reads the same localStorage key) — pinned in
+    tests/unit/claim-rewards-banner.test.tsx and
+    tests/unit/vault-migration.test.ts; switching the device mode back to
+    privateKey keeps a fully working classic login (the form never depended
+    on the remembered key — pinned in tests/e2e/vault-migration.spec.ts).
+    Migration entry data is PUBLIC: the dialog holds only the account name,
+    the derived public key and the typed vault password — never the WIF (the
+    primitive re-reads localStorage inside the gated operation).
 
 ## Error taxonomy (17 codes, types.ts order)
 
@@ -1002,7 +1085,7 @@ into, or changePassword on, a vault with zero key ciphertext).
 - **R1 has landed on this branch** — consume `envelope.ts` / `crypto.ts` /
   `registry.ts` / `service.ts` / `backup.ts` / `manager.ts` / `signer.ts` /
   `signing-facade.ts` as-is; do not bypass them with direct IndexedDB access
-  or ad-hoc crypto. Invariants 1–21 above are the contract. The branch must
+  or ad-hoc crypto. Invariants 1–22 above are the contract. The branch must
   land as ONE PR targeted at `next` covering the whole R1–R3 arc (handoff §5
   step 5) — do not split.
 - **R2 (key management + notes) has landed on this branch** — settled
@@ -1081,7 +1164,13 @@ into, or changePassword on, a vault with zero key ciphertext).
     (R2 batch), all four locales.
 - **A6 progress — the vault-session signing path EXISTS (A6-T2 pilot +
   A6-T3a wallet-ops batch + A6-T3b remaining wallet callers + A6-T4
-  market/proposals/witnesses) and the caller migration is COMPLETE** — the
+  market/proposals/witnesses) and the caller migration is COMPLETE; the
+  A6-T5 plaintext migration (remembered posting key -> vault) has LANDED**
+  (src/lib/vault/migration.ts + the key manager's "Migrate remembered key"
+  entry + tests/e2e/vault-migration.spec.ts; deletion gate = invariant 22;
+  the claim banner's remembered-key restore now coexists with a device whose
+  key moved into the vault — post-migration it finds nothing and the vault
+  password path takes over) — the
   privateKey backend has been wired into the facade since A6-T1
   (`vault-manager.tsx` composes
   `createLegacyPrivateKeySigner(createSessionKeyGetter())`, which reads the

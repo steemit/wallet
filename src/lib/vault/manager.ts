@@ -8,6 +8,11 @@ import {
 } from './crypto';
 import { VaultError } from './errors';
 import { exportVaultBackup, importVaultBackup, mergeVaultBackup } from './backup';
+import {
+  migrateRememberedPostingKey,
+  type MigrateRememberedKeyInput,
+  type MigrateRememberedKeyResult,
+} from './migration';
 import type { VaultRegistry, VaultRevisionPointer } from './registry';
 import { createVaultService, type VaultService, type VaultServiceStatus } from './service';
 import { createVaultSigner } from './signer';
@@ -86,6 +91,18 @@ export interface VaultManagerExtended extends VaultManager {
     signOperations(request: SignOperationsRequest): Promise<SignResult>;
     signResolvedTransaction(request: SignResolvedTransactionRequest): Promise<SignResult>;
   };
+  /**
+   * A6-T5 plaintext migration: move the device-remembered posting key from
+   * localStorage into this vault as a per-key ciphertext, deleting the
+   * plaintext ONLY after the verified readback (write -> registry re-read ->
+   * authenticated decrypt + derived-public-key match). The deletion gate is
+   * the primitive's contract (see lib/vault/migration.ts); any failure leaves
+   * the plaintext untouched and is safe to retry (a duplicate key rides
+   * addKey's dedupe no-op and reports `alreadyPresent`). User-initiated only —
+   * nothing here auto-migrates; the UI merely calls it after the explicit
+   * confirm dialog.
+   */
+  migrateRememberedPostingKey(input: MigrateRememberedKeyInput): Promise<MigrateRememberedKeyResult>;
   destroy(): void;
 }
 
@@ -338,6 +355,12 @@ export function createVaultManager(registry: VaultRegistry): VaultManagerExtende
 
     createSigner() {
       return createVaultSigner(service);
+    },
+
+    migrateRememberedPostingKey(
+      input: MigrateRememberedKeyInput,
+    ): Promise<MigrateRememberedKeyResult> {
+      return migrateRememberedPostingKey({ service }, input);
     },
 
     destroy(): void {

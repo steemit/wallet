@@ -28,9 +28,18 @@
 // value, and copying always copies the full key.
 // A Steem public key is inherently public, so displaying it while LOCKED is
 // free of privacy cost; the private key never appears anywhere.
+//
+// A6-T5 plaintext migration entry point: while the device holds a VALID
+// remembered posting-key pair (browser-storage), the header shows a
+// "Migrate remembered key" button that opens MigrateRememberedKeyDialog for
+// THIS vault — entering a vault's key manager IS the target-vault selection
+// (no in-dialog selector). No remembered key -> no entry point (nothing to
+// migrate; an inert explanation row would be pure noise). The button
+// disappears after a successful migration (the device no longer remembers a
+// key) and re-checks on every view mount.
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, Copy, Loader2, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Copy, KeyRound, Loader2, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -51,8 +60,10 @@ import {
 } from '@/components/ui/tooltip';
 import { VaultError } from '@/lib/vault/errors';
 import type { VaultManagerExtended } from '@/lib/vault/manager';
+import { readRememberedPostingKeyCandidate } from '@/lib/vault/migration';
 import type { VaultAccountSummary, VaultKeyRole, VaultKeySummary } from '@/lib/vault/types';
 import { ImportKeyDialog, type AddKeyOutcome } from './import-key-dialog';
+import { MigrateRememberedKeyDialog } from './migrate-remembered-key-dialog';
 
 const ROLE_ORDER: readonly VaultKeyRole[] = ['owner', 'active', 'posting', 'memo'];
 
@@ -102,6 +113,12 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
   const [actionErrorKey, setActionErrorKey] = useState<string | null>(null);
   const [actionInfoKey, setActionInfoKey] = useState<string | null>(null);
   const [addKeyOpen, setAddKeyOpen] = useState(false);
+  // A6-T5: PUBLIC description of the device-remembered key (null = none).
+  // Re-read on every view mount so the entry point follows the device state.
+  const [rememberedCandidate, setRememberedCandidate] = useState<
+    ReturnType<typeof readRememberedPostingKeyCandidate>
+  >(null);
+  const [migrateOpen, setMigrateOpen] = useState(false);
   const [noteTarget, setNoteTarget] = useState<KeyTarget | null>(null);
   const [removeTarget, setRemoveTarget] = useState<KeyTarget | null>(null);
   // IV of the key whose public key was just copied — drives the brief
@@ -125,6 +142,12 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
     // on early-return paths — the vault-manager panel's established pattern).
     void Promise.resolve().then(refresh);
   }, [refresh]);
+
+  useEffect(() => {
+    // Same deferred pattern; the candidate is PUBLIC data only (no WIF ever
+    // enters this component — see migrate-remembered-key-dialog.tsx).
+    void Promise.resolve().then(() => setRememberedCandidate(readRememberedPostingKeyCandidate()));
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -154,11 +177,23 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
     <div className="flex flex-col gap-3" data-testid="vault-key-manager">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">{t('keysTitle', { name: vaultName })}</h3>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" onClick={() => setAddKeyOpen(true)}>
             <Plus data-icon="inline-start" aria-hidden />
             {t('keysAddKey')}
           </Button>
+          {rememberedCandidate !== null && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setMigrateOpen(true)}
+              data-testid="vault-migrate-remembered-button"
+            >
+              <KeyRound data-icon="inline-start" aria-hidden />
+              {t('migrateRememberedButton')}
+            </Button>
+          )}
           <Button type="button" size="sm" variant="outline" onClick={onBack}>
             <ArrowLeft data-icon="inline-start" aria-hidden />
             {t('backToList')}
@@ -328,6 +363,20 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
         onAdded={(outcome: AddKeyOutcome) => {
           setActionInfoKey(outcome);
           setActionErrorKey(null);
+          void refresh();
+        }}
+      />
+
+      <MigrateRememberedKeyDialog
+        open={migrateOpen}
+        onOpenChange={setMigrateOpen}
+        vaultName={vaultName}
+        manager={manager}
+        onMigrated={(outcome) => {
+          setActionInfoKey(outcome === 'migrated' ? 'migrateSuccess' : 'migrateAlreadyPresent');
+          setActionErrorKey(null);
+          // The device no longer remembers a key — the entry point disappears.
+          setRememberedCandidate(readRememberedPostingKeyCandidate());
           void refresh();
         }}
       />

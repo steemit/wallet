@@ -1,0 +1,242 @@
+/**
+ * MigrateRememberedKeyDialog (A6-T5) — jsdom coverage with a mocked manager
+ * and a mocked on-chain verification module (no IndexedDB, no crypto, no
+ * network). The full verified-readback chain is covered by
+ * tests/unit/vault-migration.test.ts against the real manager; here the
+ * concerns are the dialog contract:
+ *  - the confirmation copy (what/why/consequences) renders before anything
+ *    can proceed, with the account and the derived PUBLIC key;
+ *  - the remembered-WIF leak discipline: the component never holds the WIF —
+ *    only the PUBLIC candidate — and the WIF never appears in the tree;
+ *  - verify -> verdict (shared KeyVerdictBox, matched tone) -> explicit
+ *    confirm -> manager.migrateRememberedPostingKey called WITHOUT any WIF
+ *    argument (the primitive re-reads localStorage itself);
+ *  - failure mapping (wrong password -> errors.VAULT_PASSWORD_INVALID,
+ *    authority unavailable -> errors.VAULT_AUTHORITY_UNAVAILABLE) keeps the
+ *    dialog open and the plaintext untouched;
+ *  - nothing valid remembered at open -> the dismiss-only migrateMissing
+ *    state.
+ *
+ * The steem-js global mock derives 'STM' + last 8 chars of the WIF, so the
+ * expected public key is computed the same way.
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  MigrateRememberedKeyDialog,
+  type MigrateRememberedKeyOutcome,
+} from '@/components/vault/migrate-remembered-key-dialog';
+import { VaultError } from '@/lib/vault/errors';
+import type { VaultKeyChainMatch } from '@/lib/vault/key-management';
+import type { VaultManagerExtended } from '@/lib/vault/manager';
+import { validateVaultWif } from '@/lib/vault/validation';
+import {
+  REMEMBERED_POSTING_KEY_KEY,
+  REMEMBERED_USERNAME_KEY,
+} from '@/lib/auth/browser-storage';
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
+const mockVerifyKeysOnChain = vi.fn();
+vi.mock('@/lib/vault/key-management', () => ({
+  verifyKeysOnChain: (...args: unknown[]) => mockVerifyKeysOnChain(...args),
+}));
+
+// jsdom lacks radix's pointer-capture APIs and ResizeObserver.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+for (const method of [
+  'hasPointerCapture',
+  'setPointerCapture',
+  'releasePointerCapture',
+  'scrollIntoView',
+] as const) {
+  if (!(method in window.HTMLElement.prototype)) {
+    Object.defineProperty(window.HTMLElement.prototype, method, {
+      value: vi.fn(),
+      configurable: true,
+    });
+  }
+}
+
+const VAULT = 'Main';
+const WIF = '5Jtest-alice-remembered-posting-key';
+const DERIVED_PUBLIC_KEY = validateVaultWif(WIF, 'alice').publicKey;
+const VAULT_PASSWORD = 'the-vault-password-1';
+
+const MATCHED: VaultKeyChainMatch = {
+  matched: true,
+  authority: 'posting',
+  weight: 1,
+  threshold: 1,
+  suffices: true,
+};
+
+const migrateMock = vi.fn();
+
+function makeManager(): VaultManagerExtended {
+  return {
+    migrateRememberedPostingKey: migrateMock,
+  } as unknown as VaultManagerExtended;
+}
+
+function renderDialog(onMigrated: (outcome: MigrateRememberedKeyOutcome) => void = vi.fn()) {
+  const onOpenChange = vi.fn();
+  const view = render(
+    <MigrateRememberedKeyDialog
+      open
+      onOpenChange={onOpenChange}
+      vaultName={VAULT}
+      manager={makeManager()}
+      onMigrated={onMigrated}
+    />,
+  );
+  return { view, onOpenChange, onMigrated };
+}
+
+/** Drive the form to the confirm phase (verify done, verdict rendered). */
+async function driveToConfirm() {
+  const onMigrated = vi.fn<(outcome: MigrateRememberedKeyOutcome) => void>();
+  const onOpenChange = vi.fn();
+  render(
+    <MigrateRememberedKeyDialog
+      open
+      onOpenChange={onOpenChange}
+      vaultName={VAULT}
+      manager={makeManager()}
+      onMigrated={onMigrated}
+    />,
+  );
+  fireEvent.change(await screen.findByLabelText('migratePasswordLabel'), {
+    target: { value: VAULT_PASSWORD },
+  });
+  fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+  await waitFor(() =>
+    expect(screen.getByTestId('vault-migrate-verification')).toBeInTheDocument(),
+  );
+  return { onMigrated, onOpenChange };
+}
+
+describe('MigrateRememberedKeyDialog', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    window.localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, WIF);
+    window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'alice');
+    mockVerifyKeysOnChain.mockResolvedValue([MATCHED]);
+    migrateMock.mockResolvedValue({ outcome: 'migrated' });
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('renders the confirmation copy with account and derived public key, WIF never in the tree', async () => {
+    renderDialog();
+    // The consequence bullets are the consent contract — all four render.
+    expect(await screen.findByText('migrateWhatHappens')).toBeInTheDocument();
+    expect(screen.getByText(/migrateStepVault/)).toBeInTheDocument();
+    expect(screen.getByText('migrateStepDevice')).toBeInTheDocument();
+    expect(screen.getByText('migrateStepClaim')).toBeInTheDocument();
+    expect(screen.getByText('migrateStepUsername')).toBeInTheDocument();
+    expect(screen.getByLabelText('migrateAccountLabel')).toHaveValue('alice');
+    // The PUBLIC key renders truncated; the WIF itself never appears (the
+    // dialog content portals to document.body, so query the body).
+    expect(document.body.textContent).toContain(DERIVED_PUBLIC_KEY.slice(-4));
+    expect(document.body.textContent).not.toContain(WIF);
+    // Nothing can proceed without the vault password.
+    expect(screen.getByTestId('vault-migrate-primary')).toBeDisabled();
+  });
+
+  it('verify -> matched verdict -> confirm calls the manager with NO key material, reports the outcome and closes', async () => {
+    const { onMigrated, onOpenChange } = await driveToConfirm();
+    expect(mockVerifyKeysOnChain).toHaveBeenCalledTimes(1);
+    expect(mockVerifyKeysOnChain).toHaveBeenCalledWith([
+      { accountName: 'alice', role: 'posting', publicKey: DERIVED_PUBLIC_KEY },
+    ]);
+
+    fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+    await waitFor(() => expect(migrateMock).toHaveBeenCalledTimes(1));
+    // The dialog hands over ONLY public data + the password: no WIF field —
+    // the primitive re-reads localStorage inside the gated operation.
+    expect(migrateMock).toHaveBeenCalledWith({
+      vaultName: VAULT,
+      expectedAccountName: 'alice',
+      expectedPublicKey: DERIVED_PUBLIC_KEY,
+      password: VAULT_PASSWORD,
+    });
+    expect(onMigrated).toHaveBeenCalledWith('migrated');
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('wrong vault password: mapped error, dialog stays open, plaintext intact', async () => {
+    migrateMock.mockRejectedValue(
+      new VaultError('VAULT_PASSWORD_INVALID', 'authentication failed'),
+    );
+    const { onMigrated } = await driveToConfirm();
+
+    fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+    await waitFor(() => expect(migrateMock).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('errors.VAULT_PASSWORD_INVALID')).toBeInTheDocument();
+    expect(onMigrated).not.toHaveBeenCalled();
+    // The dialog is still open (no close callback) and the plaintext stays.
+    expect(window.localStorage.getItem(REMEMBERED_POSTING_KEY_KEY)).toBe(WIF);
+    // Retry after fixing the password succeeds.
+    migrateMock.mockResolvedValue({ outcome: 'migrated' });
+    fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+    await waitFor(() => expect(onMigrated).toHaveBeenCalledWith('migrated'));
+  });
+
+  it('authority unavailable: mapped error blocks the confirm phase', async () => {
+    mockVerifyKeysOnChain.mockRejectedValue(
+      new VaultError('VAULT_AUTHORITY_UNAVAILABLE', 'chain data unavailable'),
+    );
+    const onMigrated = vi.fn<(outcome: MigrateRememberedKeyOutcome) => void>();
+    render(
+      <MigrateRememberedKeyDialog
+        open
+        onOpenChange={vi.fn()}
+        vaultName={VAULT}
+        manager={makeManager()}
+        onMigrated={onMigrated}
+      />,
+    );
+    fireEvent.change(await screen.findByLabelText('migratePasswordLabel'), {
+      target: { value: VAULT_PASSWORD },
+    });
+    fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+    expect(await screen.findByText('errors.VAULT_AUTHORITY_UNAVAILABLE')).toBeInTheDocument();
+    expect(migrateMock).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(REMEMBERED_POSTING_KEY_KEY)).toBe(WIF);
+    expect(onMigrated).not.toHaveBeenCalled();
+  });
+
+  it('alreadyPresent outcome flows through as a success', async () => {
+    migrateMock.mockResolvedValue({ outcome: 'alreadyPresent' });
+    const { onMigrated } = await driveToConfirm();
+    fireEvent.click(screen.getByTestId('vault-migrate-primary'));
+    await waitFor(() => expect(onMigrated).toHaveBeenCalledWith('alreadyPresent'));
+  });
+
+  it('cancel in the confirm phase returns to the confirmation view without calling the manager', async () => {
+    await driveToConfirm();
+    fireEvent.click(screen.getByRole('button', { name: 'migrateEditAgain' }));
+    expect(screen.queryByTestId('vault-migrate-verification')).not.toBeInTheDocument();
+    expect(migrateMock).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(REMEMBERED_POSTING_KEY_KEY)).toBe(WIF);
+  });
+
+  it('nothing valid remembered at open: dismiss-only migrateMissing state, no manager call', async () => {
+    window.localStorage.removeItem(REMEMBERED_POSTING_KEY_KEY);
+    renderDialog();
+    expect(await screen.findByText('migrateMissing')).toBeInTheDocument();
+    expect(screen.queryByLabelText('migratePasswordLabel')).not.toBeInTheDocument();
+    expect(migrateMock).not.toHaveBeenCalled();
+  });
+});

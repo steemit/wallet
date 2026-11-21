@@ -31,8 +31,13 @@
  */
 import { normalizeSteemUsername } from '@/lib/steem/username';
 
-export const REMEMBERED_USERNAME_KEY = 'wallet:rememberedUsername';
-export const REMEMBERED_POSTING_KEY_KEY = 'wallet:rememberedPostingKey';
+// Key names live in the alias-free leaf module so e2e specs can import the
+// exact production constants under Node (see browser-storage-keys.ts).
+export {
+  REMEMBERED_USERNAME_KEY,
+  REMEMBERED_POSTING_KEY_KEY,
+} from './browser-storage-keys';
+import { REMEMBERED_POSTING_KEY_KEY, REMEMBERED_USERNAME_KEY } from './browser-storage-keys';
 
 /**
  * Canonical account-name normalization (shared with server code).
