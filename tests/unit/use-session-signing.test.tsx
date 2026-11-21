@@ -568,6 +568,131 @@ describe('useSessionSigning — vault sessions (dialog path)', () => {
     );
   });
 
+  it('radiogroup keyboard behavior: arrows/Home/End select with wrap-around, roving tabindex, focus follows', async () => {
+    const directory = [
+      {
+        accountName: 'alice',
+        balances: null,
+        keys: [
+          { role: 'active', iv: 'iv-a', note: 'first', publicKey: null },
+          { role: 'owner', iv: 'iv-o', note: 'second', publicKey: null },
+          { role: 'active', iv: 'iv-a2', note: 'third', publicKey: null },
+        ],
+      },
+    ];
+    const getAccounts = vi.fn().mockResolvedValue(directory);
+    const { vaultSigner } = readyRuntime({ getAccounts });
+    vi.mocked(vaultSigner.signOperations).mockResolvedValue(signResult());
+    renderHarness(vaultAuth());
+
+    startSign();
+    const options = await screen.findByTestId('vault-signing-key-options');
+    const radios = () => screen.getAllByRole('radio') as HTMLInputElement[];
+    await waitFor(() => expect(radios()).toHaveLength(3));
+
+    // Nothing selected: the FIRST radio is the tab stop (roving tabindex).
+    expect(radios().map((radio) => radio.tabIndex)).toEqual([0, -1, -1]);
+    // The group is labelled and exposed as a radiogroup.
+    expect(options).toHaveAttribute('role', 'radiogroup');
+    expect(options).toHaveAttribute('aria-labelledby', 'vault-signing-key-label');
+
+    // ArrowDown from nothing selects the first and focuses it.
+    fireEvent.keyDown(options, { key: 'ArrowDown' });
+    expect(radios()[0]?.checked).toBe(true);
+    expect(document.activeElement).toBe(radios()[0]);
+
+    // Forward through the list, wrapping at the end.
+    fireEvent.keyDown(options, { key: 'ArrowDown' });
+    expect(radios()[1]?.checked).toBe(true);
+    fireEvent.keyDown(options, { key: 'ArrowRight' });
+    expect(radios()[2]?.checked).toBe(true);
+    fireEvent.keyDown(options, { key: 'ArrowDown' });
+    expect(radios()[0]?.checked).toBe(true);
+    expect(document.activeElement).toBe(radios()[0]);
+
+    // Backward from the first wraps to the last.
+    fireEvent.keyDown(options, { key: 'ArrowUp' });
+    expect(radios()[2]?.checked).toBe(true);
+    fireEvent.keyDown(options, { key: 'ArrowLeft' });
+    expect(radios()[1]?.checked).toBe(true);
+
+    // Home/End jump to the first/last.
+    fireEvent.keyDown(options, { key: 'End' });
+    expect(radios()[2]?.checked).toBe(true);
+    fireEvent.keyDown(options, { key: 'Home' });
+    expect(radios()[0]?.checked).toBe(true);
+    // Unrelated keys leave the selection alone.
+    fireEvent.keyDown(options, { key: 'Enter' });
+    fireEvent.keyDown(options, { key: 'Tab' });
+    expect(radios()[0]?.checked).toBe(true);
+
+    // Roving tabindex follows the selection; the choice drives the request.
+    expect(radios().map((radio) => radio.tabIndex)).toEqual([0, -1, -1]);
+    fireEvent.keyDown(options, { key: 'ArrowDown' });
+    expect(radios().map((radio) => radio.tabIndex)).toEqual([-1, 0, -1]);
+    fireEvent.change(passwordInput(), { target: { value: 'pw' } });
+    await submitDialog();
+
+    // Home left the FIRST key selected and ArrowDown moved to the second —
+    // that keyboard-selected key is the one that signs.
+    await waitFor(() => expect(outcomes).toHaveLength(1));
+    expect(vaultSigner.signOperations).toHaveBeenCalledWith(
+      expect.objectContaining({ keyIv: 'iv-o' }),
+    );
+  });
+
+  it('keyboard selection is inert while a signing attempt is busy (arrows swallowed, selection unchanged)', async () => {
+    const directory = [
+      {
+        accountName: 'alice',
+        balances: null,
+        keys: [
+          { role: 'active', iv: 'iv-a', note: 'first', publicKey: null },
+          { role: 'owner', iv: 'iv-o', note: 'second', publicKey: null },
+        ],
+      },
+    ];
+    const getAccounts = vi.fn().mockResolvedValue(directory);
+    const { vaultSigner } = readyRuntime({ getAccounts });
+    // Hold the signing call pending so the dialog sits in its busy state.
+    let resolveSign!: (value: ReturnType<typeof signResult>) => void;
+    vi.mocked(vaultSigner.signOperations).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSign = resolve;
+        }),
+    );
+    renderHarness(vaultAuth());
+
+    startSign();
+    const options = await screen.findByTestId('vault-signing-key-options');
+    const radios = () => screen.getAllByRole('radio') as HTMLInputElement[];
+    await waitFor(() => expect(radios()).toHaveLength(2));
+
+    // Explicit choice + password + submit -> the one signer call runs busy.
+    fireEvent.click(screen.getByTestId('vault-signing-key-iv-o'));
+    fireEvent.change(passwordInput(), { target: { value: 'pw' } });
+    await submitDialog();
+    await waitFor(() => expect(vaultSigner.signOperations).toHaveBeenCalledTimes(1));
+
+    // Arrow/Home keydowns while busy: swallowed by the handler's busy guard —
+    // the selection must not move (and focus stays wherever the submit left
+    // it, never jumping to a radio).
+    fireEvent.keyDown(options, { key: 'ArrowDown' });
+    fireEvent.keyDown(options, { key: 'Home' });
+    expect(radios()[1]?.checked).toBe(true);
+    expect(radios()[0]?.checked).toBe(false);
+    expect(document.activeElement).not.toBe(radios()[0]);
+    expect(vaultSigner.signOperations).toHaveBeenCalledTimes(1);
+
+    // The busy attempt still completes normally afterwards.
+    await act(async () => {
+      resolveSign(signResult());
+    });
+    await waitFor(() => expect(outcomes).toHaveLength(1));
+    expect(outcomes[0]).toMatchObject({ status: 'signed' });
+  });
+
   it('signer authority failures surface the mapped code in-dialog and never resolve as errors', async () => {
     const getAccounts = vi.fn().mockResolvedValue(directoryFixture());
     const { vaultSigner } = readyRuntime({ getAccounts });

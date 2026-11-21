@@ -112,16 +112,34 @@ export function VaultKeyManager({ vaultName, manager, onBack }: VaultKeyManagerP
   const [copiedIv, setCopiedIv] = useState<string | null>(null);
   const copyTimerRef = useRef<number | null>(null);
 
+  // Sequence guard (A6-T6): refresh re-runs after every per-key action, so a
+  // slow earlier load (e.g. the mount read) could otherwise land after a
+  // faster later one and resurrect a stale directory. Unmount bumps the
+  // counter too, dropping whatever is still in flight.
+  const refreshSeqRef = useRef(0);
+
   const refresh = useCallback(async () => {
+    const seq = refreshSeqRef.current + 1;
+    refreshSeqRef.current = seq;
     try {
       const directory = await manager.getAccounts(vaultName);
+      if (refreshSeqRef.current !== seq) return;
       setAccounts(directory);
       setListErrorKey(null);
     } catch (error) {
+      if (refreshSeqRef.current !== seq) return;
       console.error('Failed to load the vault key directory', error);
       setListErrorKey(vaultErrorKey(error));
     }
   }, [manager, vaultName]);
+
+  useEffect(() => {
+    return () => {
+      // Unmount invalidates in-flight directory loads (refresh during
+      // unmount); the vaultName change path also remounts via the panel.
+      refreshSeqRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     // Defer past the effect body (refresh can settle before its first await

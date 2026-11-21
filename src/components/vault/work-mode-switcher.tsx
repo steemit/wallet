@@ -16,7 +16,7 @@
 // This component never touches key material; it only moves mode strings
 // through the SigningFacade.
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyRound, Loader2, ShieldCheck } from 'lucide-react';
 
 import { useSigningMode } from '@/hooks/use-signing-mode';
@@ -106,6 +106,48 @@ export function WorkModeSwitcher({
     },
   ];
 
+  // Option buttons, keyed by value — arrow-key selection moves DOM focus to
+  // the newly selected button (ARIA authoring practices).
+  const optionRefs = useRef(new Map<SigningMode, HTMLButtonElement>());
+
+  /**
+   * ARIA radiogroup keyboard behavior (A6-T6): ArrowDown/ArrowRight select
+   * the next option and ArrowUp/ArrowLeft the previous one, wrapping at the
+   * ends; Home/End select the first/last. Selecting through the keyboard
+   * rides the same `select` path as a click (a successful switch updates the
+   * mode in place; a failure keeps the previous selection + mapped error).
+   */
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (switching || loading || !facade || mode === null) return;
+    const count = options.length;
+    const currentIndex = options.findIndex((option) => option.value === mode);
+    if (currentIndex === -1) return;
+    let nextIndex: number;
+    switch (event.key) {
+      case 'ArrowDown':
+      case 'ArrowRight':
+        nextIndex = (currentIndex + 1) % count;
+        break;
+      case 'ArrowUp':
+      case 'ArrowLeft':
+        nextIndex = (currentIndex - 1 + count) % count;
+        break;
+      case 'Home':
+        nextIndex = 0;
+        break;
+      case 'End':
+        nextIndex = count - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    const next = options[nextIndex];
+    if (!next || next.value === mode) return;
+    optionRefs.current.get(next.value)?.focus();
+    void select(next.value);
+  };
+
   return (
     <section
       id={focusId}
@@ -119,16 +161,24 @@ export function WorkModeSwitcher({
         aria-label={t('workModeTitle')}
         aria-busy={switching || loading}
         className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"
+        onKeyDown={handleKeyDown}
       >
-        {options.map(({ value, titleKey, badgeKey, descriptionKey, icon: Icon }) => {
+        {options.map(({ value, titleKey, badgeKey, descriptionKey, icon: Icon }, index) => {
           const selected = mode === value;
           return (
             <button
               key={value}
+              ref={(node) => {
+                if (node === null) optionRefs.current.delete(value);
+                else optionRefs.current.set(value, node);
+              }}
               type="button"
               role="radio"
               aria-checked={selected}
               disabled={switching || loading || !facade}
+              // Roving tabindex: only the selected radio is tabbable (the
+              // first one while the mode is still loading / failed to load).
+              tabIndex={mode === null ? (index === 0 ? 0 : -1) : selected ? 0 : -1}
               onClick={() => void select(value)}
               className={cn(
                 'flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors',
