@@ -626,6 +626,10 @@ describe('ProposalRemoveDialog × session signing (A6-T4)', () => {
     await waitFor(() => expect(screen.getByTestId('login-form-probe')).toBeInTheDocument());
     expect(onSuccess).not.toHaveBeenCalled();
     expect(mocks.broadcastProposalRemove).not.toHaveBeenCalled();
+    expect(mocks.loginFormCalls.at(-1)).toEqual({
+      fixedUsername: 'alice',
+      requiredAuthTypes: ['active'],
+    });
   });
 });
 
