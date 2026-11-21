@@ -2,14 +2,18 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSelector } from 'react-redux';
 import { Loader2 } from 'lucide-react';
 import { useActiveSigningKey } from '@/hooks/use-auth';
+import { useSessionSigning } from '@/hooks/use-session-signing';
+import { sessionKindOf } from '@/lib/store/slices/auth';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import {
   COMMUNITY_CREATE_FEE,
   COMMUNITY_DESCRIPTION_MAX_LENGTH,
   COMMUNITY_TITLE_MAX_LENGTH,
   DEFAULT_SOCIAL_URL,
+  buildAccountCreateOperation,
   buildCommunitySetupOperations,
   buildCommunitySubscribeOperation,
   communityActiveWif,
@@ -23,6 +27,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { RootState } from '@/lib/store';
+import type { Operation } from '@/lib/steem/types';
 
 export interface CommunitiesSectionProps {
   username: string;
@@ -39,6 +45,16 @@ export function CommunitiesSection({
 }: CommunitiesSectionProps) {
   const t = useTranslations('wallet.communitiesPage');
   const activeKey = useActiveSigningKey();
+  // Unified signing entry (A6-T3b): the creator-paid account_create and the
+  // creator-signed community subscribe go through the session signing entry
+  // (privateKey: facade legacy backend; vault identity: per-key password
+  // dialog). The hivemind setup operations signed with the NEW community
+  // owner's freshly derived active key stay on the direct signer below —
+  // that key belongs to an account created seconds ago and exists in no
+  // session the unified entry could read.
+  const signing = useSessionSigning();
+  const isVaultSession =
+    useSelector((state: RootState) => sessionKindOf(state.auth)) === 'vault';
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -89,14 +105,34 @@ export function CommunitiesSection({
       return false;
     }
 
-    if (!activeKey) {
+    // A vault identity session signs the subscribe below through the per-key
+    // password dialog; only a KEYLESS privateKey session is blocked here.
+    if (!activeKey && !isVaultSession) {
       setGenericError(true);
       return false;
     }
 
+    // Subscribe as the creator. The op carries required_posting_auths, so the
+    // classifier floors this request at 'posting' and privateKey sessions
+    // sign with the least-privileged session key (posting -> active -> owner
+    // — the op previously always used the active key, which stays valid).
     const subscribeOp = buildCommunitySubscribeOperation(username, ownerName);
-    const signedSubscribe = await SteemSigner.signOperations([subscribeOp], [activeKey]);
-    const subscribeResult = await apiClient.broadcastCustomJson(signedSubscribe, username);
+    const subscribeOutcome = await signing.sign({
+      operations: [subscribeOp],
+      accountName: username,
+      role: 'posting',
+    });
+    if (subscribeOutcome.status !== 'signed') {
+      // Vault-dialog cancel, a keyless privateKey session (needsClassicReauth)
+      // and typed errors all leave the half-created community on the
+      // account_created phase — the retry path re-enters here.
+      setGenericError(true);
+      return false;
+    }
+    const subscribeResult = await apiClient.broadcastCustomJson(
+      subscribeOutcome.result.signedTx,
+      username
+    );
     if (!subscribeResult.success) {
       setSettingsError(true);
       return false;
@@ -113,7 +149,7 @@ export function CommunitiesSection({
     if (!isMyAccount) return;
     if (titleError || !hasCredentials || !savedConfirmed) return;
 
-    if (!activeKey) {
+    if (!activeKey && !isVaultSession) {
       setGenericError(true);
       return;
     }
@@ -128,13 +164,27 @@ export function CommunitiesSection({
           return;
         }
 
-        const signedCreate = await SteemSigner.signAccountCreate(
-          username,
-          ownerName,
-          ownerPassword,
-          activeKey
+        // account_create is fee-paying and active-class: role floor 'active'
+        // (the privateKey path resolves active -> owner exactly like the
+        // previous useActiveSigningKey). The payload is byte-identical to
+        // what SteemSigner.signAccountCreate built internally.
+        const createOperations: Operation[] = [
+          ['account_create', buildAccountCreateOperation(username, ownerName, ownerPassword)],
+        ];
+        const createOutcome = await signing.sign({
+          operations: createOperations,
+          accountName: username,
+          role: 'active',
+        });
+        if (createOutcome.status !== 'signed') {
+          setAccountError(true);
+          setPending(false);
+          return;
+        }
+        const createResult = await apiClient.broadcastAccountCreate(
+          createOutcome.result.signedTx,
+          username
         );
-        const createResult = await apiClient.broadcastAccountCreate(signedCreate, username);
         if (!createResult.success) {
           setAccountError(true);
           setPending(false);
@@ -177,7 +227,7 @@ export function CommunitiesSection({
     );
   }
 
-  if (!activeKey) {
+  if (!activeKey && !isVaultSession) {
     return (
       <div className="UserWallet max-w-xl space-y-4">
         <h2 className="text-lg font-semibold tracking-wide uppercase">{t('createHeading')}</h2>
@@ -209,6 +259,8 @@ export function CommunitiesSection({
 
   return (
     <div className="UserWallet max-w-xl space-y-4">
+      {/* Vault password dialog for vault identity sessions (A6-T3b). */}
+      {signing.dialog}
       {accountError && (
         <p className="text-destructive text-sm">{t('accountCreateFailed')}</p>
       )}

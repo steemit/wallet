@@ -86,9 +86,13 @@ canonical lowercase.
   the keyless hint when NO signing key exists. Never copy the device-remembered step into a
   path a vault session can reach. Since A6-T2 the preferred pattern for NEW signing callers is
   `useSessionSigning` (09-vault.md module map): it applies this lowest-at-or-above-the-floor
-  rule for privateKey sessions itself (active → owner for an active floor) and routes vault
-  identity sessions through the per-key password dialog; `transfer-form` is the pilot —
-  claim/witness/delegate/market/proposals still sign the old way until T3/T4 migrate them.
+  rule for privateKey sessions itself (posting → active → owner for a posting floor, active →
+  owner for an active floor) and routes vault identity sessions through the per-key password
+  dialog. After A6-T3b every wallet-domain caller is on it (transfer pilot + the eight
+  active-class ops + claim / communities / change-password / recovery-warning); the remaining
+  direct signers are the T4 market/proposals/witnesses callers, the two no-session-key
+  remnants (claim remembered-key branch, communities hivemind setup ops) and the permanent
+  login-challenge/recovery paths — see 09-vault.md's "who still signs directly" inventory.
 
 ## Legacy-parity watchlist (verified drifts from `wallet-legacy`)
 

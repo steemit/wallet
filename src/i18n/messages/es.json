@@ -110,7 +110,10 @@
       "rule4": "La cuarta regla: si puede recordar la contraseña, no es segura.",
       "rule5": "La quinta regla: use solo contraseñas generadas aleatoriamente.",
       "rule6": "La sexta regla: no le diga su contraseña a nadie.",
-      "rule7": "La séptima regla: haga siempre una copia de seguridad de su contraseña."
+      "rule7": "La séptima regla: haga siempre una copia de seguridad de su contraseña.",
+      "ownerKeySessionRequired": "Esta sesión no tiene la clave owner. Inicia sesión con tu contraseña maestra o tu clave owner y vuelve a intentarlo.",
+      "signingFailed": "No se pudo firmar. Inténtalo de nuevo.",
+      "vaultPasswordNote": "Al enviar, también se te pedirá la contraseña de la bóveda para firmar este cambio con tu clave owner almacenada. La contraseña de la bóveda es distinta de la contraseña de la cuenta Steem introducida arriba."
     },
     "settingsPage": {
       "pageTitle": "Configuración",

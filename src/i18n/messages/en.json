@@ -110,7 +110,10 @@
       "rule4": "The fourth rule: If you can remember the password, it's not secure.",
       "rule5": "The fifth rule: Use only randomly-generated passwords.",
       "rule6": "The sixth rule: Do not tell anyone your password.",
-      "rule7": "The seventh rule: Always back up your password."
+      "rule7": "The seventh rule: Always back up your password.",
+      "ownerKeySessionRequired": "This session does not hold the owner key. Sign in with your master password or owner key, then try again.",
+      "signingFailed": "Signing failed. Please try again.",
+      "vaultPasswordNote": "When you submit, you will also be asked for your vault password to sign this change with your stored owner key. The vault password is separate from the Steem account password entered above."
     },
     "settingsPage": {
       "pageTitle": "Settings",

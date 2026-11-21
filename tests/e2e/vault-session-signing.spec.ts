@@ -25,6 +25,13 @@ import vectors from '../fixtures/vault-development-test-vectors.json';
  *    same password dialog and broadcasts the byte-identical
  *    delegate_vesting_shares tuple (SP converted through the intercepted
  *    global props);
+ *  - claim rewards (A6-T3b): the banner's POSTING floor offers BOTH stored
+ *    keys as radio candidates (the active-floor tests above exclude the
+ *    posting key); picking the posting key and broadcasting the
+ *    byte-identical full-pending-amounts claim_reward_balance tuple. (The
+ *    "a vault session never reads the Legacy remembered posting key"
+ *    invariant is NOT exercised here — it is pinned by the unit suite's
+ *    Storage-prototype spy in tests/unit/claim-rewards-banner.test.tsx.);
  *  - no /api/auth/* traffic at any point (identity + signing are local).
  *
  * Fixture discipline: WIF/public keys/password come from the shared
@@ -61,6 +68,13 @@ function chainAccount(
     active?: ReadonlyArray<readonly [string, number]>;
     posting?: ReadonlyArray<readonly [string, number]>;
     balance?: string;
+    /** Pending rewards (all four fields) so the claim banner renders. */
+    rewards?: {
+      reward_steem_balance: string;
+      reward_sbd_balance: string;
+      reward_vesting_steem: string;
+      reward_vesting_balance: string;
+    };
   } = {},
 ) {
   return {
@@ -73,6 +87,7 @@ function chainAccount(
     sbd_balance: '0.000 SBD',
     savings_balance: '0.000 STEEM',
     savings_sbd_balance: '0.000 SBD',
+    ...(spec.rewards ?? {}),
   };
 }
 
@@ -133,6 +148,20 @@ async function interceptBroadcast(page: Page) {
 async function interceptDelegateBroadcast(page: Page) {
   const bodies: Array<Record<string, unknown>> = [];
   await page.route('**/api/broadcast/delegate', (route) => {
+    bodies.push(route.request().postDataJSON() as Record<string, unknown>);
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, result: { id: 'e2e-tx' } }),
+    });
+  });
+  return bodies;
+}
+
+/** Intercept the claim-rewards broadcast route, returning the captured bodies. */
+async function interceptClaimBroadcast(page: Page) {
+  const bodies: Array<Record<string, unknown>> = [];
+  await page.route('**/api/broadcast/claim-reward-balance', (route) => {
     bodies.push(route.request().postDataJSON() as Record<string, unknown>);
     return route.fulfill({
       status: 200,
@@ -525,6 +554,93 @@ test.describe('Vault identity session signing (A6-T2/T3a)', () => {
     // Success closes the wallet modal (query params cleared).
     await expect(page).toHaveURL(/\/@alice\/transfers$/, { timeout: 15_000 });
     await expect(delegateeInput).toHaveCount(0);
+
+    // The whole flow — identity login + signing — never touched auth endpoints.
+    expect(authEndpoints).toEqual([]);
+  });
+
+  test('claim rewards (A6-T3b): posting floor offers both keys, signs and broadcasts the full-pending tuple', async ({
+    page,
+  }) => {
+    const activeKey = fixtureKey('active');
+    const postingKey = fixtureKey('posting');
+    await abortOtherQueries(page);
+    await fulfillTransactionHeader(page);
+    await fulfillGlobalProps(page);
+    const broadcastBodies = await interceptClaimBroadcast(page);
+    const authEndpoints = trackAuthEndpoints(page);
+
+    const PENDING_REWARDS = {
+      reward_steem_balance: '0.500 STEEM',
+      reward_sbd_balance: '0.000 SBD',
+      reward_vesting_steem: '2.000 STEEM',
+      reward_vesting_balance: '9.876543 VESTS',
+    };
+    const chain = {
+      alice: chainAccount('alice', {
+        active: [[activeKey.publicKey, 1]],
+        posting: [[postingKey.publicKey, 1]],
+        rewards: PENDING_REWARDS,
+      }),
+      bob: chainAccount('bob'),
+    };
+    await fulfillAccountsRoute(page, chain);
+    await establishVaultIdentity(page);
+
+    // The wallet transfers page (already open after identity login) shows the
+    // claim banner with the full pending amounts.
+    const claimButton = page.getByRole('button', { name: 'Redeem Rewards' });
+    await expect(claimButton).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Your current rewards: 0.500 STEEM and 2.000 SP')).toBeVisible();
+
+    // The keyless hint stays hidden: a vault session signs via the dialog.
+    await expect(page.getByText('Sign in with your password or posting key')).toHaveCount(0);
+
+    await claimButton.click();
+
+    // claim_reward_balance floors at POSTING, so BOTH stored keys (posting +
+    // active) are offered — the posting-floor counterpart of the active-floor
+    // exclusion the transfer/delegate tests pin. Pick the posting key
+    // (least privilege; its public key sits in the intercepted posting
+    // authority, satisfying the signer's pre-check).
+    const signDialog = page.getByTestId('vault-signing-dialog');
+    await expect(signDialog).toBeVisible({ timeout: 15_000 });
+    await expect(signDialog.getByText('trezor active key')).toBeVisible();
+    await expect(signDialog.getByText('posting only key')).toBeVisible();
+    await expect(signDialog.getByTestId('vault-signing-key-options')).toBeVisible();
+    await signDialog.getByText('posting only key').click();
+
+    await signDialog.getByLabel('Vault password').fill(VAULT_PASSWORD);
+    await signDialog.getByTestId('vault-signing-submit').click();
+    await expect(signDialog).toBeHidden({ timeout: 30_000 });
+
+    // Byte-identical claim tuple: the FULL pending amounts of all three
+    // token types exactly as the account reports them (zero SBD included).
+    await expect(broadcastBodies).toHaveLength(1);
+    const body = broadcastBodies[0] as {
+      username?: string;
+      signedTx?: {
+        ref_block_num?: number;
+        ref_block_prefix?: number;
+        operations?: unknown[];
+        signatures?: string[];
+      };
+    };
+    expect(body.username).toBe('alice');
+    expect(body.signedTx?.ref_block_num).toBe(12345);
+    expect(body.signedTx?.ref_block_prefix).toBe(6789012);
+    expect(body.signedTx?.operations).toEqual([
+      [
+        'claim_reward_balance',
+        {
+          account: 'alice',
+          reward_steem: PENDING_REWARDS.reward_steem_balance,
+          reward_sbd: PENDING_REWARDS.reward_sbd_balance,
+          reward_vests: PENDING_REWARDS.reward_vesting_balance,
+        },
+      ],
+    ]);
+    expect(body.signedTx?.signatures?.length).toBe(1);
 
     // The whole flow — identity login + signing — never touched auth endpoints.
     expect(authEndpoints).toEqual([]);

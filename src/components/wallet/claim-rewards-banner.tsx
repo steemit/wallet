@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { SteemSigner, apiClient } from '@/lib/steem/client';
 import { useAuthRoleKeys } from '@/hooks/use-auth-role-keys';
+import { useSessionSigning } from '@/hooks/use-session-signing';
 import {
   REMEMBERED_POSTING_KEY_KEY,
   REMEMBERED_USERNAME_KEY,
@@ -14,6 +15,7 @@ import { sameSteemAccount } from '@/lib/steem/username';
 import { sessionKindOf } from '@/lib/store/slices/auth';
 import { ClaimRewardsReauthDialog } from '@/components/wallet/claim-rewards-reauth-dialog';
 import type { RootState } from '@/lib/store';
+import type { Operation, SignedTransaction } from '@/lib/steem/types';
 import type { WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 import { buildRewardsDisplayStr, hasPendingRewards } from '@/lib/wallet/rewards-display';
 
@@ -34,9 +36,17 @@ export function ClaimRewardsBanner({
   const t = useTranslations('wallet');
   const { postingKey, activeKey, ownerKey } = useAuthRoleKeys();
   const store = useStore<RootState>();
-  // Any of these can sign claim_reward_balance (see the comment above
-  // handleClaim); the hint and its aria link only apply when none exists.
-  const hasSigningKey = !!(postingKey || activeKey || ownerKey);
+  // Unified signing entry (A6-T3b): privateKey sessions sign the session-key
+  // cases through the facade's legacy backend exactly as before; vault
+  // identity sessions get the per-key password dialog (see handleClaim for
+  // where the privateKey-only remembered-key affordance still signs directly).
+  const signing = useSessionSigning();
+  const isVaultSession = sessionKindOf(store.getState().auth) === 'vault';
+  // Any session key can sign claim_reward_balance (see the comment above
+  // handleClaim); a vault session signs through the password dialog. The
+  // hint and its aria link only apply when neither is available.
+  const hasSigningKey =
+    isVaultSession || !!(postingKey || activeKey || ownerKey);
 
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
@@ -86,11 +96,17 @@ export function ClaimRewardsBanner({
   // with active keys are accepted on chain), so ANY session key can sign
   // the claim. Resolution prefers the least-privileged key first:
   //   session posting key -> device-remembered posting key (chain-verified,
-  //   privateKey sessions only) -> session active key -> session owner key
-  //   -> posting re-auth dialog.
-  // The dialog's copy still recommends a posting key or the password
-  // (least-privilege habit for manual input), but an active/owner key
-  // entered there works on chain just the same.
+  //   privateKey sessions only, #375/#378) -> session active key -> session
+  //   owner key -> posting re-auth dialog.
+  // Since A6-T3b the SESSION-key cases sign through the unified session
+  // signing entry with the posting floor: the hook resolves exactly the
+  // session-key remainder of that chain (posting -> active -> owner) for
+  // privateKey sessions and opens the per-key password dialog for vault
+  // sessions. The remembered-key step sits BETWEEN posting and active, so it
+  // still resolves and signs here, exactly as before — the restored key is
+  // device storage material that exists in no session the unified entry can
+  // read (its restore stays a privateKey-session affordance ONLY, invariant
+  // 21: a vault session never reads the Legacy remembered key).
   const handleClaim = async () => {
     // Synchronous in-flight guard: the key-restore await below would otherwise
     // let a fast double-click slip past the async `claiming` state and sign
@@ -100,51 +116,102 @@ export function ClaimRewardsBanner({
     claimingRef.current = true;
     setClaimError(null);
     try {
-      let key = postingKey;
-      // The Legacy remembered posting key is a privateKey-session affordance
-      // ONLY. A vault session is identity-only (vault invariant 21,
-      // docs/AI-driver/09-vault.md): it holds no key material and must not
-      // borrow the Legacy device-stored key either, so skip the restore and
-      // fall through to the re-auth dialog, which Vault Mode answers with the
-      // "not available in Vault Mode" notice.
-      if (!key && sessionKindOf(store.getState().auth) !== 'vault') {
-        key = await tryRestoreRememberedPostingKey();
+      if (!postingKey && sessionKindOf(store.getState().auth) !== 'vault') {
+        const remembered = await tryRestoreRememberedPostingKey();
+        if (remembered) {
+          await claimWithKey(remembered);
+          return;
+        }
       }
-      if (!key) key = activeKey;
-      if (!key) key = ownerKey;
-      if (!key) {
+
+      // claim_reward_balance is a posting-class operation; the classifier
+      // floors this request at 'posting' and the privateKey path resolves
+      // the session key posting -> active -> owner (the #378 chain). The
+      // tuple is byte-identical to what SteemSigner.signClaimRewardBalance
+      // built (full pending amounts of all three token types, zero-valued
+      // strings included).
+      const operations: Operation[] = [
+        [
+          'claim_reward_balance',
+          {
+            account: username,
+            reward_steem: balance.reward_steem_balance,
+            reward_sbd: balance.reward_sbd_balance,
+            reward_vests: balance.reward_vesting_balance,
+          },
+        ],
+      ];
+      const outcome = await signing.sign({
+        operations,
+        accountName: username,
+        role: 'posting',
+      });
+
+      if (outcome.status === 'cancelled') {
+        // User aborted the vault password dialog — quiet no-op, the banner
+        // stays exactly as it was.
+        return;
+      }
+      if (outcome.status === 'needsClassicReauth') {
+        // privateKey session without any signing key: same re-auth dialog the
+        // keyless flow always opened (a vault session never lands here — it
+        // gets the password dialog above).
         setReauthError(null);
         setReauthOpen(true);
         return;
       }
-
-      setClaiming(true);
-      try {
-        const signedTx = await SteemSigner.signClaimRewardBalance(
-          username,
-          balance.reward_steem_balance,
-          balance.reward_sbd_balance,
-          balance.reward_vesting_balance,
-          key
-        );
-        const res = await apiClient.broadcastClaimRewardBalance(signedTx, username);
-        if (!res.success) {
-          setClaimError(res.error || t('claimFailed'));
-          setClaiming(false);
-          return;
-        }
-        // Optimistic hide: the wallet page invalidates the browser L1 cache and
-        // refetches via onClaimed; if rewards are still pending (e.g. new
-        // curation dripped in), the banner re-appears with fresh amounts.
-        setClaiming(false);
-        setClaimed(true);
-        onClaimed?.();
-      } catch (err) {
-        setClaiming(false);
-        setClaimError(err instanceof Error ? err.message : t('claimFailed'));
+      if (outcome.status === 'error') {
+        setClaimError(t('claimFailed'));
+        return;
       }
+
+      await broadcastClaimTx(outcome.result.signedTx);
     } finally {
       claimingRef.current = false;
+    }
+  };
+
+  /** Relay the signed claim and apply the shared success/error transitions. */
+  const broadcastClaimTx = async (signedTx: SignedTransaction) => {
+    setClaiming(true);
+    try {
+      const res = await apiClient.broadcastClaimRewardBalance(signedTx, username);
+      if (!res.success) {
+        setClaimError(res.error || t('claimFailed'));
+        setClaiming(false);
+        return;
+      }
+      // Optimistic hide: the wallet page invalidates the browser L1 cache and
+      // refetches via onClaimed; if rewards are still pending (e.g. new
+      // curation dripped in), the banner re-appears with fresh amounts.
+      setClaiming(false);
+      setClaimed(true);
+      onClaimed?.();
+    } catch (err) {
+      setClaiming(false);
+      setClaimError(err instanceof Error ? err.message : t('claimFailed'));
+    }
+  };
+
+  /**
+   * Pre-A6 direct signing for the device-remembered posting key (the ONE
+   * remaining direct SteemSigner claim path — see handleClaim). The tuple is
+   * byte-identical to what the unified entry builds for the session keys.
+   */
+  const claimWithKey = async (key: string) => {
+    setClaiming(true);
+    try {
+      const signedTx = await SteemSigner.signClaimRewardBalance(
+        username,
+        balance.reward_steem_balance,
+        balance.reward_sbd_balance,
+        balance.reward_vesting_balance,
+        key
+      );
+      await broadcastClaimTx(signedTx);
+    } catch (err) {
+      setClaiming(false);
+      setClaimError(err instanceof Error ? err.message : t('claimFailed'));
     }
   };
 
@@ -167,6 +234,8 @@ export function ClaimRewardsBanner({
         </span>
       )}
       {claimError && <span className="text-destructive text-sm">{claimError}</span>}
+      {/* Vault password dialog for vault identity sessions (A6-T3b). */}
+      {signing.dialog}
       <ClaimRewardsReauthDialog
         open={reauthOpen}
         onOpenChange={setReauthOpen}
