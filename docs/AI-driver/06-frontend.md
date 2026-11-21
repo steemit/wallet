@@ -96,7 +96,12 @@ canonical lowercase.
   remaining direct signers are the two no-session-key
   remnants (claim remembered-key branch, communities hivemind setup ops) and the permanent
   login-challenge/recovery paths — see 09-vault.md's final "who still signs directly"
-  inventory.
+  inventory. A6-T5 note: users can now move the device-remembered posting key INTO the
+  encrypted vault through the key manager's "Migrate remembered key" dialog (user-initiated;
+  the localStorage plaintext is deleted only after a verified readback — 09-vault.md
+  invariant 22). After a migration the claim banner's remembered-key branch simply finds
+  nothing and the vault password path takes over; the remembered USERNAME stays (classic
+  login prefill keeps working when the user switches back to privateKey mode).
 
 ## Legacy-parity watchlist (verified drifts from `wallet-legacy`)
 

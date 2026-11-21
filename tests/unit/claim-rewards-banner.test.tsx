@@ -528,4 +528,63 @@ describe('ClaimRewardsBanner', () => {
     await waitFor(() => expect(broadcastClaim).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+
+  // A6-T5: run the REAL migration primitive against a fixture vault (real
+  // fake-IndexedDB + real WebCrypto), then pin the consumer consequence: the
+  // plaintext is gone, the banner's restore finds NOTHING, and a keyless
+  // privateKey session falls through to the unified entry / re-auth dialog
+  // instead of ever signing with a remembered key.
+  it('after the A6-T5 migration the restore finds nothing: no remembered-key signing, unified entry takes over', async () => {
+    const vectors = (await import('../fixtures/vault-development-test-vectors.json'))
+      .default;
+    const { installFakeIndexedDB } = await import('../mocks/fake-indexeddb');
+    const { openVaultRegistry, VAULT_DB_NAME } = await import('@/lib/vault/registry');
+    const { createVaultManager } = await import('@/lib/vault/manager');
+    const { validateVaultWif } = await import('@/lib/vault/validation');
+
+    const postingWif = vectors.vault.keys[0]!.privateKey;
+    const fake = installFakeIndexedDB();
+    try {
+      const registry = await openVaultRegistry();
+      fake.seed(VAULT_DB_NAME, 'vaults', {
+        ...vectors.vault.envelope,
+        revision: 0,
+        lockEpoch: 0,
+        createdAt: 1,
+        updatedAt: 1,
+        lastBackupAt: null,
+      });
+      const manager = createVaultManager(registry);
+      window.localStorage.setItem(REMEMBERED_POSTING_KEY_KEY, postingWif);
+      window.localStorage.setItem(REMEMBERED_USERNAME_KEY, 'alice');
+      const result = await manager.migrateRememberedPostingKey({
+        vaultName: vectors.vault.envelope.vaultName,
+        expectedAccountName: 'alice',
+        expectedPublicKey: validateVaultWif(postingWif, 'alice').publicKey,
+        password: vectors.vault.password,
+      });
+      // The fixture vault already stores this WIF -> dedupe no-op; the
+      // verified readback still gates the deletion.
+      expect(result.outcome).toBe('alreadyPresent');
+      manager.destroy();
+      registry.close();
+    } finally {
+      fake.uninstall();
+      fake.reset();
+    }
+
+    // Post-migration device state: no plaintext key, username kept.
+    expect(window.localStorage.getItem(REMEMBERED_POSTING_KEY_KEY)).toBeNull();
+    expect(window.localStorage.getItem(REMEMBERED_USERNAME_KEY)).toBe('alice');
+
+    // The banner (keyless privateKey session) cannot restore anything: no
+    // chain probe, no direct remembered-key signing — the unified entry (and
+    // its dialog outcome) is all that remains.
+    renderBanner({}, null);
+    fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
+    await waitFor(() => expect(mocks.sign).toHaveBeenCalledTimes(1));
+    expect(mocks.sign).toHaveBeenCalledWith(CLAIM_REQUEST);
+    expect(signClaim).not.toHaveBeenCalled();
+    expect(getAccountsMock).not.toHaveBeenCalled();
+  }, 30000);
 });
