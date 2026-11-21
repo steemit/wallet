@@ -165,13 +165,28 @@ src/hooks/use-signing-mode.ts   A5 mode-state hook wrapping the facade's
                            rendering the stale mode after the modal closed
 src/components/vault/work-mode-switcher.tsx  A5 PrivateKey/Vault dual selector
                            (radiogroup) — device preference, works signed-out;
-                           PrivateKey carries the Legacy/Deprecated badge
+                           PrivateKey carries the Legacy/Deprecated badge.
+                           A6-T6 keyboard behavior (ARIA authoring practices):
+                           ArrowDown/Right select the next option and ArrowUp/
+                           Left the previous (wrapping over the two options),
+                           Home/End the first/last; the keydown is prevented
+                           and selection rides the same `select` path as a
+                           click, focus follows the selection, and only the
+                           selected radio keeps a tab stop (roving tabindex);
+                           arrows are inert while a switch is in flight
 src/components/vault/vault-manager.tsx  A5+R1 composition root + panel:
                            VaultProvider/getVaultRuntime (module-singleton
                            registry + manager + facade — one tab = one session
                            service), VaultManagerPanel (vault list / create /
                            import / merge / rename / change-password / delete /
-                           export). A6-T2: the ready runtime ALSO exposes the
+                           export). A6-T6: the panel's vault-list refresh is
+                           sequence-guarded (a slow earlier listVaults response
+                           is dropped when a newer refresh has landed; unmount
+                           invalidates in-flight loads) and the row-action
+                           info banners (e.g. exportSuccess) are cleared by a
+                           successful rename/delete/merge — a directory
+                           mutation invalidates the banner's referent. A6-T2:
+                           the ready runtime ALSO exposes the
                            facade's two backend signer instances
                            (`vaultSigner` = manager.createSigner(),
                            `legacySigner` = createLegacyPrivateKeySigner(...))
@@ -199,7 +214,11 @@ src/components/vault/vault-key-manager.tsx  R2 key-manager view (locked-state
                            key entry that carries the outer publicKey (truncated
                            STM…STM monospace + copy-to-clipboard button for the
                            full key; legacy entries without the field render no
-                           second row) — with NO unlock; per-key
+                           second row) — with NO unlock; A6-T6: the directory
+                           refresh is sequence-guarded (a slow earlier
+                           getAccounts response is dropped when a newer one
+                           has landed; unmount invalidates in-flight loads);
+                           per-key
                            operations ride manager.updateKeyNote / removeKey
                            (account + role + IV pointer, explicit confirm
                            dialog, no password — removal only deletes
@@ -284,6 +303,21 @@ src/components/vault/vault-signing-dialog.tsx  A6-T2 per-operation password
                            `selectEncryptedKey`'s `keys[role]` binding);
                            exactly one candidate auto-selects, several require
                            an explicit radio choice (no silent default);
+                           A6-T6 keyboard behavior for that choice (ARIA
+                           authoring practices on the native fieldset/radios):
+                           the fieldset is role="radiogroup" labelled by the
+                           visible heading; ArrowDown/Right select the next
+                           candidate and ArrowUp/Left the previous (wrapping),
+                           Home/End the first/last; with nothing selected
+                           Down/Right land on the first and Up/Left on the
+                           last; the keydown is prevented (the controlled
+                           selection must not race the engines' differing
+                           native radio behavior), focus follows the selection
+                           and only the selected radio keeps a tab stop
+                           (roving tabindex — the first one while nothing is
+                           selected); jsdom does not implement native radio
+                           arrow behavior, so the keyboard contract is unit-
+                           tested against the explicit handler;
                            directory = manager.getAccounts() with NO argument
                            (the same session-vault -> active-vault resolution
                            the signer's getRecordSnapshot applies — never a
@@ -426,7 +460,11 @@ src/components/auth/vault-login-form.tsx  R3 identity selection: two NATIVE
                            choice); directory loads are sequence-guarded and
                            keyed by (vaultName, retry generation) so a slow
                            response for a previously selected vault never
-                           lands. Empty states: no vault -> create/import
+                           lands; A6-T6: the vault-LIST loads carry the SAME
+                           sequence guard (a slow earlier listVaults response
+                           — success or failure — is dropped when a newer
+                           refresh has landed, and unmount invalidates
+                           in-flight loads). Empty states: no vault -> create/import
                            entry, empty vault -> add-a-key hint (both dispatch
                            VAULT_WORK_MODE_OPEN_EVENT), storage/runtime/
                            directory errors -> vault.errors.* + Retry, NEVER a

@@ -180,9 +180,13 @@ test.describe('Vault work mode', () => {
     await expect(row).toBeVisible({ timeout: 15_000 });
     await expect(row.getByText('Locked', { exact: true })).toBeVisible();
 
-    // Unlock round-trip through the real crypto path.
+    // Unlock round-trip through the real crypto path. Menu items are waited
+    // for BEFORE clicking (A6-T6 cold-start hardening — raw clicks on these
+    // locators timed out when the dev server compiled on demand).
+    const unlockItem = page.getByRole('menuitem', { name: 'Unlock' });
     await row.getByRole('button', { name: 'Manage' }).click();
-    await page.getByRole('menuitem', { name: 'Unlock' }).click();
+    await expect(unlockItem).toBeVisible({ timeout: 15_000 });
+    await unlockItem.click();
     const unlockDialog = page.getByRole('dialog').filter({
       has: page.getByRole('heading', { name: 'Unlock vault' }),
     });
@@ -192,15 +196,19 @@ test.describe('Vault work mode', () => {
     await expect(row.getByText('Unlocked', { exact: true })).toBeVisible({ timeout: 30_000 });
     await expect(unlockDialog).toBeHidden();
 
+    const lockItem = page.getByRole('menuitem', { name: 'Lock' });
     await row.getByRole('button', { name: 'Manage' }).click();
-    await page.getByRole('menuitem', { name: 'Lock' }).click();
+    await expect(lockItem).toBeVisible({ timeout: 15_000 });
+    await lockItem.click();
     await expect(row.getByText('Locked', { exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Export triggers a real browser download of the four-field backup.
+    const exportItem = page.getByRole('menuitem', { name: 'Export backup' });
     await row.getByRole('button', { name: 'Manage' }).click();
+    await expect(exportItem).toBeVisible({ timeout: 15_000 });
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('menuitem', { name: 'Export backup' }).click(),
+      exportItem.click(),
     ]);
     expect(download.suggestedFilename()).toContain('E2E_Vault');
     expect(download.suggestedFilename()).toMatch(/^steem-wallet-vault-/);

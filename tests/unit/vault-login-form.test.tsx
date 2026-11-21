@@ -126,13 +126,15 @@ const accountSelect = () => screen.getByTestId('vault-login-account-select') as 
 const optionValues = (select: HTMLSelectElement) =>
   Array.from(select.options).map((option) => option.value);
 
-/** A promise the test resolves by hand (slow-response simulation). */
+/** A promise the test settles by hand (slow-response simulation). */
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 describe('VaultLoginForm (R3 identity selection without unlocking)', () => {
@@ -614,5 +616,95 @@ describe('VaultLoginForm (R3 identity selection without unlocking)', () => {
     await waitFor(() => {
       expect(optionValues(accountSelect())).toEqual(['', 'alice']);
     });
+  });
+
+  // -------------------------------------------------------------------------
+  // Vault-list refresh sequence guard (A6-T6)
+  // -------------------------------------------------------------------------
+
+  it('a slow vault-list response never overwrites a newer refresh (stale landing is dropped)', async () => {
+    // One of the two refreshes (mount + Work-Mode-modal-close — whichever
+    // starts first) is held in flight through a deferred; the other lands
+    // fresh data first. The stale response must be discarded instead of
+    // resurrecting the old list.
+    const slow = deferred<VaultSummary[]>();
+    const fresh = [vaultSummary('Fresh', true)];
+    const manager = makeManager([]);
+    const listVaults = manager.listVaults as unknown as ReturnType<typeof vi.fn>;
+    listVaults.mockImplementationOnce(() => slow.promise);
+    listVaults.mockImplementation(async () => fresh.map((vault) => ({ ...vault })));
+    mockRuntime = ready(manager);
+    renderForm();
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent(VAULT_WORK_MODE_CLOSED_EVENT));
+    });
+    // Both refreshes have started; the fast one landed the fresh list.
+    await waitFor(() => {
+      expect(listVaults).toHaveBeenCalledTimes(2);
+      expect(optionValues(vaultSelect())).toEqual(['Fresh']);
+    });
+
+    // The stale response lands late with an EMPTY list — without the
+    // sequence guard this would flash the no-vaults state back over the
+    // fresh directory.
+    await act(async () => {
+      slow.resolve([]);
+      await slow.promise;
+    });
+    expect(optionValues(vaultSelect())).toEqual(['Fresh']);
+    expect(screen.queryByTestId('vault-login-no-vaults')).not.toBeInTheDocument();
+  });
+
+  it('a slow vault-list FAILURE never overwrites a newer refresh either', async () => {
+    const slow = deferred<never>();
+    const fresh = [vaultSummary('Fresh', true)];
+    const manager = makeManager([]);
+    const listVaults = manager.listVaults as unknown as ReturnType<typeof vi.fn>;
+    listVaults.mockImplementationOnce(() => slow.promise);
+    listVaults.mockImplementation(async () => fresh.map((vault) => ({ ...vault })));
+    mockRuntime = ready(manager);
+    renderForm();
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent(VAULT_WORK_MODE_CLOSED_EVENT));
+    });
+    await waitFor(() => {
+      expect(listVaults).toHaveBeenCalledTimes(2);
+      expect(optionValues(vaultSelect())).toEqual(['Fresh']);
+    });
+
+    // The stale load REJECTS late — the mapped error of the outdated request
+    // must not clobber the fresh list.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await act(async () => {
+      slow.reject(new VaultError('VAULT_STORAGE_UNAVAILABLE', 'stale failure'));
+      await slow.promise.catch(() => undefined);
+    });
+    expect(optionValues(vaultSelect())).toEqual(['Fresh']);
+    expect(screen.queryByTestId('vault-login-error')).not.toBeInTheDocument();
+    errorSpy.mockRestore();
+  });
+
+  it('an in-flight vault-list refresh landing after unmount does nothing', async () => {
+    const slow = deferred<VaultSummary[]>();
+    const manager = makeManager([]);
+    const listVaults = manager.listVaults as unknown as ReturnType<typeof vi.fn>;
+    listVaults.mockImplementationOnce(() => slow.promise);
+    mockRuntime = ready(manager);
+    const view = renderForm();
+    await waitFor(() => {
+      expect(listVaults).toHaveBeenCalledTimes(1);
+    });
+
+    view.unmount();
+    // Resolving after unmount must be a silent no-op — no state lands, no
+    // crash, nothing renders.
+    await act(async () => {
+      slow.resolve([vaultSummary('Late', true)]);
+      await slow.promise;
+    });
+    expect(document.body.textContent).not.toContain('vaultNoVaultsTitle');
+    expect(document.body.textContent).not.toContain('Late');
   });
 });

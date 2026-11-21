@@ -8,6 +8,8 @@
  *    the e2e spec proves the no-reload half in a real browser);
  *  - a FAILED switch keeps showing the previous mode and surfaces the mapped
  *    VaultError code instead of the English message.
+ *  - ARIA radiogroup keyboard behavior (A6-T6): arrows/Home/End select,
+ *    focus follows the selection, roving tabindex, inert while switching.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -167,5 +169,129 @@ describe('WorkModeSwitcher', () => {
     expect(await screen.findByText('modeLoadFailed')).toBeInTheDocument();
     expect(radio('modePrivateKeyTitle')).toBeDisabled();
     expect(radio('modeVaultTitle')).toBeDisabled();
+  });
+
+  // ---------------------------------------------------------------------
+  // ARIA radiogroup keyboard behavior (A6-T6): arrow keys select the next /
+  // previous option, Home/End the first/last, and only the selected radio
+  // keeps a tab stop (roving tabindex).
+  // ---------------------------------------------------------------------
+
+  it('arrow keys select the sibling mode and move focus (wrap-around in both directions)', async () => {
+    const { facade, setSigningMode } = makeFacade('privateKey');
+    setSigningMode.mockResolvedValue(undefined);
+    render(<WorkModeSwitcher facade={facade} />);
+
+    const privateKey = radio('modePrivateKeyTitle');
+    await waitFor(() => {
+      expect(privateKey).toHaveAttribute('aria-checked', 'true');
+    });
+    const group = screen.getByRole('radiogroup');
+
+    // Forward: privateKey -> vault; the newly selected button takes focus.
+    fireEvent.keyDown(group, { key: 'ArrowDown' });
+    await waitFor(() => {
+      expect(radio('modeVaultTitle')).toHaveAttribute('aria-checked', 'true');
+    });
+    expect(setSigningMode).toHaveBeenCalledWith('vault');
+    expect(document.activeElement).toBe(radio('modeVaultTitle'));
+
+    // Backward wraps around the two options: vault -> privateKey.
+    fireEvent.keyDown(group, { key: 'ArrowLeft' });
+    await waitFor(() => {
+      expect(privateKey).toHaveAttribute('aria-checked', 'true');
+    });
+    expect(document.activeElement).toBe(privateKey);
+
+    // ArrowRight is forward as well; ArrowUp backward as well.
+    fireEvent.keyDown(group, { key: 'ArrowRight' });
+    await waitFor(() => {
+      expect(radio('modeVaultTitle')).toHaveAttribute('aria-checked', 'true');
+    });
+    fireEvent.keyDown(group, { key: 'ArrowUp' });
+    await waitFor(() => {
+      expect(privateKey).toHaveAttribute('aria-checked', 'true');
+    });
+    expect(setSigningMode).toHaveBeenCalledTimes(4);
+  });
+
+  it('Home and End select the first and last option; unrelated keys are ignored', async () => {
+    const { facade, setSigningMode } = makeFacade('vault');
+    setSigningMode.mockResolvedValue(undefined);
+    render(<WorkModeSwitcher facade={facade} />);
+
+    await waitFor(() => {
+      expect(radio('modeVaultTitle')).toHaveAttribute('aria-checked', 'true');
+    });
+    const group = screen.getByRole('radiogroup');
+
+    // End (already last) and Enter do nothing — no redundant switch calls.
+    fireEvent.keyDown(group, { key: 'End' });
+    fireEvent.keyDown(group, { key: 'Enter' });
+    fireEvent.keyDown(group, { key: 'Tab' });
+    expect(setSigningMode).not.toHaveBeenCalled();
+
+    // Home selects the first option (privateKey).
+    fireEvent.keyDown(group, { key: 'Home' });
+    await waitFor(() => {
+      expect(radio('modePrivateKeyTitle')).toHaveAttribute('aria-checked', 'true');
+    });
+    expect(setSigningMode).toHaveBeenCalledWith('privateKey');
+  });
+
+  it('roving tabindex: only the selected radio stays tabbable', async () => {
+    const { facade, setSigningMode } = makeFacade('privateKey');
+    setSigningMode.mockResolvedValue(undefined);
+    render(<WorkModeSwitcher facade={facade} />);
+
+    const privateKey = radio('modePrivateKeyTitle');
+    const vault = radio('modeVaultTitle');
+    await waitFor(() => {
+      expect(privateKey).toHaveAttribute('aria-checked', 'true');
+    });
+    expect(privateKey).toHaveAttribute('tabindex', '0');
+    expect(vault).toHaveAttribute('tabindex', '-1');
+
+    const group = screen.getByRole('radiogroup');
+    fireEvent.keyDown(group, { key: 'ArrowDown' });
+    await waitFor(() => {
+      expect(vault).toHaveAttribute('aria-checked', 'true');
+    });
+    expect(privateKey).toHaveAttribute('tabindex', '-1');
+    expect(vault).toHaveAttribute('tabindex', '0');
+  });
+
+  it('arrow keys are inert while a switch is in flight', async () => {
+    let resolveSwitch: (value: void) => void = () => undefined;
+    const { facade, setSigningMode } = makeFacade('privateKey');
+    setSigningMode.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSwitch = resolve;
+        }),
+    );
+    render(<WorkModeSwitcher facade={facade} />);
+
+    await waitFor(() => {
+      expect(radio('modePrivateKeyTitle')).toHaveAttribute('aria-checked', 'true');
+    });
+    const group = screen.getByRole('radiogroup');
+    fireEvent.keyDown(group, { key: 'ArrowDown' });
+    await waitFor(() => {
+      expect(setSigningMode).toHaveBeenCalledTimes(1);
+    });
+    // While the switch is pending the previous mode stays displayed (the
+    // hook contract) and the radios are disabled.
+    expect(radio('modePrivateKeyTitle')).toHaveAttribute('aria-checked', 'true');
+
+    // A second arrow while `switching` is pending: swallowed, no extra call.
+    fireEvent.keyDown(group, { key: 'ArrowUp' });
+    expect(setSigningMode).toHaveBeenCalledTimes(1);
+
+    resolveSwitch();
+    await waitFor(() => {
+      expect(radio('modeVaultTitle')).toHaveAttribute('aria-checked', 'true');
+    });
+    expect(radio('modeVaultTitle')).not.toBeDisabled();
   });
 });

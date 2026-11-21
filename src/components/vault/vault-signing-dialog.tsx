@@ -175,6 +175,9 @@ function VaultSigningForm({
   const [passwordRejected, setPasswordRejected] = useState(false);
   const resolvedRef = useRef(false);
   const directorySeqRef = useRef(0);
+  // Radios of the multi-candidate group, keyed by IV — arrow-key selection
+  // moves DOM focus to the newly selected input (ARIA authoring practices).
+  const radioRefs = useRef(new Map<string, HTMLInputElement>());
 
   // Unmount (dialog closed / cancelled / host unmounted) scrubs the password
   // — belt and braces on top of React discarding unmounted state; documents
@@ -244,6 +247,45 @@ function VaultSigningForm({
         : (candidates.find((candidate) => candidate.iv === choiceIv) ?? null);
 
   const scrubPassword = () => setPassword('');
+
+  /**
+   * ARIA radiogroup keyboard behavior for the multi-candidate selector
+   * (A6-T6): ArrowDown/ArrowRight select the next candidate and ArrowUp/
+   * ArrowLeft the previous one, wrapping at the ends; Home/End select the
+   * first/last. With nothing selected, Down/Right land on the first and
+   * Up/Left on the last. The keydown is prevented so the browser's native
+   * radio-group handling cannot race the controlled selection (native arrow
+   * behavior differs across engines and never wraps the same way).
+   */
+  const handleOptionsKeyDown = (event: React.KeyboardEvent<HTMLFieldSetElement>) => {
+    if (busy || candidates === null || candidates.length === 0) return;
+    const count = candidates.length;
+    const currentIndex = candidates.findIndex((candidate) => candidate.iv === choiceIv);
+    let nextIndex: number;
+    switch (event.key) {
+      case 'ArrowDown':
+      case 'ArrowRight':
+        nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % count;
+        break;
+      case 'ArrowUp':
+      case 'ArrowLeft':
+        nextIndex = currentIndex === -1 ? count - 1 : (currentIndex - 1 + count) % count;
+        break;
+      case 'Home':
+        nextIndex = 0;
+        break;
+      case 'End':
+        nextIndex = count - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    const next = candidates[nextIndex];
+    if (!next) return;
+    setChoiceIv(next.iv);
+    radioRefs.current.get(next.iv)?.focus();
+  };
 
   const finish = (outcome: VaultSigningDialogOutcome) => {
     if (resolvedRef.current) return;
@@ -349,23 +391,38 @@ function VaultSigningForm({
     return (
       <form onSubmit={submit} className="flex flex-col gap-3" data-testid="vault-signing-form">
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium">{t('signDialogKeyLabel')}</span>
+          <span id="vault-signing-key-label" className="text-sm font-medium">
+            {t('signDialogKeyLabel')}
+          </span>
           {candidates.length === 1 && selected !== null ? (
             <CandidateLine candidate={selected} roleLabel={roleLabel(selected.role)} />
           ) : (
-            <fieldset className="flex flex-col gap-1.5" data-testid="vault-signing-key-options">
-              {candidates.map((candidate) => (
+            <fieldset
+              role="radiogroup"
+              aria-labelledby="vault-signing-key-label"
+              className="flex flex-col gap-1.5"
+              data-testid="vault-signing-key-options"
+              onKeyDown={handleOptionsKeyDown}
+            >
+              {candidates.map((candidate, index) => (
                 <label
                   key={candidate.iv}
                   className="flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm"
                 >
                   <input
+                    ref={(node) => {
+                      if (node === null) radioRefs.current.delete(candidate.iv);
+                      else radioRefs.current.set(candidate.iv, node);
+                    }}
                     type="radio"
                     name="vault-signing-key"
                     className="mt-1"
                     checked={choiceIv === candidate.iv}
                     onChange={() => setChoiceIv(candidate.iv)}
                     disabled={busy}
+                    // Roving tabindex: only the selected radio is tabbable
+                    // (the first one while nothing is selected).
+                    tabIndex={choiceIv === null ? (index === 0 ? 0 : -1) : choiceIv === candidate.iv ? 0 : -1}
                     data-testid={`vault-signing-key-${candidate.iv}`}
                   />
                   <CandidateLine

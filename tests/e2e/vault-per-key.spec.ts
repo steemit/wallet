@@ -1,4 +1,5 @@
 import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import vectors from '../fixtures/vault-development-test-vectors.json';
 
 /**
@@ -28,6 +29,18 @@ import vectors from '../fixtures/vault-development-test-vectors.json';
  *    cross-vault account leakage, identity submitted from the second vault;
  *  - login-page empty states (no vault / empty vault) and the PrivateKey
  *    regression (switching the device back renders the classic form);
+ *  - merge FULL CHAIN (A6-T6): export a source vault backup (real download)
+ *    -> merge into a target through the targetPassword path -> the
+ *    completion dialog's preMergeBackup delivery (download-or-discard before
+ *    Continue) -> post-merge LOCK at the raw-record level (revision +1 /
+ *    lockEpoch +1, the A4 blue-book contract) -> the target's merged key
+ *    directory -> the source vault untouched;
+ *  - MULTI-TAB (A6-T6): two pages in one browser context share the device
+ *    vaults; directory changes made in the front tab surface in the hidden
+ *    tab only after it becomes visible (real visibilitychange — jsdom cannot
+ *    produce a genuine hidden->visible transition), the unlock session stays
+ *    TAB-LOCAL (one tab = one in-memory session service), and a deletion in
+ *    the second tab propagates back through the modal-close refresh;
  *  - forms never overflow horizontally; secondary dialogs are z-60 and
  *    interactable on top of the Work Mode modal.
  *
@@ -205,11 +218,68 @@ async function createVault(
 
 async function openKeyManager(page: Page, modal: Locator, vaultName: string) {
   const row = modal.getByTestId('vault-row').filter({ hasText: vaultName });
+  // Cold-start hardening (A6-T6): wait for the row and the menu item to be
+  // visible BEFORE clicking — on a cold dev-server compile the list renders
+  // late and a raw click on these locators timed out.
+  await expect(row).toBeVisible({ timeout: 15_000 });
   await row.getByRole('button', { name: 'Manage', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Manage keys' }).click();
+  const manageKeysItem = page.getByRole('menuitem', { name: 'Manage keys' });
+  await expect(manageKeysItem).toBeVisible({ timeout: 15_000 });
+  await manageKeysItem.click();
   const view = page.getByTestId('vault-key-manager');
   await expect(view).toBeVisible({ timeout: 15_000 });
   return view;
+}
+
+// ---------------------------------------------------------------------------
+// Raw storage snapshot (revision / lockEpoch — the A4 blue-book contract)
+// ---------------------------------------------------------------------------
+
+interface StoredVaultRecord {
+  vaultName: string;
+  revision: number;
+  lockEpoch: number;
+  accounts: Array<{ accountName: string; keys: Record<string, unknown[]> }>;
+}
+
+/**
+ * Read a raw vault record straight from the app's IndexedDB (production DB
+ * and store names — registry.ts constants). Used by the merge e2e to assert
+ * the post-merge revision/lockEpoch bumps that the UI does not display.
+ */
+async function readStoredVaultRecord(page: Page, vaultName: string) {
+  return page.evaluate<StoredVaultRecord | null, string>(
+    (name) =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open('steem-wallet-vault');
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const tx = db.transaction('vaults', 'readonly');
+          const get = tx.objectStore('vaults').get(name);
+          get.onerror = () => reject(get.error);
+          get.onsuccess = () => {
+            resolve((get.result as StoredVaultRecord | null) ?? null);
+          };
+          tx.oncomplete = () => db.close();
+        };
+      }),
+    vaultName,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Row-menu helpers (export / merge — cold-start hardened like openKeyManager)
+// ---------------------------------------------------------------------------
+
+/** Open a vault row's Manage menu and click `label`. */
+async function chooseRowMenuItem(page: Page, vaultName: string, label: string) {
+  const row = page.getByTestId('vault-row').filter({ hasText: vaultName });
+  await expect(row).toBeVisible({ timeout: 15_000 });
+  await row.getByRole('button', { name: 'Manage', exact: true }).click();
+  const item = page.getByRole('menuitem', { name: label });
+  await expect(item).toBeVisible({ timeout: 15_000 });
+  await item.click();
 }
 
 // ---------------------------------------------------------------------------
@@ -782,6 +852,272 @@ test.describe('Vault per-key hierarchy (R1-R3)', () => {
       page.getByRole('menuitem').filter({ hasText: 'Wallet' }),
     ).toHaveAttribute('href', '/@bob/transfers');
     expect(authEndpoints).toEqual([]);
+  });
+
+  test('merge full chain: export a source backup, merge into a target with the target password, post-merge lock + pre-merge delivery + merged directory', async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    const postingKey = fixtureKey('posting');
+    const activeKey = fixtureKey('active');
+    await abortAllQueries(page);
+    await fulfillAccountsRoute(page, {
+      alice: chainAccount('alice', { posting: [[postingKey.publicKey, 1]] }),
+      bob: chainAccount('bob', { posting: [[activeKey.publicKey, 1]] }),
+    });
+
+    await page.goto('/');
+    const modal = await openWorkModeModal(page);
+    await switchToVaultMode(modal);
+
+    // Source vault holding alice's posting key.
+    await createVault(page, modal, 'Source Vault', true);
+    const sourceView = await openKeyManager(page, modal, 'Source Vault');
+    await addKeyThroughDialog(
+      page,
+      sourceView,
+      { account: 'alice', wif: postingKey.privateKey, note: 'source posting key' },
+      /Verified: this key matches the on-chain Posting authority \(weight 1 of 1\)/,
+      /Key added to the vault\./,
+    );
+    await sourceView.getByRole('button', { name: 'Back', exact: true }).click();
+
+    // Target vault holding bob's posting key.
+    await createVault(page, modal, 'Target Vault', false);
+    const targetView = await openKeyManager(page, modal, 'Target Vault');
+    await addKeyThroughDialog(
+      page,
+      targetView,
+      { account: 'bob', wif: activeKey.privateKey, note: 'target posting key' },
+      /Verified: this key matches the on-chain Posting authority \(weight 1 of 1\)/,
+      /Key added to the vault\./,
+    );
+    await targetView.getByRole('button', { name: 'Back', exact: true }).click();
+
+    // Snapshot the target record BEFORE the merge: one addKey after creation
+    // means revision 1, lockEpoch 0.
+    const before = await readStoredVaultRecord(page, 'Target Vault');
+    expect(before).not.toBeNull();
+    expect(before?.revision).toBe(1);
+    expect(before?.lockEpoch).toBe(0);
+
+    // Export the SOURCE backup — a real browser download of the four-field
+    // envelope, later fed to the merge dialog through the real file input.
+    const [exported] = await Promise.all([
+      page.waitForEvent('download'),
+      chooseRowMenuItem(page, 'Source Vault', 'Export backup'),
+    ]);
+    expect(exported.suggestedFilename()).toMatch(/^steem-wallet-vault-Source_Vault-backup-/);
+    const sourceBackupPath = await exported.path();
+    expect(sourceBackupPath).toBeTruthy();
+
+    // Merge the exported backup into the TARGET: the dialog asks for the
+    // backup password AND the target vault password (the per-key contract —
+    // no pre-unlock step; the target password authenticates inside the merge).
+    await chooseRowMenuItem(page, 'Target Vault', 'Merge backup into this vault');
+    await expect(page.locator('#vault-merge-file')).toBeVisible({ timeout: 15_000 });
+    await page.setInputFiles('#vault-merge-file', sourceBackupPath as string);
+    await page.locator('#vault-merge-password').fill(VAULT_PASSWORD);
+    await page.locator('#vault-merge-target-password').fill(VAULT_PASSWORD);
+    await page.getByRole('button', { name: 'Merge backup', exact: true }).click();
+
+    // Completion dialog: the pending pre-merge backup must be delivered
+    // (download or explicit discard) before Continue unlocks — the A4
+    // blueprint contract.
+    const complete = page.getByTestId('vault-merge-complete');
+    await expect(complete).toBeVisible({ timeout: 30_000 });
+    await expect(complete).toContainText('For your security, "Target Vault" is now locked');
+    await expect(complete.getByTestId('merge-backup-pending')).toBeVisible();
+    await expect(complete.getByTestId('vault-merge-continue')).toBeDisabled();
+
+    const [preMergeDownload] = await Promise.all([
+      page.waitForEvent('download'),
+      complete.getByTestId('vault-merge-download-backup').click(),
+    ]);
+    expect(preMergeDownload.suggestedFilename()).toMatch(
+      /^steem-wallet-vault-Target_Vault-pre-merge-/,
+    );
+    // The downloaded pre-merge snapshot is the TARGET's own pre-merge state:
+    // the four-field envelope holding only bob's key (one account, one key).
+    const preMergePath = await preMergeDownload.path();
+    expect(preMergePath).toBeTruthy();
+    const preMergeJson = JSON.parse(await readFile(preMergePath as string, 'utf8')) as {
+      version: number;
+      vaultName: string;
+      accounts: Array<{ accountName: string }>;
+    };
+    expect(preMergeJson.version).toBe(1);
+    expect(preMergeJson.vaultName).toBe('Target Vault');
+    expect(preMergeJson.accounts.map((entry) => entry.accountName)).toEqual(['bob']);
+
+    await expect(complete.getByTestId('merge-backup-saved')).toBeVisible();
+    await expect(complete.getByTestId('vault-merge-continue')).toBeEnabled();
+    await complete.getByTestId('vault-merge-continue').click();
+    await expect(complete).toBeHidden({ timeout: 15_000 });
+
+    // Post-merge LOCK (A4 blue-book): the refreshed list shows the target
+    // locked, and the raw record proves the exact bumps — one payload write
+    // (revision +1) and the mandatory lock (lockEpoch +1).
+    const targetRow = modal.getByTestId('vault-row').filter({ hasText: 'Target Vault' });
+    await expect(targetRow.getByText('Locked', { exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    const after = await readStoredVaultRecord(page, 'Target Vault');
+    expect(after?.revision).toBe((before?.revision ?? 0) + 1);
+    expect(after?.lockEpoch).toBe((before?.lockEpoch ?? 0) + 1);
+
+    // The target's key directory after the merge: bob's own key PLUS alice's
+    // merged key (note carried over), both visible while locked.
+    const mergedView = await openKeyManager(page, modal, 'Target Vault');
+    const bobGroup = mergedView.getByTestId('vault-key-account').filter({ hasText: 'bob' });
+    await expect(bobGroup.getByText('Owner 0 · Active 0 · Posting 1 · Memo 0')).toBeVisible();
+    const aliceGroup = mergedView
+      .getByTestId('vault-key-account')
+      .filter({ hasText: 'alice' });
+    await expect(aliceGroup.getByText('Owner 0 · Active 0 · Posting 1 · Memo 0')).toBeVisible();
+    await expect(
+      aliceGroup.getByTestId('vault-key-row').filter({ hasText: 'source posting key' }),
+    ).toBeVisible();
+
+    // The SOURCE vault is untouched by the merge (export is read-only for
+    // its directory): alice's key still lives there.
+    await mergedView.getByRole('button', { name: 'Back', exact: true }).click();
+    const sourceRow = modal.getByTestId('vault-row').filter({ hasText: 'Source Vault' });
+    await expect(sourceRow).toBeVisible();
+    const sourceAgain = await openKeyManager(page, modal, 'Source Vault');
+    await expect(
+      sourceAgain
+        .getByTestId('vault-key-account')
+        .filter({ hasText: 'alice' })
+        .getByText('Owner 0 · Active 0 · Posting 1 · Memo 0'),
+    ).toBeVisible();
+  });
+
+  test('multi-tab: directory changes made in one tab surface in the other on visibility, and unlock state stays tab-local', async ({
+    page,
+  }) => {
+    // Two full pages (cold compile + create/unlock/delete round-trips with
+    // real PBKDF2) need more than the describe's 150s on a cold dev server.
+    test.setTimeout(240_000);
+    const postingKey = fixtureKey('posting');
+    await abortAllQueries(page);
+    await fulfillAccountsRoute(page, {
+      alice: chainAccount('alice', { posting: [[postingKey.publicKey, 1]] }),
+    });
+
+    // A second tab in the SAME browser context: same origin, same IndexedDB,
+    // its own interception routes (page.route is per-page).
+    const other = await page.context().newPage();
+    await abortAllQueries(other);
+    await fulfillAccountsRoute(other, {
+      alice: chainAccount('alice', { posting: [[postingKey.publicKey, 1]] }),
+    });
+
+    // Tab A switches the DEVICE to Vault Mode first (the login page in tab B
+    // dispatches on it), keeping zero vaults for tab B's initial read.
+    await page.goto('/');
+    let modal = await openWorkModeModal(page);
+    await switchToVaultMode(modal);
+    const emptyDialog = emptyVaultsDialog(page);
+    await expect(emptyDialog).toBeVisible({ timeout: 15_000 });
+    await emptyDialog.getByRole('button', { name: 'Continue browsing' }).click();
+    await expect(emptyDialog).toBeHidden();
+    await closeWorkModeModal(modal);
+
+    // Tab B loads the login page while the device holds NO vault.
+    await other.goto('/login');
+    await expect(other.getByTestId('vault-login-no-vaults')).toBeVisible({
+      timeout: 15_000,
+    });
+
+    // Tab A (front) creates a vault and keys it — all behind tab B's back.
+    modal = await openWorkModeModal(page);
+    await createVault(page, modal, 'Shared Vault', true);
+    const view = await openKeyManager(page, modal, 'Shared Vault');
+    await addKeyThroughDialog(
+      page,
+      view,
+      { account: 'alice', wif: postingKey.privateKey, note: 'desktop posting key' },
+      /Verified: this key matches the on-chain Posting authority \(weight 1 of 1\)/,
+      /Key added to the vault\./,
+    );
+    await view.getByRole('button', { name: 'Back', exact: true }).click();
+
+    // Tab B was in the background the whole time: IndexedDB has no storage
+    // events and the form does no background polling, so the stale no-vault
+    // state is still displayed.
+    await expect(other.getByTestId('vault-login-no-vaults')).toBeVisible();
+
+    // Browser limitation (documented in the PR): headless Chromium keeps
+    // every page `visibilityState: 'visible'` — page.bringToFront() fires no
+    // real visibilitychange, so a genuine hidden->visible transition cannot
+    // be produced here. The event is dispatched synthetically instead: the
+    // handler path still runs against the REAL shared IndexedDB (two real
+    // pages), while the jsdom unit suite pins the listener logic itself.
+    await other.bringToFront();
+    await other.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    const vaultSelect = other.getByTestId('vault-login-vault-select');
+    await expect(vaultSelect).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => selectValues(vaultSelect)).toEqual(['Shared Vault']);
+    const accountSelect = other.getByTestId('vault-login-account-select');
+    await expect.poll(() => selectValues(accountSelect)).toEqual(['', 'alice']);
+
+    // Unlock state is TAB-LOCAL (one tab = one in-memory session service —
+    // the A5 composition-root contract): tab A unlocks, and while tab A's
+    // own row shows Unlocked, tab B's fresh modal read still says Locked.
+    await chooseRowMenuItem(page, 'Shared Vault', 'Unlock');
+    const unlockDialog = page.getByRole('dialog').filter({
+      has: page.getByRole('heading', { name: 'Unlock vault' }),
+    });
+    await expect(unlockDialog).toBeVisible({ timeout: 15_000 });
+    await unlockDialog.getByLabel('Vault password').fill(VAULT_PASSWORD);
+    await unlockDialog.getByRole('button', { name: 'Unlock', exact: true }).click();
+    const sharedRow = modal.getByTestId('vault-row').filter({ hasText: 'Shared Vault' });
+    await expect(sharedRow.getByText('Unlocked', { exact: true })).toBeVisible({
+      timeout: 30_000,
+    });
+    await closeWorkModeModal(modal);
+
+    // Tab B (now front): the shared VAULT data is visible (the directory),
+    // but the session is not — its own manager holds no unlock for it.
+    const otherModal = await openWorkModeModal(other);
+    const otherRow = otherModal.getByTestId('vault-row').filter({ hasText: 'Shared Vault' });
+    await expect(otherRow).toBeVisible({ timeout: 15_000 });
+    await expect(otherRow.getByText('Locked', { exact: true })).toBeVisible();
+
+    // Tab B deletes the vault from the shared device storage.
+    await otherRow.getByRole('button', { name: 'Manage', exact: true }).click();
+    const deleteItem = other.getByRole('menuitem', { name: 'Delete vault' });
+    await expect(deleteItem).toBeVisible({ timeout: 15_000 });
+    await deleteItem.click();
+    const deleteDialog = other.getByRole('dialog').filter({
+      has: other.getByRole('heading', { name: 'Delete vault' }),
+    });
+    await expect(deleteDialog).toBeVisible({ timeout: 15_000 });
+    await deleteDialog.getByLabel('Vault password').fill(VAULT_PASSWORD);
+    await deleteDialog.getByRole('button', { name: 'Delete vault', exact: true }).click();
+    await expect(deleteDialog).toBeHidden({ timeout: 30_000 });
+    await expect(
+      otherModal.getByTestId('vault-row').filter({ hasText: 'Shared Vault' }),
+    ).toHaveCount(0);
+
+    // Deleting the LAST vault re-opens the three-option empty prompt (once
+    // per drawer session) layered at z-60 — and its modal layer aria-hides
+    // the Work Mode modal underneath, Close included. Dismiss it first.
+    const emptyPrompt = other.getByRole('dialog').filter({
+      has: other.getByRole('heading', { name: 'No vaults yet' }),
+    });
+    await expect(emptyPrompt).toBeVisible({ timeout: 15_000 });
+    await emptyPrompt.getByRole('button', { name: 'Continue browsing' }).click();
+    await expect(emptyPrompt).toBeHidden();
+
+    // Closing tab B's modal fires VAULT_WORK_MODE_CLOSED_EVENT over the
+    // login page mounted underneath it — the form re-reads the (now empty)
+    // shared directory without any navigation.
+    await closeWorkModeModal(otherModal);
+    await expect(other.getByTestId('vault-login-no-vaults')).toBeVisible({ timeout: 15_000 });
+
+    await other.close();
   });
 });
 

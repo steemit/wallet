@@ -452,10 +452,20 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
     modeRef.current = mode;
   }, [mode]);
 
+  // Sequence guard for the vault-list loads (A6-T6): refreshVaults re-runs
+  // after every dialog action and retry, so a slow earlier response could
+  // otherwise land after a faster later one and resurrect a stale list (or
+  // re-open the empty-state prompt from stale data). Unmount bumps the
+  // counter too, dropping whatever is still in flight.
+  const listSeqRef = useRef(0);
+
   const refreshVaults = useCallback(async () => {
     if (!manager) return;
+    const seq = listSeqRef.current + 1;
+    listSeqRef.current = seq;
     try {
       const list = await manager.listVaults();
+      if (listSeqRef.current !== seq) return;
       setVaults(list);
       setListErrorKey(null);
       setListErrorCode(null);
@@ -470,11 +480,19 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
         setEmptyDialogOpen(true);
       }
     } catch (error) {
+      if (listSeqRef.current !== seq) return;
       console.error('Failed to list vaults', error);
       setListErrorKey(vaultErrorKey(error));
       setListErrorCode(error instanceof VaultError ? error.code : null);
     }
   }, [manager]);
+
+  useEffect(() => {
+    return () => {
+      // Unmount invalidates in-flight list loads (refresh during unmount).
+      listSeqRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     if (mode === 'vault' && manager) {
@@ -754,7 +772,13 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
         onOpenChange={(next) => !next && setRenameTarget(null)}
         vaultName={renameTarget ?? ''}
         manager={manager}
-        onRenamed={() => void refreshVaults()}
+        onRenamed={() => {
+          // A successful rename invalidates any earlier row-action banner
+          // (e.g. exportSuccess) — its referent no longer exists under that
+          // name (A6-T6).
+          clearFeedback();
+          void refreshVaults();
+        }}
       />
 
       <ChangeVaultPasswordDialog
@@ -776,7 +800,12 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
         onOpenChange={(next) => !next && setDeleteTarget(null)}
         vaultName={deleteTarget ?? ''}
         manager={manager}
-        onDeleted={() => void refreshVaults()}
+        onDeleted={() => {
+          // A successful delete invalidates any earlier row-action banner
+          // (e.g. exportSuccess) — its referent is gone (A6-T6).
+          clearFeedback();
+          void refreshVaults();
+        }}
       />
 
       <CleanupIncompatibleVaultsDialog
@@ -797,6 +826,10 @@ export function VaultManagerPanel({ manager, facade, focusId }: VaultManagerPane
         vaultName={mergeTarget ?? ''}
         manager={manager}
         onMerged={(result) => {
+          // A successful merge rewrites the target's key directory (and locks
+          // it) — any earlier row-action banner is stale (A6-T6). The merge's
+          // own completion dialog takes over the feedback from here.
+          clearFeedback();
           setMergeResult(result);
           void refreshVaults();
         }}

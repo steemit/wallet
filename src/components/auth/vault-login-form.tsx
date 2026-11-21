@@ -159,19 +159,36 @@ export function VaultLoginForm({ embedded = false, onLoginSuccess }: VaultLoginF
   // LATEST request may land — a slow response for a previously selected vault
   // is dropped instead of overwriting the new selection's directory.
   const directorySeqRef = useRef(0);
+  // Same guard for the vault-LIST loads (A6-T6): refreshVaults re-runs on the
+  // Work Mode modal close and on tab visibility, so a slow earlier response
+  // (e.g. the mount load) could otherwise land after a faster later one and
+  // resurrect a stale list. Unmount bumps the counter too, dropping whatever
+  // is still in flight.
+  const listSeqRef = useRef(0);
 
   const refreshVaults = useCallback(async () => {
     if (!manager) return;
+    const seq = listSeqRef.current + 1;
+    listSeqRef.current = seq;
     try {
       const list = await manager.listVaults();
+      if (listSeqRef.current !== seq) return;
       setVaults(list);
       setListErrorKey(null);
     } catch (error) {
+      if (listSeqRef.current !== seq) return;
       console.error('Failed to list vaults for identity selection', error);
       setVaults(null);
       setListErrorKey(vaultErrorKey(error));
     }
   }, [manager]);
+
+  useEffect(() => {
+    return () => {
+      // Unmount invalidates in-flight list loads (refresh during unmount).
+      listSeqRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     if (!manager) return;

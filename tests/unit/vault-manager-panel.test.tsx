@@ -21,7 +21,7 @@
  * payload, and these tests assert the rendered tree contains none.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import {
   VaultManagerPanel,
   VaultProvider,
@@ -319,6 +319,54 @@ describe('VaultManagerPanel', () => {
     expect(screen.queryByTestId('vault-section')).not.toBeInTheDocument();
   });
 
+  it('a slow vault-list response never overwrites a newer refresh (sequence guard)', async () => {
+    // Interleaving (A6-T6): the refresh fired by the UNLOCK success handler
+    // is held in flight (slow deferred) while the LOCK row action's own
+    // refresh lands first with fresh data — the stale unlock-era response
+    // must be discarded instead of resurrecting the old list.
+    const state = makeManager([summary({ vaultName: 'Main' })]);
+    const slow = {
+      resolve: null as unknown as (value: VaultSummary[]) => void,
+      promise: null as unknown as Promise<VaultSummary[]>,
+    };
+    slow.promise = new Promise<VaultSummary[]>((resolve) => {
+      slow.resolve = resolve;
+    });
+    const listVaults = state.manager.listVaults as unknown as AnyMock;
+
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('Main')).toBeInTheDocument();
+    });
+
+    // Unlock: its success handler fires refresh #2 — hold THAT one in flight.
+    listVaults.mockImplementationOnce(() => slow.promise);
+    await chooseRowAction('actionUnlock');
+    const passwordInput = document.getElementById('vault-unlock-password') as HTMLInputElement;
+    fireEvent.change(passwordInput, { target: { value: 'the-vault-password-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'unlockButton' }));
+    await waitFor(() => {
+      expect(screen.queryByText('unlockTitle')).not.toBeInTheDocument();
+    });
+    // Activate: runRowAction awaits activateVault then refresh #3 (fast,
+    // fresh list with a second vault — as if another surface had created it;
+    // activate does not depend on the lock state the slow refresh would show).
+    state.list = [summary({ vaultName: 'Main' }), summary({ vaultName: 'Second' })];
+    await chooseRowAction('actionActivate');
+    await waitFor(() => {
+      expect(screen.getByText('Second')).toBeInTheDocument();
+    });
+
+    // The stale unlock-era response lands late with ONLY the old list — it
+    // must be dropped (without the guard 'Second' would vanish).
+    await act(async () => {
+      slow.resolve([summary({ vaultName: 'Main' })]);
+      await slow.promise;
+    });
+    expect(screen.getByText('Second')).toBeInTheDocument();
+    expect(screen.getByText('Main')).toBeInTheDocument();
+  });
+
   it('opens the three-option empty dialog for an empty vault list; continue browsing closes it', async () => {
     const state = makeManager([]);
     renderPanel(state);
@@ -474,6 +522,88 @@ describe('VaultManagerPanel', () => {
     expect(screen.queryByText('unlockedBadge')).not.toBeInTheDocument();
     // The lock is also stated explicitly as a post-export info banner.
     expect(screen.getByText('exportSuccess')).toBeInTheDocument();
+  });
+
+  // ---------------------------------------------------------------------
+  // exportSuccess banner lifecycle (A6-T6): the banner refers to a specific
+  // vault + its post-export lock; any directory mutation that invalidates
+  // its referent (rename / delete / merge) must clear it.
+  // ---------------------------------------------------------------------
+
+  it('the exportSuccess banner is cleared when its vault is RENAMED', async () => {
+    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionExport');
+    await waitFor(() => {
+      expect(screen.getByText('exportSuccess')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionRename');
+    expect(await screen.findByText('renameTitle')).toBeInTheDocument();
+    fireEvent.change(document.getElementById('vault-rename-new') as HTMLInputElement, {
+      target: { value: 'Renamed Vault' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'renameButton' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('renameTitle')).not.toBeInTheDocument();
+    });
+    // The banner no longer refers to anything: cleared by the rename.
+    await waitFor(() => {
+      expect(screen.queryByText('exportSuccess')).not.toBeInTheDocument();
+    });
+  });
+
+  it('the exportSuccess banner is cleared when its vault is DELETED', async () => {
+    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionExport');
+    await waitFor(() => {
+      expect(screen.getByText('exportSuccess')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionDelete');
+    expect(await screen.findByText('deleteTitle')).toBeInTheDocument();
+    fireEvent.change(document.getElementById('vault-delete-password') as HTMLInputElement, {
+      target: { value: 'the-vault-password-1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'deleteButton' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('deleteTitle')).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('exportSuccess')).not.toBeInTheDocument();
+    });
+  });
+
+  it('the exportSuccess banner is cleared when a MERGE lands (its own completion dialog takes over)', async () => {
+    const state = makeManager([summary({ vaultName: 'Main', locked: false })]);
+    renderPanel(state);
+    await waitFor(() => {
+      expect(screen.getByText('unlockedBadge')).toBeInTheDocument();
+    });
+
+    await chooseRowAction('actionExport');
+    await waitFor(() => {
+      expect(screen.getByText('exportSuccess')).toBeInTheDocument();
+    });
+
+    // The merge rewrites the target's directory and locks it — the stale
+    // export banner is gone while the completion dialog is in charge.
+    const dialog = await mergeToComplete(state);
+    expect(dialog).toHaveTextContent('mergeCompleteTitle');
+    await waitFor(() => {
+      expect(screen.queryByText('exportSuccess')).not.toBeInTheDocument();
+    });
   });
 
   it('mode read failure replaces the forever-spinner with the unavailable notice; retry recovers', async () => {

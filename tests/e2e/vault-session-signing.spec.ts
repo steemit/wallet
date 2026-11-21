@@ -355,8 +355,13 @@ async function createVaultViaEmptyDialog(page: Page, modal: Locator, name: strin
 
 async function openKeyManager(page: Page, modal: Locator, vaultName: string) {
   const row = modal.getByTestId('vault-row').filter({ hasText: vaultName });
+  // Cold-start hardening (A6-T6): wait for the row and the menu item to be
+  // visible BEFORE clicking (raw clicks timed out on cold compiles).
+  await expect(row).toBeVisible({ timeout: 15_000 });
   await row.getByRole('button', { name: 'Manage', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Manage keys' }).click();
+  const manageKeysItem = page.getByRole('menuitem', { name: 'Manage keys' });
+  await expect(manageKeysItem).toBeVisible({ timeout: 15_000 });
+  await manageKeysItem.click();
   const view = page.getByTestId('vault-key-manager');
   await expect(view).toBeVisible({ timeout: 15_000 });
   return view;
