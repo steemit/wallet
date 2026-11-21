@@ -4,11 +4,20 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer, { AuthState, setCredentials } from '@/lib/store/slices/auth';
 import { ClaimRewardsBanner } from '@/components/wallet/claim-rewards-banner';
-import { SteemSigner } from '@/lib/steem/client';
+import { SteemSigner, apiClient } from '@/lib/steem/client';
 import type { WalletBalanceData } from '@/lib/wallet/wallet-balance-types';
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+}));
+
+const mocks = vi.hoisted(() => ({ sign: vi.fn() }));
+
+// The session-key claim path signs through the unified entry (A6-T3b); this
+// suite drives the post-login authority gate, so the hook is stubbed at its
+// module boundary like the banner suite does.
+vi.mock('@/hooks/use-session-signing', () => ({
+  useSessionSigning: () => ({ sign: mocks.sign, dialog: null }),
 }));
 
 vi.mock('@/lib/steem/client', () => ({
@@ -33,6 +42,7 @@ vi.mock('@/components/auth/login-form', () => ({
 }));
 
 const signClaim = vi.mocked(SteemSigner.signClaimRewardBalance);
+const broadcastClaim = vi.mocked(apiClient.broadcastClaimRewardBalance);
 
 const BALANCE: WalletBalanceData = {
   balance: '10.000 STEEM',
@@ -50,6 +60,23 @@ const BALANCE: WalletBalanceData = {
   reward_sbd_balance: '0.000 SBD',
   reward_vesting_steem: '2.000 STEEM',
   reward_vesting_balance: '9.876543 VESTS',
+};
+
+/** The request the banner hands the unified entry for this balance. */
+const CLAIM_REQUEST = {
+  operations: [
+    [
+      'claim_reward_balance',
+      {
+        account: 'alice',
+        reward_steem: '0.500 STEEM',
+        reward_sbd: '0.000 SBD',
+        reward_vests: '9.876543 VESTS',
+      },
+    ],
+  ],
+  accountName: 'alice',
+  role: 'posting',
 };
 
 function makeStore(postingKey: string | null) {
@@ -91,14 +118,20 @@ describe('ClaimRewardsBanner post-login authority gate (issue #363)', () => {
     if (typeof localStorage !== 'undefined') {
       localStorage.clear();
     }
-    signClaim.mockResolvedValue({ signed: 'tx' } as never);
+    mocks.sign.mockResolvedValue({
+      status: 'signed',
+      result: { signedTx: { signed: 'tx' } },
+    });
   });
 
   it('closes the dialog when the login carries an active key (chain accepts it), and the next click claims', async () => {
     // Posting-class ops accept posting, active, or owner authority on chain,
     // so an active-only login is a fully capable session for claiming — the
-    // dialog must close and the claim must sign with the active key.
+    // dialog must close and the claim must reach the unified entry.
     const { store } = renderBanner(null);
+    // Keyless session: the unified entry reports needsClassicReauth and the
+    // posting re-auth dialog opens.
+    mocks.sign.mockResolvedValueOnce({ status: 'needsClassicReauth' });
     fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
 
@@ -113,14 +146,13 @@ describe('ClaimRewardsBanner post-login authority gate (issue #363)', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
-    await waitFor(() => expect(signClaim).toHaveBeenCalledTimes(1));
-    expect(signClaim).toHaveBeenCalledWith(
-      'alice',
-      '0.500 STEEM',
-      '0.000 SBD',
-      '9.876543 VESTS',
-      '5K-active-only'
-    );
+    // The refreshed session's key signs through the unified entry (which key
+    // exactly is the hook's posting-floor resolution, pinned in its own
+    // suite); the remembered-key direct path stays untouched.
+    await waitFor(() => expect(mocks.sign).toHaveBeenCalledTimes(2));
+    expect(mocks.sign).toHaveBeenLastCalledWith(CLAIM_REQUEST);
+    expect(signClaim).not.toHaveBeenCalled();
+    await waitFor(() => expect(broadcastClaim).toHaveBeenCalledTimes(1));
   });
 
   it('keeps the dialog open with explicit guidance when the login carries no signing key at all', async () => {
@@ -128,6 +160,7 @@ describe('ClaimRewardsBanner post-login authority gate (issue #363)', () => {
     // operation), so the dialog must stay open with explicit guidance
     // instead of looping silently.
     const { store } = renderBanner(null);
+    mocks.sign.mockResolvedValueOnce({ status: 'needsClassicReauth' });
     fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
 
@@ -139,10 +172,12 @@ describe('ClaimRewardsBanner post-login authority gate (issue #363)', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('claimNeedPostingKey');
     expect(signClaim).not.toHaveBeenCalled();
+    expect(broadcastClaim).not.toHaveBeenCalled();
   });
 
   it('closes the dialog when the login carries a posting key, and the next click claims', async () => {
     const { store } = renderBanner(null);
+    mocks.sign.mockResolvedValueOnce({ status: 'needsClassicReauth' });
     fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
 
@@ -155,14 +190,10 @@ describe('ClaimRewardsBanner post-login authority gate (issue #363)', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'claimRewards' }));
-    await waitFor(() => expect(signClaim).toHaveBeenCalledTimes(1));
-    expect(signClaim).toHaveBeenCalledWith(
-      'alice',
-      '0.500 STEEM',
-      '0.000 SBD',
-      '9.876543 VESTS',
-      '5J-fresh-posting'
-    );
+    await waitFor(() => expect(mocks.sign).toHaveBeenCalledTimes(2));
+    expect(mocks.sign).toHaveBeenLastCalledWith(CLAIM_REQUEST);
+    expect(signClaim).not.toHaveBeenCalled();
+    await waitFor(() => expect(broadcastClaim).toHaveBeenCalledTimes(1));
   });
 
   it('signs only once on a rapid double-click', async () => {
@@ -170,6 +201,7 @@ describe('ClaimRewardsBanner post-login authority gate (issue #363)', () => {
     const button = screen.getByRole('button', { name: 'claimRewards' });
     fireEvent.click(button);
     fireEvent.click(button);
-    await waitFor(() => expect(signClaim).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.sign).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(broadcastClaim).toHaveBeenCalledTimes(1));
   });
 });

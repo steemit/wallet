@@ -268,6 +268,27 @@ describe('resolveSessionSigningRole (lowest key at-or-above the floor)', () => {
       resolveSessionSigningRole({ ownerKey: null, activeKey: 'b', postingKey: null }, 'posting'),
     ).toBe('active');
   });
+
+  it('a posting floor resolves the full posting -> active -> owner chain (A6-T3b claim floor)', () => {
+    // The claim-rewards banner's #378 session-key remainder: posting first,
+    // then active, then owner — the same least-privilege order the banner
+    // hardcoded before the unified entry took over the session-key cases.
+    expect(
+      resolveSessionSigningRole(
+        { ownerKey: 'o', activeKey: 'a', postingKey: 'p' },
+        'posting',
+      ),
+    ).toBe('posting');
+    expect(
+      resolveSessionSigningRole({ ownerKey: 'o', activeKey: 'a', postingKey: null }, 'posting'),
+    ).toBe('active');
+    expect(
+      resolveSessionSigningRole({ ownerKey: 'o', activeKey: null, postingKey: null }, 'posting'),
+    ).toBe('owner');
+    expect(
+      resolveSessionSigningRole({ ownerKey: null, activeKey: null, postingKey: null }, 'posting'),
+    ).toBeNull();
+  });
 });
 
 describe('useSessionSigning — privateKey sessions (dialogless)', () => {

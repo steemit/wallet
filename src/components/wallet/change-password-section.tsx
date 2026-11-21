@@ -4,11 +4,14 @@ import { FormEvent, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
+import { useSelector } from 'react-redux';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { clearRememberedPostingKey } from '@/lib/auth/browser-storage';
 import { useAuth } from '@/hooks/use-auth';
 import { useSteemAccount } from '@/hooks/use-steem-account';
-import { SteemSigner, apiClient } from '@/lib/steem/client';
+import { useSessionSigning } from '@/hooks/use-session-signing';
+import { sessionKindOf } from '@/lib/store/slices/auth';
+import { apiClient } from '@/lib/steem/client';
 import {
   buildAccountUpdateForPasswordChange,
   generateNewMasterPassword,
@@ -21,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { userActionRecord } from '@/lib/analytics/overseer';
+import type { RootState } from '@/lib/store';
 
 export interface ChangePasswordSectionProps {
   username: string;
@@ -39,6 +43,14 @@ export function ChangePasswordSection({
   const router = useRouter();
   const { logout } = useAuth();
   const { data: account, loading, error } = useSteemAccount(username);
+  // Unified signing entry (A6-T3b): account_update carrying new authorities
+  // is owner-class, so the request floors at 'owner'. The vault password the
+  // signing dialog asks for is the VAULT password — a completely different
+  // secret from the ACCOUNT password this form collects (the account
+  // password derives and verifies the NEW keys; it never unlocks anything).
+  const signing = useSessionSigning();
+  const isVaultSession =
+    useSelector((state: RootState) => sessionKindOf(state.auth)) === 'vault';
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
@@ -93,13 +105,41 @@ export function ChangePasswordSection({
         return;
       }
 
-      const { operation, signingKey } = buildAccountUpdateForPasswordChange(
+      // The operation tuple is byte-identical to what the previous
+      // SteemSigner.signAccountUpdate path signed (buildAccountUpdateForPasswordChange
+      // already returns the chain-normalized payload). The signing key comes
+      // from the unified entry: privateKey sessions sign with the SESSION
+      // owner key, vault sessions through the per-key password dialog.
+      const { operation } = buildAccountUpdateForPasswordChange(
         account,
         currentPassword.trim(),
         generatedPassword
       );
-      const signedTx = await SteemSigner.signAccountUpdate(operation, signingKey);
-      const result = await apiClient.broadcastAccountUpdate(signedTx, username);
+      const outcome = await signing.sign({
+        operations: [operation],
+        accountName: username,
+        role: 'owner',
+      });
+      if (outcome.status === 'cancelled') {
+        // User aborted the vault password dialog — quiet no-op, the filled-in
+        // form stays exactly as it was.
+        return;
+      }
+      if (outcome.status === 'needsClassicReauth') {
+        // privateKey session without an owner key: the account password above
+        // cannot stand in for the session's signing key.
+        setSubmitError(t('ownerKeySessionRequired'));
+        return;
+      }
+      if (outcome.status === 'error') {
+        setSubmitError(t('signingFailed'));
+        return;
+      }
+
+      const result = await apiClient.broadcastAccountUpdate(
+        outcome.result.signedTx,
+        username
+      );
 
       if (!result.success) {
         const message =
@@ -193,6 +233,8 @@ export function ChangePasswordSection({
 
   return (
     <div className="ChangePasswordPage max-w-2xl space-y-6">
+      {/* Vault password dialog for vault identity sessions (A6-T3b). */}
+      {signing.dialog}
       {!embedded && (
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h1>
@@ -304,6 +346,12 @@ export function ChangePasswordSection({
             <Loader2 className="size-4 animate-spin" />
             {tCommon('loading')}
           </div>
+        )}
+
+        {isVaultSession && (
+          <p className="text-muted-foreground text-xs leading-relaxed" role="note">
+            {t('vaultPasswordNote')}
+          </p>
         )}
 
         {submitError && (

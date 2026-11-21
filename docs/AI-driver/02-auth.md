@@ -102,7 +102,10 @@ mainnet blocks. This is consensus truth, not wallet policy — build key-selecti
   for that op. The claim banner (#378) resolves
   session posting → device-remembered posting (chain-verified; privateKey sessions only — a
   vault session skips it, see 09-vault.md invariant 21) → session active → session owner
-  → re-auth dialog. Re-auth dialog copy keeps asking for the minimal key (posting key /
+  → re-auth dialog. Since A6-T3b the session-key steps ride `useSessionSigning` at the
+  posting floor (which applies exactly this posting→active→owner resolution for privateKey
+  sessions) while the remembered-key branch keeps signing directly with the restored key.
+  Re-auth dialog copy keeps asking for the minimal key (posting key /
   password) as a habit, while accepting higher keys, which the chain honors.
 - `LoginForm.requiredAuthTypes` (#338) models exactly the chain signing hierarchy:
   `covers('posting') = posting || active || owner`, `covers('active') = active || owner`,
@@ -131,8 +134,12 @@ route does this; copy that pattern, do not let a parse throw reach the outer cat
 ## Private keys on the client
 
 - Client signing goes through `useSessionSigning` (the unified entry — the callers migrated in
-  A6-T2/T3a: transfer plus the eight wallet operations) or directly through `SteemSigner`
-  (`client.ts`) for the remaining T3b/T4 callers, the login challenge and the recovery pages.
+  A6-T2/T3a/T3b: transfer, the eight active-class wallet operations, and the four remaining
+  wallet-domain callers: claim rewards, communities, change password, recovery warning) or
+  directly through `SteemSigner` (`client.ts`) for the T4 callers (market/proposals/witnesses),
+  the login challenge, the recovery pages, and the two no-session-key remnants (the claim
+  banner's remembered-posting-key branch and the communities hivemind setup ops — see
+  09-vault.md's "who still signs directly" inventory).
   Key material never enters request bodies, Redux actions other than `auth/setCredentials`, or
   console output.
 - Redux DevTools sanitizers (`store/index.ts`) cover `auth/setCredentials` — **the only action

@@ -300,6 +300,89 @@ describe('vault signer (per-key hierarchy)', () => {
       ).toBe('active');
     });
 
+    it('classifies the A6-T3b wallet-operation shapes at the floors their callers pass', () => {
+      // claim-rewards-banner: full pending-amounts tuple, posting floor.
+      expect(
+        resolveRequiredAuthorityClass([
+          [
+            'claim_reward_balance',
+            {
+              account: 'alice',
+              reward_steem: '0.500 STEEM',
+              reward_sbd: '0.000 SBD',
+              reward_vests: '9.876543 VESTS',
+            },
+          ],
+        ]),
+      ).toBe('posting');
+      // communities-section: account_create is a table entry (active floor).
+      expect(
+        resolveRequiredAuthorityClass([
+          [
+            'account_create',
+            {
+              fee: '3.000 STEEM',
+              creator: 'alice',
+              new_account_name: 'hive-123456',
+              owner: authority([[alicePublicKey, 1]]),
+              active: authority([[alicePublicKey, 1]]),
+              posting: authority([[alicePublicKey, 1]]),
+              memo_key: alicePublicKey,
+              json_metadata: '',
+            },
+          ],
+        ]),
+      ).toBe('active');
+      // communities-section: the hivemind community custom_json ops carry
+      // required_posting_auths only — payload-based posting floor (the
+      // subscribe op the section signs as the creator has the same shape).
+      for (const actor of ['alice', 'hive-123456']) {
+        expect(
+          resolveRequiredAuthorityClass([
+            [
+              'custom_json',
+              {
+                required_auths: [],
+                required_posting_auths: [actor],
+                id: 'community',
+                json: JSON.stringify(['subscribe', { community: 'hive-123456' }]),
+              },
+            ],
+          ]),
+        ).toBe('posting');
+      }
+      // change-password-section: account_update rotating ALL authorities
+      // (owner included) is owner-class by payload inspection.
+      expect(
+        resolveRequiredAuthorityClass([
+          [
+            'account_update',
+            {
+              account: 'alice',
+              owner: authority([[alicePublicKey, 1]]),
+              active: authority([[alicePublicKey, 1]]),
+              posting: authority([[alicePublicKey, 1]]),
+              memo_key: alicePublicKey,
+              json_metadata: '',
+            },
+          ],
+        ]),
+      ).toBe('owner');
+      // recovery-warning-banner: change_recovery_account stays owner-class.
+      expect(
+        resolveRequiredAuthorityClass([
+          [
+            'change_recovery_account',
+            {
+              account_to_recover: 'alice',
+              new_recovery_account: 'steem',
+              extensions: [],
+            },
+          ],
+        ]),
+      ).toBe('owner');
+    });
+
     it('mixed operations require the most privileged class; garbage fails closed', () => {
       expect(resolveRequiredAuthorityClass([postingOp('alice'), activeOp('alice')])).toBe('active');
       const expectClassifierRejection = (operations: unknown[]): void => {

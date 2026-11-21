@@ -4,9 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/lib/store';
-import { SteemSigner, apiClient } from '@/lib/steem/client';
+import { sessionKindOf } from '@/lib/store/slices/auth';
+import { useSessionSigning } from '@/hooks/use-session-signing';
+import { apiClient } from '@/lib/steem/client';
 import { fetchAccounts } from '@/lib/steem/accounts-client';
 import { clientCache } from '@/lib/cache/client-cache';
+import type { Operation } from '@/lib/steem/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -181,6 +184,13 @@ function ChangeRecoveryAccountDialog({
 }) {
   const t = useTranslations('wallet.changeRecoveryAccount');
   const ownerKey = useSelector((state: RootState) => state.auth.ownerKey);
+  // Unified signing entry (A6-T3b): change_recovery_account is owner-class;
+  // privateKey sessions sign with the session owner key (this dialog's
+  // historical key), vault identity sessions through the per-key password
+  // dialog mounted below.
+  const signing = useSessionSigning();
+  const isVaultSession =
+    useSelector((state: RootState) => sessionKindOf(state.auth)) === 'vault';
   const [newAccount, setNewAccount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -193,19 +203,47 @@ function ChangeRecoveryAccountDialog({
       setError(t('required'));
       return;
     }
-    if (!ownerKey) {
+    if (!ownerKey && !isVaultSession) {
       setError(t('ownerKeyRequired'));
       return;
     }
     setSubmitting(true);
     try {
-      const signedTx = await SteemSigner.signChangeRecoveryAccount(
-        pending.accountToRecover,
-        target,
-        ownerKey
-      );
+      // Byte-identical to what SteemSigner.signChangeRecoveryAccount built.
+      const operations: Operation[] = [
+        [
+          'change_recovery_account',
+          {
+            account_to_recover: pending.accountToRecover,
+            new_recovery_account: target,
+            extensions: [],
+          },
+        ],
+      ];
+      const outcome = await signing.sign({
+        operations,
+        accountName: pending.accountToRecover,
+        role: 'owner',
+      });
+      if (outcome.status === 'cancelled') {
+        // User aborted the vault password dialog — quiet no-op, this dialog
+        // stays open with the typed account.
+        setSubmitting(false);
+        return;
+      }
+      if (outcome.status === 'needsClassicReauth') {
+        setSubmitting(false);
+        setError(t('ownerKeyRequired'));
+        return;
+      }
+      if (outcome.status === 'error') {
+        setSubmitting(false);
+        setError(t('failed'));
+        return;
+      }
+
       const res = await apiClient.broadcastChangeRecoveryAccount(
-        signedTx,
+        outcome.result.signedTx,
         pending.accountToRecover
       );
       if (!res.success) {
@@ -224,6 +262,8 @@ function ChangeRecoveryAccountDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
+        {/* Vault password dialog for vault identity sessions (A6-T3b). */}
+        {signing.dialog}
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>{t('faqHint')}</DialogDescription>
@@ -257,12 +297,12 @@ function ChangeRecoveryAccountDialog({
               disabled={submitting}
             />
           </div>
-          {!ownerKey && (
+          {!ownerKey && !isVaultSession && (
             <p className="text-muted-foreground text-sm">{t('ownerKeyRequired')}</p>
           )}
           {error && <p className="text-destructive text-sm">{error}</p>}
           <div className="flex gap-2">
-            <Button type="submit" disabled={submitting || !ownerKey}>
+            <Button type="submit" disabled={submitting || (!ownerKey && !isVaultSession)}>
               {submitting ? t('submitting') : t('submit')}
             </Button>
             <Button
